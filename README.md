@@ -1,12 +1,9 @@
 # 1Flowbase Official Plugins
 
-[中文](#中文) | [English](#english)
-
 ---
 
 ## 中文
 
-[切换到 English](#english)
 
 `1Flowbase` 官方 provider 插件仓库。
 
@@ -75,77 +72,3 @@ provider 打包由主仓库负责执行：
 - `https://github.com/taichuy/1flowbase`
 
 发布 workflow 会检出这个主仓库，并使用其中的插件打包 CLI 生成 `.1flowbasepkg` 产物。
-
----
-
-## English
-
-[Switch to 中文](#中文)
-
-Official provider plugin repository for `1Flowbase`.
-
-This repository contains:
-
-- official provider plugin source code
-- release and packaging automation
-- the official plugin registry in `official-registry.json`
-
-## Repository Layout
-
-- `models/`: provider plugin source directories
-- `official-registry.json`: published plugin catalog metadata
-- `scripts/`: registry and release helper scripts
-- `.github/workflows/`: CI and release automation
-
-Each provider lives under `models/<provider_code>/` and typically includes:
-
-- `manifest.yaml`: plugin metadata and version
-- `provider/`: provider contract definition and runtime implementation
-- `models/`: bundled model metadata
-- `i18n/`: UI labels and descriptions
-- `readme/`: provider-specific documentation
-- `demo/`: local demo assets
-
-## Current Official Provider
-
-- `openai_compatible`: OpenAI-compatible API provider plugin
-
-## Release Flow
-
-This repository currently uses two GitHub Actions workflows:
-
-- `provider-ci`: runs on pull requests and pushes to `main`, validates the registry JSON, dry-runs provider packaging, and runs script tests
-- `provider-release`: runs on pushes to `main` when `models/**/manifest.yaml` changes
-
-Formal releases are version-driven:
-
-1. Update the provider implementation.
-2. Bump `version:` in `models/<provider_code>/manifest.yaml`.
-3. Merge the change into `main`.
-4. GitHub Actions automatically:
-   - detects which providers changed version
-   - creates or reuses the release tag `<provider_code>-v<version>`
-   - packages the provider as `.1flowbasepkg`
-   - publishes the GitHub Release asset
-   - updates `official-registry.json`
-
-If code changes but the provider version does not change, no formal release is published.
-
-## Adding A New Provider
-
-1. Create a new directory under `models/<provider_code>/`.
-2. Add at minimum:
-   - `manifest.yaml`
-   - `provider/<provider_code>.yaml`
-   - `provider/<provider_code>.js`
-3. Add any required `models/`, `i18n/`, `readme/`, and `demo/` files.
-4. Ensure `provider-ci` passes.
-5. Bump the provider `version` when you want the plugin to be formally released.
-
-## Host Project Dependency
-
-Provider packaging is performed by the host repository:
-
-- `https://github.com/taichuy/1flowbase`
-
-The release workflow checks out that repository and uses its plugin packaging CLI to produce `.1flowbasepkg` artifacts.
