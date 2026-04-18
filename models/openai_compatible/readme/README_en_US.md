@@ -1,15 +1,15 @@
-# OpenAI Compatible
+# OpenAI-Compatible API Provider
 
-`openai_compatible` is the first official reference provider plugin for 1Flowse.
+`openai_compatible` is an official 1Flowbase provider plugin for services that expose an OpenAI-compatible API surface.
 
-It targets OpenAI-style APIs that expose:
+It is not limited to OpenAI's hosted service. It targets providers that expose:
 
 - `GET /models`
 - `POST /chat/completions`
 
 The plugin keeps the host boundary stable:
 
-- 1Flowse owns installation, assignment, provider instances, secret storage, and runtime governance.
+- 1Flowbase owns installation, assignment, provider instances, secret storage, and runtime governance.
 - This plugin owns protocol translation, model discovery, usage normalization, and error shaping.
 
 ## Supported Configuration

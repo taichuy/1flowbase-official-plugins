@@ -7,17 +7,17 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   const registry = { version: 1, generated_at: null, plugins: [] };
 
   const next = upsertRegistryEntry(registry, {
-    plugin_id: '1flowse.openai_compatible',
+    plugin_id: '1flowbase.openai_compatible',
     provider_code: 'openai_compatible',
-    display_name: 'OpenAI Compatible',
+    display_name: 'OpenAI-Compatible API Provider',
     protocol: 'openai_compatible',
     latest_version: '0.1.0',
     release_tag: 'openai_compatible-v0.1.0',
     download_url:
-      'https://github.com/taichuy/1flowse-official-plugins/releases/download/openai_compatible-v0.1.0/pkg.1flowsepkg',
+      'https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.1.0/pkg.1flowbasepkg',
     checksum: 'sha256:abc123',
     signature_status: 'unsigned',
-    help_url: 'https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible',
+    help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
     model_discovery_mode: 'hybrid',
   });
 
@@ -31,13 +31,13 @@ test('upsertRegistryEntry replaces an existing plugin entry and keeps plugin_id 
     generated_at: '2026-04-18T00:00:00.000Z',
     plugins: [
       {
-        plugin_id: '1flowse.z_provider',
+        plugin_id: '1flowbase.z_provider',
         provider_code: 'z_provider',
         latest_version: '0.0.1',
         release_tag: 'z_provider-v0.0.1',
       },
       {
-        plugin_id: '1flowse.openai_compatible',
+        plugin_id: '1flowbase.openai_compatible',
         provider_code: 'openai_compatible',
         latest_version: '0.0.1',
         release_tag: 'openai_compatible-v0.0.1',
@@ -46,24 +46,24 @@ test('upsertRegistryEntry replaces an existing plugin entry and keeps plugin_id 
   };
 
   const next = upsertRegistryEntry(registry, {
-    plugin_id: '1flowse.openai_compatible',
+    plugin_id: '1flowbase.openai_compatible',
     provider_code: 'openai_compatible',
-    display_name: 'OpenAI Compatible',
+    display_name: 'OpenAI-Compatible API Provider',
     protocol: 'openai_compatible',
     latest_version: '0.1.0',
     release_tag: 'openai_compatible-v0.1.0',
     download_url:
-      'https://github.com/taichuy/1flowse-official-plugins/releases/download/openai_compatible-v0.1.0/pkg.1flowsepkg',
+      'https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.1.0/pkg.1flowbasepkg',
     checksum: 'sha256:def456',
     signature_status: 'unsigned',
-    help_url: 'https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible',
+    help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
     model_discovery_mode: 'hybrid',
   });
 
   assert.equal(next.plugins.length, 2);
   assert.deepEqual(
     next.plugins.map((item) => item.plugin_id),
-    ['1flowse.openai_compatible', '1flowse.z_provider']
+    ['1flowbase.openai_compatible', '1flowbase.z_provider']
   );
   assert.equal(next.plugins[0].latest_version, '0.1.0');
   assert.equal(next.plugins[0].checksum, 'sha256:def456');

@@ -2,15 +2,56 @@ name: provider-release
 
 on:
   push:
-    tags:
-      - '*-v*'
+    branches:
+      - main
+    paths:
+      - 'models/**/manifest.yaml'
 
 permissions:
   contents: write
 
+concurrency:
+  group: provider-release-main
+  cancel-in-progress: false
+
 jobs:
-  release:
+  detect-release-providers:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      has_releases: ${{ steps.detect.outputs.has_releases }}
+    steps:
+      - name: Checkout official plugins repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Detect providers with version changes
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
+          release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${matrix_json}")"
+          echo "matrix=${matrix_json}" >> "${GITHUB_OUTPUT}"
+          if [ "${release_count}" -gt 0 ]; then
+            echo "has_releases=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_releases=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  release-provider:
+    needs: detect-release-providers
+    if: needs.detect-release-providers.outputs.has_releases == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-release-providers.outputs.matrix) }}
     steps:
       - name: Checkout official plugins repo
         uses: actions/checkout@v4
@@ -20,7 +61,7 @@ jobs:
       - name: Checkout host repo
         uses: actions/checkout@v4
         with:
-          repository: taichuy/1flowse
+          repository: taichuy/1flowbase
           path: host
 
       - name: Setup Node.js
@@ -28,41 +69,43 @@ jobs:
         with:
           node-version: 22
 
-      - name: Parse release tag
-        id: release
+      - name: Ensure release tag points at current commit
+        env:
+          TAG_NAME: ${{ matrix.release_tag }}
+          TARGET_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          provider_code="${tag%-v*}"
-          version="${tag##*-v}"
-          plugin_dir="models/${provider_code}"
+          git fetch --tags origin
+          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}" | awk '{print $1}')"
 
-          if [ ! -d "${plugin_dir}" ]; then
-            echo "Unknown provider directory: ${plugin_dir}" >&2
-            exit 1
+          if [ -n "${remote_tag_sha}" ]; then
+            if [ "${remote_tag_sha}" != "${TARGET_SHA}" ]; then
+              echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}, expected ${TARGET_SHA}." >&2
+              exit 1
+            fi
+
+            exit 0
           fi
 
-          grep -q "^version: ${version}$" "${plugin_dir}/manifest.yaml"
-
-          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
-          echo "provider_code=${provider_code}" >> "${GITHUB_OUTPUT}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
-          echo "plugin_dir=${plugin_dir}" >> "${GITHUB_OUTPUT}"
+          git tag "${TAG_NAME}" "${TARGET_SHA}"
+          git push origin "refs/tags/${TAG_NAME}"
 
       - name: Package provider artifact
-        run: node host/scripts/node/plugin.js package ${{ steps.release.outputs.plugin_dir }} --out dist
+        run: node host/scripts/node/plugin.js package ${{ matrix.plugin_dir }} --out dist
 
       - name: Resolve package metadata
         id: package
+        env:
+          RELEASE_TAG: ${{ matrix.release_tag }}
         shell: bash
         run: |
           set -euo pipefail
-          package_file="$(ls dist/*.1flowsepkg)"
+          package_file="$(ls dist/*.1flowbasepkg)"
           package_name="$(basename "${package_file}")"
           checksum="${package_name##*@}"
-          checksum="${checksum%.1flowsepkg}"
-          download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${{ steps.release.outputs.tag }}/${package_name}"
+          checksum="${checksum%.1flowbasepkg}"
+          download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
 
           echo "package_file=${package_file}" >> "${GITHUB_OUTPUT}"
           echo "package_name=${package_name}" >> "${GITHUB_OUTPUT}"
@@ -72,10 +115,10 @@ jobs:
       - name: Build registry entry
         id: registry
         env:
-          PLUGIN_DIR: ${{ steps.release.outputs.plugin_dir }}
-          PROVIDER_CODE: ${{ steps.release.outputs.provider_code }}
-          VERSION: ${{ steps.release.outputs.version }}
-          TAG_NAME: ${{ steps.release.outputs.tag }}
+          PLUGIN_DIR: ${{ matrix.plugin_dir }}
+          PROVIDER_CODE: ${{ matrix.provider_code }}
+          VERSION: ${{ matrix.version }}
+          TAG_NAME: ${{ matrix.release_tag }}
           DOWNLOAD_URL: ${{ steps.package.outputs.download_url }}
           CHECKSUM: ${{ steps.package.outputs.checksum }}
         shell: bash
@@ -105,7 +148,7 @@ jobs:
 
           console.log(
             JSON.stringify({
-              plugin_id: `1flowse.${providerCode}`,
+              plugin_id: `1flowbase.${providerCode}`,
               provider_code: providerCode,
               display_name: displayName,
               protocol,
@@ -124,13 +167,55 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release.outputs.tag }}
+          tag_name: ${{ matrix.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ matrix.provider_code }} v${{ matrix.version }}
           files: ${{ steps.package.outputs.package_file }}
+          overwrite_files: true
+
+      - name: Save registry entry artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p registry-entry
+          cat <<'EOF' > "registry-entry/${{ matrix.provider_code }}.json"
+          ${{ steps.registry.outputs.entry_json }}
+          EOF
+
+      - name: Upload registry entry artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-entry-${{ matrix.provider_code }}
+          path: registry-entry/${{ matrix.provider_code }}.json
+          if-no-files-found: error
+
+  update-official-registry:
+    needs:
+      - detect-release-providers
+      - release-provider
+    if: needs.detect-release-providers.outputs.has_releases == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout official plugins repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download registry entry artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: registry-entry-*
+          merge-multiple: true
+          path: registry-entries
 
       - name: Update official registry on default branch
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          REGISTRY_ENTRY_JSON: ${{ steps.registry.outputs.entry_json }}
         shell: bash
         run: |
           set -euo pipefail
@@ -138,7 +223,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin "${DEFAULT_BRANCH}"
           git switch --create registry-update "origin/${DEFAULT_BRANCH}"
-          node scripts/update-official-registry.mjs official-registry.json "${REGISTRY_ENTRY_JSON}"
+          shopt -s nullglob
+          entry_files=(registry-entries/*.json)
+
+          if [ "${#entry_files[@]}" -eq 0 ]; then
+            echo "No registry entry artifacts were produced." >&2
+            exit 1
+          fi
+
+          for entry_file in "${entry_files[@]}"; do
+            entry_json="$(tr -d '\n' < "${entry_file}")"
+            node scripts/update-official-registry.mjs official-registry.json "${entry_json}"
+          done
 
           if git diff --quiet -- official-registry.json; then
             echo "official-registry.json unchanged; skipping commit."
@@ -146,5 +242,5 @@ jobs:
           fi
 
           git add official-registry.json
-          git commit -m "chore: update official plugin registry for ${GITHUB_REF_NAME}"
+          git commit -m "chore: update official plugin registry for version changes"
           git push origin HEAD:"${DEFAULT_BRANCH}"
