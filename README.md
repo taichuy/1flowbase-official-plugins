@@ -1,11 +1,11 @@
-# 1Flowbase Official Plugins
+# 1flowbase Official Plugins
 
 ---
 
 ## 中文
 
 
-`1Flowbase` 官方 provider 插件仓库。
+`1flowbase` 官方 provider 插件仓库。
 
 这个仓库承载：
 
