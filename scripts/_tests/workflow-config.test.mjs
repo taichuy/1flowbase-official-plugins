@@ -27,7 +27,10 @@ test('provider-release validates signing secrets before tagging releases', () =>
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 
   assert.match(workflow, /- name: Validate signing configuration/);
-  assert.match(workflow, /OFFICIAL_PLUGIN_SIGNING_KEY_PEM: \$\{\{ secrets\.OFFICIAL_PLUGIN_SIGNING_KEY_PEM \}\}/);
+  assert.match(
+    workflow,
+    /OFFICIAL_PLUGIN_SIGNING_KEY_PEM: \$\{\{ secrets\.OFFICIAL_PLUGIN_SIGNING_KEY_PEM \|\| secrets\.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM \}\}/
+  );
   assert.match(workflow, /OFFICIAL_PLUGIN_SIGNING_KEY_ID: \$\{\{ secrets\.OFFICIAL_PLUGIN_SIGNING_KEY_ID \}\}/);
 
   assert.ok(
