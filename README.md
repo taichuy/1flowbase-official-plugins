@@ -43,6 +43,8 @@
 
 正式发布由版本号驱动：
 
+`manifest.yaml` 是 provider 发布版本的唯一维护位置。`Cargo.toml` 中的 `version` 仅用于满足 Cargo 对包元数据的要求，不参与插件发布版本管理。
+
 1. 修改 provider 实现代码。
 2. 更新 `models/<provider_code>/manifest.yaml` 中的 `version:`。
 3. 将变更合并到 `main`。

@@ -9,21 +9,6 @@ function readRepoFile(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
-function readVersionFromYaml(content) {
-  const match = content.match(/^version:\s*(.+)$/m);
-  return match ? match[1].trim() : null;
-}
-
-function readVersionFromCargoToml(content) {
-  const packageSection = content.match(/\[package\][\s\S]*?(?=\n\[|$)/);
-  if (!packageSection) {
-    return null;
-  }
-
-  const match = packageSection[0].match(/^version\s*=\s*"(.+)"$/m);
-  return match ? match[1] : null;
-}
-
 test('provider-ci uses cross for musl dry-run builds', () => {
   const workflow = readRepoFile('.github/workflows/provider-ci.yml');
 
@@ -51,9 +36,14 @@ test('provider-release validates signing secrets before tagging releases', () =>
   );
 });
 
-test('openai_compatible Cargo package version matches manifest version', () => {
-  const manifestVersion = readVersionFromYaml(readRepoFile('models/openai_compatible/manifest.yaml'));
-  const cargoVersion = readVersionFromCargoToml(readRepoFile('models/openai_compatible/Cargo.toml'));
+test('manifest.yaml is the single release version source for openai_compatible', () => {
+  const cargoToml = readRepoFile('models/openai_compatible/Cargo.toml');
+  const readme = readRepoFile('README.md');
 
-  assert.equal(cargoVersion, manifestVersion);
+  assert.match(
+    cargoToml,
+    /# Cargo requires a package version, but plugin release version is sourced from manifest\.yaml\./
+  );
+  assert.match(cargoToml, /^version\s*=\s*"0\.0\.0"$/m);
+  assert.match(readme, /`manifest\.yaml` 是 provider 发布版本的唯一维护位置/);
 });
