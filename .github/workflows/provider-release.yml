@@ -153,7 +153,7 @@ jobs:
             checksum="$(sha256sum "${package_file}" | awk '{print $1}')"
             download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
 
-            artifacts_json="$(node --input-type=module -e "const current = JSON.parse(process.argv[1]); current.push({ os: process.argv[2], arch: process.argv[3], libc: process.argv[4], rust_target: process.argv[5], download_url: process.argv[6], checksum: \`sha256:${process.argv[7]}\`, signature_algorithm: 'ed25519', signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID }); process.stdout.write(JSON.stringify(current));" "${artifacts_json}" "${os}" "${arch}" "${libc}" "${rust_target}" "${download_url}" "${checksum}")"
+            artifacts_json="$(node --input-type=module -e 'const current = JSON.parse(process.argv[1]); current.push({ os: process.argv[2], arch: process.argv[3], libc: process.argv[4], rust_target: process.argv[5], download_url: process.argv[6], checksum: "sha256:" + process.argv[7], signature_algorithm: "ed25519", signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID }); process.stdout.write(JSON.stringify(current));' "${artifacts_json}" "${os}" "${arch}" "${libc}" "${rust_target}" "${download_url}" "${checksum}")"
           done
 
           echo "artifacts_json=${artifacts_json}" >> "${GITHUB_OUTPUT}"

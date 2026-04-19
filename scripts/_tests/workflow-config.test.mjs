@@ -48,6 +48,8 @@ test('provider-release extracts package metadata from plugin CLI output instead 
     /package_file="\$\(printf '%s\\n' "\$\{package_output\}" \| sed -n 's\/\.\*Plugin package created at \/\/p' \| tail -n 1\)"/
   );
   assert.match(workflow, /checksum="\$\(sha256sum "\$\{package_file\}" \| awk '\{print \$1\}'\)"/);
+  assert.match(workflow, /checksum: "sha256:" \+ process\.argv\[7\]/);
+  assert.doesNotMatch(workflow, /checksum: `sha256:\$\{process\.argv\[7\]\}`/);
 });
 
 test('manifest.yaml is the single release version source for openai_compatible', () => {
