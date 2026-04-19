@@ -33,6 +33,21 @@ The plugin uses `hybrid` discovery:
 
 This means the host can show one safe default option immediately and replace or extend it with the live catalog after validation.
 
+## LLM Parameter Schema
+
+When the host refreshes the dynamic model catalog, this plugin now returns a `parameter_form`
+schema for each discovered chat model.
+
+The first schema revision exposes these standard OpenAI-compatible parameters:
+
+- `temperature`
+- `top_p`
+- `max_tokens`
+- `seed`
+
+At invocation time, the plugin reads these values from `model_parameters` and forwards them to
+`POST /chat/completions`. `response_format` continues to pass through unchanged.
+
 ## Local Demo
 
 1. Start `plugin-runner`.

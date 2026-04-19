@@ -1,6 +1,14 @@
 'use strict';
 
 const DEFAULT_VALIDATE_MODEL = true;
+const PARAMETER_FORM_SCHEMA_VERSION = '1.0.0';
+const RESERVED_INVOCATION_PARAMETER_KEYS = new Set([
+  'model',
+  'messages',
+  'stream',
+  'response_format',
+  'tools',
+]);
 
 function assertFetchAvailable() {
   if (typeof fetch !== 'function') {
@@ -128,10 +136,87 @@ function normalizeModelEntry(entry) {
     supports_multimodal: false,
     context_window: null,
     max_output_tokens: null,
+    parameter_form: buildDefaultParameterForm(),
     provider_metadata: {
       owned_by: entry.owned_by || null,
       created: entry.created || null,
     },
+  };
+}
+
+function buildDefaultParameterForm() {
+  return {
+    schema_version: PARAMETER_FORM_SCHEMA_VERSION,
+    title: 'LLM Parameters',
+    description: 'Common OpenAI-compatible chat completion parameters.',
+    fields: [
+      {
+        key: 'temperature',
+        label: 'Temperature',
+        type: 'number',
+        control: 'slider',
+        group: 'sampling',
+        order: 10,
+        advanced: false,
+        required: false,
+        send_mode: 'optional',
+        enabled_by_default: true,
+        description: 'Controls randomness. Lower values are more deterministic.',
+        default_value: 0.7,
+        min: 0,
+        max: 2,
+        step: 0.1,
+        precision: 1,
+      },
+      {
+        key: 'top_p',
+        label: 'Top P',
+        type: 'number',
+        control: 'slider',
+        group: 'sampling',
+        order: 20,
+        advanced: true,
+        required: false,
+        send_mode: 'optional',
+        enabled_by_default: false,
+        description: 'Uses nucleus sampling to limit token candidates.',
+        default_value: 1,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        precision: 2,
+      },
+      {
+        key: 'max_tokens',
+        label: 'Max Tokens',
+        type: 'integer',
+        control: 'number',
+        group: 'limits',
+        order: 30,
+        advanced: false,
+        required: false,
+        send_mode: 'optional',
+        enabled_by_default: false,
+        description: 'Caps the number of tokens generated in the response.',
+        min: 1,
+        step: 1,
+      },
+      {
+        key: 'seed',
+        label: 'Seed',
+        type: 'integer',
+        control: 'number',
+        group: 'sampling',
+        order: 40,
+        advanced: true,
+        required: false,
+        send_mode: 'optional',
+        enabled_by_default: false,
+        description: 'Best-effort seed for repeatable outputs when supported.',
+        min: 0,
+        step: 1,
+      },
+    ],
   };
 }
 
@@ -153,6 +238,29 @@ function pickDefinedFields(input) {
   return Object.fromEntries(
     Object.entries(input).filter(([, value]) => value !== undefined && value !== null)
   );
+}
+
+function normalizeModelParameters(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([key, entry]) =>
+        !RESERVED_INVOCATION_PARAMETER_KEYS.has(key) && entry !== undefined && entry !== null
+    )
+  );
+}
+
+function buildLegacyModelParameters(request) {
+  return pickDefinedFields({
+    temperature: request.temperature,
+    top_p: request.top_p,
+    presence_penalty: request.presence_penalty,
+    frequency_penalty: request.frequency_penalty,
+    max_tokens: request.max_tokens,
+    seed: request.seed,
+  });
 }
 
 function extractContent(message) {
@@ -257,23 +365,21 @@ module.exports = {
   async invoke(request) {
     const config = normalizeProviderConfig(request.provider_config);
     const messages = buildInvocationMessages(request);
-    const body = pickDefinedFields({
+    const body = {
       model: requireText(request.model, 'model'),
       messages,
       stream: false,
-      temperature: request.temperature,
-      top_p: request.top_p,
-      max_tokens: request.max_tokens,
-      seed: request.seed,
       response_format: request.response_format,
       tools:
         Array.isArray(request.tools) && request.tools.length > 0
           ? request.tools
           : undefined,
-    });
+      ...buildLegacyModelParameters(request),
+      ...normalizeModelParameters(request.model_parameters),
+    };
     const payload = await requestJson(config, '/chat/completions', {
       method: 'POST',
-      body,
+      body: pickDefinedFields(body),
     });
     const choice = Array.isArray(payload.choices) ? payload.choices[0] || {} : {};
     const message = choice.message || {};
