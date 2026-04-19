@@ -48,7 +48,7 @@
 4. GitHub Actions 会自动：
    - 检测哪些 provider 的版本发生了变化
    - 创建或复用 `<provider_code>-v<version>` release tag
-   - 将 provider 打包为 `.1flowbasepkg`
+   - 使用官方私钥将 provider 打包并签名为 `.1flowbasepkg`
    - 发布 GitHub Release 资产
    - 更新 `official-registry.json`
 
@@ -72,3 +72,12 @@ provider 打包由主仓库负责执行：
 - `https://github.com/taichuy/1flowbase`
 
 发布 workflow 会检出这个主仓库，并使用其中的插件打包 CLI 生成 `.1flowbasepkg` 产物。
+
+## 发布签名配置
+
+`provider-release` 依赖以下 GitHub Actions Secrets：
+
+- `OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM`：Ed25519 PKCS8 私钥 PEM
+- `OFFICIAL_PLUGIN_SIGNING_KEY_ID`：与主仓库 `API_OFFICIAL_PLUGIN_TRUSTED_PUBLIC_KEYS_JSON` 中一致的 key id
+
+发布时会把 `_meta/official-release.json` 与 `_meta/official-release.sig` 一并写入插件包，并在 registry 条目中写入 `signature_algorithm` 与 `signing_key_id`。

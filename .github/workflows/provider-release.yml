@@ -92,7 +92,30 @@ jobs:
           git push origin "refs/tags/${TAG_NAME}"
 
       - name: Package provider artifact
-        run: node host/scripts/node/plugin.js package ${{ matrix.plugin_dir }} --out dist
+        env:
+          OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM}" ]; then
+            echo "Missing GitHub Actions secret: OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM" >&2
+            exit 1
+          fi
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" ]; then
+            echo "Missing GitHub Actions secret: OFFICIAL_PLUGIN_SIGNING_KEY_ID" >&2
+            exit 1
+          fi
+
+          signing_key_file="$(mktemp)"
+          trap 'rm -f "${signing_key_file}"' EXIT
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM}" > "${signing_key_file}"
+
+          node host/scripts/node/plugin.js package \
+            "${{ matrix.plugin_dir }}" \
+            --out dist \
+            --signing-key-pem-file "${signing_key_file}" \
+            --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}"
 
       - name: Resolve package metadata
         id: package
@@ -121,6 +144,7 @@ jobs:
           TAG_NAME: ${{ matrix.release_tag }}
           DOWNLOAD_URL: ${{ steps.package.outputs.download_url }}
           CHECKSUM: ${{ steps.package.outputs.checksum }}
+          SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -156,7 +180,10 @@ jobs:
               release_tag: process.env.TAG_NAME,
               download_url: process.env.DOWNLOAD_URL,
               checksum: `sha256:${process.env.CHECKSUM}`,
-              signature_status: 'unsigned',
+              trust_mode: 'signature_required',
+              signature_status: 'signed',
+              signature_algorithm: 'ed25519',
+              signing_key_id: process.env.SIGNING_KEY_ID,
               help_url: helpUrl || null,
               model_discovery_mode: modelDiscoveryMode,
             })
