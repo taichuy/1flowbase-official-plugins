@@ -69,6 +69,14 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+
       - name: Ensure release tag points at current commit
         env:
           TAG_NAME: ${{ matrix.release_tag }}
@@ -91,60 +99,64 @@ jobs:
           git tag "${TAG_NAME}" "${TARGET_SHA}"
           git push origin "refs/tags/${TAG_NAME}"
 
-      - name: Package provider artifact
+      - name: Write signing key
         env:
-          OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
-          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM}" ]; then
-            echo "Missing GitHub Actions secret: OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM" >&2
-            exit 1
-          fi
-          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" ]; then
-            echo "Missing GitHub Actions secret: OFFICIAL_PLUGIN_SIGNING_KEY_ID" >&2
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" ]; then
+            echo "OFFICIAL_PLUGIN_SIGNING_KEY_PEM secret is required." >&2
             exit 1
           fi
 
-          signing_key_file="$(mktemp)"
-          trap 'rm -f "${signing_key_file}"' EXIT
-          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM}" > "${signing_key_file}"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > official-plugin-signing-key.pem
 
-          node host/scripts/node/plugin.js package \
-            "${{ matrix.plugin_dir }}" \
-            --out dist \
-            --signing-key-pem-file "${signing_key_file}" \
-            --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}"
-
-      - name: Resolve package metadata
+      - name: Build and package provider artifacts
         id: package
         env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+          PLUGIN_DIR: ${{ matrix.plugin_dir }}
+          PROVIDER_CODE: ${{ matrix.provider_code }}
+          VERSION: ${{ matrix.version }}
           RELEASE_TAG: ${{ matrix.release_tag }}
         shell: bash
         run: |
           set -euo pipefail
-          package_file="$(ls dist/*.1flowbasepkg)"
-          package_name="$(basename "${package_file}")"
-          checksum="${package_name##*@}"
-          checksum="${checksum%.1flowbasepkg}"
-          download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" ]; then
+            echo "OFFICIAL_PLUGIN_SIGNING_KEY_ID secret is required." >&2
+            exit 1
+          fi
 
-          echo "package_file=${package_file}" >> "${GITHUB_OUTPUT}"
-          echo "package_name=${package_name}" >> "${GITHUB_OUTPUT}"
-          echo "checksum=${checksum}" >> "${GITHUB_OUTPUT}"
-          echo "download_url=${download_url}" >> "${GITHUB_OUTPUT}"
+          rm -rf dist
+          mkdir -p dist
+          artifacts_json='[]'
+
+          for target_spec in \
+            "x86_64-unknown-linux-musl|linux|amd64|musl" \
+            "aarch64-unknown-linux-musl|linux|arm64|musl"
+          do
+            IFS='|' read -r rust_target os arch libc <<<"${target_spec}"
+            cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${rust_target}"
+
+            binary_path="${PLUGIN_DIR}/target/${rust_target}/release/${PROVIDER_CODE}-provider"
+            package_json="$(node host/scripts/node/plugin.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${binary_path}" --target "${rust_target}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
+            package_name="$(node --input-type=module -e "const data = JSON.parse(process.argv[1]); process.stdout.write(data.packageName);" "${package_json}")"
+            checksum="$(node --input-type=module -e "const data = JSON.parse(process.argv[1]); process.stdout.write(data.checksum);" "${package_json}")"
+            download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
+
+            artifacts_json="$(node --input-type=module -e "const current = JSON.parse(process.argv[1]); current.push({ os: process.argv[2], arch: process.argv[3], libc: process.argv[4], rust_target: process.argv[5], download_url: process.argv[6], checksum: \`sha256:${process.argv[7]}\`, signature_algorithm: 'ed25519', signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID }); process.stdout.write(JSON.stringify(current));" "${artifacts_json}" "${os}" "${arch}" "${libc}" "${rust_target}" "${download_url}" "${checksum}")"
+          done
+
+          echo "artifacts_json=${artifacts_json}" >> "${GITHUB_OUTPUT}"
 
       - name: Build registry entry
         id: registry
         env:
+          ARTIFACTS_JSON: ${{ steps.package.outputs.artifacts_json }}
           PLUGIN_DIR: ${{ matrix.plugin_dir }}
           PROVIDER_CODE: ${{ matrix.provider_code }}
           VERSION: ${{ matrix.version }}
-          TAG_NAME: ${{ matrix.release_tag }}
-          DOWNLOAD_URL: ${{ steps.package.outputs.download_url }}
-          CHECKSUM: ${{ steps.package.outputs.checksum }}
-          SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -162,10 +174,9 @@ jobs:
 
           const pluginDir = process.env.PLUGIN_DIR;
           const providerCode = process.env.PROVIDER_CODE;
-          const manifestPath = path.join(pluginDir, 'manifest.yaml');
           const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
 
-          const displayName = readField(manifestPath, 'display_name', providerCode);
+          const displayName = readField(providerPath, 'display_name', providerCode);
           const protocol = readField(providerPath, 'protocol', providerCode);
           const helpUrl = readField(providerPath, 'help_url', '');
           const modelDiscoveryMode = readField(providerPath, 'model_discovery', 'hybrid');
@@ -177,15 +188,9 @@ jobs:
               display_name: displayName,
               protocol,
               latest_version: process.env.VERSION,
-              release_tag: process.env.TAG_NAME,
-              download_url: process.env.DOWNLOAD_URL,
-              checksum: `sha256:${process.env.CHECKSUM}`,
-              trust_mode: 'signature_required',
-              signature_status: 'signed',
-              signature_algorithm: 'ed25519',
-              signing_key_id: process.env.SIGNING_KEY_ID,
               help_url: helpUrl || null,
               model_discovery_mode: modelDiscoveryMode,
+              artifacts: JSON.parse(process.env.ARTIFACTS_JSON || '[]'),
             })
           );
           NODE
@@ -197,7 +202,7 @@ jobs:
           tag_name: ${{ matrix.release_tag }}
           target_commitish: ${{ github.sha }}
           name: ${{ matrix.provider_code }} v${{ matrix.version }}
-          files: ${{ steps.package.outputs.package_file }}
+          files: dist/*.1flowbasepkg
           overwrite_files: true
 
       - name: Save registry entry artifact

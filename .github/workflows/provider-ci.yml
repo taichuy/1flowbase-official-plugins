@@ -29,11 +29,41 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
       - name: Validate official registry JSON
         run: node --input-type=module -e "JSON.parse(await import('node:fs').then((fs) => fs.readFileSync('official-registry.json', 'utf8')))"
 
+      - name: Build provider binary for dry-run packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo_toml="models/${{ matrix.provider }}/Cargo.toml"
+          if [ ! -f "${cargo_toml}" ]; then
+            echo "Skipping Rust dry-run build because ${cargo_toml} does not exist yet."
+            exit 0
+          fi
+
+          cargo build --manifest-path "${cargo_toml}" --release --target x86_64-unknown-linux-musl
+
       - name: Dry-run package provider
-        run: node host/scripts/node/plugin.js package models/${{ matrix.provider }} --out dist
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo_toml="models/${{ matrix.provider }}/Cargo.toml"
+          if [ ! -f "${cargo_toml}" ]; then
+            echo "Skipping Rust dry-run package because ${cargo_toml} does not exist yet."
+            exit 0
+          fi
+
+          node host/scripts/node/plugin.js package \
+            "models/${{ matrix.provider }}" \
+            --out dist \
+            --runtime-binary "models/${{ matrix.provider }}/target/x86_64-unknown-linux-musl/release/${{ matrix.provider }}-provider" \
+            --target x86_64-unknown-linux-musl
 
       - name: Test registry updater
         run: node --test scripts/_tests/*.test.mjs

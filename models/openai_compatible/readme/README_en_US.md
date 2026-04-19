@@ -2,6 +2,8 @@
 
 `openai_compatible` is an official 1flowbase provider plugin for services that expose an OpenAI-compatible API surface.
 
+The runtime is now packaged as a Rust executable and invoked through the host `stdio-json` contract.
+
 It is not limited to OpenAI's hosted service. It targets providers that expose:
 
 - `GET /models`
@@ -33,24 +35,16 @@ The plugin uses `hybrid` discovery:
 
 This means the host can show one safe default option immediately and replace or extend it with the live catalog after validation.
 
-## LLM Parameter Schema
-
-When the host refreshes the dynamic model catalog, this plugin now returns a `parameter_form`
-schema for each discovered chat model.
-
-The first schema revision exposes these standard OpenAI-compatible parameters:
-
-- `temperature`
-- `top_p`
-- `max_tokens`
-- `seed`
-
-At invocation time, the plugin reads these values from `model_parameters` and forwards them to
-`POST /chat/completions`. `response_format` continues to pass through unchanged.
-
 ## Local Demo
 
 1. Start `plugin-runner`.
 2. Run `node scripts/node/plugin.js demo dev /path/to/openai_compatible --port 4310`.
 3. Open the demo page and point it at the running `plugin-runner`.
 4. Use `Validate`, `List Models`, and `Invoke` to exercise the real provider contract.
+
+## Packaging
+
+1. Build the runtime binary, for example:
+   `cargo build --manifest-path Cargo.toml --release --target x86_64-unknown-linux-musl`
+2. Package the plugin with the host CLI:
+   `node ../1flowbase/scripts/node/plugin.js package . --out ./dist --runtime-binary ./target/x86_64-unknown-linux-musl/release/openai_compatible-provider --target x86_64-unknown-linux-musl`

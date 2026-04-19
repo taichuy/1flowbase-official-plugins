@@ -7,8 +7,9 @@ export function upsertRegistryEntry(registry, entry) {
   return {
     version: 1,
     generated_at: new Date().toISOString(),
-    plugins: [...plugins.filter((item) => item?.provider_code !== entry.provider_code), entry]
-      .sort((left, right) => left.plugin_id.localeCompare(right.plugin_id)),
+    plugins: [...plugins.filter((item) => item?.provider_code !== entry.provider_code), entry].sort(
+      (left, right) => left.provider_code.localeCompare(right.provider_code)
+    ),
   };
 }
 
