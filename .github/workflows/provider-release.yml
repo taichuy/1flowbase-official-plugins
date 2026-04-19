@@ -141,9 +141,16 @@ jobs:
             cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${rust_target}"
 
             binary_path="${PLUGIN_DIR}/target/${rust_target}/release/${PROVIDER_CODE}-provider"
-            package_json="$(node host/scripts/node/plugin.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${binary_path}" --target "${rust_target}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
-            package_name="$(node --input-type=module -e "const data = JSON.parse(process.argv[1]); process.stdout.write(data.packageName);" "${package_json}")"
-            checksum="$(node --input-type=module -e "const data = JSON.parse(process.argv[1]); process.stdout.write(data.checksum);" "${package_json}")"
+            package_output="$(node host/scripts/node/plugin.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${binary_path}" --target "${rust_target}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
+            package_file="$(printf '%s\n' "${package_output}" | sed -n 's/.*Plugin package created at //p' | tail -n 1)"
+            if [ -z "${package_file}" ] || [ ! -f "${package_file}" ]; then
+              echo "Failed to locate generated package file from plugin CLI output." >&2
+              printf '%s\n' "${package_output}" >&2
+              exit 1
+            fi
+
+            package_name="$(basename "${package_file}")"
+            checksum="$(sha256sum "${package_file}" | awk '{print $1}')"
             download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
 
             artifacts_json="$(node --input-type=module -e "const current = JSON.parse(process.argv[1]); current.push({ os: process.argv[2], arch: process.argv[3], libc: process.argv[4], rust_target: process.argv[5], download_url: process.argv[6], checksum: \`sha256:${process.argv[7]}\`, signature_algorithm: 'ed25519', signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID }); process.stdout.write(JSON.stringify(current));" "${artifacts_json}" "${os}" "${arch}" "${libc}" "${rust_target}" "${download_url}" "${checksum}")"

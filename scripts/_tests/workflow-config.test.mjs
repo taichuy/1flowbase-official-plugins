@@ -39,6 +39,17 @@ test('provider-release validates signing secrets before tagging releases', () =>
   );
 });
 
+test('provider-release extracts package metadata from plugin CLI output instead of assuming JSON stdout', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /package_output="\$\(node host\/scripts\/node\/plugin\.js package/);
+  assert.match(
+    workflow,
+    /package_file="\$\(printf '%s\\n' "\$\{package_output\}" \| sed -n 's\/\.\*Plugin package created at \/\/p' \| tail -n 1\)"/
+  );
+  assert.match(workflow, /checksum="\$\(sha256sum "\$\{package_file\}" \| awk '\{print \$1\}'\)"/);
+});
+
 test('manifest.yaml is the single release version source for openai_compatible', () => {
   const cargoToml = readRepoFile('models/openai_compatible/Cargo.toml');
   const readme = readRepoFile('README.md');
