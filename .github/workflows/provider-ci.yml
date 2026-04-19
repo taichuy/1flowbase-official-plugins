@@ -34,6 +34,9 @@ jobs:
         with:
           targets: x86_64-unknown-linux-musl
 
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+
       - name: Validate official registry JSON
         run: node --input-type=module -e "JSON.parse(await import('node:fs').then((fs) => fs.readFileSync('official-registry.json', 'utf8')))"
 
@@ -47,7 +50,7 @@ jobs:
             exit 0
           fi
 
-          cargo build --manifest-path "${cargo_toml}" --release --target x86_64-unknown-linux-musl
+          cross build --manifest-path "${cargo_toml}" --release --target x86_64-unknown-linux-musl
 
       - name: Dry-run package provider
         shell: bash
