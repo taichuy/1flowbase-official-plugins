@@ -181,6 +181,10 @@ test('official-registry.json tracks the current openai_compatible manifest and s
     entry.i18n_summary.bundles.zh_Hans.plugin.description,
     readManifestMetadataField('openai_compatible', 'description', 'zh_Hans')
   );
+  assert.equal(
+    entry.i18n_summary.bundles.zh_Hans.provider.label,
+    readManifestMetadataField('openai_compatible', 'label', 'zh_Hans')
+  );
   assert.equal(entry.artifacts.length, 6);
   assert.deepEqual(
     entry.artifacts.map((artifact) => [

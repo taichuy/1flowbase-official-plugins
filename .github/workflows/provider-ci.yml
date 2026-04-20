@@ -7,13 +7,33 @@ on:
       - main
 
 jobs:
+  detect-package-targets:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+    steps:
+      - name: Checkout official plugins repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Detect packaged providers
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          provider_matrix_json="$(node scripts/list-provider-package-targets.mjs --format github-matrix)"
+          echo "matrix=${provider_matrix_json}" >> "${GITHUB_OUTPUT}"
+
   package-dry-run:
+    needs: detect-package-targets
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        provider:
-          - openai_compatible
+      matrix: ${{ fromJson(needs.detect-package-targets.outputs.matrix) }}
     steps:
       - name: Checkout official plugins repo
         uses: actions/checkout@v4
@@ -44,7 +64,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo_toml="models/${{ matrix.provider }}/Cargo.toml"
+          plugin_dir="${{ matrix.plugin_dir }}"
+          cargo_toml="${plugin_dir}/Cargo.toml"
           if [ ! -f "${cargo_toml}" ]; then
             echo "Skipping Rust dry-run build because ${cargo_toml} does not exist yet."
             exit 0
@@ -56,16 +77,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo_toml="models/${{ matrix.provider }}/Cargo.toml"
+          plugin_dir="${{ matrix.plugin_dir }}"
+          cargo_toml="${plugin_dir}/Cargo.toml"
           if [ ! -f "${cargo_toml}" ]; then
             echo "Skipping Rust dry-run package because ${cargo_toml} does not exist yet."
             exit 0
           fi
+          binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${plugin_dir}" --field binary_name)"
 
           node host/scripts/node/plugin.js package \
-            "models/${{ matrix.provider }}" \
+            "${plugin_dir}" \
             --out dist \
-            --runtime-binary "models/${{ matrix.provider }}/target/x86_64-unknown-linux-musl/release/${{ matrix.provider }}-provider" \
+            --runtime-binary "${plugin_dir}/target/x86_64-unknown-linux-musl/release/${binary_name}" \
             --target x86_64-unknown-linux-musl
 
       - name: Test registry updater
@@ -75,6 +98,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          plugin_dir="models/${{ matrix.provider }}"
+          plugin_dir="${{ matrix.plugin_dir }}"
           version="$(sed -n 's/^version:\s*//p' "${plugin_dir}/manifest.yaml" | head -n 1)"
-          node scripts/build-registry-entry.mjs "${plugin_dir}" "${{ matrix.provider }}" "${version}" '[]' > /dev/null
+          node scripts/build-registry-entry.mjs "${plugin_dir}" "${{ matrix.provider_code }}" "${version}" '[]' > /dev/null

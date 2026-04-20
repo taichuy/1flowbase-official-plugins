@@ -139,11 +139,7 @@ jobs:
             cargo build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
           fi
 
-          binary_name="${PROVIDER_CODE}-provider"
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            binary_name="${binary_name}.exe"
-          fi
-
+          binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${PLUGIN_DIR}" --field binary_name)"
           binary_path="${PLUGIN_DIR}/target/${{ matrix.rust_target }}/release/${binary_name}"
           package_output="$(node host/scripts/node/plugin.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${binary_path}" --target "${{ matrix.rust_target }}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
           package_file="$(printf '%s\n' "${package_output}" | sed -n 's/.*Plugin package created at //p' | tail -n 1)"

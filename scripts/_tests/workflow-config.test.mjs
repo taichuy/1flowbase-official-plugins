@@ -23,6 +23,33 @@ test('provider-ci uses cross for musl dry-run builds', () => {
   );
 });
 
+test('provider-ci discovers package targets from repo scripts instead of a hardcoded provider list', () => {
+  const workflow = readRepoFile('.github/workflows/provider-ci.yml');
+
+  assert.match(
+    workflow,
+    /provider_matrix_json="\$\(node scripts\/list-provider-package-targets\.mjs --format github-matrix\)"/
+  );
+  assert.doesNotMatch(
+    workflow,
+    /matrix:\s*\n\s*provider:\s*\n\s*-\s*openai_compatible/
+  );
+});
+
+test('provider workflows resolve runtime binary names from manifest metadata', () => {
+  const ciWorkflow = readRepoFile('.github/workflows/provider-ci.yml');
+  const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(
+    ciWorkflow,
+    /binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{plugin_dir\}" --field binary_name\)"/
+  );
+  assert.match(
+    releaseWorkflow,
+    /binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --field binary_name\)"/
+  );
+});
+
 test('provider-release validates signing secrets before tagging releases', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 
