@@ -8,12 +8,24 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
 
   const next = upsertRegistryEntry(registry, {
     plugin_id: '1flowbase.openai_compatible',
+    plugin_type: 'model_provider',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI-Compatible API Provider',
     protocol: 'openai_compatible',
     latest_version: '0.1.0',
     help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
     model_discovery_mode: 'hybrid',
+    i18n_summary: {
+      default_locale: 'en_US',
+      available_locales: ['en_US', 'zh_Hans'],
+      bundles: {
+        en_US: {
+          plugin: {
+            label: 'OpenAI-Compatible API Provider',
+          },
+        },
+      },
+    },
     artifacts: [
       {
         os: 'linux',
@@ -28,7 +40,9 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   });
 
   assert.equal(next.plugins.length, 1);
+  assert.equal(next.plugins[0].plugin_type, 'model_provider');
   assert.equal(next.plugins[0].latest_version, '0.1.0');
+  assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');
   assert.equal(next.plugins[0].artifacts.length, 1);
 });
 
@@ -56,12 +70,24 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
 
   const next = upsertRegistryEntry(registry, {
     plugin_id: '1flowbase.openai_compatible',
+    plugin_type: 'model_provider',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI-Compatible API Provider',
     protocol: 'openai_compatible',
     latest_version: '0.2.1',
     help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
     model_discovery_mode: 'hybrid',
+    i18n_summary: {
+      default_locale: 'en_US',
+      available_locales: ['en_US', 'zh_Hans'],
+      bundles: {
+        en_US: {
+          plugin: {
+            label: 'OpenAI-Compatible API Provider',
+          },
+        },
+      },
+    },
     artifacts: [
       {
         os: 'linux',
@@ -83,6 +109,8 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
   });
 
   assert.equal(next.plugins.length, 1);
+  assert.equal(next.plugins[0].plugin_type, 'model_provider');
   assert.equal(next.plugins[0].latest_version, '0.2.1');
+  assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');
   assert.equal(next.plugins[0].artifacts.length, 2);
 });

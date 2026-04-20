@@ -70,3 +70,11 @@ jobs:
 
       - name: Test registry updater
         run: node --test scripts/_tests/*.test.mjs
+
+      - name: Smoke-test reusable registry entry builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_dir="models/${{ matrix.provider }}"
+          version="$(sed -n 's/^version:\s*//p' "${plugin_dir}/manifest.yaml" | head -n 1)"
+          node scripts/build-registry-entry.mjs "${plugin_dir}" "${{ matrix.provider }}" "${version}" '[]' > /dev/null

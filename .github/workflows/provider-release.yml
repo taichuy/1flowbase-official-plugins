@@ -36,9 +36,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
-          release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${matrix_json}")"
-          echo "matrix=${matrix_json}" >> "${GITHUB_OUTPUT}"
+          release_matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
+          release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${release_matrix_json}")"
+          package_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]).include; const targets = [{ runs_on: "ubuntu-latest", rust_target: "x86_64-unknown-linux-musl", os: "linux", arch: "amd64", libc: "musl" }, { runs_on: "ubuntu-latest", rust_target: "aarch64-unknown-linux-musl", os: "linux", arch: "arm64", libc: "musl" }, { runs_on: "macos-latest", rust_target: "x86_64-apple-darwin", os: "darwin", arch: "amd64", libc: "" }, { runs_on: "macos-latest", rust_target: "aarch64-apple-darwin", os: "darwin", arch: "arm64", libc: "" }, { runs_on: "windows-latest", rust_target: "x86_64-pc-windows-msvc", os: "windows", arch: "amd64", libc: "msvc" }, { runs_on: "windows-latest", rust_target: "aarch64-pc-windows-msvc", os: "windows", arch: "arm64", libc: "msvc" }]; process.stdout.write(JSON.stringify({ include: releases.flatMap((release) => targets.map((target) => ({ ...release, ...target }))) }));' "${release_matrix_json}")"
+          echo "matrix=${package_matrix_json}" >> "${GITHUB_OUTPUT}"
           if [ "${release_count}" -gt 0 ]; then
             echo "has_releases=true" >> "${GITHUB_OUTPUT}"
           else
@@ -48,7 +49,7 @@ jobs:
   release-provider:
     needs: detect-release-providers
     if: needs.detect-release-providers.outputs.has_releases == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect-release-providers.outputs.matrix) }}
@@ -72,9 +73,10 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
+          targets: ${{ matrix.rust_target }}
 
       - name: Install cross
+        if: ${{ matrix.runs_on == 'ubuntu-latest' }}
         run: cargo install cross --git https://github.com/cross-rs/cross --locked
 
       - name: Validate signing configuration
@@ -119,7 +121,6 @@ jobs:
           git push origin "refs/tags/${TAG_NAME}"
 
       - name: Build and package provider artifacts
-        id: package
         env:
           OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
           PLUGIN_DIR: ${{ matrix.plugin_dir }}
@@ -129,80 +130,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf dist
-          mkdir -p dist
-          artifacts_json='[]'
+          rm -rf dist artifact-metadata
+          mkdir -p dist artifact-metadata
 
-          for target_spec in \
-            "x86_64-unknown-linux-musl|linux|amd64|musl" \
-            "aarch64-unknown-linux-musl|linux|arm64|musl"
-          do
-            IFS='|' read -r rust_target os arch libc <<<"${target_spec}"
-            cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${rust_target}"
+          if [ "${{ matrix.runs_on }}" = "ubuntu-latest" ]; then
+            cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
+          else
+            cargo build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
+          fi
 
-            binary_path="${PLUGIN_DIR}/target/${rust_target}/release/${PROVIDER_CODE}-provider"
-            package_output="$(node host/scripts/node/plugin.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${binary_path}" --target "${rust_target}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
-            package_file="$(printf '%s\n' "${package_output}" | sed -n 's/.*Plugin package created at //p' | tail -n 1)"
-            if [ -z "${package_file}" ] || [ ! -f "${package_file}" ]; then
-              echo "Failed to locate generated package file from plugin CLI output." >&2
-              printf '%s\n' "${package_output}" >&2
-              exit 1
-            fi
+          binary_name="${PROVIDER_CODE}-provider"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            binary_name="${binary_name}.exe"
+          fi
 
-            package_name="$(basename "${package_file}")"
-            checksum="$(sha256sum "${package_file}" | awk '{print $1}')"
-            download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
+          binary_path="${PLUGIN_DIR}/target/${{ matrix.rust_target }}/release/${binary_name}"
+          package_output="$(node host/scripts/node/plugin.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${binary_path}" --target "${{ matrix.rust_target }}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
+          package_file="$(printf '%s\n' "${package_output}" | sed -n 's/.*Plugin package created at //p' | tail -n 1)"
+          if [ -z "${package_file}" ] || [ ! -f "${package_file}" ]; then
+            echo "Failed to locate generated package file from plugin CLI output." >&2
+            printf '%s\n' "${package_output}" >&2
+            exit 1
+          fi
 
-            artifacts_json="$(node --input-type=module -e 'const current = JSON.parse(process.argv[1]); current.push({ os: process.argv[2], arch: process.argv[3], libc: process.argv[4], rust_target: process.argv[5], download_url: process.argv[6], checksum: "sha256:" + process.argv[7], signature_algorithm: "ed25519", signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID }); process.stdout.write(JSON.stringify(current));' "${artifacts_json}" "${os}" "${arch}" "${libc}" "${rust_target}" "${download_url}" "${checksum}")"
-          done
-
-          echo "artifacts_json=${artifacts_json}" >> "${GITHUB_OUTPUT}"
-
-      - name: Build registry entry
-        id: registry
-        env:
-          ARTIFACTS_JSON: ${{ steps.package.outputs.artifacts_json }}
-          PLUGIN_DIR: ${{ matrix.plugin_dir }}
-          PROVIDER_CODE: ${{ matrix.provider_code }}
-          VERSION: ${{ matrix.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "entry_json<<EOF" >> "${GITHUB_OUTPUT}"
-          node --input-type=module - <<'NODE' >> "${GITHUB_OUTPUT}"
-          import fs from 'node:fs';
-          import path from 'node:path';
-
-          function readField(filePath, fieldName, fallback = '') {
-            const content = fs.readFileSync(filePath, 'utf8');
-            const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const match = content.match(new RegExp(`^${escaped}:\\s*(.+)$`, 'm'));
-            return match ? match[1].trim() : fallback;
-          }
-
-          const pluginDir = process.env.PLUGIN_DIR;
-          const providerCode = process.env.PROVIDER_CODE;
-          const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
-
-          const displayName = readField(providerPath, 'display_name', providerCode);
-          const protocol = readField(providerPath, 'protocol', providerCode);
-          const helpUrl = readField(providerPath, 'help_url', '');
-          const modelDiscoveryMode = readField(providerPath, 'model_discovery', 'hybrid');
-
-          console.log(
-            JSON.stringify({
-              plugin_id: `1flowbase.${providerCode}`,
-              provider_code: providerCode,
-              display_name: displayName,
-              protocol,
-              latest_version: process.env.VERSION,
-              help_url: helpUrl || null,
-              model_discovery_mode: modelDiscoveryMode,
-              artifacts: JSON.parse(process.env.ARTIFACTS_JSON || '[]'),
-            })
-          );
-          NODE
-          echo "EOF" >> "${GITHUB_OUTPUT}"
+          package_name="$(basename "${package_file}")"
+          checksum="$(sha256sum "${package_file}" | awk '{print $1}')"
+          download_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${package_name}"
+          artifact_metadata_path="artifact-metadata/${PROVIDER_CODE}@${{ matrix.os }}-${{ matrix.arch }}.json"
+          artifact_json="$(node --input-type=module -e 'process.stdout.write(JSON.stringify({ plugin_dir: process.argv[1], provider_code: process.argv[2], version: process.argv[3], release_tag: process.argv[4], artifact: { os: process.argv[5], arch: process.argv[6], checksum: "sha256:" + process.argv[7], libc: process.argv[8] || null, rust_target: process.argv[9], download_url: process.argv[10], signature_algorithm: "ed25519", signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID } }, null, 2));' "${PLUGIN_DIR}" "${PROVIDER_CODE}" "${VERSION}" "${RELEASE_TAG}" "${{ matrix.os }}" "${{ matrix.arch }}" "${checksum}" "${{ matrix.libc }}" "${{ matrix.rust_target }}" "${download_url}")"
+          printf '%s\n' "${artifact_json}" > "${artifact_metadata_path}"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -213,20 +169,11 @@ jobs:
           files: dist/*.1flowbasepkg
           overwrite_files: true
 
-      - name: Save registry entry artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p registry-entry
-          cat <<'EOF' > "registry-entry/${{ matrix.provider_code }}.json"
-          ${{ steps.registry.outputs.entry_json }}
-          EOF
-
-      - name: Upload registry entry artifact
+      - name: Upload artifact metadata
         uses: actions/upload-artifact@v4
         with:
-          name: registry-entry-${{ matrix.provider_code }}
-          path: registry-entry/${{ matrix.provider_code }}.json
+          name: artifact-metadata-${{ matrix.provider_code }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: artifact-metadata/${{ matrix.provider_code }}@${{ matrix.os }}-${{ matrix.arch }}.json
           if-no-files-found: error
 
   update-official-registry:
@@ -249,9 +196,9 @@ jobs:
       - name: Download registry entry artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: registry-entry-*
+          pattern: artifact-metadata-*
           merge-multiple: true
-          path: registry-entries
+          path: artifact-metadata
 
       - name: Update official registry on default branch
         env:
@@ -264,17 +211,50 @@ jobs:
           git fetch origin "${DEFAULT_BRANCH}"
           git switch --create registry-update "origin/${DEFAULT_BRANCH}"
           shopt -s nullglob
-          entry_files=(registry-entries/*.json)
+          metadata_files=(artifact-metadata/*.json)
 
-          if [ "${#entry_files[@]}" -eq 0 ]; then
-            echo "No registry entry artifacts were produced." >&2
+          if [ "${#metadata_files[@]}" -eq 0 ]; then
+            echo "No artifact metadata files were produced." >&2
             exit 1
           fi
 
-          for entry_file in "${entry_files[@]}"; do
-            entry_json="$(tr -d '\n' < "${entry_file}")"
-            node scripts/update-official-registry.mjs official-registry.json "${entry_json}"
-          done
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { execFileSync } from 'node:child_process';
+
+          const metadataDir = 'artifact-metadata';
+          const grouped = new Map();
+
+          for (const name of fs.readdirSync(metadataDir).filter((fileName) => fileName.endsWith('.json')).sort()) {
+            const item = JSON.parse(fs.readFileSync(path.join(metadataDir, name), 'utf8'));
+            const current = grouped.get(item.provider_code) ?? {
+              pluginDir: item.plugin_dir,
+              providerCode: item.provider_code,
+              version: item.version,
+              artifacts: [],
+            };
+            current.artifacts.push(item.artifact);
+            grouped.set(item.provider_code, current);
+          }
+
+          for (const group of [...grouped.values()].sort((left, right) => left.providerCode.localeCompare(right.providerCode))) {
+            const entryJson = execFileSync(
+              'node',
+              [
+                'scripts/build-registry-entry.mjs',
+                group.pluginDir,
+                group.providerCode,
+                group.version,
+                JSON.stringify(group.artifacts),
+              ],
+              { encoding: 'utf8' }
+            ).trim();
+            execFileSync('node', ['scripts/update-official-registry.mjs', 'official-registry.json', entryJson], {
+              stdio: 'inherit',
+            });
+          }
+          NODE
 
           if git diff --quiet -- official-registry.json; then
             echo "official-registry.json unchanged; skipping commit."

@@ -1,15 +1,30 @@
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+function normalizeRegistryEntry(entry) {
+  return {
+    ...entry,
+    plugin_type: entry?.plugin_type || 'model_provider',
+    i18n_summary: entry?.i18n_summary || {
+      default_locale: null,
+      available_locales: [],
+      bundles: {},
+    },
+    artifacts: Array.isArray(entry?.artifacts) ? entry.artifacts : [],
+  };
+}
+
 export function upsertRegistryEntry(registry, entry) {
   const plugins = Array.isArray(registry?.plugins) ? registry.plugins : [];
+  const normalizedEntry = normalizeRegistryEntry(entry);
 
   return {
     version: 1,
     generated_at: new Date().toISOString(),
-    plugins: [...plugins.filter((item) => item?.provider_code !== entry.provider_code), entry].sort(
-      (left, right) => left.provider_code.localeCompare(right.provider_code)
-    ),
+    plugins: [
+      ...plugins.filter((item) => item?.provider_code !== normalizedEntry.provider_code),
+      normalizedEntry,
+    ].sort((left, right) => left.provider_code.localeCompare(right.provider_code)),
   };
 }
 
