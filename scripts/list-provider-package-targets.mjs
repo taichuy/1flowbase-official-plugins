@@ -10,34 +10,73 @@ function readManifestField(content, fieldName, fallback = '') {
   return match ? match[1].trim() : fallback;
 }
 
-function readExecutablePath(content) {
+function readRuntimeLines(content) {
   const lines = content.split(/\r?\n/);
+  const runtimeIndex = lines.findIndex((line) => /^runtime:\s*$/.test(line));
+  if (runtimeIndex < 0) {
+    return [];
+  }
+
+  const runtimeLines = [];
+  for (const line of lines.slice(runtimeIndex + 1)) {
+    if (line && !line.startsWith('  ')) {
+      break;
+    }
+    runtimeLines.push(line);
+  }
+
+  return runtimeLines;
+}
+
+function readRuntimeEntry(content) {
+  for (const line of readRuntimeLines(content)) {
+    const match = line.match(/^  entry:\s*(.+)\s*$/);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+
+  return '';
+}
+
+function readRuntimeExecutablePath(content) {
   let insideExecutable = false;
 
-  for (const line of lines) {
-    if (/^runtime:\s*$/.test(line)) {
-      insideExecutable = false;
-      continue;
-    }
-
+  for (const line of readRuntimeLines(content)) {
     if (/^  executable:\s*$/.test(line)) {
       insideExecutable = true;
       continue;
     }
 
-    if (insideExecutable) {
-      const match = line.match(/^    path:\s*(.+)\s*$/);
-      if (match) {
-        return match[1].trim();
-      }
+    if (!insideExecutable) {
+      continue;
+    }
 
-      if (line && !line.startsWith('    ')) {
-        break;
-      }
+    const match = line.match(/^    path:\s*(.+)\s*$/);
+    if (match) {
+      return match[1].trim();
+    }
+
+    if (line && !line.startsWith('    ')) {
+      insideExecutable = false;
     }
   }
 
   return '';
+}
+
+function readProviderCode(content, pluginDir) {
+  const manifestVersion = readManifestField(content, 'manifest_version');
+  if (manifestVersion === '1') {
+    const pluginId = readManifestField(content, 'plugin_id');
+    if (pluginId.includes('@')) {
+      return pluginId.slice(0, pluginId.indexOf('@')) || path.basename(pluginDir);
+    }
+
+    return path.basename(pluginDir);
+  }
+
+  return readManifestField(content, 'plugin_code') || path.basename(pluginDir);
 }
 
 function toRelativePluginDir(pluginDir, baseRoot) {
@@ -48,9 +87,12 @@ export function readProviderPackageTarget(pluginDir, baseRoot = repoRoot) {
   const resolvedPluginDir = path.resolve(pluginDir);
   const manifestPath = path.join(resolvedPluginDir, 'manifest.yaml');
   const manifest = fs.readFileSync(manifestPath, 'utf8');
-  const providerCode =
-    readManifestField(manifest, 'plugin_code') || path.basename(resolvedPluginDir);
-  const executablePath = readExecutablePath(manifest);
+  const providerCode = readProviderCode(manifest, resolvedPluginDir);
+  const manifestVersion = readManifestField(manifest, 'manifest_version');
+  const executablePath =
+    manifestVersion === '1'
+      ? readRuntimeEntry(manifest)
+      : readRuntimeExecutablePath(manifest) || readRuntimeEntry(manifest);
   const binaryName = path.basename(executablePath || `bin/${providerCode}-provider`);
 
   return {

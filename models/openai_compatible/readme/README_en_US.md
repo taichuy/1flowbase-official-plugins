@@ -1,8 +1,8 @@
 # OpenAI-Compatible API Provider
 
-`openai_compatible` is an official 1flowbase provider plugin for services that expose an OpenAI-compatible API surface.
+`openai_compatible` is an official 1flowbase model provider runtime extension for services that expose an OpenAI-compatible API surface.
 
-The runtime is now packaged as a Rust executable and invoked through the host `stdio-json` contract.
+The runtime is packaged with plugin manifest v1 and invoked through the host `stdio_json` contract.
 
 It is not limited to OpenAI's hosted service. It targets providers that expose:
 
@@ -43,6 +43,8 @@ This means the host can show one safe default option immediately and replace or 
 4. Use `Validate`, `List Models`, and `Invoke` to exercise the real provider contract.
 
 ## Packaging
+
+This example shows the current model provider runtime extension packaging contract, not a provider-only manifest schema.
 
 1. Build the runtime binary, for example:
    `cargo build --manifest-path Cargo.toml --release --target x86_64-unknown-linux-musl`
