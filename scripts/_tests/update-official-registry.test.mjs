@@ -21,6 +21,27 @@ function readProviderManifestVersion(providerCode) {
   return match[1].trim();
 }
 
+function readManifestMetadataField(providerCode, section, locale) {
+  const manifest = fs.readFileSync(
+    path.join(repoRoot, 'models', providerCode, 'manifest.yaml'),
+    'utf8'
+  );
+  const metadataMatch = manifest.match(
+    new RegExp(`^\\s{2}${section}:\\s*$([\\s\\S]*?)(?=^\\S|^\\s{2}[a-z_]+:\\s*$)`, 'm')
+  );
+
+  assert.ok(metadataMatch, `missing metadata.${section} in manifest for ${providerCode}`);
+
+  const localeMatch = metadataMatch[1].match(
+    new RegExp(`^\\s{4}${locale}:\\s*(.+)$`, 'm')
+  );
+  assert.ok(
+    localeMatch,
+    `missing metadata.${section}.${locale} in manifest for ${providerCode}`
+  );
+  return localeMatch[1].trim();
+}
+
 test('upsertRegistryEntry writes latest release metadata for openai_compatible', () => {
   const registry = { version: 1, generated_at: null, plugins: [] };
 
@@ -144,6 +165,22 @@ test('official-registry.json tracks the current openai_compatible manifest and s
   assert.equal(entry.plugin_type, 'model_provider');
   assert.deepEqual(entry.i18n_summary.available_locales, ['en_US', 'zh_Hans']);
   assert.equal(entry.i18n_summary.default_locale, 'en_US');
+  assert.equal(
+    entry.i18n_summary.bundles.en_US.plugin.label,
+    readManifestMetadataField('openai_compatible', 'label', 'en_US')
+  );
+  assert.equal(
+    entry.i18n_summary.bundles.zh_Hans.plugin.label,
+    readManifestMetadataField('openai_compatible', 'label', 'zh_Hans')
+  );
+  assert.equal(
+    entry.i18n_summary.bundles.en_US.plugin.description,
+    readManifestMetadataField('openai_compatible', 'description', 'en_US')
+  );
+  assert.equal(
+    entry.i18n_summary.bundles.zh_Hans.plugin.description,
+    readManifestMetadataField('openai_compatible', 'description', 'zh_Hans')
+  );
   assert.equal(entry.artifacts.length, 6);
   assert.deepEqual(
     entry.artifacts.map((artifact) => [

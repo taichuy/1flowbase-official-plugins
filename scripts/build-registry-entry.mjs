@@ -13,6 +13,43 @@ function nullableField(content, fieldName) {
   return value || null;
 }
 
+function parseManifestMetadata(content) {
+  const lines = content.split(/\r?\n/);
+  const metadata = {
+    label: {},
+    description: {},
+  };
+  let currentSection = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+
+    if (/^metadata:\s*$/.test(line)) {
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const nested = lines[cursor];
+        if (!nested.trim()) {
+          continue;
+        }
+        if (!nested.startsWith('  ')) {
+          break;
+        }
+        const sectionMatch = nested.match(/^  (label|description):\s*$/);
+        if (sectionMatch) {
+          currentSection = sectionMatch[1];
+          continue;
+        }
+        const localeMatch = nested.match(/^    ([^:]+):\s*(.+)\s*$/);
+        if (currentSection && localeMatch) {
+          metadata[currentSection][localeMatch[1].trim()] = localeMatch[2].trim();
+        }
+      }
+      break;
+    }
+  }
+
+  return metadata;
+}
+
 function buildI18nSummary(i18nDir) {
   if (!fs.existsSync(i18nDir)) {
     return {
@@ -42,6 +79,50 @@ function buildI18nSummary(i18nDir) {
   };
 }
 
+function applyManifestMetadataToI18nSummary(i18nSummary, manifestMetadata) {
+  const locales = new Set([
+    ...Object.keys(i18nSummary?.bundles || {}),
+    ...Object.keys(manifestMetadata.label || {}),
+    ...Object.keys(manifestMetadata.description || {}),
+  ]);
+
+  for (const locale of locales) {
+    const existingBundle = i18nSummary.bundles[locale];
+    const nextBundle =
+      existingBundle && typeof existingBundle === 'object' && !Array.isArray(existingBundle)
+        ? { ...existingBundle }
+        : {};
+    const existingPlugin =
+      nextBundle.plugin && typeof nextBundle.plugin === 'object' && !Array.isArray(nextBundle.plugin)
+        ? { ...nextBundle.plugin }
+        : {};
+
+    if (manifestMetadata.label[locale]) {
+      existingPlugin.label = manifestMetadata.label[locale];
+    }
+    if (manifestMetadata.description[locale]) {
+      existingPlugin.description = manifestMetadata.description[locale];
+    }
+
+    if (Object.keys(existingPlugin).length > 0) {
+      nextBundle.plugin = existingPlugin;
+    }
+
+    i18nSummary.bundles[locale] = nextBundle;
+  }
+
+  i18nSummary.available_locales = Array.from(locales).sort((left, right) =>
+    left.localeCompare(right)
+  );
+  if (!i18nSummary.default_locale && i18nSummary.available_locales.length > 0) {
+    i18nSummary.default_locale = i18nSummary.available_locales.includes('en_US')
+      ? 'en_US'
+      : i18nSummary.available_locales[0];
+  }
+
+  return i18nSummary;
+}
+
 function compareArtifacts(left, right) {
   return [
     left.os || '',
@@ -63,9 +144,13 @@ function compareArtifacts(left, right) {
 export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts }) {
   const manifest = fs.readFileSync(path.join(pluginDir, 'manifest.yaml'), 'utf8');
   const pluginType = readField(manifest, 'plugin_type', 'model_provider');
+  const manifestMetadata = parseManifestMetadata(manifest);
   const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
   const providerYaml = fs.readFileSync(providerPath, 'utf8');
-  const i18nSummary = buildI18nSummary(path.join(pluginDir, 'i18n'));
+  const i18nSummary = applyManifestMetadataToI18nSummary(
+    buildI18nSummary(path.join(pluginDir, 'i18n')),
+    manifestMetadata
+  );
 
   return {
     plugin_id: `1flowbase.${providerCode}`,
