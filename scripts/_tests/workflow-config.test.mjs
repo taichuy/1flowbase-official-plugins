@@ -49,6 +49,12 @@ test('provider workflows pin Node 24 compatible GitHub Action majors', () => {
   assert.doesNotMatch(releaseWorkflow, /actions\/setup-node@v4/);
   assert.match(releaseWorkflow, /actions\/checkout@v6/);
   assert.match(releaseWorkflow, /actions\/setup-node@v6/);
+  assert.doesNotMatch(releaseWorkflow, /actions\/upload-artifact@v4/);
+  assert.doesNotMatch(releaseWorkflow, /actions\/download-artifact@v4/);
+  assert.doesNotMatch(releaseWorkflow, /softprops\/action-gh-release@v2/);
+  assert.match(releaseWorkflow, /actions\/upload-artifact@v7/);
+  assert.match(releaseWorkflow, /actions\/download-artifact@v8/);
+  assert.match(releaseWorkflow, /softprops\/action-gh-release@v3/);
 });
 
 test('provider workflows resolve runtime binary names from manifest metadata', () => {
