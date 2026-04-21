@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const MANIFEST_PATH_PATTERN = /^models\/([^/]+)\/manifest\.yaml$/;
+const MANIFEST_PATH_PATTERN = /^runtime-extensions\/model-providers\/([^/]+)\/manifest\.yaml$/;
 
 export function parseManifestVersion(content) {
   if (!content) {
@@ -30,7 +30,7 @@ export function detectVersionReleases(manifestChanges) {
 
       return [
         {
-          plugin_dir: `models/${providerCode}`,
+          plugin_dir: `runtime-extensions/model-providers/${providerCode}`,
           provider_code: providerCode,
           release_tag: `${providerCode}-v${nextVersion}`,
           version: nextVersion,
@@ -66,13 +66,20 @@ function listManifestPaths(baseRef, headRef) {
       baseRef,
       headRef,
       '--',
-      'models/*/manifest.yaml',
+      'runtime-extensions/model-providers/*/manifest.yaml',
     ]);
 
     return output ? output.split('\n').filter(Boolean) : [];
   }
 
-  const output = runGit(['ls-tree', '-r', '--name-only', headRef, '--', 'models']);
+  const output = runGit([
+    'ls-tree',
+    '-r',
+    '--name-only',
+    headRef,
+    '--',
+    'runtime-extensions/model-providers',
+  ]);
   return output
     .split('\n')
     .filter((path) => MANIFEST_PATH_PATTERN.test(path));

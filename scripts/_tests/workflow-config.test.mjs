@@ -66,6 +66,16 @@ test('provider-release validates signing secrets before tagging releases', () =>
   );
 });
 
+test('provider-release triggers only on runtime-extensions model provider manifests', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(
+    workflow,
+    /paths:\n\s+- 'runtime-extensions\/model-providers\/\*\*\/manifest\.yaml'/
+  );
+  assert.doesNotMatch(workflow, /paths:\n\s+- 'models\/\*\*\/manifest\.yaml'/);
+});
+
 test('provider-release extracts package metadata from plugin CLI output instead of assuming JSON stdout', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 
@@ -80,7 +90,7 @@ test('provider-release extracts package metadata from plugin CLI output instead 
 });
 
 test('manifest.yaml is the single release version source for openai_compatible', () => {
-  const cargoToml = readRepoFile('models/openai_compatible/Cargo.toml');
+  const cargoToml = readRepoFile('runtime-extensions/model-providers/openai_compatible/Cargo.toml');
   const readme = readRepoFile('README.md');
 
   assert.match(
@@ -88,5 +98,8 @@ test('manifest.yaml is the single release version source for openai_compatible',
     /# Cargo requires a package version, but plugin release version is sourced from manifest\.yaml\./
   );
   assert.match(cargoToml, /^version\s*=\s*"0\.0\.0"$/m);
-  assert.match(readme, /`manifest\.yaml` 是 provider 发布版本的唯一维护位置/);
+  assert.match(
+    readme,
+    /`runtime-extensions\/model-providers\/<provider_code>\/manifest\.yaml` 中的 `version:`/
+  );
 });

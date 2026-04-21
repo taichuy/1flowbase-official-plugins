@@ -10,7 +10,7 @@ import {
 } from '../list-provider-package-targets.mjs';
 
 function writeManifestV1(root, pluginDirName, { pluginId, entry }) {
-  const pluginDir = path.join(root, 'models', pluginDirName);
+  const pluginDir = path.join(root, 'runtime-extensions', 'model-providers', pluginDirName);
   fs.mkdirSync(pluginDir, { recursive: true });
   fs.writeFileSync(
     path.join(pluginDir, 'manifest.yaml'),
@@ -53,7 +53,7 @@ function writeManifestV1(root, pluginDirName, { pluginId, entry }) {
 }
 
 function writeManifestV2(root, providerCode, executablePath) {
-  const pluginDir = path.join(root, 'models', providerCode);
+  const pluginDir = path.join(root, 'runtime-extensions', 'model-providers', providerCode);
   fs.mkdirSync(pluginDir, { recursive: true });
   fs.writeFileSync(
     path.join(pluginDir, 'manifest.yaml'),
@@ -92,12 +92,12 @@ test('listProviderPackageTargets supports manifest v1 plugin_id prefix and basen
   assert.deepEqual(targets, [
     {
       provider_code: 'alpha_provider',
-      plugin_dir: 'models/alpha_provider',
+      plugin_dir: 'runtime-extensions/model-providers/alpha_provider',
       binary_name: 'alpha-runtime',
     },
     {
       provider_code: 'fallback-provider',
-      plugin_dir: 'models/fallback-provider',
+      plugin_dir: 'runtime-extensions/model-providers/fallback-provider',
       binary_name: 'fallback-provider',
     },
   ]);
@@ -109,7 +109,7 @@ test('readProviderPackageTarget keeps old schema v2 plugin_code and executable p
 
   assert.deepEqual(readProviderPackageTarget(pluginDir, root), {
     provider_code: 'gamma_provider',
-    plugin_dir: 'models/gamma_provider',
+    plugin_dir: 'runtime-extensions/model-providers/gamma_provider',
     binary_name: 'gamma-provider.exe',
   });
 });

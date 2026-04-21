@@ -103,15 +103,15 @@ export function readProviderPackageTarget(pluginDir, baseRoot = repoRoot) {
 }
 
 export function listProviderPackageTargets(rootDir = repoRoot) {
-  const modelsDir = path.join(rootDir, 'models');
-  if (!fs.existsSync(modelsDir)) {
+  const providersDir = path.join(rootDir, 'runtime-extensions', 'model-providers');
+  if (!fs.existsSync(providersDir)) {
     return [];
   }
 
   return fs
-    .readdirSync(modelsDir, { withFileTypes: true })
+    .readdirSync(providersDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(modelsDir, entry.name))
+    .map((entry) => path.join(providersDir, entry.name))
     .filter((pluginDir) => fs.existsSync(path.join(pluginDir, 'manifest.yaml')))
     .map((pluginDir) => readProviderPackageTarget(pluginDir, rootDir))
     .sort((left, right) => left.provider_code.localeCompare(right.provider_code));
