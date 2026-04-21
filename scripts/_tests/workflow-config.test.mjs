@@ -132,6 +132,25 @@ test('provider-release extracts package metadata from plugin CLI output instead 
   assert.doesNotMatch(workflow, /checksum: `sha256:\$\{process\.argv\[7\]\}`/);
 });
 
+test('provider-release removes same-platform release assets before uploading replacements', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /- name: Remove existing platform assets for repair-safe uploads/);
+  assert.match(
+    workflow,
+    /ASSET_PREFIX: 1flowbase@\$\{\{ matrix\.provider_code \}\}@\$\{\{ matrix\.version \}\}@\$\{\{ matrix\.os \}\}-\$\{\{ matrix\.arch \}\}@/
+  );
+  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(workflow, /gh release view "\$\{RELEASE_TAG\}" --json assets --repo "\$\{GITHUB_REPOSITORY\}"/);
+  assert.match(workflow, /asset\.name\.startsWith\(prefix\)/);
+  assert.match(workflow, /gh release delete-asset "\$\{RELEASE_TAG\}" "\$\{asset_name\}" --repo "\$\{GITHUB_REPOSITORY\}" --yes/);
+
+  assert.ok(
+    workflow.indexOf('- name: Remove existing platform assets for repair-safe uploads') <
+      workflow.indexOf('- name: Publish GitHub Release')
+  );
+});
+
 test('manifest.yaml is the single release version source for openai_compatible', () => {
   const cargoToml = readRepoFile('runtime-extensions/model-providers/openai_compatible/Cargo.toml');
   const readme = readRepoFile('README.md');

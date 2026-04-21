@@ -200,6 +200,36 @@ jobs:
           artifact_json="$(node --input-type=module -e 'process.stdout.write(JSON.stringify({ plugin_dir: process.argv[1], provider_code: process.argv[2], version: process.argv[3], release_tag: process.argv[4], artifact: { os: process.argv[5], arch: process.argv[6], checksum: "sha256:" + process.argv[7], libc: process.argv[8] || null, rust_target: process.argv[9], download_url: process.argv[10], signature_algorithm: "ed25519", signing_key_id: process.env.OFFICIAL_PLUGIN_SIGNING_KEY_ID } }, null, 2));' "${PLUGIN_DIR}" "${PROVIDER_CODE}" "${VERSION}" "${RELEASE_TAG}" "${{ matrix.os }}" "${{ matrix.arch }}" "${checksum}" "${{ matrix.libc }}" "${{ matrix.rust_target }}" "${download_url}")"
           printf '%s\n' "${artifact_json}" > "${artifact_metadata_path}"
 
+      - name: Remove existing platform assets for repair-safe uploads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ matrix.release_tag }}
+          ASSET_PREFIX: 1flowbase@${{ matrix.provider_code }}@${{ matrix.version }}@${{ matrix.os }}-${{ matrix.arch }}@
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! existing_release_json="$(gh release view "${RELEASE_TAG}" --json assets --repo "${GITHUB_REPOSITORY}" 2>/dev/null)"; then
+            echo "No existing release found for ${RELEASE_TAG}; skipping platform asset cleanup."
+            exit 0
+          fi
+
+          asset_lines="$(node --input-type=module -e 'const release = JSON.parse(process.argv[1]); const prefix = process.argv[2]; for (const asset of release.assets) { if (asset.name.startsWith(prefix)) { process.stdout.write(`${asset.id}\t${asset.name}\n`); } }' "${existing_release_json}" "${ASSET_PREFIX}")"
+
+          if [ -z "${asset_lines}" ]; then
+            echo "No existing assets matched ${ASSET_PREFIX}."
+            exit 0
+          fi
+
+          while IFS=$'\t' read -r asset_id asset_name; do
+            if [ -z "${asset_id}" ] || [ -z "${asset_name}" ]; then
+              continue
+            fi
+
+            echo "Deleting existing release asset ${asset_name} (${asset_id})"
+            gh release delete-asset "${RELEASE_TAG}" "${asset_name}" --repo "${GITHUB_REPOSITORY}" --yes
+          done <<< "${asset_lines}"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
