@@ -76,6 +76,28 @@ test('provider-release triggers only on runtime-extensions model provider manife
   assert.doesNotMatch(workflow, /paths:\n\s+- 'models\/\*\*\/manifest\.yaml'/);
 });
 
+test('provider-release supports manual repair dispatches', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /allow_existing_tag_repair:/);
+  assert.match(workflow, /provider_code:/);
+});
+
+test('provider-release can reuse an existing tag during repair runs', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /ALLOW_EXISTING_TAG_REPAIR:/);
+  assert.match(
+    workflow,
+    /if \[ "\$\{ALLOW_EXISTING_TAG_REPAIR\}" = "true" \]; then/
+  );
+  assert.match(
+    workflow,
+    /echo "Release tag \$\{TAG_NAME\} already exists on \$\{remote_tag_sha\}; continuing because allow_existing_tag_repair=true\."/
+  );
+});
+
 test('provider-release extracts package metadata from plugin CLI output instead of assuming JSON stdout', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 

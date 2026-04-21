@@ -6,6 +6,21 @@ on:
       - main
     paths:
       - 'runtime-extensions/model-providers/**/manifest.yaml'
+  workflow_dispatch:
+    inputs:
+      provider_code:
+        description: Provider code under runtime-extensions/model-providers
+        required: true
+        type: string
+      version:
+        description: Optional release version override; defaults to manifest.yaml version
+        required: false
+        type: string
+      allow_existing_tag_repair:
+        description: Reuse an existing release tag to repair or backfill assets
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -36,7 +51,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          release_matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            provider_code="${{ inputs.provider_code }}"
+            plugin_dir="runtime-extensions/model-providers/${provider_code}"
+            if [ ! -f "${plugin_dir}/manifest.yaml" ]; then
+              echo "Provider manifest not found: ${plugin_dir}/manifest.yaml" >&2
+              exit 1
+            fi
+
+            version="${{ inputs.version }}"
+            if [ -z "${version}" ]; then
+              version="$(sed -n 's/^version:\s*//p' "${plugin_dir}/manifest.yaml" | head -n 1)"
+            fi
+
+            if [ -z "${version}" ]; then
+              echo "Unable to resolve release version for ${provider_code}" >&2
+              exit 1
+            fi
+
+            release_matrix_json="$(node --input-type=module -e 'process.stdout.write(JSON.stringify({ include: [{ plugin_dir: process.argv[1], provider_code: process.argv[2], release_tag: `${process.argv[2]}-v${process.argv[3]}`, version: process.argv[3] }] }));' "${plugin_dir}" "${provider_code}" "${version}")"
+          else
+            release_matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
+          fi
+
           release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${release_matrix_json}")"
           package_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]).include; const targets = [{ runs_on: "ubuntu-latest", rust_target: "x86_64-unknown-linux-musl", os: "linux", arch: "amd64", libc: "musl" }, { runs_on: "ubuntu-latest", rust_target: "aarch64-unknown-linux-musl", os: "linux", arch: "arm64", libc: "musl" }, { runs_on: "macos-latest", rust_target: "x86_64-apple-darwin", os: "darwin", arch: "amd64", libc: "" }, { runs_on: "macos-latest", rust_target: "aarch64-apple-darwin", os: "darwin", arch: "arm64", libc: "" }, { runs_on: "windows-latest", rust_target: "x86_64-pc-windows-msvc", os: "windows", arch: "amd64", libc: "msvc" }, { runs_on: "windows-latest", rust_target: "aarch64-pc-windows-msvc", os: "windows", arch: "arm64", libc: "msvc" }]; process.stdout.write(JSON.stringify({ include: releases.flatMap((release) => targets.map((target) => ({ ...release, ...target }))) }));' "${release_matrix_json}")"
           echo "matrix=${package_matrix_json}" >> "${GITHUB_OUTPUT}"
@@ -102,6 +140,7 @@ jobs:
         env:
           TAG_NAME: ${{ matrix.release_tag }}
           TARGET_SHA: ${{ github.sha }}
+          ALLOW_EXISTING_TAG_REPAIR: ${{ inputs.allow_existing_tag_repair }}
         shell: bash
         run: |
           set -euo pipefail
@@ -110,6 +149,11 @@ jobs:
 
           if [ -n "${remote_tag_sha}" ]; then
             if [ "${remote_tag_sha}" != "${TARGET_SHA}" ]; then
+              if [ "${ALLOW_EXISTING_TAG_REPAIR}" = "true" ]; then
+                echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}; continuing because allow_existing_tag_repair=true."
+                exit 0
+              fi
+
               echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}, expected ${TARGET_SHA}." >&2
               exit 1
             fi
