@@ -16,6 +16,10 @@ on:
         description: Optional release version override; defaults to manifest.yaml version
         required: false
         type: string
+      host_repo_ref:
+        description: Optional host repo ref for plugin packaging; defaults to main
+        required: false
+        type: string
       allow_existing_tag_repair:
         description: Reuse an existing release tag to repair or backfill assets
         required: false
@@ -101,6 +105,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: taichuy/1flowbase
+          ref: ${{ inputs.host_repo_ref || 'main' }}
           path: host
 
       - name: Setup Node.js
