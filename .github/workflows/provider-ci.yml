@@ -13,10 +13,10 @@ jobs:
       matrix: ${{ steps.detect.outputs.matrix }}
     steps:
       - name: Checkout official plugins repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
 
@@ -36,16 +36,16 @@ jobs:
       matrix: ${{ fromJson(needs.detect-package-targets.outputs.matrix) }}
     steps:
       - name: Checkout official plugins repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout host repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: taichuy/1flowbase
           path: host
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
 

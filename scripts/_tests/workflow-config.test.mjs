@@ -36,6 +36,21 @@ test('provider-ci discovers package targets from repo scripts instead of a hardc
   );
 });
 
+test('provider workflows pin Node 24 compatible GitHub Action majors', () => {
+  const ciWorkflow = readRepoFile('.github/workflows/provider-ci.yml');
+  const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.doesNotMatch(ciWorkflow, /actions\/checkout@v4/);
+  assert.doesNotMatch(ciWorkflow, /actions\/setup-node@v4/);
+  assert.match(ciWorkflow, /actions\/checkout@v6/);
+  assert.match(ciWorkflow, /actions\/setup-node@v6/);
+
+  assert.doesNotMatch(releaseWorkflow, /actions\/checkout@v4/);
+  assert.doesNotMatch(releaseWorkflow, /actions\/setup-node@v4/);
+  assert.match(releaseWorkflow, /actions\/checkout@v6/);
+  assert.match(releaseWorkflow, /actions\/setup-node@v6/);
+});
+
 test('provider workflows resolve runtime binary names from manifest metadata', () => {
   const ciWorkflow = readRepoFile('.github/workflows/provider-ci.yml');
   const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');
