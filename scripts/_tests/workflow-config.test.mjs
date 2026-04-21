@@ -46,7 +46,7 @@ test('provider workflows resolve runtime binary names from manifest metadata', (
   );
   assert.match(
     releaseWorkflow,
-    /binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --field binary_name\)"/
+    /runtime_binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --rust-target "\$\{\{ matrix\.rust_target \}\}" --field runtime_binary_name\)"/
   );
 });
 

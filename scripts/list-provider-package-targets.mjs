@@ -83,7 +83,19 @@ function toRelativePluginDir(pluginDir, baseRoot) {
   return path.relative(baseRoot, pluginDir).split(path.sep).join('/');
 }
 
-export function readProviderPackageTarget(pluginDir, baseRoot = repoRoot) {
+function resolveRuntimeBinaryName(binaryName, rustTargetTriple) {
+  if (!rustTargetTriple) {
+    return binaryName;
+  }
+
+  if (rustTargetTriple.includes('windows') && !binaryName.toLowerCase().endsWith('.exe')) {
+    return `${binaryName}.exe`;
+  }
+
+  return binaryName;
+}
+
+export function readProviderPackageTarget(pluginDir, baseRoot = repoRoot, options = {}) {
   const resolvedPluginDir = path.resolve(pluginDir);
   const manifestPath = path.join(resolvedPluginDir, 'manifest.yaml');
   const manifest = fs.readFileSync(manifestPath, 'utf8');
@@ -95,11 +107,20 @@ export function readProviderPackageTarget(pluginDir, baseRoot = repoRoot) {
       : readRuntimeExecutablePath(manifest) || readRuntimeEntry(manifest);
   const binaryName = path.basename(executablePath || `bin/${providerCode}-provider`);
 
-  return {
+  const payload = {
     provider_code: providerCode,
     plugin_dir: toRelativePluginDir(resolvedPluginDir, baseRoot),
     binary_name: binaryName,
   };
+
+  if (options.rustTargetTriple) {
+    payload.runtime_binary_name = resolveRuntimeBinaryName(
+      binaryName,
+      options.rustTargetTriple
+    );
+  }
+
+  return payload;
 }
 
 export function listProviderPackageTargets(rootDir = repoRoot) {
@@ -122,6 +143,7 @@ function parseCliArgs(argv) {
     format: 'json',
     pluginDir: null,
     field: null,
+    rustTarget: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -155,6 +177,15 @@ function parseCliArgs(argv) {
       continue;
     }
 
+    if (arg === '--rust-target') {
+      if (!next) {
+        throw new Error('--rust-target 需要值');
+      }
+      options.rustTarget = next;
+      index += 1;
+      continue;
+    }
+
     throw new Error(`未知参数：${arg}`);
   }
 
@@ -164,7 +195,9 @@ function parseCliArgs(argv) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const options = parseCliArgs(process.argv.slice(2));
   const payload = options.pluginDir
-    ? readProviderPackageTarget(path.resolve(repoRoot, options.pluginDir), repoRoot)
+    ? readProviderPackageTarget(path.resolve(repoRoot, options.pluginDir), repoRoot, {
+        rustTargetTriple: options.rustTarget,
+      })
     : listProviderPackageTargets(repoRoot);
 
   if (options.field) {

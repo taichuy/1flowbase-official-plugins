@@ -113,3 +113,24 @@ test('readProviderPackageTarget keeps old schema v2 plugin_code and executable p
     binary_name: 'gamma-provider.exe',
   });
 });
+
+test('readProviderPackageTarget derives a windows runtime binary name from rust target triples', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-target-windows-'));
+  const pluginDir = writeManifestV2(
+    root,
+    'openai_compatible',
+    'bin/openai_compatible-provider'
+  );
+
+  assert.deepEqual(
+    readProviderPackageTarget(pluginDir, root, {
+      rustTargetTriple: 'aarch64-pc-windows-msvc',
+    }),
+    {
+      provider_code: 'openai_compatible',
+      plugin_dir: 'runtime-extensions/model-providers/openai_compatible',
+      binary_name: 'openai_compatible-provider',
+      runtime_binary_name: 'openai_compatible-provider.exe',
+    }
+  );
+});
