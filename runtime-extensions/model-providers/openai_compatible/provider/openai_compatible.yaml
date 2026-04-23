@@ -12,25 +12,82 @@ parameter_form:
     - key: temperature
       label: Temperature
       type: number
+      control: slider
+      order: 10
       send_mode: optional
       enabled_by_default: false
       default_value: 0.7
+      min: 0
+      max: 2
+      step: 0.1
     - key: top_p
       label: Top P
       type: number
+      control: slider
+      order: 20
       send_mode: optional
       enabled_by_default: true
       default_value: 1.0
+      min: 0
+      max: 1
+      step: 0.01
     - key: max_tokens
       label: Max Tokens
       type: integer
+      control: number
+      order: 30
       send_mode: optional
       enabled_by_default: false
     - key: seed
       label: Seed
       type: integer
+      control: number
+      order: 40
       send_mode: optional
       enabled_by_default: false
+    - key: presence_penalty
+      label: Presence Penalty
+      type: number
+      control: slider
+      order: 50
+      send_mode: optional
+      enabled_by_default: false
+      default_value: 0
+      min: -2
+      max: 2
+      step: 0.1
+    - key: frequency_penalty
+      label: Frequency Penalty
+      type: number
+      control: slider
+      order: 60
+      send_mode: optional
+      enabled_by_default: false
+      default_value: 0
+      min: -2
+      max: 2
+      step: 0.1
+    - key: stop
+      label: Stop
+      type: string
+      order: 70
+      send_mode: optional
+      enabled_by_default: false
+      placeholder: 例如 END 或 ["END","STOP"]
+    - key: logit_bias
+      label: Logit Bias
+      type: string
+      order: 80
+      send_mode: optional
+      enabled_by_default: false
+      placeholder: 例如 {"50256": -100}
+    - key: user
+      label: User
+      type: string
+      order: 90
+      send_mode: optional
+      enabled_by_default: false
+      placeholder: 可选的终端用户或追踪标识
 config_schema:
   - key: base_url
     type: string

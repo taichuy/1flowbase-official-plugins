@@ -291,8 +291,8 @@ fn parse_default_headers(value: Option<&Value>) -> Result<BTreeMap<String, Strin
             .map(|(key, entry)| (key.clone(), value_to_string(entry)))
             .collect()),
         Value::String(text) => {
-            let parsed: Value = serde_json::from_str(text)
-                .with_context(|| "default_headers must be valid JSON")?;
+            let parsed: Value =
+                serde_json::from_str(text).with_context(|| "default_headers must be valid JSON")?;
             let object = parsed
                 .as_object()
                 .ok_or_else(|| anyhow!("default_headers must decode to a JSON object"))?;
@@ -343,7 +343,8 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     let mut url = Url::parse(&format!("{base_url}{pathname}"))
         .with_context(|| format!("invalid base_url: {}", config.base_url))?;
     if let Some(api_version) = &config.api_version {
-        url.query_pairs_mut().append_pair("api-version", api_version);
+        url.query_pairs_mut()
+            .append_pair("api-version", api_version);
     }
     Ok(url.to_string())
 }
@@ -371,7 +372,12 @@ async fn request_json(
             .and_then(|value| value.get("message"))
             .and_then(Value::as_str)
             .map(ToOwned::to_owned)
-            .or_else(|| payload.get("message").and_then(Value::as_str).map(ToOwned::to_owned))
+            .or_else(|| {
+                payload
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
             .unwrap_or_else(|| payload.to_string());
         bail!("{} {}: {}", status.as_u16(), status, message);
     }
@@ -396,7 +402,9 @@ fn normalize_model_entries(data: &Value) -> Result<Vec<ProviderModelDescriptor>>
 }
 
 fn explicit_number_alias(entry: &Value, aliases: &[&str]) -> Option<u64> {
-    aliases.iter().find_map(|alias| entry.get(alias).and_then(number_or_none_ref))
+    aliases
+        .iter()
+        .find_map(|alias| entry.get(alias).and_then(number_or_none_ref))
 }
 
 fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
@@ -435,7 +443,11 @@ fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
 
 fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
-    if let Some(system) = input.system.as_deref().filter(|value| !value.trim().is_empty()) {
+    if let Some(system) = input
+        .system
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
         messages.push(json!({
             "role": "system",
             "content": system,
@@ -470,10 +482,51 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .get(key)
         .cloned()
         .or_else(|| input.extra.get(key).cloned())
-        .filter(|value| !value.is_null())
+        .and_then(|value| normalize_parameter_value(key, value))
 }
 
-async fn invoke_chat_completion(input: ProviderInvocationInput) -> Result<RuntimeInvocationEnvelope> {
+fn normalize_parameter_value(key: &str, value: Value) -> Option<Value> {
+    match key {
+        "stop" => normalize_stop_parameter(value),
+        "logit_bias" => normalize_json_object_parameter(value),
+        _ => normalize_scalar_parameter(value),
+    }
+}
+
+fn normalize_scalar_parameter(value: Value) -> Option<Value> {
+    match value {
+        Value::Null => None,
+        Value::String(text) => {
+            let trimmed = text.trim();
+            (!trimmed.is_empty()).then_some(Value::String(trimmed.to_string()))
+        }
+        other => Some(other),
+    }
+}
+
+fn normalize_stop_parameter(value: Value) -> Option<Value> {
+    match normalize_scalar_parameter(value)? {
+        Value::String(text) => serde_json::from_str::<Value>(&text)
+            .ok()
+            .filter(Value::is_array)
+            .or(Some(Value::String(text))),
+        other => Some(other),
+    }
+}
+
+fn normalize_json_object_parameter(value: Value) -> Option<Value> {
+    match normalize_scalar_parameter(value)? {
+        Value::String(text) => serde_json::from_str::<Value>(&text)
+            .ok()
+            .filter(Value::is_object)
+            .or(Some(Value::String(text))),
+        other => Some(other),
+    }
+}
+
+async fn invoke_chat_completion(
+    input: ProviderInvocationInput,
+) -> Result<RuntimeInvocationEnvelope> {
     let config = normalize_provider_config(&input.provider_config)?;
     let mut body = Map::new();
     body.insert(
@@ -491,7 +544,17 @@ async fn invoke_chat_completion(input: ProviderInvocationInput) -> Result<Runtim
     if !input.tools.is_empty() {
         body.insert("tools".to_string(), Value::Array(input.tools.clone()));
     }
-    for key in ["temperature", "top_p", "max_tokens", "seed"] {
+    for key in [
+        "temperature",
+        "top_p",
+        "max_tokens",
+        "seed",
+        "presence_penalty",
+        "frequency_penalty",
+        "stop",
+        "logit_bias",
+        "user",
+    ] {
         if let Some(value) = parameter_value(&input, key) {
             body.insert(key.to_string(), value);
         }
@@ -514,8 +577,10 @@ async fn invoke_chat_completion(input: ProviderInvocationInput) -> Result<Runtim
     let text = extract_content(message.get("content"));
     let tool_calls = normalize_tool_calls(message.get("tool_calls"));
     let usage = normalize_usage(payload.get("usage").unwrap_or(&Value::Null));
-    let finish_reason =
-        normalize_finish_reason(choice.get("finish_reason").and_then(Value::as_str), &tool_calls);
+    let finish_reason = normalize_finish_reason(
+        choice.get("finish_reason").and_then(Value::as_str),
+        &tool_calls,
+    );
 
     let mut events = Vec::new();
     if let Some(text) = text.clone().filter(|value| !value.is_empty()) {
@@ -604,8 +669,9 @@ fn normalize_tool_calls(tool_calls: Option<&Value>) -> Vec<ProviderToolCall> {
 fn parse_tool_arguments(raw_arguments: Option<&Value>) -> Value {
     match raw_arguments {
         None | Some(Value::Null) => json!({}),
-        Some(Value::String(text)) => serde_json::from_str(text)
-            .unwrap_or_else(|_| json!({ "raw": text })),
+        Some(Value::String(text)) => {
+            serde_json::from_str(text).unwrap_or_else(|_| json!({ "raw": text }))
+        }
         Some(other) => other.clone(),
     }
 }
@@ -659,6 +725,92 @@ fn normalize_finish_reason(
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::Duration,
+    };
+
+    fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
+
+    fn capture_single_json_request() -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut header_end = None;
+            let mut body_length = None;
+
+            loop {
+                let read = stream.read(&mut chunk).expect("request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+
+                if header_end.is_none() {
+                    header_end = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4);
+                    if let Some(end) = header_end {
+                        let headers = String::from_utf8_lossy(&buffer[..end]);
+                        body_length = headers.lines().find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            if name.eq_ignore_ascii_case("content-length") {
+                                return value.trim().parse::<usize>().ok();
+                            }
+                            None
+                        });
+                    }
+                }
+
+                if let (Some(end), Some(length)) = (header_end, body_length) {
+                    if buffer.len() >= end + length {
+                        let response_body = json!({
+                            "id": "chatcmpl_test",
+                            "model": "gpt-4o-mini",
+                            "choices": [
+                                {
+                                    "message": { "role": "assistant", "content": "ok" },
+                                    "finish_reason": "stop"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": 3,
+                                "completion_tokens": 2,
+                                "total_tokens": 5
+                            }
+                        })
+                        .to_string();
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                            response_body.len(),
+                            response_body
+                        );
+                        stream
+                            .write_all(response.as_bytes())
+                            .expect("response should be writable");
+                        return String::from_utf8(buffer[end..end + length].to_vec())
+                            .expect("request body should be utf8");
+                    }
+                }
+            }
+
+            panic!("request body was not fully captured");
+        });
+
+        (address, handle)
+    }
 
     #[test]
     fn normalize_provider_config_requires_base_url_and_api_key() {
@@ -730,5 +882,46 @@ mod tests {
 
         assert_eq!(descriptor.context_window, None);
         assert_eq!(descriptor.max_output_tokens, None);
+    }
+
+    #[tokio::test]
+    async fn invoke_chat_completion_forwards_extended_chat_completion_parameters() {
+        let (base_url, capture_handle) = capture_single_json_request();
+
+        let envelope = invoke_chat_completion(ProviderInvocationInput {
+            model: "gpt-4o-mini".to_string(),
+            provider_config: json!({
+                "base_url": base_url,
+                "api_key": "test-key"
+            }),
+            messages: vec![ProviderMessage {
+                role: "user".to_string(),
+                content: json!("hello"),
+            }],
+            model_parameters: BTreeMap::from([
+                ("temperature".to_string(), json!(0.7)),
+                ("presence_penalty".to_string(), json!(0.4)),
+                ("frequency_penalty".to_string(), json!(-0.2)),
+                ("stop".to_string(), json!(r#"["END","STOP"]"#)),
+                ("logit_bias".to_string(), json!(r#"{"50256":-100}"#)),
+                ("user".to_string(), json!("trace-user-1")),
+            ]),
+            ..ProviderInvocationInput::default()
+        })
+        .await
+        .expect("invocation should succeed");
+
+        let captured_body: Value =
+            serde_json::from_str(&capture_handle.join().expect("capture thread should finish"))
+                .expect("captured body should parse");
+
+        assert_eq!(captured_body["model"], "gpt-4o-mini");
+        assert_eq!(captured_body["temperature"], json!(0.7));
+        assert_eq!(captured_body["presence_penalty"], json!(0.4));
+        assert_eq!(captured_body["frequency_penalty"], json!(-0.2));
+        assert_eq!(captured_body["stop"], json!(["END", "STOP"]));
+        assert_eq!(captured_body["logit_bias"], json!({ "50256": -100 }));
+        assert_eq!(captured_body["user"], json!("trace-user-1"));
+        assert_eq!(envelope.result.final_content.as_deref(), Some("ok"));
     }
 }
