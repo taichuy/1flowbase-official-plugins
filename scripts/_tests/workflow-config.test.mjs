@@ -119,6 +119,32 @@ test('provider-release can reuse an existing tag during repair runs', () => {
   );
 });
 
+test('provider-release creates release tags once before the package matrix starts', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /release_matrix: \$\{\{ steps\.detect\.outputs\.release_matrix \}\}/);
+  assert.match(workflow, /prepare-release-tags:/);
+  assert.match(
+    workflow,
+    /matrix: \$\{\{ fromJson\(needs\.detect-release-providers\.outputs\.release_matrix\) \}\}/
+  );
+  assert.match(
+    workflow,
+    /release-provider:\n\s+needs:\n\s+- detect-release-providers\n\s+- prepare-release-tags/
+  );
+
+  const prepareJobIndex = workflow.indexOf('  prepare-release-tags:');
+  const tagStepIndex = workflow.indexOf('- name: Ensure release tag points at current commit');
+  const releaseProviderJobIndex = workflow.indexOf('  release-provider:');
+
+  assert.ok(prepareJobIndex >= 0, 'prepare-release-tags job missing');
+  assert.ok(tagStepIndex > prepareJobIndex, 'tag step should be defined inside prepare-release-tags');
+  assert.ok(
+    tagStepIndex < releaseProviderJobIndex,
+    'tag step must run before the release-provider matrix job'
+  );
+});
+
 test('provider-release extracts package metadata from plugin CLI output instead of assuming JSON stdout', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 

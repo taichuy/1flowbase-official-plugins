@@ -37,7 +37,8 @@ jobs:
   detect-release-providers:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.detect.outputs.matrix }}
+      release_matrix: ${{ steps.detect.outputs.release_matrix }}
+      package_matrix: ${{ steps.detect.outputs.package_matrix }}
       has_releases: ${{ steps.detect.outputs.has_releases }}
     steps:
       - name: Checkout official plugins repo
@@ -81,20 +82,81 @@ jobs:
 
           release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${release_matrix_json}")"
           package_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]).include; const targets = [{ runs_on: "ubuntu-latest", rust_target: "x86_64-unknown-linux-musl", os: "linux", arch: "amd64", libc: "musl" }, { runs_on: "ubuntu-latest", rust_target: "aarch64-unknown-linux-musl", os: "linux", arch: "arm64", libc: "musl" }, { runs_on: "macos-latest", rust_target: "x86_64-apple-darwin", os: "darwin", arch: "amd64", libc: "" }, { runs_on: "macos-latest", rust_target: "aarch64-apple-darwin", os: "darwin", arch: "arm64", libc: "" }, { runs_on: "windows-latest", rust_target: "x86_64-pc-windows-msvc", os: "windows", arch: "amd64", libc: "msvc" }, { runs_on: "windows-latest", rust_target: "aarch64-pc-windows-msvc", os: "windows", arch: "arm64", libc: "msvc" }]; process.stdout.write(JSON.stringify({ include: releases.flatMap((release) => targets.map((target) => ({ ...release, ...target }))) }));' "${release_matrix_json}")"
-          echo "matrix=${package_matrix_json}" >> "${GITHUB_OUTPUT}"
+          echo "release_matrix=${release_matrix_json}" >> "${GITHUB_OUTPUT}"
+          echo "package_matrix=${package_matrix_json}" >> "${GITHUB_OUTPUT}"
           if [ "${release_count}" -gt 0 ]; then
             echo "has_releases=true" >> "${GITHUB_OUTPUT}"
           else
             echo "has_releases=false" >> "${GITHUB_OUTPUT}"
           fi
 
-  release-provider:
+  prepare-release-tags:
     needs: detect-release-providers
+    if: needs.detect-release-providers.outputs.has_releases == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-release-providers.outputs.release_matrix) }}
+    steps:
+      - name: Checkout official plugins repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate signing configuration
+        env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" ]; then
+            echo "OFFICIAL_PLUGIN_SIGNING_KEY_PEM or OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM secret is required." >&2
+            exit 1
+          fi
+
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" ]; then
+            echo "OFFICIAL_PLUGIN_SIGNING_KEY_ID secret is required." >&2
+            exit 1
+          fi
+
+      - name: Ensure release tag points at current commit
+        env:
+          TAG_NAME: ${{ matrix.release_tag }}
+          TARGET_SHA: ${{ github.sha }}
+          ALLOW_EXISTING_TAG_REPAIR: ${{ inputs.allow_existing_tag_repair || 'false' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}" | awk '{print $1}')"
+
+          if [ -n "${remote_tag_sha}" ]; then
+            if [ "${remote_tag_sha}" != "${TARGET_SHA}" ]; then
+              if [ "${ALLOW_EXISTING_TAG_REPAIR}" = "true" ]; then
+                echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}; continuing because allow_existing_tag_repair=true."
+                exit 0
+              fi
+
+              echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}, expected ${TARGET_SHA}." >&2
+              exit 1
+            fi
+
+            exit 0
+          fi
+
+          git tag "${TAG_NAME}" "${TARGET_SHA}"
+          git push origin "refs/tags/${TAG_NAME}"
+
+  release-provider:
+    needs:
+      - detect-release-providers
+      - prepare-release-tags
     if: needs.detect-release-providers.outputs.has_releases == 'true'
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.detect-release-providers.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.detect-release-providers.outputs.package_matrix) }}
     steps:
       - name: Checkout official plugins repo
         uses: actions/checkout@v6
@@ -140,34 +202,6 @@ jobs:
           fi
 
           printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > official-plugin-signing-key.pem
-
-      - name: Ensure release tag points at current commit
-        env:
-          TAG_NAME: ${{ matrix.release_tag }}
-          TARGET_SHA: ${{ github.sha }}
-          ALLOW_EXISTING_TAG_REPAIR: ${{ inputs.allow_existing_tag_repair }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --tags origin
-          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}" | awk '{print $1}')"
-
-          if [ -n "${remote_tag_sha}" ]; then
-            if [ "${remote_tag_sha}" != "${TARGET_SHA}" ]; then
-              if [ "${ALLOW_EXISTING_TAG_REPAIR}" = "true" ]; then
-                echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}; continuing because allow_existing_tag_repair=true."
-                exit 0
-              fi
-
-              echo "Release tag ${TAG_NAME} already exists on ${remote_tag_sha}, expected ${TARGET_SHA}." >&2
-              exit 1
-            fi
-
-            exit 0
-          fi
-
-          git tag "${TAG_NAME}" "${TARGET_SHA}"
-          git push origin "refs/tags/${TAG_NAME}"
 
       - name: Build and package provider artifacts
         env:
