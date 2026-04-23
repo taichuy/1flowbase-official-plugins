@@ -395,6 +395,10 @@ fn normalize_model_entries(data: &Value) -> Result<Vec<ProviderModelDescriptor>>
     items.iter().map(normalize_model_entry).collect()
 }
 
+fn explicit_number_alias(entry: &Value, aliases: &[&str]) -> Option<u64> {
+    aliases.iter().find_map(|alias| entry.get(alias).and_then(number_or_none_ref))
+}
+
 fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
     let model_id = entry
         .get("id")
@@ -414,8 +418,14 @@ fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
         supports_streaming: true,
         supports_tool_call: true,
         supports_multimodal: false,
-        context_window: None,
-        max_output_tokens: None,
+        context_window: explicit_number_alias(
+            entry,
+            &["context_window", "context_length", "input_token_limit"],
+        ),
+        max_output_tokens: explicit_number_alias(
+            entry,
+            &["max_output_tokens", "output_token_limit", "max_tokens"],
+        ),
         provider_metadata: json!({
             "owned_by": entry.get("owned_by").cloned().unwrap_or(Value::Null),
             "created": entry.get("created").cloned().unwrap_or(Value::Null),
@@ -669,5 +679,56 @@ mod tests {
         assert_eq!(usage.input_tokens, Some(5));
         assert_eq!(usage.output_tokens, Some(7));
         assert_eq!(usage.total_tokens, Some(12));
+    }
+
+    #[test]
+    fn normalize_model_entry_extracts_explicit_context_aliases() {
+        let aliases = [
+            json!({ "id": "gpt-4o-mini", "context_window": 128000 }),
+            json!({ "id": "gpt-4o-mini", "context_length": 256000 }),
+            json!({ "id": "gpt-4o-mini", "input_token_limit": 64000 }),
+        ];
+
+        let normalized = aliases
+            .iter()
+            .map(normalize_model_entry)
+            .collect::<Result<Vec<_>>>()
+            .expect("context aliases should normalize");
+
+        assert_eq!(normalized[0].context_window, Some(128000));
+        assert_eq!(normalized[1].context_window, Some(256000));
+        assert_eq!(normalized[2].context_window, Some(64000));
+    }
+
+    #[test]
+    fn normalize_model_entry_extracts_explicit_output_aliases() {
+        let aliases = [
+            json!({ "id": "gpt-4o-mini", "max_output_tokens": 8192 }),
+            json!({ "id": "gpt-4o-mini", "output_token_limit": 4096 }),
+            json!({ "id": "gpt-4o-mini", "max_tokens": 2048 }),
+        ];
+
+        let normalized = aliases
+            .iter()
+            .map(normalize_model_entry)
+            .collect::<Result<Vec<_>>>()
+            .expect("output aliases should normalize");
+
+        assert_eq!(normalized[0].max_output_tokens, Some(8192));
+        assert_eq!(normalized[1].max_output_tokens, Some(4096));
+        assert_eq!(normalized[2].max_output_tokens, Some(2048));
+    }
+
+    #[test]
+    fn normalize_model_entry_keeps_unknown_or_malformed_limits_as_none() {
+        let descriptor = normalize_model_entry(&json!({
+            "id": "gpt-4o-mini",
+            "context_window": "128000",
+            "max_output_tokens": "8192"
+        }))
+        .expect("model should still normalize");
+
+        assert_eq!(descriptor.context_window, None);
+        assert_eq!(descriptor.max_output_tokens, None);
     }
 }

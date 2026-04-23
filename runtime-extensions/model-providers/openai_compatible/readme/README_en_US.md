@@ -13,6 +13,8 @@ The plugin keeps the host boundary stable:
 
 - 1flowbase owns installation, assignment, provider instances, secret storage, and runtime governance.
 - This plugin owns protocol translation, model discovery, usage normalization, and error shaping.
+- The plugin now exposes a provider-level parameter schema for `temperature`, `top_p`, `max_tokens`, and `seed`.
+- Model metadata extraction stays explicit: `context_window` and `max_output_tokens` are read only from known upstream fields and remain `null` when absent.
 
 ## Supported Configuration
 
@@ -31,6 +33,13 @@ The plugin keeps the host boundary stable:
 The plugin uses `hybrid` discovery, but ships with no bundled static default models.
 
 The active catalog is refreshed from `GET /models` after validation.
+
+During normalization the runtime only maps explicit upstream fields:
+
+- Context aliases: `context_window`, `context_length`, `input_token_limit`
+- Output aliases: `max_output_tokens`, `output_token_limit`, `max_tokens`
+
+If the upstream payload does not expose one of those numeric fields, the plugin returns `null` instead of inferring a value.
 
 ## Local Demo
 

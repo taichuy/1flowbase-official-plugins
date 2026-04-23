@@ -4,6 +4,33 @@ protocol: openai_compatible
 help_url: https://platform.openai.com/docs/api-reference
 model_discovery: hybrid
 supports_model_fetch_without_credentials: false
+parameter_form:
+  schema_version: 1.0.0
+  title: OpenAI-Compatible Parameters
+  description: Provider-level request parameters supported by the OpenAI-compatible invocation bridge.
+  fields:
+    - key: temperature
+      label: Temperature
+      type: number
+      send_mode: optional
+      enabled_by_default: false
+      default_value: 0.7
+    - key: top_p
+      label: Top P
+      type: number
+      send_mode: optional
+      enabled_by_default: true
+      default_value: 1.0
+    - key: max_tokens
+      label: Max Tokens
+      type: integer
+      send_mode: optional
+      enabled_by_default: false
+    - key: seed
+      label: Seed
+      type: integer
+      send_mode: optional
+      enabled_by_default: false
 config_schema:
   - key: base_url
     type: string
