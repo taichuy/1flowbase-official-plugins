@@ -71,6 +71,25 @@ test('provider workflows resolve runtime binary names from manifest metadata', (
   );
 });
 
+test('provider workflows sync manifest plugin_id version fields before packaging', () => {
+  const ciWorkflow = readRepoFile('.github/workflows/provider-ci.yml');
+  const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(ciWorkflow, /- name: Sync provider manifest version fields/);
+  assert.match(ciWorkflow, /run: node scripts\/sync-provider-manifest-versions\.mjs/);
+  assert.ok(
+    ciWorkflow.indexOf('- name: Sync provider manifest version fields') <
+      ciWorkflow.indexOf('- name: Build provider binary for dry-run packaging')
+  );
+
+  assert.match(releaseWorkflow, /- name: Sync provider manifest version fields/);
+  assert.match(releaseWorkflow, /run: node scripts\/sync-provider-manifest-versions\.mjs/);
+  assert.ok(
+    releaseWorkflow.lastIndexOf('- name: Sync provider manifest version fields') <
+      releaseWorkflow.indexOf('- name: Build and package provider artifacts')
+  );
+});
+
 test('provider-release validates signing secrets before tagging releases', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 
