@@ -90,6 +90,15 @@ test('provider workflows sync manifest plugin_id version fields before packaging
   );
 });
 
+test('provider-ci runs only unit-style registry tests and leaves published-state validation to release automation', () => {
+  const workflow = readRepoFile('.github/workflows/provider-ci.yml');
+
+  assert.match(workflow, /- name: Test registry updater/);
+  assert.doesNotMatch(workflow, /node --test scripts\/_tests\/\*\.test\.mjs/);
+  assert.match(workflow, /scripts\/_tests\/update-official-registry\.test\.mjs/);
+  assert.doesNotMatch(workflow, /scripts\/_tests\/published-registry-state\.test\.mjs/);
+});
+
 test('provider-release validates signing secrets before tagging releases', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 
@@ -193,6 +202,18 @@ test('provider-release removes same-platform release assets before uploading rep
   assert.ok(
     workflow.indexOf('- name: Remove existing platform assets for repair-safe uploads') <
       workflow.indexOf('- name: Publish GitHub Release')
+  );
+});
+
+test('provider-release validates published registry state after updating official-registry.json', () => {
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /- name: Verify published registry state/);
+  assert.match(workflow, /node --test scripts\/_tests\/published-registry-state\.test\.mjs/);
+
+  assert.ok(
+    workflow.indexOf('- name: Update official registry on default branch') <
+      workflow.indexOf('- name: Verify published registry state')
   );
 });
 

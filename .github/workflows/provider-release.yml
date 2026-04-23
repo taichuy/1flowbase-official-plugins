@@ -368,6 +368,15 @@ jobs:
           }
           NODE
 
+      - name: Verify published registry state
+        run: node --test scripts/_tests/published-registry-state.test.mjs
+
+      - name: Commit official registry update
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
           if git diff --quiet -- official-registry.json; then
             echo "official-registry.json unchanged; skipping commit."
             exit 0

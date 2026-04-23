@@ -95,7 +95,14 @@ jobs:
             --target x86_64-unknown-linux-musl
 
       - name: Test registry updater
-        run: node --test scripts/_tests/*.test.mjs
+        run: |
+          node --test \
+            scripts/_tests/build-registry-entry.test.mjs \
+            scripts/_tests/detect-version-releases.test.mjs \
+            scripts/_tests/list-provider-package-targets.test.mjs \
+            scripts/_tests/sync-provider-manifest-versions.test.mjs \
+            scripts/_tests/update-official-registry.test.mjs \
+            scripts/_tests/workflow-config.test.mjs
 
       - name: Smoke-test reusable registry entry builder
         shell: bash
