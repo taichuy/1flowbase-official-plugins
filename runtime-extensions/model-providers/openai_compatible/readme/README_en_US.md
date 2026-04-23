@@ -28,12 +28,9 @@ The plugin keeps the host boundary stable:
 
 ## Model Discovery
 
-The plugin uses `hybrid` discovery:
+The plugin uses `hybrid` discovery, but ships with no bundled static default models.
 
-- static default model: `gpt-4o-mini`
-- dynamic refresh: `GET /models`
-
-This means the host can show one safe default option immediately and replace or extend it with the live catalog after validation.
+The active catalog is refreshed from `GET /models` after validation.
 
 ## Local Demo
 
