@@ -9,7 +9,7 @@
 
 这个仓库承载：
 
-- 官方 provider 插件源码
+- 官方 provider 插件源码.
 - 发布与打包自动化
 - 官方插件注册表 `official-registry.json`
 
