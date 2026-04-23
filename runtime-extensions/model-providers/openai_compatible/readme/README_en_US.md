@@ -13,6 +13,8 @@ The plugin keeps the host boundary stable:
 
 - 1flowbase owns installation, assignment, provider instances, secret storage, and runtime governance.
 - This plugin owns protocol translation, model discovery, usage normalization, and error shaping.
+- The plugin now exposes a provider-level parameter schema for `temperature`, `top_p`, `max_tokens`, and `seed`.
+- Model metadata extraction stays explicit: `context_window` and `max_output_tokens` are read only from known upstream fields and remain `null` when absent.
 
 ## Supported Configuration
 
@@ -26,11 +28,36 @@ The plugin keeps the host boundary stable:
 
 `default_headers` accepts a JSON object string and is merged into every outbound request before the standard authorization headers are applied.
 
+## Provider-Level Parameter Schema
+
+The plugin declares a provider-level parameter schema for the invocation bridge. The first-pass supported parameters are:
+
+- `temperature`
+- `top_p`
+- `max_tokens`
+- `seed`
+
+The host owns persistence, UI rendering, and per-model manual overrides. This plugin only declares the provider-level parameter contract and forwards supported invocation parameters.
+
 ## Model Discovery
 
 The plugin uses `hybrid` discovery, but ships with no bundled static default models.
 
 The active catalog is refreshed from `GET /models` after validation.
+
+Model metadata extraction is intentionally explicit-only. The runtime reads:
+
+- `context_window`, `context_length`, `input_token_limit`
+- `max_output_tokens`, `output_token_limit`, `max_tokens`
+
+If an upstream `/models` payload does not expose one of these fields as an integer, the plugin returns `null` instead of guessing.
+
+During normalization the runtime only maps explicit upstream fields:
+
+- Context aliases: `context_window`, `context_length`, `input_token_limit`
+- Output aliases: `max_output_tokens`, `output_token_limit`, `max_tokens`
+
+If the upstream payload does not expose one of those numeric fields, the plugin returns `null` instead of inferring a value.
 
 ## Local Demo
 
