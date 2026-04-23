@@ -28,11 +28,29 @@ The plugin keeps the host boundary stable:
 
 `default_headers` accepts a JSON object string and is merged into every outbound request before the standard authorization headers are applied.
 
+## Provider-Level Parameter Schema
+
+The plugin declares a provider-level parameter schema for the invocation bridge. The first-pass supported parameters are:
+
+- `temperature`
+- `top_p`
+- `max_tokens`
+- `seed`
+
+The host owns persistence, UI rendering, and per-model manual overrides. This plugin only declares the provider-level parameter contract and forwards supported invocation parameters.
+
 ## Model Discovery
 
 The plugin uses `hybrid` discovery, but ships with no bundled static default models.
 
 The active catalog is refreshed from `GET /models` after validation.
+
+Model metadata extraction is intentionally explicit-only. The runtime reads:
+
+- `context_window`, `context_length`, `input_token_limit`
+- `max_output_tokens`, `output_token_limit`, `max_tokens`
+
+If an upstream `/models` payload does not expose one of these fields as an integer, the plugin returns `null` instead of guessing.
 
 During normalization the runtime only maps explicit upstream fields:
 
