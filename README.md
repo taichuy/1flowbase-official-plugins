@@ -61,6 +61,30 @@
 
 如果只改代码而没有修改 provider 版本号，就不会触发正式发布。
 
+## 本地同步
+
+当 GitHub Actions 发布流程自动提交 `official-registry.json` 后，本地 `main` 可能出现“本地领先、远端也领先”的状态。终端同步时可以使用：
+
+```bash
+node scripts/sync-main.mjs
+```
+
+该脚本只会自动处理满足以下条件的远端领先提交：
+
+- 作者是 `github-actions[bot]`
+- commit message 是 `chore: update official plugin registry for version changes`
+- 只修改 `official-registry.json`
+
+满足条件时，脚本会自动 `fetch`、`rebase origin/main` 并 `push origin main`。如果远端包含其它提交，或当前工作区不干净，脚本会停止并提示手动处理。
+
+也可以配置一个本地 Git alias：
+
+```bash
+git config alias.sync-main '!node scripts/sync-main.mjs'
+```
+
+之后使用 `git sync-main`。
+
 ## Repair Release
 
 当某个 `<provider_code>-v<version>` tag 已经存在，但需要对同一版本补发或修复多平台产物时，可手动触发 `provider-release` workflow，并设置：
