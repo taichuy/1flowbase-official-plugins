@@ -6,6 +6,8 @@ import path from 'node:path';
 
 import { buildRegistryEntry } from '../build-registry-entry.mjs';
 
+const repoRoot = path.resolve(import.meta.dirname, '..', '..');
+
 test('buildRegistryEntry emits plugin_type and i18n_summary', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
   mkdirSync(path.join(root, 'provider'), { recursive: true });
@@ -127,4 +129,23 @@ test('buildRegistryEntry prefers manifest metadata for plugin label and descript
   assert.equal(entry.i18n_summary.bundles.zh_Hans.plugin.label, '清单标题');
   assert.equal(entry.i18n_summary.bundles.zh_Hans.plugin.description, '清单描述');
   assert.equal(entry.i18n_summary.bundles.en_US.provider.label, 'Provider English Label');
+});
+
+test('buildRegistryEntry emits a raw GitHub icon URL for repository asset icons', () => {
+  const entry = buildRegistryEntry({
+    pluginDir: path.join(
+      repoRoot,
+      'runtime-extensions',
+      'model-providers',
+      'openai_compatible'
+    ),
+    providerCode: 'openai_compatible',
+    version: '0.3.17',
+    artifacts: [],
+  });
+
+  assert.equal(
+    entry.icon,
+    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
+  );
 });

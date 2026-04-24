@@ -10,6 +10,8 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
     plugin_type: 'model_provider',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI-Compatible API Provider',
+    icon:
+      'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg',
     protocol: 'openai_compatible',
     latest_version: '0.1.0',
     help_url:
@@ -41,6 +43,10 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
 
   assert.equal(next.plugins.length, 1);
   assert.equal(next.plugins[0].plugin_type, 'model_provider');
+  assert.equal(
+    next.plugins[0].icon,
+    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
+  );
   assert.equal(next.plugins[0].latest_version, '0.1.0');
   assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');
   assert.equal(next.plugins[0].artifacts.length, 1);
@@ -73,6 +79,8 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
     plugin_type: 'model_provider',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI-Compatible API Provider',
+    icon:
+      'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg',
     protocol: 'openai_compatible',
     latest_version: '0.2.1',
     help_url:
@@ -111,6 +119,10 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
 
   assert.equal(next.plugins.length, 1);
   assert.equal(next.plugins[0].plugin_type, 'model_provider');
+  assert.equal(
+    next.plugins[0].icon,
+    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
+  );
   assert.equal(next.plugins[0].latest_version, '0.2.1');
   assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');
   assert.equal(next.plugins[0].artifacts.length, 2);

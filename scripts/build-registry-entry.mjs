@@ -2,6 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OFFICIAL_PLUGIN_RAW_BASE_URL =
+  'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main';
+
 function readField(content, fieldName, fallback = '') {
   const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = content.match(new RegExp(`^${escapedField}:\\s*(.+)$`, 'm'));
@@ -141,10 +145,45 @@ function compareArtifacts(left, right) {
     );
 }
 
+function isExternalAssetUrl(value) {
+  return /^https?:\/\//.test(value) || value.startsWith('data:');
+}
+
+function toPosixPath(value) {
+  return value.split(path.sep).join('/');
+}
+
+function resolveRegistryIcon(pluginDir, manifestIcon) {
+  const trimmedIcon = manifestIcon.trim();
+  if (!trimmedIcon) {
+    return null;
+  }
+
+  if (isExternalAssetUrl(trimmedIcon)) {
+    return trimmedIcon;
+  }
+
+  const assetPath = [
+    path.join(pluginDir, '_assets', trimmedIcon),
+    path.join(pluginDir, trimmedIcon),
+  ].find((candidatePath) => fs.existsSync(candidatePath));
+  if (!assetPath) {
+    return null;
+  }
+
+  const relativeAssetPath = path.relative(repoRoot, assetPath);
+  if (relativeAssetPath.startsWith('..')) {
+    return null;
+  }
+
+  return `${OFFICIAL_PLUGIN_RAW_BASE_URL}/${toPosixPath(relativeAssetPath)}`;
+}
+
 export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts }) {
   const manifest = fs.readFileSync(path.join(pluginDir, 'manifest.yaml'), 'utf8');
   const pluginType = readField(manifest, 'plugin_type', 'model_provider');
   const manifestMetadata = parseManifestMetadata(manifest);
+  const icon = resolveRegistryIcon(pluginDir, readField(manifest, 'icon', ''));
   const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
   const providerYaml = fs.readFileSync(providerPath, 'utf8');
   const i18nSummary = applyManifestMetadataToI18nSummary(
@@ -160,6 +199,7 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
       readField(providerYaml, 'display_name', '') ||
       i18nSummary.bundles[i18nSummary.default_locale]?.provider?.label ||
       providerCode,
+    icon,
     protocol: readField(providerYaml, 'protocol', providerCode),
     latest_version: version,
     help_url: nullableField(providerYaml, 'help_url'),

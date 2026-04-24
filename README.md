@@ -57,7 +57,7 @@
    - 创建或复用 `<provider_code>-v<version>` release tag
    - 为多个 Linux target 构建 Rust binary 并打包为 `.1flowbasepkg`
    - 发布 GitHub Release 资产
-   - 更新 latest-only `official-registry.json`，其中每个 provider 条目包含 `artifacts[]`
+   - 更新 latest-only `official-registry.json`，其中每个 provider 条目包含 `icon` 与 `artifacts[]`
 
 如果只改代码而没有修改 provider 版本号，就不会触发正式发布。
 
