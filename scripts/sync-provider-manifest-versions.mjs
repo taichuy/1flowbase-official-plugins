@@ -45,7 +45,7 @@ export function syncManifestContent(content, options = {}) {
   }
 
   const providerCode = resolveProviderCode(currentPluginId, options.fallbackProviderCode || '');
-  const nextPluginId = `${providerCode}@${version}`;
+  const nextPluginId = providerCode;
   if (!providerCode || currentPluginId === nextPluginId) {
     return {
       changed: false,

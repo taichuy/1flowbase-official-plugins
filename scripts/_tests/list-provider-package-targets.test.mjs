@@ -77,10 +77,10 @@ function writeManifestV2(root, providerCode, executablePath) {
   return pluginDir;
 }
 
-test('listProviderPackageTargets supports manifest v1 plugin_id prefix and basename fallback', () => {
+test('listProviderPackageTargets supports manifest v1 stable plugin_id and basename fallback', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-targets-'));
   writeManifestV1(root, 'alpha_provider', {
-    pluginId: 'alpha_provider@0.3.8',
+    pluginId: 'alpha_provider',
     entry: 'bin/nested/alpha-runtime',
   });
   writeManifestV1(root, 'fallback-provider', {

@@ -69,11 +69,14 @@ function readProviderCode(content, pluginDir) {
   const manifestVersion = readManifestField(content, 'manifest_version');
   if (manifestVersion === '1') {
     const pluginId = readManifestField(content, 'plugin_id');
+    if (!pluginId) {
+      return path.basename(pluginDir);
+    }
     if (pluginId.includes('@')) {
       return pluginId.slice(0, pluginId.indexOf('@')) || path.basename(pluginDir);
     }
 
-    return path.basename(pluginDir);
+    return pluginId;
   }
 
   return readManifestField(content, 'plugin_code') || path.basename(pluginDir);

@@ -21,7 +21,7 @@ function writeManifest(rootDir, providerCode, content) {
   return manifestPath;
 }
 
-test('syncProviderManifestFile aligns manifest v1 plugin_id suffix with version', () => {
+test('syncProviderManifestFile strips manifest v1 plugin_id version suffix', () => {
   const rootDir = makeProviderRoot();
   const manifestPath = writeManifest(
     rootDir,
@@ -41,8 +41,8 @@ test('syncProviderManifestFile aligns manifest v1 plugin_id suffix with version'
   assert.equal(result.changed, true);
   assert.equal(result.providerCode, 'openai_compatible');
   assert.equal(result.version, '0.3.12');
-  assert.equal(result.nextPluginId, 'openai_compatible@0.3.12');
-  assert.match(fs.readFileSync(manifestPath, 'utf8'), /^plugin_id:\s*openai_compatible@0\.3\.12$/m);
+  assert.equal(result.nextPluginId, 'openai_compatible');
+  assert.match(fs.readFileSync(manifestPath, 'utf8'), /^plugin_id:\s*openai_compatible$/m);
 });
 
 test('syncProviderManifestVersions leaves aligned manifests unchanged', () => {
@@ -52,7 +52,7 @@ test('syncProviderManifestVersions leaves aligned manifests unchanged', () => {
     'openai_compatible',
     [
       'manifest_version: 1',
-      'plugin_id: openai_compatible@0.3.12',
+      'plugin_id: openai_compatible',
       'version: 0.3.12',
       'runtime:',
       '  entry: bin/openai_compatible-provider',

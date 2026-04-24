@@ -26,7 +26,7 @@
 
 当前官方 model provider 位于 `runtime-extensions/model-providers/<provider_code>/` 下，通常包含：
 
-- `manifest.yaml`：插件元数据与版本号
+- `manifest.yaml`：插件稳定身份、版本号与运行时元数据
 - `Cargo.toml` 与 `src/`：Rust provider runtime 源码
 - `provider/`：provider 协议定义与运行时代码
 - `models/`：内置模型元数据
