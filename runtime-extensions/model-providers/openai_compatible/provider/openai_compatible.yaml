@@ -9,6 +9,27 @@ parameter_form:
   title: parameters.title
   description: parameters.description
   fields:
+  - key: reasoning_effort
+    label: parameters.reasoning_effort.label
+    description: parameters.reasoning_effort.description
+    type: enum
+    order: 110
+    send_mode: optional
+    enabled_by_default: false
+    control: select
+    options:
+    - label: none
+      value: none
+    - label: minimal
+      value: minimal
+    - label: low
+      value: low
+    - label: medium
+      value: medium
+    - label: high
+      value: high
+    - label: xhigh
+      value: xhigh
   - key: temperature
     label: parameters.temperature.label
     description: parameters.temperature.description
@@ -116,48 +137,15 @@ parameter_form:
     send_mode: optional
     enabled_by_default: false
     default_value: false
-  - key: top_logprobs
-    label: parameters.top_logprobs.label
-    description: parameters.top_logprobs.description
-    type: integer
-    control: number
-    order: 110
-    send_mode: optional
-    enabled_by_default: false
-    default_value: 0
-    min: 0
-    max: 20
-    step: 1
   - key: seed
     label: parameters.seed.label
     description: parameters.seed.description
     type: integer
     control: number
-    order: 120
-    send_mode: optional
-    enabled_by_default: false
-    step: 1
-  - key: reasoning_effort
-    label: parameters.reasoning_effort.label
-    description: parameters.reasoning_effort.description
-    type: enum
     order: 130
     send_mode: optional
     enabled_by_default: false
-    control: select
-    options:
-    - label: parameters.reasoning_effort.options.none.label
-      value: none
-    - label: parameters.reasoning_effort.options.minimal.label
-      value: minimal
-    - label: parameters.reasoning_effort.options.low.label
-      value: low
-    - label: parameters.reasoning_effort.options.medium.label
-      value: medium
-    - label: parameters.reasoning_effort.options.high.label
-      value: high
-    - label: parameters.reasoning_effort.options.xhigh.label
-      value: xhigh
+    step: 1
 config_schema:
 - key: base_url
   type: string

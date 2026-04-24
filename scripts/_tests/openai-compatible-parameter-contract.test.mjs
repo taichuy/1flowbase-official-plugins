@@ -37,6 +37,29 @@ test('openai compatible parameter form exposes only direct LLM request tuning fi
   }
 });
 
+test('openai compatible reasoning controls appear before logprobs and seed with raw option labels', () => {
+  const providerYaml = readProviderFile('provider/openai_compatible.yaml');
+  const reasoningIndex = providerYaml.indexOf('  - key: reasoning_effort');
+  const topLogprobsIndex = providerYaml.indexOf('  - key: top_logprobs');
+  const seedIndex = providerYaml.indexOf('  - key: seed');
+
+  assert.ok(reasoningIndex > -1);
+  assert.ok(topLogprobsIndex > -1);
+  assert.ok(seedIndex > -1);
+  assert.ok(reasoningIndex < topLogprobsIndex);
+  assert.ok(topLogprobsIndex < seedIndex);
+
+  for (const option of ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']) {
+    assert.ok(
+      providerYaml.includes(`    - label: ${option}\n      value: ${option}`)
+    );
+  }
+  assert.doesNotMatch(
+    providerYaml,
+    /parameters\.reasoning_effort\.options\.[^.]+\.label/
+  );
+});
+
 test('openai compatible localized parameter bundles omit node adaptation fields', () => {
   for (const locale of ['en_US', 'zh_Hans']) {
     const bundle = JSON.parse(readProviderFile(`i18n/${locale}.json`));
