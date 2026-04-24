@@ -6,8 +6,8 @@ model_discovery: hybrid
 supports_model_fetch_without_credentials: false
 parameter_form:
   schema_version: 1.0.0
-  title: OpenAI-Compatible Parameters
-  description: Provider-level request parameters supported by the OpenAI-compatible invocation bridge.
+  title: OpenAI-Compatible Chat Completions Parameters
+  description: Provider-level request parameters supported by the OpenAI-compatible Chat Completions invocation bridge.
   fields:
     - key: temperature
       label: Temperature
@@ -33,28 +33,43 @@ parameter_form:
       min: 0
       max: 1
       step: 0.01
-    - key: max_tokens
-      label: Max Tokens
-      description: 限制模型本次最多生成的 token 数，不能超过所选模型上下文上限。
+    - key: n
+      label: N
+      description: 请求返回的候选结果数量；运行时仍按当前 1flowbase LLM 输出契约读取第一条结果。
       type: integer
       control: number
       order: 30
       send_mode: optional
       enabled_by_default: false
-    - key: seed
-      label: Seed
-      description: 可选随机种子；供应商支持时用于提高相同输入下的结果稳定性。
+      default_value: 1
+      min: 1
+      step: 1
+    - key: max_tokens
+      label: Max Tokens
+      description: 旧版输出 token 上限字段；部分兼容服务仍只识别该字段。
       type: integer
       control: number
       order: 40
       send_mode: optional
       enabled_by_default: false
+      min: 1
+      step: 1
+    - key: max_completion_tokens
+      label: Max Completion Tokens
+      description: 新版输出 token 上限字段，覆盖可见输出和推理 token。
+      type: integer
+      control: number
+      order: 50
+      send_mode: optional
+      enabled_by_default: false
+      min: 1
+      step: 1
     - key: presence_penalty
       label: Presence Penalty
       description: 提高模型谈论新主题的倾向，值越高越不容易重复已出现内容。
       type: number
       control: slider
-      order: 50
+      order: 60
       send_mode: optional
       enabled_by_default: false
       default_value: 0
@@ -66,7 +81,7 @@ parameter_form:
       description: 按 token 出现频率降低重复用词概率，值越高越抑制高频重复。
       type: number
       control: slider
-      order: 60
+      order: 70
       send_mode: optional
       enabled_by_default: false
       default_value: 0
@@ -75,28 +90,147 @@ parameter_form:
       step: 0.1
     - key: stop
       label: Stop
-      description: 指定停止生成的文本片段；模型生成到该片段时提前结束。
+      description: 指定停止生成的文本片段；支持单个字符串或字符串数组 JSON。
       type: string
-      order: 70
+      control: textarea
+      order: 80
       send_mode: optional
       enabled_by_default: false
       placeholder: 例如 END 或 ["END","STOP"]
     - key: logit_bias
       label: Logit Bias
       description: 调整指定 token 的生成偏好，通常用于强制禁止或鼓励特定 token。
-      type: string
-      order: 80
+      type: json
+      control: json_editor
+      order: 90
       send_mode: optional
       enabled_by_default: false
-      placeholder: '例如 {"50256": -100}'
+      default_value: {}
+      placeholder: '{"50256": -100}'
+    - key: logprobs
+      label: Logprobs
+      description: 请求返回输出 token 的 log probability 信息；具体支持度取决于供应商。
+      type: boolean
+      control: switch
+      order: 100
+      send_mode: optional
+      enabled_by_default: false
+      default_value: false
+    - key: top_logprobs
+      label: Top Logprobs
+      description: 每个 token 返回的候选 log probability 数量；通常需要同时开启 Logprobs。
+      type: integer
+      control: number
+      order: 110
+      send_mode: optional
+      enabled_by_default: false
+      default_value: 0
+      min: 0
+      max: 20
+      step: 1
+    - key: response_format
+      label: Response Format
+      description: Chat Completions response_format 对象；若节点返回格式字段已配置，优先使用节点专用配置。
+      type: json
+      control: json_editor
+      order: 120
+      send_mode: optional
+      enabled_by_default: false
+      default_value: {}
+      placeholder: '{"type":"json_object"}'
     - key: user
       label: User
       description: 可选终端用户标识，便于供应商侧追踪、审计或风控。
       type: string
-      order: 90
+      order: 130
       send_mode: optional
       enabled_by_default: false
       placeholder: 可选的终端用户或追踪标识
+    - key: seed
+      label: Seed
+      description: 可选随机种子；供应商支持时用于提高相同输入下的结果稳定性。
+      type: integer
+      control: number
+      order: 140
+      send_mode: optional
+      enabled_by_default: false
+      step: 1
+    - key: tools
+      label: Tools
+      description: Chat Completions tools 数组；若宿主后续注入工具，优先使用宿主传入的工具列表。
+      type: json
+      control: json_editor
+      order: 150
+      send_mode: optional
+      enabled_by_default: false
+      default_value: []
+      placeholder: '[{"type":"function","function":{"name":"lookup","parameters":{"type":"object","properties":{}}}}]'
+    - key: tool_choice
+      label: Tool Choice
+      description: 工具选择策略，可填 auto、none、required 或指定工具对象 JSON。
+      type: string
+      control: textarea
+      order: 160
+      send_mode: optional
+      enabled_by_default: false
+      placeholder: auto 或 {"type":"function","function":{"name":"lookup"}}
+    - key: parallel_tool_calls
+      label: Parallel Tool Calls
+      description: 是否允许并行工具调用；供应商不支持时可能会忽略或拒绝该字段。
+      type: boolean
+      control: switch
+      order: 170
+      send_mode: optional
+      enabled_by_default: false
+      default_value: true
+    - key: store
+      label: Store
+      description: 是否允许供应商存储本次生成结果；仅在供应商支持时生效。
+      type: boolean
+      control: switch
+      order: 180
+      send_mode: optional
+      enabled_by_default: false
+      default_value: false
+    - key: metadata
+      label: Metadata
+      description: 供应商侧可见的元数据对象，用于追踪或分组。
+      type: json
+      control: json_editor
+      order: 190
+      send_mode: optional
+      enabled_by_default: false
+      default_value: {}
+      placeholder: '{"trace_id":"trace-1"}'
+    - key: audio
+      label: Audio
+      description: 音频输出配置对象；仅对支持音频输出的兼容服务有效。
+      type: json
+      control: json_editor
+      order: 200
+      send_mode: optional
+      enabled_by_default: false
+      default_value: {}
+      placeholder: '{"voice":"alloy","format":"wav"}'
+    - key: modalities
+      label: Modalities
+      description: 请求的输出模态数组；常见值为 ["text"] 或 ["text","audio"]。
+      type: json
+      control: json_editor
+      order: 210
+      send_mode: optional
+      enabled_by_default: false
+      default_value:
+        - text
+      placeholder: '["text"]'
+    - key: reasoning_effort
+      label: Reasoning Effort
+      description: 推理模型的努力程度；常见值包括 low、medium、high，具体取决于供应商。
+      type: string
+      order: 220
+      send_mode: optional
+      enabled_by_default: false
+      placeholder: low / medium / high
 config_schema:
   - key: base_url
     type: string

@@ -10,6 +10,37 @@ use serde_json::{json, Map, Value};
 
 const PROVIDER_CODE: &str = "openai_compatible";
 const DEFAULT_VALIDATE_MODEL: bool = true;
+const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
+    "temperature",
+    "top_p",
+    "n",
+    "max_tokens",
+    "max_completion_tokens",
+    "presence_penalty",
+    "frequency_penalty",
+    "stop",
+    "logit_bias",
+    "logprobs",
+    "top_logprobs",
+    "user",
+    "seed",
+    "tool_choice",
+    "parallel_tool_calls",
+    "store",
+    "metadata",
+    "audio",
+    "modalities",
+    "reasoning_effort",
+];
+const JSON_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
+    "audio",
+    "logit_bias",
+    "metadata",
+    "modalities",
+    "response_format",
+    "tool_choice",
+    "tools",
+];
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProviderStdioRequest {
@@ -488,7 +519,7 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
 fn normalize_parameter_value(key: &str, value: Value) -> Option<Value> {
     match key {
         "stop" => normalize_stop_parameter(value),
-        "logit_bias" => normalize_json_object_parameter(value),
+        _ if JSON_CHAT_COMPLETION_PARAMETERS.contains(&key) => normalize_json_parameter(value),
         _ => normalize_scalar_parameter(value),
     }
 }
@@ -514,11 +545,10 @@ fn normalize_stop_parameter(value: Value) -> Option<Value> {
     }
 }
 
-fn normalize_json_object_parameter(value: Value) -> Option<Value> {
+fn normalize_json_parameter(value: Value) -> Option<Value> {
     match normalize_scalar_parameter(value)? {
         Value::String(text) => serde_json::from_str::<Value>(&text)
             .ok()
-            .filter(Value::is_object)
             .or(Some(Value::String(text))),
         other => Some(other),
     }
@@ -538,25 +568,21 @@ async fn invoke_chat_completion(
         Value::Array(build_invocation_messages(&input)),
     );
     body.insert("stream".to_string(), Value::Bool(false));
-    if let Some(response_format) = input.response_format.clone() {
+    if let Some(response_format) = input
+        .response_format
+        .clone()
+        .or_else(|| parameter_value(&input, "response_format"))
+    {
         body.insert("response_format".to_string(), response_format);
     }
     if !input.tools.is_empty() {
         body.insert("tools".to_string(), Value::Array(input.tools.clone()));
+    } else if let Some(tools) = parameter_value(&input, "tools") {
+        body.insert("tools".to_string(), tools);
     }
-    for key in [
-        "temperature",
-        "top_p",
-        "max_tokens",
-        "seed",
-        "presence_penalty",
-        "frequency_penalty",
-        "stop",
-        "logit_bias",
-        "user",
-    ] {
+    for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
         if let Some(value) = parameter_value(&input, key) {
-            body.insert(key.to_string(), value);
+            body.insert((*key).to_string(), value);
         }
     }
 
@@ -900,11 +926,39 @@ mod tests {
             }],
             model_parameters: BTreeMap::from([
                 ("temperature".to_string(), json!(0.7)),
+                ("top_p".to_string(), json!(0.9)),
+                ("n".to_string(), json!(1)),
+                ("max_tokens".to_string(), json!(512)),
+                ("max_completion_tokens".to_string(), json!(1024)),
                 ("presence_penalty".to_string(), json!(0.4)),
                 ("frequency_penalty".to_string(), json!(-0.2)),
                 ("stop".to_string(), json!(r#"["END","STOP"]"#)),
                 ("logit_bias".to_string(), json!(r#"{"50256":-100}"#)),
+                ("logprobs".to_string(), json!(true)),
+                ("top_logprobs".to_string(), json!(5)),
+                (
+                    "response_format".to_string(),
+                    json!(r#"{"type":"json_object"}"#),
+                ),
                 ("user".to_string(), json!("trace-user-1")),
+                ("seed".to_string(), json!(42)),
+                (
+                    "tools".to_string(),
+                    json!(r#"[{"type":"function","function":{"name":"lookup","parameters":{"type":"object","properties":{}}}}]"#),
+                ),
+                (
+                    "tool_choice".to_string(),
+                    json!(r#"{"type":"function","function":{"name":"lookup"}}"#),
+                ),
+                ("parallel_tool_calls".to_string(), json!(false)),
+                ("store".to_string(), json!(true)),
+                ("metadata".to_string(), json!(r#"{"trace_id":"trace-1"}"#)),
+                (
+                    "audio".to_string(),
+                    json!(r#"{"voice":"alloy","format":"wav"}"#),
+                ),
+                ("modalities".to_string(), json!(r#"["text"]"#)),
+                ("reasoning_effort".to_string(), json!("low")),
             ]),
             ..ProviderInvocationInput::default()
         })
@@ -917,11 +971,56 @@ mod tests {
 
         assert_eq!(captured_body["model"], "gpt-4o-mini");
         assert_eq!(captured_body["temperature"], json!(0.7));
+        assert_eq!(captured_body["top_p"], json!(0.9));
+        assert_eq!(captured_body["n"], json!(1));
+        assert_eq!(captured_body["max_tokens"], json!(512));
+        assert_eq!(captured_body["max_completion_tokens"], json!(1024));
         assert_eq!(captured_body["presence_penalty"], json!(0.4));
         assert_eq!(captured_body["frequency_penalty"], json!(-0.2));
         assert_eq!(captured_body["stop"], json!(["END", "STOP"]));
         assert_eq!(captured_body["logit_bias"], json!({ "50256": -100 }));
+        assert_eq!(captured_body["logprobs"], json!(true));
+        assert_eq!(captured_body["top_logprobs"], json!(5));
+        assert_eq!(
+            captured_body["response_format"],
+            json!({ "type": "json_object" })
+        );
         assert_eq!(captured_body["user"], json!("trace-user-1"));
+        assert_eq!(captured_body["seed"], json!(42));
+        assert_eq!(
+            captured_body["tools"],
+            json!([{
+                "type": "function",
+                "function": {
+                    "name": "lookup",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            }])
+        );
+        assert_eq!(
+            captured_body["tool_choice"],
+            json!({
+                "type": "function",
+                "function": {
+                    "name": "lookup"
+                }
+            })
+        );
+        assert_eq!(captured_body["parallel_tool_calls"], json!(false));
+        assert_eq!(captured_body["store"], json!(true));
+        assert_eq!(captured_body["metadata"], json!({ "trace_id": "trace-1" }));
+        assert_eq!(
+            captured_body["audio"],
+            json!({
+                "voice": "alloy",
+                "format": "wav"
+            })
+        );
+        assert_eq!(captured_body["modalities"], json!(["text"]));
+        assert_eq!(captured_body["reasoning_effort"], json!("low"));
         assert_eq!(envelope.result.final_content.as_deref(), Some("ok"));
     }
 }
