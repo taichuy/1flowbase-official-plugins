@@ -13,7 +13,7 @@ parameter_form:
     label: parameters.reasoning_effort.label
     description: parameters.reasoning_effort.description
     type: enum
-    order: 110
+    order: 10
     send_mode: optional
     enabled_by_default: false
     control: select
@@ -35,7 +35,7 @@ parameter_form:
     description: parameters.temperature.description
     type: number
     control: slider
-    order: 10
+    order: 20
     send_mode: optional
     enabled_by_default: false
     default_value: 0.7
@@ -47,7 +47,7 @@ parameter_form:
     description: parameters.top_p.description
     type: number
     control: slider
-    order: 20
+    order: 30
     send_mode: optional
     enabled_by_default: false
     default_value: 1.0
@@ -59,7 +59,7 @@ parameter_form:
     description: parameters.n.description
     type: integer
     control: number
-    order: 30
+    order: 40
     send_mode: optional
     enabled_by_default: false
     default_value: 1
@@ -70,7 +70,7 @@ parameter_form:
     description: parameters.max_tokens.description
     type: integer
     control: number
-    order: 40
+    order: 50
     send_mode: optional
     enabled_by_default: false
     min: 1
@@ -80,17 +80,26 @@ parameter_form:
     description: parameters.max_completion_tokens.description
     type: integer
     control: number
-    order: 50
+    order: 60
     send_mode: optional
     enabled_by_default: false
     min: 1
+    step: 1
+  - key: seed
+    label: parameters.seed.label
+    description: parameters.seed.description
+    type: integer
+    control: number
+    order: 70
+    send_mode: optional
+    enabled_by_default: false
     step: 1
   - key: presence_penalty
     label: parameters.presence_penalty.label
     description: parameters.presence_penalty.description
     type: number
     control: slider
-    order: 60
+    order: 80
     send_mode: optional
     enabled_by_default: false
     default_value: 0
@@ -102,7 +111,7 @@ parameter_form:
     description: parameters.frequency_penalty.description
     type: number
     control: slider
-    order: 70
+    order: 90
     send_mode: optional
     enabled_by_default: false
     default_value: 0
@@ -114,38 +123,11 @@ parameter_form:
     description: parameters.stop.description
     type: string
     control: textarea
-    order: 80
-    send_mode: optional
-    enabled_by_default: false
-    placeholder: parameters.stop.placeholder
-  - key: logit_bias
-    label: parameters.logit_bias.label
-    description: parameters.logit_bias.description
-    type: json
-    control: json_editor
-    order: 90
-    send_mode: optional
-    enabled_by_default: false
-    default_value: {}
-    placeholder: parameters.logit_bias.placeholder
-  - key: logprobs
-    label: parameters.logprobs.label
-    description: parameters.logprobs.description
-    type: boolean
-    control: switch
     order: 100
     send_mode: optional
     enabled_by_default: false
-    default_value: false
-  - key: seed
-    label: parameters.seed.label
-    description: parameters.seed.description
-    type: integer
-    control: number
-    order: 130
-    send_mode: optional
-    enabled_by_default: false
-    step: 1
+    placeholder: parameters.stop.placeholder
+
 config_schema:
 - key: base_url
   type: string
