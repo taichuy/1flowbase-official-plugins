@@ -97,6 +97,7 @@ test('provider-ci runs only unit-style registry tests and leaves published-state
   assert.doesNotMatch(workflow, /node --test scripts\/_tests\/\*\.test\.mjs/);
   assert.match(workflow, /scripts\/_tests\/sync-main\.test\.mjs/);
   assert.match(workflow, /scripts\/_tests\/openai-compatible-parameter-contract\.test\.mjs/);
+  assert.match(workflow, /scripts\/_tests\/sort-provider-parameter-order\.test\.mjs/);
   assert.match(workflow, /scripts\/_tests\/update-official-registry\.test\.mjs/);
   assert.doesNotMatch(workflow, /scripts\/_tests\/published-registry-state\.test\.mjs/);
 });
