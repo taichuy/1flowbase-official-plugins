@@ -29,10 +29,87 @@
       "label": "Validate model against discovered catalog"
     }
   },
-  "models": {
-  },
+  "models": {},
   "demo": {
     "title": "OpenAI-Compatible API Provider Demo",
     "subtitle": "Use the local demo to load this plugin into plugin-runner, validate credentials, inspect /models, and send a chat completion."
+  },
+  "parameters": {
+    "title": "OpenAI-Compatible Chat Completions Parameters",
+    "description": "Provider-level request parameters supported by the OpenAI-compatible Chat Completions invocation bridge.",
+    "temperature": {
+      "label": "Temperature",
+      "description": "Controls output randomness. Higher values make responses more varied; avoid changing this and Top P aggressively at the same time."
+    },
+    "top_p": {
+      "label": "Top P",
+      "description": "Nucleus sampling threshold that limits candidates by cumulative token probability. Usually keep this disabled or at its default."
+    },
+    "n": {
+      "label": "N",
+      "description": "Number of candidate completions to request. The current 1flowbase LLM output contract reads the first choice."
+    },
+    "max_tokens": {
+      "label": "Max Tokens",
+      "description": "Legacy output token limit. Some compatible services still only support this field."
+    },
+    "max_completion_tokens": {
+      "label": "Max Completion Tokens",
+      "description": "Newer output token limit covering visible output and reasoning tokens."
+    },
+    "presence_penalty": {
+      "label": "Presence Penalty",
+      "description": "Increases the tendency to introduce new topics. Higher values reduce repeated themes."
+    },
+    "frequency_penalty": {
+      "label": "Frequency Penalty",
+      "description": "Reduces repeated wording based on token frequency. Higher values suppress frequent repetition."
+    },
+    "stop": {
+      "label": "Stop",
+      "description": "Text sequence that stops generation early. Supports one string or a JSON array of strings.",
+      "placeholder": "END or [\"END\",\"STOP\"]"
+    },
+    "logit_bias": {
+      "label": "Logit Bias",
+      "description": "Adjusts generation preference for specific token IDs, usually to strongly ban or encourage tokens.",
+      "placeholder": "{\"50256\": -100}"
+    },
+    "logprobs": {
+      "label": "Logprobs",
+      "description": "Requests log probability information for output tokens. Provider support varies."
+    },
+    "top_logprobs": {
+      "label": "Top Logprobs",
+      "description": "Number of token alternatives with log probabilities to return. Usually requires Logprobs to be enabled."
+    },
+    "seed": {
+      "label": "Seed",
+      "description": "Optional random seed. When supported by the provider, it improves repeatability for the same input."
+    },
+    "reasoning_effort": {
+      "label": "Reasoning Effort",
+      "description": "Controls how much reasoning effort a reasoning model should spend. Provider support varies.",
+      "options": {
+        "none": {
+          "label": "None"
+        },
+        "minimal": {
+          "label": "Minimal"
+        },
+        "low": {
+          "label": "Low"
+        },
+        "medium": {
+          "label": "Medium"
+        },
+        "high": {
+          "label": "High"
+        },
+        "xhigh": {
+          "label": "Extra High"
+        }
+      }
+    }
   }
 }

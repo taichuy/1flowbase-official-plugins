@@ -30,16 +30,19 @@ The plugin keeps the host boundary stable:
 
 ## Provider-Level Parameter Schema
 
-The plugin declares a provider-level parameter schema for the Chat Completions invocation bridge. It covers these request parameters from the compatible `POST /chat/completions` surface:
+The plugin declares a provider-level parameter schema for direct Chat Completions request tuning fields:
 
 - Sampling and length: `temperature`, `top_p`, `n`, `max_tokens`, `max_completion_tokens`, `presence_penalty`, `frequency_penalty`, `stop`, `seed`
 - Probability controls: `logit_bias`, `logprobs`, `top_logprobs`
-- Output and tracking: `response_format`, `user`, `store`, `metadata`, `audio`, `modalities`, `reasoning_effort`
-- Tool controls: `tools`, `tool_choice`, `parallel_tool_calls`
+- Reasoning controls: `reasoning_effort`
+
+Host-owned invocation capabilities such as `response_format`, `tools`, `tool_choice`, `parallel_tool_calls`, `user`, `store`, `metadata`, `audio`, and `modalities` are intentionally kept out of the user-facing model parameter schema. The runtime can still forward supported values when the host passes them through the provider invocation contract.
 
 `model`, `messages`, and `stream` stay host-controlled. The runtime always sends `stream: false` to the upstream provider and normalizes the response into the 1flowbase runtime event envelope.
 
 The host owns persistence, UI rendering, and per-model manual overrides. This plugin only declares the provider-level parameter contract and forwards supported invocation parameters.
+
+Parameter labels, descriptions, placeholders, and option labels are declared as i18n keys in `provider/openai_compatible.yaml` and resolved from `i18n/en_US.json` / `i18n/zh_Hans.json` by the host.
 
 ## Model Discovery
 
