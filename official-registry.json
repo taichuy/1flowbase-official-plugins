@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-04-24T09:30:00.361Z",
+  "generated_at": "2026-04-24T12:04:12.049Z",
   "plugins": [
     {
       "plugin_id": "1flowbase.openai_compatible",
@@ -8,7 +8,7 @@
       "provider_code": "openai_compatible",
       "display_name": "OpenAI-Compatible API Provider",
       "protocol": "openai_compatible",
-      "latest_version": "0.3.15",
+      "latest_version": "0.3.16",
       "help_url": "https://platform.openai.com/docs/api-reference",
       "model_discovery_mode": "hybrid",
       "i18n_summary": {
@@ -53,6 +53,84 @@
             "demo": {
               "title": "OpenAI-Compatible API Provider Demo",
               "subtitle": "Use the local demo to load this plugin into plugin-runner, validate credentials, inspect /models, and send a chat completion."
+            },
+            "parameters": {
+              "title": "OpenAI-Compatible Chat Completions Parameters",
+              "description": "Provider-level request parameters supported by the OpenAI-compatible Chat Completions invocation bridge.",
+              "temperature": {
+                "label": "Temperature",
+                "description": "Controls output randomness. Higher values make responses more varied; avoid changing this and Top P aggressively at the same time."
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "Nucleus sampling threshold that limits candidates by cumulative token probability. Usually keep this disabled or at its default."
+              },
+              "n": {
+                "label": "N",
+                "description": "Number of candidate completions to request. The current 1flowbase LLM output contract reads the first choice."
+              },
+              "max_tokens": {
+                "label": "Max Tokens",
+                "description": "Legacy output token limit. Some compatible services still only support this field."
+              },
+              "max_completion_tokens": {
+                "label": "Max Completion Tokens",
+                "description": "Newer output token limit covering visible output and reasoning tokens."
+              },
+              "presence_penalty": {
+                "label": "Presence Penalty",
+                "description": "Increases the tendency to introduce new topics. Higher values reduce repeated themes."
+              },
+              "frequency_penalty": {
+                "label": "Frequency Penalty",
+                "description": "Reduces repeated wording based on token frequency. Higher values suppress frequent repetition."
+              },
+              "stop": {
+                "label": "Stop",
+                "description": "Text sequence that stops generation early. Supports one string or a JSON array of strings.",
+                "placeholder": "END or [\"END\",\"STOP\"]"
+              },
+              "logit_bias": {
+                "label": "Logit Bias",
+                "description": "Adjusts generation preference for specific token IDs, usually to strongly ban or encourage tokens.",
+                "placeholder": "{\"50256\": -100}"
+              },
+              "logprobs": {
+                "label": "Logprobs",
+                "description": "Requests log probability information for output tokens. Provider support varies."
+              },
+              "top_logprobs": {
+                "label": "Top Logprobs",
+                "description": "Number of token alternatives with log probabilities to return. Usually requires Logprobs to be enabled."
+              },
+              "seed": {
+                "label": "Seed",
+                "description": "Optional random seed. When supported by the provider, it improves repeatability for the same input."
+              },
+              "reasoning_effort": {
+                "label": "Reasoning Effort",
+                "description": "Controls how much reasoning effort a reasoning model should spend. Provider support varies.",
+                "options": {
+                  "none": {
+                    "label": "None"
+                  },
+                  "minimal": {
+                    "label": "Minimal"
+                  },
+                  "low": {
+                    "label": "Low"
+                  },
+                  "medium": {
+                    "label": "Medium"
+                  },
+                  "high": {
+                    "label": "High"
+                  },
+                  "xhigh": {
+                    "label": "Extra High"
+                  }
+                }
+              }
             }
           },
           "zh_Hans": {
@@ -90,6 +168,84 @@
             "demo": {
               "title": "OpenAI-Compatible 调试页",
               "subtitle": "本地加载插件到 plugin-runner，验证凭据、查看模型列表并发送一次对话请求。"
+            },
+            "parameters": {
+              "title": "OpenAI 兼容 Chat Completions 参数",
+              "description": "OpenAI 兼容 Chat Completions 调用桥支持的供应商级请求参数。",
+              "temperature": {
+                "label": "温度",
+                "description": "控制输出随机性，值越高越发散；通常不要和 Top P 同时大幅调整。"
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "nucleus sampling 采样阈值，限制候选 token 的累计概率；通常保持关闭或默认值。"
+              },
+              "n": {
+                "label": "候选数量",
+                "description": "请求返回的候选结果数量；运行时仍按当前 1flowbase LLM 输出契约读取第一条结果。"
+              },
+              "max_tokens": {
+                "label": "最大 Token 数",
+                "description": "旧版输出 token 上限字段；部分兼容服务仍只识别该字段。"
+              },
+              "max_completion_tokens": {
+                "label": "最大补全 Token 数",
+                "description": "新版输出 token 上限字段，覆盖可见输出和推理 token。"
+              },
+              "presence_penalty": {
+                "label": "存在惩罚",
+                "description": "提高模型谈论新主题的倾向，值越高越不容易重复已出现内容。"
+              },
+              "frequency_penalty": {
+                "label": "频率惩罚",
+                "description": "按 token 出现频率降低重复用词概率，值越高越抑制高频重复。"
+              },
+              "stop": {
+                "label": "停止词",
+                "description": "指定停止生成的文本片段；支持单个字符串或字符串数组 JSON。",
+                "placeholder": "例如 END 或 [\"END\",\"STOP\"]"
+              },
+              "logit_bias": {
+                "label": "Logit 偏置",
+                "description": "调整指定 token 的生成偏好，通常用于强制禁止或鼓励特定 token。",
+                "placeholder": "{\"50256\": -100}"
+              },
+              "logprobs": {
+                "label": "Logprobs",
+                "description": "请求返回输出 token 的 log probability 信息；具体支持度取决于供应商。"
+              },
+              "top_logprobs": {
+                "label": "Top Logprobs",
+                "description": "每个 token 返回的候选 log probability 数量；通常需要同时开启 Logprobs。"
+              },
+              "seed": {
+                "label": "随机种子",
+                "description": "可选随机种子；供应商支持时用于提高相同输入下的结果稳定性。"
+              },
+              "reasoning_effort": {
+                "label": "推理强度",
+                "description": "控制推理模型投入的推理量；具体支持度取决于供应商。",
+                "options": {
+                  "none": {
+                    "label": "无"
+                  },
+                  "minimal": {
+                    "label": "极低"
+                  },
+                  "low": {
+                    "label": "低"
+                  },
+                  "medium": {
+                    "label": "中"
+                  },
+                  "high": {
+                    "label": "高"
+                  },
+                  "xhigh": {
+                    "label": "极高"
+                  }
+                }
+              }
             }
           }
         }
@@ -98,60 +254,60 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "checksum": "sha256:0e19964cd09b16dde6cfabe4e93a982d9eeb202dd0ffd12419d961231337176d",
+          "checksum": "sha256:35de421b9e994c6e9a919e2d259d8713ce8f41ae2177c6daa8fc9ef20209d6a4",
           "libc": null,
           "rust_target": "x86_64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.15/1flowbase@openai_compatible@0.3.15@darwin-amd64@0e19964cd09b16dde6cfabe4e93a982d9eeb202dd0ffd12419d961231337176d.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.16/1flowbase@openai_compatible@0.3.16@darwin-amd64@35de421b9e994c6e9a919e2d259d8713ce8f41ae2177c6daa8fc9ef20209d6a4.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "darwin",
           "arch": "arm64",
-          "checksum": "sha256:833361dc3085f682e70d8213cd4df95c2481d71156d9d165a04ccddc59b37f85",
+          "checksum": "sha256:3be00c2019a23665379c3a34a01cb9cfdd2a7e27987587a8ea1c3826f9d7f24e",
           "libc": null,
           "rust_target": "aarch64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.15/1flowbase@openai_compatible@0.3.15@darwin-arm64@833361dc3085f682e70d8213cd4df95c2481d71156d9d165a04ccddc59b37f85.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.16/1flowbase@openai_compatible@0.3.16@darwin-arm64@3be00c2019a23665379c3a34a01cb9cfdd2a7e27987587a8ea1c3826f9d7f24e.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "amd64",
-          "checksum": "sha256:d8318e03e25249ae6e6f27f665266bd37a5ac2d11e9a0d3803e64f9dc66dc553",
+          "checksum": "sha256:e6349a3e3a336089fa0afec8f3818c11e82351b4f2fd4aaa782adb916600d73f",
           "libc": "musl",
           "rust_target": "x86_64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.15/1flowbase@openai_compatible@0.3.15@linux-amd64@d8318e03e25249ae6e6f27f665266bd37a5ac2d11e9a0d3803e64f9dc66dc553.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.16/1flowbase@openai_compatible@0.3.16@linux-amd64@e6349a3e3a336089fa0afec8f3818c11e82351b4f2fd4aaa782adb916600d73f.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "arm64",
-          "checksum": "sha256:1d271fa79662afa451d875064cbcd1d848396c071a9270b74d869b4d417df75c",
+          "checksum": "sha256:45455615fc39bfd2e77f68ca28ae0657b7a87041568da3c90d450c3f1cda8a99",
           "libc": "musl",
           "rust_target": "aarch64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.15/1flowbase@openai_compatible@0.3.15@linux-arm64@1d271fa79662afa451d875064cbcd1d848396c071a9270b74d869b4d417df75c.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.16/1flowbase@openai_compatible@0.3.16@linux-arm64@45455615fc39bfd2e77f68ca28ae0657b7a87041568da3c90d450c3f1cda8a99.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "amd64",
-          "checksum": "sha256:\\51dd15aa422dfaf734a400d7e72b12d4266982a7ee17e5994ac19000b5215ac3",
+          "checksum": "sha256:\\c89dd3ed3449c54036135387488b736adf61cf44a3a548e8bce52ed08b0cf082",
           "libc": "msvc",
           "rust_target": "x86_64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.15/1flowbase@openai_compatible@0.3.15@windows-amd64@51dd15aa422dfaf734a400d7e72b12d4266982a7ee17e5994ac19000b5215ac3.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.16/1flowbase@openai_compatible@0.3.16@windows-amd64@c89dd3ed3449c54036135387488b736adf61cf44a3a548e8bce52ed08b0cf082.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "arm64",
-          "checksum": "sha256:\\19d762afebe03a82272aaa276bf354d2d901be2398978eca68ff92fd63be30ca",
+          "checksum": "sha256:\\08ad6f0f6c55eea5d59276684dd37fd5e200ec9a298bcc560270083072b02561",
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.15/1flowbase@openai_compatible@0.3.15@windows-arm64@19d762afebe03a82272aaa276bf354d2d901be2398978eca68ff92fd63be30ca.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.16/1flowbase@openai_compatible@0.3.16@windows-arm64@08ad6f0f6c55eea5d59276684dd37fd5e200ec9a298bcc560270083072b02561.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
