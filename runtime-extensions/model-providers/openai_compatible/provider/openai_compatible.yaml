@@ -11,6 +11,7 @@ parameter_form:
   fields:
     - key: temperature
       label: Temperature
+      description: 控制输出随机性，值越高越发散；通常不要和 Top P 同时大幅调整。
       type: number
       control: slider
       order: 10
@@ -22,17 +23,19 @@ parameter_form:
       step: 0.1
     - key: top_p
       label: Top P
+      description: nucleus sampling 采样阈值，限制候选 token 的累计概率；通常保持关闭或默认值。
       type: number
       control: slider
       order: 20
       send_mode: optional
-      enabled_by_default: true
+      enabled_by_default: false
       default_value: 1.0
       min: 0
       max: 1
       step: 0.01
     - key: max_tokens
       label: Max Tokens
+      description: 限制模型本次最多生成的 token 数，不能超过所选模型上下文上限。
       type: integer
       control: number
       order: 30
@@ -40,6 +43,7 @@ parameter_form:
       enabled_by_default: false
     - key: seed
       label: Seed
+      description: 可选随机种子；供应商支持时用于提高相同输入下的结果稳定性。
       type: integer
       control: number
       order: 40
@@ -47,6 +51,7 @@ parameter_form:
       enabled_by_default: false
     - key: presence_penalty
       label: Presence Penalty
+      description: 提高模型谈论新主题的倾向，值越高越不容易重复已出现内容。
       type: number
       control: slider
       order: 50
@@ -58,6 +63,7 @@ parameter_form:
       step: 0.1
     - key: frequency_penalty
       label: Frequency Penalty
+      description: 按 token 出现频率降低重复用词概率，值越高越抑制高频重复。
       type: number
       control: slider
       order: 60
@@ -69,6 +75,7 @@ parameter_form:
       step: 0.1
     - key: stop
       label: Stop
+      description: 指定停止生成的文本片段；模型生成到该片段时提前结束。
       type: string
       order: 70
       send_mode: optional
@@ -76,13 +83,15 @@ parameter_form:
       placeholder: 例如 END 或 ["END","STOP"]
     - key: logit_bias
       label: Logit Bias
+      description: 调整指定 token 的生成偏好，通常用于强制禁止或鼓励特定 token。
       type: string
       order: 80
       send_mode: optional
       enabled_by_default: false
-      placeholder: 例如 {"50256": -100}
+      placeholder: '例如 {"50256": -100}'
     - key: user
       label: User
+      description: 可选终端用户标识，便于供应商侧追踪、审计或风控。
       type: string
       order: 90
       send_mode: optional
