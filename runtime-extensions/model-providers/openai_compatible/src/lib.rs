@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{anyhow, bail, Context, Result};
+use futures_util::StreamExt;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     Method, Url,
@@ -211,6 +212,8 @@ pub struct ProviderInvocationResult {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
     TextDelta { delta: String },
+    ReasoningDelta { delta: String },
+    ToolCallDelta { call_id: String, delta: Value },
     ToolCallCommit { call: ProviderToolCall },
     UsageSnapshot { usage: ProviderUsage },
     Finish { reason: ProviderFinishReason },
@@ -250,9 +253,8 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
         }
         "invoke" => {
             let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
-            Ok(ProviderStdioResponse::ok(serde_json::to_value(
-                invoke_chat_completion(input).await?,
-            )?))
+            let output = invoke_chat_completion(input).await?;
+            Ok(ProviderStdioResponse::ok(serde_json::to_value(output)?))
         }
         other => Ok(ProviderStdioResponse::error(
             "provider_invalid_response",
@@ -386,6 +388,20 @@ async fn request_json(
     method: Method,
     body: Option<Value>,
 ) -> Result<Value> {
+    let response = send_provider_request(config, pathname, method, body).await?;
+    let status = response.status();
+    let payload = read_json_response(response).await?;
+    ensure_success_status(status, &payload)?;
+
+    Ok(payload)
+}
+
+async fn send_provider_request(
+    config: &ProviderConfig,
+    pathname: &str,
+    method: Method,
+    body: Option<Value>,
+) -> Result<reqwest::Response> {
     let client = reqwest::Client::new();
     let mut request = client
         .request(method.clone(), build_url(config, pathname)?)
@@ -394,9 +410,10 @@ async fn request_json(
         request = request.json(&body);
     }
 
-    let response = request.send().await?;
-    let status = response.status();
-    let payload = read_json_response(response).await?;
+    request.send().await.map_err(Into::into)
+}
+
+fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
     if !status.is_success() {
         let message = payload
             .get("error")
@@ -412,8 +429,7 @@ async fn request_json(
             .unwrap_or_else(|| payload.to_string());
         bail!("{} {}: {}", status.as_u16(), status, message);
     }
-
-    Ok(payload)
+    Ok(())
 }
 
 async fn read_json_response(response: reqwest::Response) -> Result<Value> {
@@ -567,7 +583,7 @@ async fn invoke_chat_completion(
         "messages".to_string(),
         Value::Array(build_invocation_messages(&input)),
     );
-    body.insert("stream".to_string(), Value::Bool(false));
+    body.insert("stream".to_string(), Value::Bool(true));
     if let Some(response_format) = input
         .response_format
         .clone()
@@ -586,32 +602,84 @@ async fn invoke_chat_completion(
         }
     }
 
-    let payload = request_json(
+    let response = send_provider_request(
         &config,
         "/chat/completions",
         Method::POST,
         Some(Value::Object(body)),
     )
     .await?;
-    let choice = payload
-        .get("choices")
-        .and_then(Value::as_array)
-        .and_then(|items| items.first())
-        .cloned()
-        .unwrap_or_else(|| json!({}));
-    let message = choice.get("message").cloned().unwrap_or_else(|| json!({}));
-    let text = extract_content(message.get("content"));
-    let tool_calls = normalize_tool_calls(message.get("tool_calls"));
-    let usage = normalize_usage(payload.get("usage").unwrap_or(&Value::Null));
-    let finish_reason = normalize_finish_reason(
-        choice.get("finish_reason").and_then(Value::as_str),
-        &tool_calls,
-    );
+    read_streaming_chat_completion(response, input.model).await
+}
 
-    let mut events = Vec::new();
-    if let Some(text) = text.clone().filter(|value| !value.is_empty()) {
-        events.push(ProviderStreamEvent::TextDelta { delta: text });
+async fn read_streaming_chat_completion(
+    response: reqwest::Response,
+    request_model: String,
+) -> Result<RuntimeInvocationEnvelope> {
+    let status = response.status();
+    if !status.is_success() {
+        let payload = read_json_response(response).await?;
+        ensure_success_status(status, &payload)?;
+        unreachable!("ensure_success_status returns error for non-success response");
     }
+
+    let mut stream = response.bytes_stream();
+    let mut buffer = String::new();
+    let mut events = Vec::new();
+    let mut text = String::new();
+    let mut tool_call_builders: Vec<ToolCallBuilder> = Vec::new();
+    let mut usage = ProviderUsage::default();
+    let mut finish_reason: Option<ProviderFinishReason> = None;
+    let mut response_model = Value::Null;
+    let mut response_id = Value::Null;
+    let mut created = Value::Null;
+    let mut system_fingerprint = Value::Null;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        let chunk_text = String::from_utf8_lossy(&chunk);
+        buffer.push_str(&chunk_text);
+        while let Some(line_end) = buffer.find('\n') {
+            let mut line = buffer[..line_end].to_string();
+            if line.ends_with('\r') {
+                line.pop();
+            }
+            buffer.drain(..=line_end);
+            process_sse_line(
+                &line,
+                &mut events,
+                &mut text,
+                &mut tool_call_builders,
+                &mut usage,
+                &mut finish_reason,
+                &mut response_model,
+                &mut response_id,
+                &mut created,
+                &mut system_fingerprint,
+            )?;
+        }
+    }
+
+    if !buffer.trim().is_empty() {
+        let line = std::mem::take(&mut buffer);
+        process_sse_line(
+            &line,
+            &mut events,
+            &mut text,
+            &mut tool_call_builders,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_model,
+            &mut response_id,
+            &mut created,
+            &mut system_fingerprint,
+        )?;
+    }
+
+    let tool_calls = tool_call_builders
+        .into_iter()
+        .map(ToolCallBuilder::into_tool_call)
+        .collect::<Vec<_>>();
     for call in &tool_calls {
         events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
     }
@@ -620,6 +688,7 @@ async fn invoke_chat_completion(
             usage: usage.clone(),
         });
     }
+    let finish_reason = finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls));
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
@@ -627,23 +696,191 @@ async fn invoke_chat_completion(
     Ok(RuntimeInvocationEnvelope {
         events,
         result: ProviderInvocationResult {
-            final_content: text,
+            final_content: (!text.is_empty()).then_some(text),
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
             finish_reason: Some(finish_reason),
             provider_metadata: json!({
-                "request_model": input.model,
-                "response_model": payload.get("model").cloned().unwrap_or(Value::Null),
-                "response_id": payload.get("id").cloned().unwrap_or(Value::Null),
-                "created": payload.get("created").cloned().unwrap_or(Value::Null),
-                "system_fingerprint": payload
-                    .get("system_fingerprint")
-                    .cloned()
-                    .unwrap_or(Value::Null),
+                "request_model": request_model,
+                "response_model": response_model,
+                "response_id": response_id,
+                "created": created,
+                "system_fingerprint": system_fingerprint,
             }),
         },
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_sse_line(
+    line: &str,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_call_builders: &mut Vec<ToolCallBuilder>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut Option<ProviderFinishReason>,
+    response_model: &mut Value,
+    response_id: &mut Value,
+    created: &mut Value,
+    system_fingerprint: &mut Value,
+) -> Result<()> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with(':') || !line.starts_with("data:") {
+        return Ok(());
+    }
+    let data = line.trim_start_matches("data:").trim();
+    if data.is_empty() || data == "[DONE]" {
+        return Ok(());
+    }
+    let payload: Value =
+        serde_json::from_str(data).with_context(|| "provider returned invalid SSE JSON")?;
+    process_stream_payload(
+        &payload,
+        events,
+        text,
+        tool_call_builders,
+        usage,
+        finish_reason,
+        response_model,
+        response_id,
+        created,
+        system_fingerprint,
+    );
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_stream_payload(
+    payload: &Value,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_call_builders: &mut Vec<ToolCallBuilder>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut Option<ProviderFinishReason>,
+    response_model: &mut Value,
+    response_id: &mut Value,
+    created: &mut Value,
+    system_fingerprint: &mut Value,
+) {
+    if !payload.get("model").unwrap_or(&Value::Null).is_null() {
+        *response_model = payload.get("model").cloned().unwrap_or(Value::Null);
+    }
+    if !payload.get("id").unwrap_or(&Value::Null).is_null() {
+        *response_id = payload.get("id").cloned().unwrap_or(Value::Null);
+    }
+    if !payload.get("created").unwrap_or(&Value::Null).is_null() {
+        *created = payload.get("created").cloned().unwrap_or(Value::Null);
+    }
+    if !payload
+        .get("system_fingerprint")
+        .unwrap_or(&Value::Null)
+        .is_null()
+    {
+        *system_fingerprint = payload
+            .get("system_fingerprint")
+            .cloned()
+            .unwrap_or(Value::Null);
+    }
+    if let Some(snapshot) = payload.get("usage").filter(|value| !value.is_null()) {
+        *usage = normalize_usage(snapshot);
+    }
+
+    let Some(choice) = payload
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+    else {
+        return;
+    };
+    if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
+        *finish_reason = Some(normalize_finish_reason(Some(reason), &[]));
+    }
+    let Some(delta) = choice.get("delta") else {
+        return;
+    };
+    if let Some(content) = extract_content(delta.get("content")).filter(|value| !value.is_empty()) {
+        text.push_str(&content);
+        events.push(ProviderStreamEvent::TextDelta { delta: content });
+    }
+    if let Some(reasoning) = extract_reasoning_delta(delta).filter(|value| !value.is_empty()) {
+        events.push(ProviderStreamEvent::ReasoningDelta { delta: reasoning });
+    }
+    merge_tool_call_deltas(delta.get("tool_calls"), tool_call_builders, events);
+}
+
+fn extract_reasoning_delta(delta: &Value) -> Option<String> {
+    delta
+        .get("reasoning_content")
+        .or_else(|| delta.get("reasoning"))
+        .or_else(|| delta.get("reasoning_delta"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
+#[derive(Debug, Clone, Default)]
+struct ToolCallBuilder {
+    id: Option<String>,
+    name: Option<String>,
+    arguments: String,
+}
+
+impl ToolCallBuilder {
+    fn into_tool_call(self) -> ProviderToolCall {
+        ProviderToolCall {
+            id: self.id.unwrap_or_else(|| "tool_call_1".to_string()),
+            name: self.name.unwrap_or_else(|| "unknown_tool".to_string()),
+            arguments: serde_json::from_str(&self.arguments)
+                .unwrap_or_else(|_| json!({ "raw": self.arguments })),
+        }
+    }
+}
+
+fn merge_tool_call_deltas(
+    tool_calls: Option<&Value>,
+    builders: &mut Vec<ToolCallBuilder>,
+    events: &mut Vec<ProviderStreamEvent>,
+) {
+    let Some(tool_calls) = tool_calls.and_then(Value::as_array) else {
+        return;
+    };
+    for tool_call in tool_calls {
+        let index = tool_call
+            .get("index")
+            .and_then(Value::as_u64)
+            .map(|value| value as usize)
+            .unwrap_or(builders.len());
+        while builders.len() <= index {
+            builders.push(ToolCallBuilder::default());
+        }
+        let builder = &mut builders[index];
+        if let Some(id) = tool_call
+            .get("id")
+            .map(value_to_string)
+            .filter(|value| !value.is_empty())
+        {
+            builder.id = Some(id);
+        }
+        if let Some(function) = tool_call.get("function") {
+            if let Some(name) = function
+                .get("name")
+                .map(value_to_string)
+                .filter(|value| !value.is_empty())
+            {
+                builder.name = Some(name);
+            }
+            if let Some(arguments) = function.get("arguments").and_then(Value::as_str) {
+                builder.arguments.push_str(arguments);
+            }
+        }
+        events.push(ProviderStreamEvent::ToolCallDelta {
+            call_id: builder
+                .id
+                .clone()
+                .unwrap_or_else(|| format!("tool_call_{}", index + 1)),
+            delta: tool_call.clone(),
+        });
+    }
 }
 
 fn extract_content(content: Option<&Value>) -> Option<String> {
@@ -660,45 +897,6 @@ fn extract_content(content: Option<&Value>) -> Option<String> {
             (!joined.is_empty()).then_some(joined)
         }
         _ => None,
-    }
-}
-
-fn normalize_tool_calls(tool_calls: Option<&Value>) -> Vec<ProviderToolCall> {
-    let Some(tool_calls) = tool_calls.and_then(Value::as_array) else {
-        return Vec::new();
-    };
-
-    tool_calls
-        .iter()
-        .enumerate()
-        .map(|(index, tool_call)| ProviderToolCall {
-            id: tool_call
-                .get("id")
-                .map(value_to_string)
-                .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| format!("tool_call_{}", index + 1)),
-            name: tool_call
-                .get("function")
-                .and_then(|value| value.get("name"))
-                .map(value_to_string)
-                .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| "unknown_tool".to_string()),
-            arguments: parse_tool_arguments(
-                tool_call
-                    .get("function")
-                    .and_then(|value| value.get("arguments")),
-            ),
-        })
-        .collect()
-}
-
-fn parse_tool_arguments(raw_arguments: Option<&Value>) -> Value {
-    match raw_arguments {
-        None | Some(Value::Null) => json!({}),
-        Some(Value::String(text)) => {
-            serde_json::from_str(text).unwrap_or_else(|_| json!({ "raw": text }))
-        }
-        Some(other) => other.clone(),
     }
 }
 
@@ -802,24 +1000,13 @@ mod tests {
 
                 if let (Some(end), Some(length)) = (header_end, body_length) {
                     if buffer.len() >= end + length {
-                        let response_body = json!({
-                            "id": "chatcmpl_test",
-                            "model": "gpt-4o-mini",
-                            "choices": [
-                                {
-                                    "message": { "role": "assistant", "content": "ok" },
-                                    "finish_reason": "stop"
-                                }
-                            ],
-                            "usage": {
-                                "prompt_tokens": 3,
-                                "completion_tokens": 2,
-                                "total_tokens": 5
-                            }
-                        })
-                        .to_string();
+                        let response_body = concat!(
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}\n\n",
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n",
+                            "data: [DONE]\n\n"
+                        );
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
                             response_body.len(),
                             response_body
                         );
@@ -1021,6 +1208,23 @@ mod tests {
         );
         assert_eq!(captured_body["modalities"], json!(["text"]));
         assert_eq!(captured_body["reasoning_effort"], json!("low"));
+        assert_eq!(captured_body["stream"], json!(true));
         assert_eq!(envelope.result.final_content.as_deref(), Some("ok"));
+        assert!(envelope.events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "ok".to_string()
+        }));
+        assert!(envelope
+            .events
+            .contains(&ProviderStreamEvent::UsageSnapshot {
+                usage: ProviderUsage {
+                    input_tokens: Some(3),
+                    output_tokens: Some(2),
+                    total_tokens: Some(5),
+                    ..ProviderUsage::default()
+                }
+            }));
+        assert!(envelope.events.contains(&ProviderStreamEvent::Finish {
+            reason: ProviderFinishReason::Stop
+        }));
     }
 }
