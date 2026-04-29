@@ -263,6 +263,18 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
     }
 }
 
+pub async fn handle_invoke_request_streaming<F>(
+    input: Value,
+    on_event: F,
+) -> Result<ProviderInvocationResult>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let input: ProviderInvocationInput = serde_json::from_value(input)?;
+    let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
+    Ok(output.result)
+}
+
 fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
     let config = input
         .as_object()
@@ -573,6 +585,16 @@ fn normalize_json_parameter(value: Value) -> Option<Value> {
 async fn invoke_chat_completion(
     input: ProviderInvocationInput,
 ) -> Result<RuntimeInvocationEnvelope> {
+    invoke_chat_completion_with_event_sink(input, |_| Ok(())).await
+}
+
+async fn invoke_chat_completion_with_event_sink<F>(
+    input: ProviderInvocationInput,
+    mut on_event: F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
     let config = normalize_provider_config(&input.provider_config)?;
     let mut body = Map::new();
     body.insert(
@@ -609,13 +631,17 @@ async fn invoke_chat_completion(
         Some(Value::Object(body)),
     )
     .await?;
-    read_streaming_chat_completion(response, input.model).await
+    read_streaming_chat_completion(response, input.model, &mut on_event).await
 }
 
-async fn read_streaming_chat_completion(
+async fn read_streaming_chat_completion<F>(
     response: reqwest::Response,
     request_model: String,
-) -> Result<RuntimeInvocationEnvelope> {
+    on_event: &mut F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
     let status = response.status();
     if !status.is_success() {
         let payload = read_json_response(response).await?;
@@ -645,6 +671,7 @@ async fn read_streaming_chat_completion(
                 line.pop();
             }
             buffer.drain(..=line_end);
+            let event_start = events.len();
             process_sse_line(
                 &line,
                 &mut events,
@@ -657,11 +684,13 @@ async fn read_streaming_chat_completion(
                 &mut created,
                 &mut system_fingerprint,
             )?;
+            emit_new_events(&events, event_start, on_event)?;
         }
     }
 
     if !buffer.trim().is_empty() {
         let line = std::mem::take(&mut buffer);
+        let event_start = events.len();
         process_sse_line(
             &line,
             &mut events,
@@ -674,8 +703,10 @@ async fn read_streaming_chat_completion(
             &mut created,
             &mut system_fingerprint,
         )?;
+        emit_new_events(&events, event_start, on_event)?;
     }
 
+    let final_event_start = events.len();
     let tool_calls = tool_call_builders
         .into_iter()
         .map(ToolCallBuilder::into_tool_call)
@@ -692,6 +723,7 @@ async fn read_streaming_chat_completion(
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
+    emit_new_events(&events, final_event_start, on_event)?;
 
     Ok(RuntimeInvocationEnvelope {
         events,
@@ -710,6 +742,16 @@ async fn read_streaming_chat_completion(
             }),
         },
     })
+}
+
+fn emit_new_events<F>(events: &[ProviderStreamEvent], start: usize, on_event: &mut F) -> Result<()>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    for event in &events[start..] {
+        on_event(event)?;
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -952,6 +994,7 @@ mod tests {
     use std::{
         io::{Read, Write},
         net::TcpListener,
+        sync::mpsc,
         thread,
         time::Duration,
     };
@@ -1025,6 +1068,94 @@ mod tests {
         (address, handle)
     }
 
+    fn capture_blocked_streaming_request(
+        release_tail: mpsc::Receiver<()>,
+    ) -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut header_end = None;
+            let mut body_length = None;
+
+            loop {
+                let read = stream.read(&mut chunk).expect("request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+
+                if header_end.is_none() {
+                    header_end = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4);
+                    if let Some(end) = header_end {
+                        let headers = String::from_utf8_lossy(&buffer[..end]);
+                        body_length = headers.lines().find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            if name.eq_ignore_ascii_case("content-length") {
+                                return value.trim().parse::<usize>().ok();
+                            }
+                            None
+                        });
+                    }
+                }
+
+                if let (Some(end), Some(length)) = (header_end, body_length) {
+                    if buffer.len() >= end + length {
+                        stream
+                            .write_all(
+                                b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n",
+                            )
+                            .expect("response headers should be writable");
+                        write_chunk(
+                            &mut stream,
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{\"content\":\"hel\"},\"finish_reason\":null}]}\n\n",
+                        );
+                        stream.flush().expect("first chunk should flush");
+
+                        release_tail
+                            .recv_timeout(Duration::from_secs(5))
+                            .expect("test should release response tail");
+                        write_chunk(
+                            &mut stream,
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":null}]}\n\n",
+                        );
+                        write_chunk(
+                            &mut stream,
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+                        );
+                        write_chunk(&mut stream, "data: [DONE]\n\n");
+                        stream
+                            .write_all(b"0\r\n\r\n")
+                            .expect("terminating chunk should be writable");
+                        return String::from_utf8(buffer[end..end + length].to_vec())
+                            .expect("request body should be utf8");
+                    }
+                }
+            }
+
+            panic!("request body was not fully captured");
+        });
+
+        (address, handle)
+    }
+
+    fn write_chunk(stream: &mut std::net::TcpStream, payload: &str) {
+        write!(stream, "{:x}\r\n", payload.len()).expect("chunk size should be writable");
+        stream
+            .write_all(payload.as_bytes())
+            .expect("chunk payload should be writable");
+        stream
+            .write_all(b"\r\n")
+            .expect("chunk trailer should be writable");
+    }
+
     #[test]
     fn normalize_provider_config_requires_base_url_and_api_key() {
         let error = normalize_provider_config(&json!({ "base_url": "", "api_key": "" }))
@@ -1095,6 +1226,68 @@ mod tests {
 
         assert_eq!(descriptor.context_window, None);
         assert_eq!(descriptor.max_output_tokens, None);
+    }
+
+    #[tokio::test]
+    async fn invoke_chat_completion_emits_text_delta_before_upstream_stream_finishes() {
+        let (release_tail_tx, release_tail_rx) = mpsc::channel();
+        let (base_url, capture_handle) = capture_blocked_streaming_request(release_tail_rx);
+        let (event_tx, event_rx) = mpsc::channel();
+
+        let invocation = tokio::spawn(async move {
+            invoke_chat_completion_with_event_sink(
+                ProviderInvocationInput {
+                    model: "gpt-4o-mini".to_string(),
+                    provider_config: json!({
+                        "base_url": base_url,
+                        "api_key": "test-key"
+                    }),
+                    messages: vec![ProviderMessage {
+                        role: "user".to_string(),
+                        content: json!("hello"),
+                    }],
+                    ..ProviderInvocationInput::default()
+                },
+                |event| {
+                    let _ = event_tx.send(event.clone());
+                    Ok(())
+                },
+            )
+            .await
+        });
+
+        let first_event = match tokio::task::spawn_blocking(move || {
+            event_rx.recv_timeout(Duration::from_secs(2))
+        })
+        .await
+        .expect("event wait task should not panic")
+        {
+            Ok(event) => event,
+            Err(error) => {
+                let _ = release_tail_tx.send(());
+                panic!("expected first delta before upstream stream finished: {error}");
+            }
+        };
+        assert_eq!(
+            first_event,
+            ProviderStreamEvent::TextDelta {
+                delta: "hel".to_string()
+            }
+        );
+
+        release_tail_tx
+            .send(())
+            .expect("response tail should be released");
+        let envelope = invocation
+            .await
+            .expect("invocation task should not panic")
+            .expect("invocation should succeed");
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("hello"));
+        let captured_body: Value =
+            serde_json::from_str(&capture_handle.join().expect("capture thread should finish"))
+                .expect("captured body should parse");
+        assert_eq!(captured_body["stream"], json!(true));
     }
 
     #[tokio::test]

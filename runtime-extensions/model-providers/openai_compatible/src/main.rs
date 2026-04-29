@@ -1,6 +1,8 @@
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 
-use openai_compatible_provider::{handle_request, ProviderStdioRequest, ProviderStdioResponse};
+use openai_compatible_provider::{
+    handle_invoke_request_streaming, handle_request, ProviderStdioRequest, ProviderStdioResponse,
+};
 
 #[tokio::main]
 async fn main() {
@@ -12,38 +14,44 @@ async fn main() {
             method: "invalid".to_string(),
             input: serde_json::Value::Null,
         });
-    let is_invoke = request.method == "invoke";
-    let response = handle_request(request).await.unwrap_or_else(|error| {
-        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
-    });
 
-    if is_invoke && response.ok {
-        print_runtime_lines(response.result);
+    if request.method == "invoke" {
+        run_streaming_invoke(request).await;
         return;
     }
 
+    let response = handle_request(request).await.unwrap_or_else(|error| {
+        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+    });
     print!("{}", serde_json::to_string(&response).unwrap());
 }
 
-fn print_runtime_lines(output: serde_json::Value) {
-    let events = output
-        .get("events")
-        .and_then(serde_json::Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    for event in events {
-        println!("{}", serde_json::to_string(&event).unwrap());
+async fn run_streaming_invoke(request: ProviderStdioRequest) {
+    let mut stdout = io::stdout().lock();
+    let result = handle_invoke_request_streaming(request.input, |event| {
+        writeln!(stdout, "{}", serde_json::to_string(event)?)?;
+        stdout.flush()?;
+        Ok(())
+    })
+    .await;
+
+    match result {
+        Ok(result) => {
+            writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string(&serde_json::json!({
+                    "type": "result",
+                    "result": result,
+                }))
+                .unwrap()
+            )
+            .unwrap();
+            stdout.flush().unwrap();
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
     }
-    let result = output
-        .get("result")
-        .cloned()
-        .unwrap_or(serde_json::Value::Null);
-    println!(
-        "{}",
-        serde_json::to_string(&serde_json::json!({
-            "type": "result",
-            "result": result,
-        }))
-        .unwrap()
-    );
 }

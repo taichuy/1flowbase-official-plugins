@@ -38,7 +38,7 @@ The plugin declares a provider-level parameter schema for direct Chat Completion
 
 Host-owned invocation capabilities such as `response_format`, `tools`, `tool_choice`, `parallel_tool_calls`, `user`, `store`, `metadata`, `audio`, and `modalities` are intentionally kept out of the user-facing model parameter schema. The runtime can still forward supported values when the host passes them through the provider invocation contract.
 
-`model`, `messages`, and `stream` stay host-controlled. The runtime always sends `stream: false` to the upstream provider and normalizes the response into the 1flowbase runtime event envelope.
+`model`, `messages`, and `stream` stay host-controlled. The runtime sends `stream: true` to the upstream provider, emits normalized 1flowbase runtime events as upstream chunks arrive, and finishes with the final invocation result line.
 
 The host owns persistence, UI rendering, and per-model manual overrides. This plugin only declares the provider-level parameter contract and forwards supported invocation parameters.
 
