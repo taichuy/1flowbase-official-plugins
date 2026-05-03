@@ -606,6 +606,10 @@ where
         Value::Array(build_invocation_messages(&input)),
     );
     body.insert("stream".to_string(), Value::Bool(true));
+    body.insert(
+        "stream_options".to_string(),
+        json!({ "include_usage": true }),
+    );
     if let Some(response_format) = input
         .response_format
         .clone()
@@ -1402,6 +1406,10 @@ mod tests {
         assert_eq!(captured_body["modalities"], json!(["text"]));
         assert_eq!(captured_body["reasoning_effort"], json!("low"));
         assert_eq!(captured_body["stream"], json!(true));
+        assert_eq!(
+            captured_body["stream_options"],
+            json!({ "include_usage": true })
+        );
         assert_eq!(envelope.result.final_content.as_deref(), Some("ok"));
         assert!(envelope.events.contains(&ProviderStreamEvent::TextDelta {
             delta: "ok".to_string()
