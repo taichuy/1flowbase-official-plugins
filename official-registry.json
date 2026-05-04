@@ -1,7 +1,313 @@
 {
   "version": 1,
-  "generated_at": "2026-05-03T04:00:10.811Z",
+  "generated_at": "2026-05-04T17:04:37.218Z",
   "plugins": [
+    {
+      "plugin_id": "1flowbase.deepseek",
+      "plugin_type": "model_provider",
+      "provider_code": "deepseek",
+      "display_name": "DeepSeek",
+      "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/deepseek/_assets/icon.svg",
+      "protocol": "openai_compatible",
+      "latest_version": "0.1.0",
+      "help_url": "https://api-docs.deepseek.com/zh-cn/api/deepseek-api",
+      "model_discovery_mode": "hybrid",
+      "i18n_summary": {
+        "default_locale": "en_US",
+        "available_locales": [
+          "en_US",
+          "zh_Hans"
+        ],
+        "bundles": {
+          "en_US": {
+            "plugin": {
+              "label": "DeepSeek",
+              "description": "DeepSeek model provider runtime extension."
+            },
+            "provider": {
+              "label": "DeepSeek"
+            },
+            "fields": {
+              "base_url": {
+                "label": "Base URL"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "validate_model": {
+                "label": "Validate model against discovered catalog"
+              }
+            },
+            "models": {
+              "deepseek-v4-flash": {
+                "label": "DeepSeek V4 Flash"
+              },
+              "deepseek-v4-pro": {
+                "label": "DeepSeek V4 Pro"
+              }
+            },
+            "parameters": {
+              "title": "DeepSeek Chat Completions Parameters",
+              "description": "Provider-level request parameters supported by the dedicated DeepSeek Chat Completions bridge.",
+              "thinking_type": {
+                "label": "Thinking Type",
+                "description": "Controls whether DeepSeek thinking mode is enabled.",
+                "options": {
+                  "enabled": {
+                    "label": "Enabled"
+                  },
+                  "disabled": {
+                    "label": "Disabled"
+                  }
+                }
+              },
+              "reasoning_effort": {
+                "label": "Reasoning Effort",
+                "description": "Controls how much reasoning effort the model should spend.",
+                "options": {
+                  "high": {
+                    "label": "High"
+                  },
+                  "max": {
+                    "label": "Max"
+                  }
+                }
+              },
+              "temperature": {
+                "label": "Temperature",
+                "description": "Controls output randomness."
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "Nucleus sampling threshold."
+              },
+              "max_tokens": {
+                "label": "Max Tokens",
+                "description": "Maximum output token count."
+              },
+              "response_format": {
+                "label": "Response Format",
+                "description": "Requests text or JSON object output.",
+                "options": {
+                  "text": {
+                    "label": "Text"
+                  },
+                  "json_object": {
+                    "label": "JSON Object"
+                  }
+                }
+              },
+              "stop": {
+                "label": "Stop",
+                "description": "Text sequence that stops generation early. Supports one string or a JSON array of strings.",
+                "placeholder": "END or [\"END\",\"STOP\"]"
+              },
+              "tool_choice": {
+                "label": "Tool Choice",
+                "description": "Controls whether the model may or must call tools.",
+                "options": {
+                  "none": {
+                    "label": "None"
+                  },
+                  "auto": {
+                    "label": "Auto"
+                  },
+                  "required": {
+                    "label": "Required"
+                  }
+                }
+              },
+              "logprobs": {
+                "label": "Logprobs",
+                "description": "Requests log probability information for output tokens."
+              },
+              "top_logprobs": {
+                "label": "Top Logprobs",
+                "description": "Number of token alternatives with log probabilities to return."
+              },
+              "user_id": {
+                "label": "User ID",
+                "description": "Stable end-user identifier forwarded to DeepSeek."
+              }
+            }
+          },
+          "zh_Hans": {
+            "plugin": {
+              "label": "DeepSeek",
+              "description": "DeepSeek 模型供应商运行时扩展。"
+            },
+            "provider": {
+              "label": "DeepSeek"
+            },
+            "fields": {
+              "base_url": {
+                "label": "基础地址"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "validate_model": {
+                "label": "按发现目录校验模型"
+              }
+            },
+            "models": {
+              "deepseek-v4-flash": {
+                "label": "DeepSeek V4 Flash"
+              },
+              "deepseek-v4-pro": {
+                "label": "DeepSeek V4 Pro"
+              }
+            },
+            "parameters": {
+              "title": "DeepSeek Chat Completions 参数",
+              "description": "DeepSeek 专用 Chat Completions 调用桥支持的供应商级请求参数。",
+              "thinking_type": {
+                "label": "思考模式",
+                "description": "控制是否启用 DeepSeek 思考模式。",
+                "options": {
+                  "enabled": {
+                    "label": "启用"
+                  },
+                  "disabled": {
+                    "label": "关闭"
+                  }
+                }
+              },
+              "reasoning_effort": {
+                "label": "推理强度",
+                "description": "控制模型投入的推理量。",
+                "options": {
+                  "high": {
+                    "label": "高"
+                  },
+                  "max": {
+                    "label": "最高"
+                  }
+                }
+              },
+              "temperature": {
+                "label": "温度",
+                "description": "控制输出随机性。"
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "nucleus sampling 采样阈值。"
+              },
+              "max_tokens": {
+                "label": "最大 Token 数",
+                "description": "最大输出 token 数。"
+              },
+              "response_format": {
+                "label": "响应格式",
+                "description": "请求文本或 JSON object 输出。",
+                "options": {
+                  "text": {
+                    "label": "文本"
+                  },
+                  "json_object": {
+                    "label": "JSON Object"
+                  }
+                }
+              },
+              "stop": {
+                "label": "停止词",
+                "description": "指定提前停止生成的文本片段；支持单个字符串或字符串数组 JSON。",
+                "placeholder": "例如 END 或 [\"END\",\"STOP\"]"
+              },
+              "tool_choice": {
+                "label": "工具选择",
+                "description": "控制模型是否可以或必须调用工具。",
+                "options": {
+                  "none": {
+                    "label": "不使用"
+                  },
+                  "auto": {
+                    "label": "自动"
+                  },
+                  "required": {
+                    "label": "必须"
+                  }
+                }
+              },
+              "logprobs": {
+                "label": "Logprobs",
+                "description": "请求返回输出 token 的 log probability 信息。"
+              },
+              "top_logprobs": {
+                "label": "Top Logprobs",
+                "description": "每个 token 返回的候选 log probability 数量。"
+              },
+              "user_id": {
+                "label": "用户 ID",
+                "description": "转发给 DeepSeek 的稳定终端用户标识。"
+              }
+            }
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "checksum": "sha256:2f2f8821feb5326335392d6357e6a496991ec0af6ea2fbb842707c8c048e1be8",
+          "libc": null,
+          "rust_target": "x86_64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.0/1flowbase@deepseek@0.1.0@darwin-amd64@2f2f8821feb5326335392d6357e6a496991ec0af6ea2fbb842707c8c048e1be8.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "checksum": "sha256:16c524a3afb5f2066a47cb33f2ad44aff3cd179e85411e613a3d08e596994af1",
+          "libc": null,
+          "rust_target": "aarch64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.0/1flowbase@deepseek@0.1.0@darwin-arm64@16c524a3afb5f2066a47cb33f2ad44aff3cd179e85411e613a3d08e596994af1.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "amd64",
+          "checksum": "sha256:f4d7610bdac0063d93ce577661f1f712deb46574319ad21ab0d7c6b44df008e8",
+          "libc": "musl",
+          "rust_target": "x86_64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.0/1flowbase@deepseek@0.1.0@linux-amd64@f4d7610bdac0063d93ce577661f1f712deb46574319ad21ab0d7c6b44df008e8.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "arm64",
+          "checksum": "sha256:c218f18aeabe3ef4b50e163b62be9d8bc1171b86224ef19066a37850e8936594",
+          "libc": "musl",
+          "rust_target": "aarch64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.0/1flowbase@deepseek@0.1.0@linux-arm64@c218f18aeabe3ef4b50e163b62be9d8bc1171b86224ef19066a37850e8936594.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "amd64",
+          "checksum": "sha256:\\d2705ea26befc864b0b53b0beba1668fe8920dffac08561fda0ebb8afe5dd297",
+          "libc": "msvc",
+          "rust_target": "x86_64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.0/1flowbase@deepseek@0.1.0@windows-amd64@d2705ea26befc864b0b53b0beba1668fe8920dffac08561fda0ebb8afe5dd297.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "arm64",
+          "checksum": "sha256:\\70cfc211dbb42a6441befc799c289e7a976a63bccf9cc3afecac9a190646dd08",
+          "libc": "msvc",
+          "rust_target": "aarch64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.0/1flowbase@deepseek@0.1.0@windows-arm64@70cfc211dbb42a6441befc799c289e7a976a63bccf9cc3afecac9a190646dd08.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        }
+      ]
+    },
     {
       "plugin_id": "1flowbase.openai_compatible",
       "plugin_type": "model_provider",
