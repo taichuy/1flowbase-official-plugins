@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
+
 use anyhow::{anyhow, bail, Context, Result};
+use futures_util::StreamExt;
 use reqwest::{
-    header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION},
+    header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     Method, Url,
 };
 use serde::{Deserialize, Serialize};
@@ -9,6 +12,17 @@ use serde_json::{json, Map, Value};
 const PROVIDER_CODE: &str = "deepseek";
 const DEFAULT_BASE_URL: &str = "https://api.deepseek.com";
 const DEFAULT_VALIDATE_MODEL: bool = true;
+const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
+    "temperature",
+    "top_p",
+    "max_tokens",
+    "stop",
+    "logprobs",
+    "top_logprobs",
+    "reasoning_effort",
+    "tool_choice",
+];
+const JSON_CHAT_COMPLETION_PARAMETERS: &[&str] = &["stop", "tool_choice", "tools"];
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProviderStdioRequest {
@@ -63,6 +77,31 @@ struct ProviderConfig {
     validate_model: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ProviderUsage {
+    pub input_tokens: Option<u64>,
+    pub input_cache_hit_tokens: Option<u64>,
+    pub input_cache_miss_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub reasoning_tokens: Option<u64>,
+    pub cache_read_tokens: Option<u64>,
+    pub cache_write_tokens: Option<u64>,
+    pub total_tokens: Option<u64>,
+}
+
+impl ProviderUsage {
+    fn has_any_value(&self) -> bool {
+        self.input_tokens.is_some()
+            || self.input_cache_hit_tokens.is_some()
+            || self.input_cache_miss_tokens.is_some()
+            || self.output_tokens.is_some()
+            || self.reasoning_tokens.is_some()
+            || self.cache_read_tokens.is_some()
+            || self.cache_write_tokens.is_some()
+            || self.total_tokens.is_some()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProviderModelDescriptor {
     model_id: String,
@@ -93,17 +132,126 @@ struct ProviderBalanceInfo {
     extra: Map<String, Value>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProviderMessage {
+    pub role: String,
+    #[serde(default)]
+    pub content: Value,
+    #[serde(default)]
+    pub tool_call_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ProviderInvocationInput {
+    #[serde(default)]
+    pub provider_instance_id: String,
+    #[serde(default)]
+    pub provider_code: String,
+    #[serde(default)]
+    pub protocol: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub provider_config: Value,
+    #[serde(default)]
+    pub messages: Vec<ProviderMessage>,
+    #[serde(default)]
+    pub system: Option<String>,
+    #[serde(default)]
+    pub tools: Vec<Value>,
+    #[serde(default)]
+    pub response_format: Option<Value>,
+    #[serde(default)]
+    pub model_parameters: BTreeMap<String, Value>,
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderToolCall {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub arguments: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderMcpCall {
+    pub id: String,
+    pub server: String,
+    pub method: String,
+    #[serde(default)]
+    pub arguments: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderFinishReason {
+    Stop,
+    Length,
+    ToolCall,
+    ContentFilter,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderInvocationResult {
+    pub final_content: Option<String>,
+    #[serde(default)]
+    pub tool_calls: Vec<ProviderToolCall>,
+    #[serde(default)]
+    pub mcp_calls: Vec<ProviderMcpCall>,
+    #[serde(default)]
+    pub usage: ProviderUsage,
+    pub finish_reason: Option<ProviderFinishReason>,
+    #[serde(default)]
+    pub provider_metadata: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ProviderStreamEvent {
+    TextDelta { delta: String },
+    ReasoningDelta { delta: String },
+    ToolCallDelta { call_id: String, delta: Value },
+    ToolCallCommit { call: ProviderToolCall },
+    UsageSnapshot { usage: ProviderUsage },
+    Finish { reason: ProviderFinishReason },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RuntimeInvocationEnvelope {
+    pub events: Vec<ProviderStreamEvent>,
+    pub result: ProviderInvocationResult,
+}
+
 pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStdioResponse> {
     match request.method.as_str() {
         "validate" => validate_provider_config(&request.input).await,
         "list_models" => list_models(&request.input).await,
         "balance" => get_balance(&request.input).await,
-        "invoke" => bail!("invoke is not implemented in this scaffold"),
+        "invoke" => {
+            let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
+            let output = invoke_chat_completion(input).await?;
+            Ok(ProviderStdioResponse::ok(serde_json::to_value(output)?))
+        }
         other => Ok(ProviderStdioResponse::error(
             "provider_invalid_response",
             format!("unsupported method: {other}"),
         )),
     }
+}
+
+pub async fn handle_invoke_request_streaming<F>(
+    input: Value,
+    on_event: F,
+) -> Result<ProviderInvocationResult>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let input: ProviderInvocationInput = serde_json::from_value(input)?;
+    let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
+    Ok(output.result)
 }
 
 async fn validate_provider_config(input: &Value) -> Result<ProviderStdioResponse> {
@@ -248,6 +396,7 @@ fn normalize_balance_payload(payload: &Value) -> Result<ProviderBalanceResult> {
 fn build_headers(config: &ProviderConfig) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(
         AUTHORIZATION,
         HeaderValue::from_str(&format!("Bearer {}", config.api_key))
@@ -291,6 +440,525 @@ async fn request_json(config: &ProviderConfig, pathname: &str, method: Method) -
     Ok(payload)
 }
 
+async fn invoke_chat_completion(
+    input: ProviderInvocationInput,
+) -> Result<RuntimeInvocationEnvelope> {
+    invoke_chat_completion_with_event_sink(input, |_| Ok(())).await
+}
+
+async fn invoke_chat_completion_with_event_sink<F>(
+    input: ProviderInvocationInput,
+    mut on_event: F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let config = normalize_provider_config(&input.provider_config)?;
+    let body = build_chat_completion_body(&input)?;
+    let client = reqwest::Client::new();
+    let response = client
+        .request(
+            Method::POST,
+            build_url(&config, "/chat/completions").context("invalid chat completions endpoint")?,
+        )
+        .headers(build_headers(&config)?)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| sanitize_error(error, &config.api_key))?;
+
+    read_streaming_chat_completion(response, input.model, &config.api_key, &mut on_event).await
+}
+
+fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
+    let model = input.model.trim();
+    if model.is_empty() {
+        bail!("model is required");
+    }
+
+    let mut body = Map::new();
+    body.insert("model".to_string(), Value::String(model.to_string()));
+    body.insert(
+        "messages".to_string(),
+        Value::Array(build_invocation_messages(input)),
+    );
+    body.insert("stream".to_string(), Value::Bool(true));
+    body.insert(
+        "stream_options".to_string(),
+        json!({ "include_usage": true }),
+    );
+
+    if let Some(thinking_type) = parameter_value(input, "thinking_type") {
+        body.insert("thinking".to_string(), json!({ "type": thinking_type }));
+    }
+    if let Some(response_format) = input
+        .response_format
+        .clone()
+        .or_else(|| parameter_value(input, "response_format"))
+    {
+        body.insert(
+            "response_format".to_string(),
+            response_format_type(response_format),
+        );
+    }
+    if !input.tools.is_empty() {
+        body.insert("tools".to_string(), Value::Array(input.tools.clone()));
+    } else if let Some(tools) = parameter_value(input, "tools") {
+        body.insert("tools".to_string(), tools);
+    }
+    if let Some(user_id) = parameter_value(input, "user_id") {
+        body.insert("user_id".to_string(), user_id);
+    }
+    for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
+        if let Some(value) = parameter_value(input, key) {
+            body.insert((*key).to_string(), value);
+        }
+    }
+
+    Ok(Value::Object(body))
+}
+
+fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
+    let mut messages = Vec::new();
+    if let Some(system) = input
+        .system
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        messages.push(json!({
+            "role": "system",
+            "content": system,
+        }));
+    }
+    for message in &input.messages {
+        let mut item = Map::new();
+        item.insert("role".to_string(), Value::String(message.role.clone()));
+        item.insert("content".to_string(), message.content.clone());
+        if let Some(tool_call_id) = message
+            .tool_call_id
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            item.insert(
+                "tool_call_id".to_string(),
+                Value::String(tool_call_id.to_string()),
+            );
+        }
+        messages.push(Value::Object(item));
+    }
+    messages
+}
+
+fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> {
+    input
+        .model_parameters
+        .get(key)
+        .cloned()
+        .or_else(|| input.extra.get(key).cloned())
+        .and_then(|value| normalize_parameter_value(key, value))
+}
+
+fn normalize_parameter_value(key: &str, value: Value) -> Option<Value> {
+    match key {
+        "response_format" => normalize_scalar_parameter(value).map(response_format_type),
+        _ if JSON_CHAT_COMPLETION_PARAMETERS.contains(&key) => normalize_json_parameter(value),
+        _ => normalize_scalar_parameter(value),
+    }
+}
+
+fn normalize_scalar_parameter(value: Value) -> Option<Value> {
+    match value {
+        Value::Null => None,
+        Value::String(text) => {
+            let trimmed = text.trim();
+            (!trimmed.is_empty()).then_some(Value::String(trimmed.to_string()))
+        }
+        other => Some(other),
+    }
+}
+
+fn normalize_json_parameter(value: Value) -> Option<Value> {
+    match normalize_scalar_parameter(value)? {
+        Value::String(text) => serde_json::from_str::<Value>(&text)
+            .ok()
+            .or(Some(Value::String(text))),
+        other => Some(other),
+    }
+}
+
+fn response_format_type(value: Value) -> Value {
+    match value {
+        Value::Object(object) if object.contains_key("type") => Value::Object(object),
+        other => json!({ "type": other }),
+    }
+}
+
+async fn read_streaming_chat_completion<F>(
+    response: reqwest::Response,
+    request_model: String,
+    api_key: &str,
+    on_event: &mut F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let status = response.status();
+    if !status.is_success() {
+        let text = response
+            .text()
+            .await
+            .with_context(|| "provider error response was not readable")?;
+        let payload =
+            serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({ "message": text }));
+        let message = provider_error_message(&payload).replace(api_key, "***");
+        bail!("{} {}: {}", status.as_u16(), status, message);
+    }
+
+    let mut stream = response.bytes_stream();
+    let mut buffer = String::new();
+    let mut events = Vec::new();
+    let mut text = String::new();
+    let mut tool_call_builders: Vec<ToolCallBuilder> = Vec::new();
+    let mut usage = ProviderUsage::default();
+    let mut finish_reason: Option<ProviderFinishReason> = None;
+    let mut response_model = Value::Null;
+    let mut response_id = Value::Null;
+    let mut created = Value::Null;
+    let mut system_fingerprint = Value::Null;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(line_end) = buffer.find('\n') {
+            let mut line = buffer[..line_end].to_string();
+            if line.ends_with('\r') {
+                line.pop();
+            }
+            buffer.drain(..=line_end);
+            let event_start = events.len();
+            process_sse_line(
+                &line,
+                &mut events,
+                &mut text,
+                &mut tool_call_builders,
+                &mut usage,
+                &mut finish_reason,
+                &mut response_model,
+                &mut response_id,
+                &mut created,
+                &mut system_fingerprint,
+            )?;
+            emit_new_events(&events, event_start, on_event)?;
+        }
+    }
+
+    if !buffer.trim().is_empty() {
+        let line = std::mem::take(&mut buffer);
+        let event_start = events.len();
+        process_sse_line(
+            &line,
+            &mut events,
+            &mut text,
+            &mut tool_call_builders,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_model,
+            &mut response_id,
+            &mut created,
+            &mut system_fingerprint,
+        )?;
+        emit_new_events(&events, event_start, on_event)?;
+    }
+
+    let final_event_start = events.len();
+    let tool_calls = tool_call_builders
+        .into_iter()
+        .filter_map(ToolCallBuilder::into_tool_call)
+        .collect::<Vec<_>>();
+    for call in &tool_calls {
+        events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
+    }
+    if usage.has_any_value() {
+        events.push(ProviderStreamEvent::UsageSnapshot {
+            usage: usage.clone(),
+        });
+    }
+    let finish_reason = finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls));
+    events.push(ProviderStreamEvent::Finish {
+        reason: finish_reason.clone(),
+    });
+    emit_new_events(&events, final_event_start, on_event)?;
+
+    Ok(RuntimeInvocationEnvelope {
+        events,
+        result: ProviderInvocationResult {
+            final_content: (!text.is_empty()).then_some(text),
+            tool_calls,
+            mcp_calls: Vec::new(),
+            usage,
+            finish_reason: Some(finish_reason),
+            provider_metadata: json!({
+                "request_model": request_model,
+                "response_model": response_model,
+                "response_id": response_id,
+                "created": created,
+                "system_fingerprint": system_fingerprint,
+            }),
+        },
+    })
+}
+
+fn emit_new_events<F>(events: &[ProviderStreamEvent], start: usize, on_event: &mut F) -> Result<()>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    for event in &events[start..] {
+        on_event(event)?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_sse_line(
+    line: &str,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_call_builders: &mut Vec<ToolCallBuilder>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut Option<ProviderFinishReason>,
+    response_model: &mut Value,
+    response_id: &mut Value,
+    created: &mut Value,
+    system_fingerprint: &mut Value,
+) -> Result<()> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with(':') || !line.starts_with("data:") {
+        return Ok(());
+    }
+    let data = line.trim_start_matches("data:").trim();
+    if data.is_empty() || data == "[DONE]" {
+        return Ok(());
+    }
+    let payload: Value =
+        serde_json::from_str(data).with_context(|| "provider returned invalid SSE JSON")?;
+    process_stream_payload(
+        &payload,
+        events,
+        text,
+        tool_call_builders,
+        usage,
+        finish_reason,
+        response_model,
+        response_id,
+        created,
+        system_fingerprint,
+    );
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_stream_payload(
+    payload: &Value,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_call_builders: &mut Vec<ToolCallBuilder>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut Option<ProviderFinishReason>,
+    response_model: &mut Value,
+    response_id: &mut Value,
+    created: &mut Value,
+    system_fingerprint: &mut Value,
+) {
+    if !payload.get("model").unwrap_or(&Value::Null).is_null() {
+        *response_model = payload.get("model").cloned().unwrap_or(Value::Null);
+    }
+    if !payload.get("id").unwrap_or(&Value::Null).is_null() {
+        *response_id = payload.get("id").cloned().unwrap_or(Value::Null);
+    }
+    if !payload.get("created").unwrap_or(&Value::Null).is_null() {
+        *created = payload.get("created").cloned().unwrap_or(Value::Null);
+    }
+    if !payload
+        .get("system_fingerprint")
+        .unwrap_or(&Value::Null)
+        .is_null()
+    {
+        *system_fingerprint = payload
+            .get("system_fingerprint")
+            .cloned()
+            .unwrap_or(Value::Null);
+    }
+    if let Some(snapshot) = payload.get("usage").filter(|value| !value.is_null()) {
+        *usage = normalize_usage(snapshot);
+    }
+
+    let Some(choice) = payload
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+    else {
+        return;
+    };
+    if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
+        *finish_reason = Some(normalize_finish_reason(Some(reason), &[]));
+    }
+    let Some(delta) = choice.get("delta") else {
+        return;
+    };
+    if let Some(reasoning) = extract_reasoning_delta(delta).filter(|value| !value.is_empty()) {
+        events.push(ProviderStreamEvent::ReasoningDelta { delta: reasoning });
+    }
+    if let Some(content) = extract_content(delta.get("content")).filter(|value| !value.is_empty()) {
+        text.push_str(&content);
+        events.push(ProviderStreamEvent::TextDelta { delta: content });
+    }
+    merge_tool_call_deltas(delta.get("tool_calls"), tool_call_builders, events);
+}
+
+fn extract_reasoning_delta(delta: &Value) -> Option<String> {
+    delta
+        .get("reasoning_content")
+        .or_else(|| delta.get("reasoning"))
+        .or_else(|| delta.get("reasoning_delta"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
+fn extract_content(content: Option<&Value>) -> Option<String> {
+    let content = content?;
+    match content {
+        Value::String(text) => Some(text.clone()),
+        Value::Array(parts) => {
+            let joined = parts
+                .iter()
+                .filter(|part| part.get("type").and_then(Value::as_str) == Some("text"))
+                .filter_map(|part| part.get("text").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("");
+            (!joined.is_empty()).then_some(joined)
+        }
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct ToolCallBuilder {
+    id: Option<String>,
+    name: Option<String>,
+    arguments: String,
+    arguments_seen: bool,
+}
+
+impl ToolCallBuilder {
+    fn into_tool_call(self) -> Option<ProviderToolCall> {
+        let id = self.id?;
+        let name = self.name?;
+        if !self.arguments_seen {
+            return None;
+        }
+        Some(ProviderToolCall {
+            id,
+            name,
+            arguments: serde_json::from_str(&self.arguments)
+                .unwrap_or_else(|_| json!({ "raw": self.arguments })),
+        })
+    }
+}
+
+fn merge_tool_call_deltas(
+    tool_calls: Option<&Value>,
+    builders: &mut Vec<ToolCallBuilder>,
+    events: &mut Vec<ProviderStreamEvent>,
+) {
+    let Some(tool_calls) = tool_calls.and_then(Value::as_array) else {
+        return;
+    };
+    for tool_call in tool_calls {
+        let index = tool_call
+            .get("index")
+            .and_then(Value::as_u64)
+            .map(|value| value as usize)
+            .unwrap_or(builders.len());
+        while builders.len() <= index {
+            builders.push(ToolCallBuilder::default());
+        }
+        let builder = &mut builders[index];
+        if let Some(id) = tool_call
+            .get("id")
+            .map(value_to_string)
+            .filter(|value| !value.is_empty())
+        {
+            builder.id = Some(id);
+        }
+        if let Some(function) = tool_call.get("function") {
+            if let Some(name) = function
+                .get("name")
+                .map(value_to_string)
+                .filter(|value| !value.is_empty())
+            {
+                builder.name = Some(name);
+            }
+            if let Some(arguments) = function.get("arguments").and_then(Value::as_str) {
+                builder.arguments_seen = true;
+                builder.arguments.push_str(arguments);
+            }
+        }
+        events.push(ProviderStreamEvent::ToolCallDelta {
+            call_id: builder
+                .id
+                .clone()
+                .unwrap_or_else(|| format!("tool_call_{}", index + 1)),
+            delta: tool_call.clone(),
+        });
+    }
+}
+
+fn normalize_usage(usage: &Value) -> ProviderUsage {
+    let input_cache_hit_tokens = number_or_none(usage.get("prompt_cache_hit_tokens"));
+    ProviderUsage {
+        input_tokens: number_or_none(usage.get("prompt_tokens")),
+        input_cache_hit_tokens,
+        input_cache_miss_tokens: number_or_none(usage.get("prompt_cache_miss_tokens")),
+        output_tokens: number_or_none(usage.get("completion_tokens")),
+        reasoning_tokens: usage
+            .get("completion_tokens_details")
+            .and_then(|value| value.get("reasoning_tokens"))
+            .and_then(number_or_none_ref)
+            .or_else(|| number_or_none(usage.get("reasoning_tokens"))),
+        cache_read_tokens: input_cache_hit_tokens,
+        cache_write_tokens: None,
+        total_tokens: number_or_none(usage.get("total_tokens")),
+    }
+}
+
+fn number_or_none(value: Option<&Value>) -> Option<u64> {
+    value.and_then(number_or_none_ref)
+}
+
+fn number_or_none_ref(value: &Value) -> Option<u64> {
+    value.as_u64().or_else(|| {
+        value
+            .as_i64()
+            .and_then(|raw| (raw >= 0).then_some(raw as u64))
+    })
+}
+
+fn normalize_finish_reason(
+    finish_reason: Option<&str>,
+    tool_calls: &[ProviderToolCall],
+) -> ProviderFinishReason {
+    if !tool_calls.is_empty() || finish_reason == Some("tool_calls") {
+        return ProviderFinishReason::ToolCall;
+    }
+
+    match finish_reason {
+        Some("stop") => ProviderFinishReason::Stop,
+        Some("length") => ProviderFinishReason::Length,
+        Some("content_filter") => ProviderFinishReason::ContentFilter,
+        _ => ProviderFinishReason::Unknown,
+    }
+}
+
 fn provider_error_message(payload: &Value) -> String {
     payload
         .get("error")
@@ -309,6 +977,113 @@ fn sanitize_error(error: reqwest::Error, api_key: &str) -> anyhow::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        collections::BTreeMap,
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::Duration,
+    };
+
+    fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
+
+    fn capture_streaming_chat_request() -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut header_end = None;
+            let mut body_length = None;
+
+            loop {
+                let read = stream.read(&mut chunk).expect("request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+
+                if header_end.is_none() {
+                    header_end = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4);
+                    if let Some(end) = header_end {
+                        let headers = String::from_utf8_lossy(&buffer[..end]);
+                        body_length = headers.lines().find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            if name.eq_ignore_ascii_case("content-length") {
+                                return value.trim().parse::<usize>().ok();
+                            }
+                            None
+                        });
+                    }
+                }
+
+                if let (Some(end), Some(length)) = (header_end, body_length) {
+                    if buffer.len() >= end + length {
+                        let response_body = concat!(
+                            ": keepalive\n\n",
+                            "\n",
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{\"reasoning_content\":\"think\"},\"finish_reason\":null}]}\n\n",
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{\"content\":\"answer\"},\"finish_reason\":null}]}\n\n",
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"query\\\":\\\"refund\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":100,\"prompt_cache_hit_tokens\":40,\"prompt_cache_miss_tokens\":60,\"completion_tokens\":12,\"total_tokens\":112,\"completion_tokens_details\":{\"reasoning_tokens\":5}}}\n\n",
+                            "data: [DONE]\n\n"
+                        );
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                            response_body.len(),
+                            response_body
+                        );
+                        stream
+                            .write_all(response.as_bytes())
+                            .expect("response should be writable");
+                        return String::from_utf8(buffer[end..end + length].to_vec())
+                            .expect("request body should be utf8");
+                    }
+                }
+            }
+
+            panic!("request body was not fully captured");
+        });
+
+        (address, handle)
+    }
+
+    fn start_error_chat_server() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            let body = json!({
+                "error": {
+                    "message": "bad test-key"
+                }
+            })
+            .to_string();
+            let response = format!(
+                "HTTP/1.1 401 Unauthorized\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("response should be writable");
+        });
+
+        address
+    }
 
     #[test]
     fn normalize_provider_config_defaults_base_url() {
@@ -386,5 +1161,276 @@ mod tests {
         assert!(validate.ok);
         assert_eq!(validate.result["sanitized"]["api_key"], Value::Null);
         assert!(!validate.result.to_string().contains("secret"));
+    }
+
+    #[test]
+    fn build_chat_completion_body_maps_deepseek_parameters() {
+        let input = ProviderInvocationInput {
+            model: "deepseek-v4-pro".to_string(),
+            provider_config: serde_json::json!({ "api_key": "secret" }),
+            messages: vec![
+                ProviderMessage {
+                    role: "user".to_string(),
+                    content: serde_json::json!("Hi"),
+                    tool_call_id: None,
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: serde_json::json!("tool result"),
+                    tool_call_id: Some("call_1".to_string()),
+                },
+            ],
+            tools: vec![serde_json::json!({
+                "type": "function",
+                "function": { "name": "lookup", "parameters": { "type": "object" } }
+            })],
+            model_parameters: BTreeMap::from([
+                ("thinking_type".to_string(), serde_json::json!("enabled")),
+                ("reasoning_effort".to_string(), serde_json::json!("max")),
+                (
+                    "response_format".to_string(),
+                    serde_json::json!("json_object"),
+                ),
+                ("tool_choice".to_string(), serde_json::json!("auto")),
+                ("user_id".to_string(), serde_json::json!("user-1")),
+                ("temperature".to_string(), serde_json::json!(0.7)),
+                ("top_p".to_string(), serde_json::json!(0.9)),
+                ("max_tokens".to_string(), serde_json::json!(512)),
+                ("stop".to_string(), serde_json::json!(["END"])),
+                ("logprobs".to_string(), serde_json::json!(true)),
+                ("top_logprobs".to_string(), serde_json::json!(5)),
+                ("frequency_penalty".to_string(), serde_json::json!(0.4)),
+                ("presence_penalty".to_string(), serde_json::json!(0.2)),
+                (
+                    "tools".to_string(),
+                    serde_json::json!([{
+                        "type": "function",
+                        "function": { "name": "raw_tool" }
+                    }]),
+                ),
+            ]),
+            ..ProviderInvocationInput::default()
+        };
+
+        let body = build_chat_completion_body(&input).unwrap();
+
+        assert_eq!(body["model"], "deepseek-v4-pro");
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["messages"][0]["content"], "Hi");
+        assert_eq!(body["messages"][1]["role"], "tool");
+        assert_eq!(body["messages"][1]["tool_call_id"], "call_1");
+        assert_eq!(body["thinking"], serde_json::json!({ "type": "enabled" }));
+        assert_eq!(body["reasoning_effort"], "max");
+        assert_eq!(
+            body["response_format"],
+            serde_json::json!({ "type": "json_object" })
+        );
+        assert_eq!(body["tool_choice"], "auto");
+        assert_eq!(body["user_id"], "user-1");
+        assert_eq!(body["temperature"], serde_json::json!(0.7));
+        assert_eq!(body["top_p"], serde_json::json!(0.9));
+        assert_eq!(body["max_tokens"], serde_json::json!(512));
+        assert_eq!(body["stop"], serde_json::json!(["END"]));
+        assert_eq!(body["logprobs"], serde_json::json!(true));
+        assert_eq!(body["top_logprobs"], serde_json::json!(5));
+        assert_eq!(
+            body["tools"][0]["function"]["name"],
+            serde_json::json!("lookup")
+        );
+        assert_eq!(body.get("frequency_penalty"), None);
+        assert_eq!(body.get("presence_penalty"), None);
+        assert_eq!(body["stream"], true);
+        assert_eq!(
+            body["stream_options"],
+            serde_json::json!({ "include_usage": true })
+        );
+    }
+
+    #[test]
+    fn normalize_usage_maps_deepseek_cache_segments() {
+        let usage = normalize_usage(&serde_json::json!({
+            "prompt_tokens": 100,
+            "prompt_cache_hit_tokens": 40,
+            "prompt_cache_miss_tokens": 60,
+            "completion_tokens": 12,
+            "total_tokens": 112,
+            "completion_tokens_details": { "reasoning_tokens": 5 }
+        }));
+
+        assert_eq!(usage.input_tokens, Some(100));
+        assert_eq!(usage.input_cache_hit_tokens, Some(40));
+        assert_eq!(usage.input_cache_miss_tokens, Some(60));
+        assert_eq!(usage.cache_read_tokens, Some(40));
+        assert_eq!(usage.cache_write_tokens, None);
+        assert_eq!(usage.output_tokens, Some(12));
+        assert_eq!(usage.reasoning_tokens, Some(5));
+        assert_eq!(usage.total_tokens, Some(112));
+    }
+
+    #[tokio::test]
+    async fn chat_streaming_runtime_maps_deepseek_sse_events() {
+        let (base_url, capture_handle) = capture_streaming_chat_request();
+        let mut events = Vec::new();
+
+        let result = handle_invoke_request_streaming(
+            json!({
+                "model": "deepseek-v4-pro",
+                "provider_config": {
+                    "base_url": base_url,
+                    "api_key": "test-key"
+                },
+                "messages": [{
+                    "role": "user",
+                    "content": "hello"
+                }]
+            }),
+            |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .expect("streaming invoke should succeed");
+
+        let captured_body: Value =
+            serde_json::from_str(&capture_handle.join().expect("capture thread should finish"))
+                .expect("captured body should parse");
+
+        assert_eq!(captured_body["stream"], json!(true));
+        assert_eq!(
+            captured_body["stream_options"],
+            json!({ "include_usage": true })
+        );
+        assert!(events.contains(&ProviderStreamEvent::ReasoningDelta {
+            delta: "think".to_string()
+        }));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "answer".to_string()
+        }));
+        assert!(events.iter().any(|event| {
+            matches!(
+                event,
+                ProviderStreamEvent::ToolCallDelta { call_id, .. } if call_id == "call_1"
+            )
+        }));
+        let expected_tool_call = ProviderToolCall {
+            id: "call_1".to_string(),
+            name: "lookup".to_string(),
+            arguments: json!({ "query": "refund" }),
+        };
+        assert!(events.contains(&ProviderStreamEvent::ToolCallCommit {
+            call: expected_tool_call.clone()
+        }));
+        assert!(events.contains(&ProviderStreamEvent::UsageSnapshot {
+            usage: ProviderUsage {
+                input_tokens: Some(100),
+                input_cache_hit_tokens: Some(40),
+                input_cache_miss_tokens: Some(60),
+                output_tokens: Some(12),
+                reasoning_tokens: Some(5),
+                cache_read_tokens: Some(40),
+                total_tokens: Some(112),
+                ..ProviderUsage::default()
+            }
+        }));
+        assert!(events.contains(&ProviderStreamEvent::Finish {
+            reason: ProviderFinishReason::Stop
+        }));
+        assert_eq!(result.final_content.as_deref(), Some("answer"));
+        assert_eq!(result.tool_calls, vec![expected_tool_call]);
+        assert_eq!(result.finish_reason, Some(ProviderFinishReason::Stop));
+        assert_eq!(result.usage.input_cache_hit_tokens, Some(40));
+        assert_eq!(result.usage.input_cache_miss_tokens, Some(60));
+        assert_eq!(result.usage.cache_write_tokens, None);
+    }
+
+    #[tokio::test]
+    async fn chat_streaming_error_sanitizes_api_key() {
+        let base_url = start_error_chat_server();
+
+        let error = handle_invoke_request_streaming(
+            json!({
+                "model": "deepseek-v4-pro",
+                "provider_config": {
+                    "base_url": base_url,
+                    "api_key": "test-key"
+                },
+                "messages": [{
+                    "role": "user",
+                    "content": "hello"
+                }]
+            }),
+            |_| Ok(()),
+        )
+        .await
+        .expect_err("provider error should fail");
+        let message = error.to_string();
+
+        assert!(!message.contains("test-key"));
+        assert!(message.contains("***"));
+    }
+
+    #[test]
+    fn stream_payload_commits_complete_tool_calls() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut builders = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = None;
+        let mut response_model = Value::Null;
+        let mut response_id = Value::Null;
+        let mut created = Value::Null;
+        let mut system_fingerprint = Value::Null;
+
+        process_stream_payload(
+            &json!({
+                "choices": [{
+                    "delta": {
+                        "tool_calls": [{
+                            "index": 0,
+                            "id": "call_1",
+                            "function": {
+                                "name": "lookup",
+                                "arguments": "{\"query\":\"refund\"}"
+                            }
+                        }]
+                    },
+                    "finish_reason": "tool_calls"
+                }]
+            }),
+            &mut events,
+            &mut text,
+            &mut builders,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_model,
+            &mut response_id,
+            &mut created,
+            &mut system_fingerprint,
+        );
+
+        assert!(events.iter().any(|event| {
+            matches!(
+                event,
+                ProviderStreamEvent::ToolCallDelta { call_id, .. } if call_id == "call_1"
+            )
+        }));
+        let calls = builders
+            .into_iter()
+            .filter_map(ToolCallBuilder::into_tool_call)
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].name, "lookup");
+        assert_eq!(calls[0].arguments, json!({ "query": "refund" }));
+        assert_eq!(finish_reason, Some(ProviderFinishReason::ToolCall));
+    }
+
+    #[test]
+    fn insufficient_system_resource_finish_reason_is_unknown() {
+        assert_eq!(
+            normalize_finish_reason(Some("insufficient_system_resource"), &[]),
+            ProviderFinishReason::Unknown
+        );
     }
 }
