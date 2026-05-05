@@ -20,6 +20,8 @@ function assertModelMetadata(modelId) {
   const model = read(`models/llm/${modelId}.yaml`);
 
   assert.match(model, new RegExp(`^model: ${modelId}$`, 'm'));
+  assert.match(model, /^label: DeepSeek V4 (Flash|Pro)$/m);
+  assert.doesNotMatch(model, /^display_name:/m);
   assert.match(model, /^family: llm$/m);
   assert.match(model, /^  - stream$/m);
   assert.match(model, /^  - tool_call$/m);
