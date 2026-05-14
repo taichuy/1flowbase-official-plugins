@@ -140,6 +140,12 @@ pub struct ProviderMessage {
     pub role: String,
     #[serde(default)]
     pub content: Value,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub tool_call_id: Option<String>,
+    #[serde(default)]
+    pub tool_calls: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -513,10 +519,33 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         }));
     }
     for message in &input.messages {
-        messages.push(json!({
-            "role": message.role,
-            "content": normalize_message_content(&message.content),
-        }));
+        let mut item = Map::new();
+        item.insert("role".to_string(), Value::String(message.role.clone()));
+        item.insert(
+            "content".to_string(),
+            Value::String(normalize_message_content(&message.content)),
+        );
+        if let Some(name) = message
+            .name
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            item.insert("name".to_string(), Value::String(name.to_string()));
+        }
+        if let Some(tool_call_id) = message
+            .tool_call_id
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            item.insert(
+                "tool_call_id".to_string(),
+                Value::String(tool_call_id.to_string()),
+            );
+        }
+        if let Some(tool_calls) = message.tool_calls.as_ref().filter(|value| !value.is_null()) {
+            item.insert("tool_calls".to_string(), tool_calls.clone());
+        }
+        messages.push(Value::Object(item));
     }
     messages
 }
@@ -1249,6 +1278,9 @@ mod tests {
                     messages: vec![ProviderMessage {
                         role: "user".to_string(),
                         content: json!("hello"),
+                        name: None,
+                        tool_call_id: None,
+                        tool_calls: None,
                     }],
                     ..ProviderInvocationInput::default()
                 },
@@ -1304,10 +1336,36 @@ mod tests {
                 "base_url": base_url,
                 "api_key": "test-key"
             }),
-            messages: vec![ProviderMessage {
-                role: "user".to_string(),
-                content: json!("hello"),
-            }],
+            messages: vec![
+                ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: Value::Null,
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(json!([{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "lookup",
+                            "arguments": "{\"query\":\"refund\"}"
+                        }
+                    }])),
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: json!("tool result"),
+                    name: None,
+                    tool_call_id: Some("call_1".to_string()),
+                    tool_calls: None,
+                },
+                ProviderMessage {
+                    role: "user".to_string(),
+                    content: json!("hello"),
+                    name: Some("customer".to_string()),
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+            ],
             model_parameters: BTreeMap::from([
                 ("temperature".to_string(), json!(0.7)),
                 ("top_p".to_string(), json!(0.9)),
@@ -1354,6 +1412,19 @@ mod tests {
                 .expect("captured body should parse");
 
         assert_eq!(captured_body["model"], "gpt-4o-mini");
+        assert_eq!(captured_body["messages"][0]["role"], "assistant");
+        assert_eq!(captured_body["messages"][0]["content"], "");
+        assert_eq!(
+            captured_body["messages"][0]["tool_calls"][0]["id"],
+            "call_1"
+        );
+        assert_eq!(
+            captured_body["messages"][0]["tool_calls"][0]["function"]["name"],
+            "lookup"
+        );
+        assert_eq!(captured_body["messages"][1]["role"], "tool");
+        assert_eq!(captured_body["messages"][1]["tool_call_id"], "call_1");
+        assert_eq!(captured_body["messages"][2]["name"], "customer");
         assert_eq!(captured_body["temperature"], json!(0.7));
         assert_eq!(captured_body["top_p"], json!(0.9));
         assert_eq!(captured_body["n"], json!(1));

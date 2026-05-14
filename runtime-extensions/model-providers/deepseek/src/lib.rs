@@ -138,7 +138,11 @@ pub struct ProviderMessage {
     #[serde(default)]
     pub content: Value,
     #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
     pub tool_call_id: Option<String>,
+    #[serde(default)]
+    pub tool_calls: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -534,6 +538,13 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         let mut item = Map::new();
         item.insert("role".to_string(), Value::String(message.role.clone()));
         item.insert("content".to_string(), message.content.clone());
+        if let Some(name) = message
+            .name
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            item.insert("name".to_string(), Value::String(name.to_string()));
+        }
         if let Some(tool_call_id) = message
             .tool_call_id
             .as_deref()
@@ -543,6 +554,9 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
                 "tool_call_id".to_string(),
                 Value::String(tool_call_id.to_string()),
             );
+        }
+        if let Some(tool_calls) = message.tool_calls.as_ref().filter(|value| !value.is_null()) {
+            item.insert("tool_calls".to_string(), tool_calls.clone());
         }
         messages.push(Value::Object(item));
     }
@@ -1170,14 +1184,32 @@ mod tests {
             provider_config: serde_json::json!({ "api_key": "secret" }),
             messages: vec![
                 ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: serde_json::Value::Null,
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(serde_json::json!([{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "lookup",
+                            "arguments": "{\"query\":\"refund\"}"
+                        }
+                    }])),
+                },
+                ProviderMessage {
                     role: "user".to_string(),
                     content: serde_json::json!("Hi"),
+                    name: Some("customer".to_string()),
                     tool_call_id: None,
+                    tool_calls: None,
                 },
                 ProviderMessage {
                     role: "tool".to_string(),
                     content: serde_json::json!("tool result"),
+                    name: None,
                     tool_call_id: Some("call_1".to_string()),
+                    tool_calls: None,
                 },
             ],
             tools: vec![serde_json::json!({
@@ -1215,10 +1247,17 @@ mod tests {
         let body = build_chat_completion_body(&input).unwrap();
 
         assert_eq!(body["model"], "deepseek-v4-pro");
-        assert_eq!(body["messages"][0]["role"], "user");
-        assert_eq!(body["messages"][0]["content"], "Hi");
-        assert_eq!(body["messages"][1]["role"], "tool");
-        assert_eq!(body["messages"][1]["tool_call_id"], "call_1");
+        assert_eq!(body["messages"][0]["role"], "assistant");
+        assert_eq!(body["messages"][0]["tool_calls"][0]["id"], "call_1");
+        assert_eq!(
+            body["messages"][0]["tool_calls"][0]["function"]["name"],
+            "lookup"
+        );
+        assert_eq!(body["messages"][1]["role"], "user");
+        assert_eq!(body["messages"][1]["content"], "Hi");
+        assert_eq!(body["messages"][1]["name"], "customer");
+        assert_eq!(body["messages"][2]["role"], "tool");
+        assert_eq!(body["messages"][2]["tool_call_id"], "call_1");
         assert_eq!(body["thinking"], serde_json::json!({ "type": "enabled" }));
         assert_eq!(body["reasoning_effort"], "max");
         assert_eq!(
