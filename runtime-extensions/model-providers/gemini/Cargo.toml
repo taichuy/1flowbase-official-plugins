@@ -1,0 +1,17 @@
+[package]
+name = "gemini-provider"
+# Cargo requires a package version, but plugin release version is sourced from manifest.yaml.
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "gemini_provider"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
