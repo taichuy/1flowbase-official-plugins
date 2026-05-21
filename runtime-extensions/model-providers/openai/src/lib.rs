@@ -165,6 +165,8 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub model: String,
     #[serde(default)]
+    pub previous_response_id: Option<String>,
+    #[serde(default)]
     pub provider_config: Value,
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
@@ -214,6 +216,8 @@ pub enum ProviderFinishReason {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderInvocationResult {
     pub final_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
     #[serde(default)]
     pub tool_calls: Vec<ProviderToolCall>,
     #[serde(default)]
@@ -573,18 +577,10 @@ impl OpenAiProviderRuntime {
             .websocket_sessions
             .get_mut(&session_key)
             .expect("websocket session should be initialized");
-        let mut request_body = build_websocket_response_create_body(
-            body,
-            websocket_continuation_scope(input).and_then(|_| session.previous_response_id.clone()),
-        );
-        let result = read_websocket_response(
-            session,
-            &mut request_body,
-            input.model.clone(),
-            websocket_continuation_scope(input).is_some(),
-            on_event,
-        )
-        .await;
+        let mut request_body = build_websocket_response_create_body(body);
+        let result =
+            read_websocket_response(session, &mut request_body, input.model.clone(), on_event)
+                .await;
 
         match result {
             Ok(output) => Ok(output),
@@ -627,6 +623,16 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
         "input".to_string(),
         Value::Array(build_responses_input(input)),
     );
+    if let Some(previous_response_id) = input
+        .previous_response_id
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        body.insert(
+            "previous_response_id".to_string(),
+            Value::String(previous_response_id.to_string()),
+        );
+    }
     body.insert("stream".to_string(), Value::Bool(true));
     if let Some(system) = input
         .system
@@ -828,7 +834,6 @@ fn response_tool_arguments(arguments: &Value) -> String {
 #[derive(Debug)]
 struct ResponsesWebsocketSession {
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    previous_response_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -865,10 +870,7 @@ async fn connect_responses_websocket(config: &ProviderConfig) -> Result<Response
     let (stream, _response) = connect_async(request)
         .await
         .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))?;
-    Ok(ResponsesWebsocketSession {
-        stream,
-        previous_response_id: None,
-    })
+    Ok(ResponsesWebsocketSession { stream })
 }
 
 fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
@@ -893,22 +895,13 @@ fn build_websocket_headers(config: &ProviderConfig) -> Result<HeaderMap> {
     Ok(headers)
 }
 
-fn build_websocket_response_create_body(
-    mut body: Value,
-    previous_response_id: Option<String>,
-) -> Value {
+fn build_websocket_response_create_body(mut body: Value) -> Value {
     let mut object = Map::new();
     object.insert(
         "type".to_string(),
         Value::String("response.create".to_string()),
     );
     if let Value::Object(body_object) = &mut body {
-        if let Some(previous_response_id) = previous_response_id {
-            body_object.insert(
-                "previous_response_id".to_string(),
-                Value::String(previous_response_id),
-            );
-        }
         for (key, value) in std::mem::take(body_object) {
             object.insert(key, value);
         }
@@ -924,25 +917,14 @@ fn build_response_processed_body(response_id: &str) -> Value {
 }
 
 fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
-    let scope = websocket_continuation_scope(input).unwrap_or_else(|| "connection".to_string());
     format!(
-        "{}\n{}\n{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}",
         input.provider_instance_id,
         config.base_url,
         config.api_key,
         config.organization.as_deref().unwrap_or_default(),
         config.project.as_deref().unwrap_or_default(),
-        scope,
     )
-}
-
-fn websocket_continuation_scope(input: &ProviderInvocationInput) -> Option<String> {
-    input
-        .run_context
-        .get("provider_session_id")
-        .or_else(|| input.extra.get("provider_session_id"))
-        .map(value_to_string)
-        .filter(|value| !value.trim().is_empty())
 }
 
 fn can_fallback_to_http(error: &anyhow::Error) -> bool {
@@ -967,7 +949,6 @@ async fn read_websocket_response<F>(
     session: &mut ResponsesWebsocketSession,
     request_body: &mut Value,
     request_model: String,
-    allow_previous_response: bool,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
 where
@@ -1069,8 +1050,6 @@ where
     if let Some(response_id_text) = response_id.as_str() {
         let _ =
             send_websocket_json(session, &build_response_processed_body(response_id_text)).await;
-        session.previous_response_id =
-            allow_previous_response.then(|| response_id_text.to_string());
     }
 
     finalize_response_stream(
@@ -1209,10 +1188,12 @@ where
     });
     emit_new_events(&events, on_event)?;
     all_events.extend(events);
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
         events: all_events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -1259,15 +1240,17 @@ where
     });
     emit_new_events(&events, on_event)?;
     all_events.extend(events);
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
 
     if let Some(metadata) = provider_metadata.as_object_mut() {
-        metadata.insert("response_id".to_string(), response_id);
+        metadata.insert("response_id".to_string(), response_id.clone());
     }
 
     Ok(RuntimeInvocationEnvelope {
         events: all_events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -1594,6 +1577,7 @@ mod tests {
     fn responses_body_maps_native_tool_calls_and_tool_results() {
         let input = ProviderInvocationInput {
             model: "gpt-5.1".to_string(),
+            previous_response_id: Some("resp_previous".to_string()),
             messages: vec![
                 ProviderMessage {
                     role: "assistant".to_string(),
@@ -1637,6 +1621,7 @@ mod tests {
 
         let body = build_responses_body(&input).unwrap();
         assert_eq!(body["model"], "gpt-5.1");
+        assert_eq!(body["previous_response_id"], "resp_previous");
         assert_eq!(body["tools"][0]["name"], "lookup");
         assert_eq!(body["tools"][0]["strict"], true);
         assert_eq!(body["tool_choice"], "required");
@@ -1650,6 +1635,39 @@ mod tests {
         assert_eq!(body["input"][0]["arguments"], r#"{"query":"refund"}"#);
         assert_eq!(body["input"][1]["type"], "function_call_output");
         assert_eq!(body["input"][1]["call_id"], "call_1");
+    }
+
+    #[test]
+    fn finalized_response_exposes_native_response_id() {
+        let mut emitted = Vec::new();
+        let envelope = finalize_response_stream(
+            Vec::new(),
+            "hello".to_string(),
+            Vec::new(),
+            ProviderUsage::default(),
+            ProviderFinishReason::Stop,
+            json!("resp_current"),
+            json!({ "transport": "http_sse" }),
+            &mut |event| {
+                emitted.push(event.clone());
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(envelope.result.response_id.as_deref(), Some("resp_current"));
+        assert_eq!(
+            envelope.result.provider_metadata["response_id"],
+            json!("resp_current")
+        );
+        assert!(emitted.iter().any(|event| {
+            matches!(
+                event,
+                ProviderStreamEvent::Finish {
+                    reason: ProviderFinishReason::Stop
+                }
+            )
+        }));
     }
 
     #[test]
@@ -1865,11 +1883,11 @@ mod tests {
         let body = json!({
             "model": "gpt-5.1",
             "stream": true,
-            "input": []
+            "input": [],
+            "previous_response_id": "resp_previous"
         });
 
-        let websocket_body =
-            build_websocket_response_create_body(body, Some("resp_previous".to_string()));
+        let websocket_body = build_websocket_response_create_body(body);
 
         assert_eq!(websocket_body["type"], "response.create");
         assert_eq!(websocket_body["model"], "gpt-5.1");

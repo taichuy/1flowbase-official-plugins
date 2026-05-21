@@ -144,6 +144,8 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub model: String,
     #[serde(default)]
+    pub previous_response_id: Option<String>,
+    #[serde(default)]
     pub provider_config: Value,
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
@@ -189,6 +191,8 @@ pub enum ProviderFinishReason {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderInvocationResult {
     pub final_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
     #[serde(default)]
     pub tool_calls: Vec<ProviderToolCall>,
     #[serde(default)]
@@ -1525,11 +1529,13 @@ where
         reason: finish_reason.clone(),
     });
     emit_new_events(&events, final_event_start, on_event)?;
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
 
     Ok(RuntimeInvocationEnvelope {
         events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -1866,7 +1872,7 @@ mod tests {
         let mut model_version = Value::Null;
 
         process_sse_line(
-            r#"data: {"candidates":[{"content":{"parts":[{"text":"hello"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":3,"totalTokenCount":5}}"#,
+            r#"data: {"responseId":"resp_gemini","candidates":[{"content":{"parts":[{"text":"hello"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":3,"totalTokenCount":5}}"#,
             &mut events,
             &mut text,
             &mut reasoning,
@@ -1882,6 +1888,7 @@ mod tests {
         assert_eq!(usage.input_tokens, Some(2));
         assert_eq!(usage.output_tokens, Some(3));
         assert_eq!(finish_reason, Some(ProviderFinishReason::Stop));
+        assert_eq!(response_id, json!("resp_gemini"));
         assert_eq!(events.len(), 1);
     }
 }

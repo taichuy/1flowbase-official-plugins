@@ -128,6 +128,8 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub model: String,
     #[serde(default)]
+    pub previous_response_id: Option<String>,
+    #[serde(default)]
     pub provider_config: Value,
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
@@ -173,6 +175,8 @@ pub enum ProviderFinishReason {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderInvocationResult {
     pub final_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
     #[serde(default)]
     pub tool_calls: Vec<ProviderToolCall>,
     #[serde(default)]
@@ -654,10 +658,12 @@ where
     });
     emit_new_events(&events, on_event)?;
     all_events.extend(events);
+    let native_response_id = message_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
         events: all_events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
