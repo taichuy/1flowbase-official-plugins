@@ -1,0 +1,110 @@
+provider_code: anthropic
+display_name: Anthropic
+protocol: anthropic_messages
+help_url: https://docs.anthropic.com/en/api/messages
+default_base_url: https://api.anthropic.com
+model_discovery: static
+supports_model_fetch_without_credentials: false
+parameter_form:
+  schema_version: 1.0.0
+  title: parameters.title
+  description: parameters.description
+  fields:
+  - key: thinking_type
+    label: parameters.thinking_type.label
+    description: parameters.thinking_type.description
+    type: enum
+    order: 10
+    send_mode: optional
+    enabled_by_default: false
+    control: select
+    options:
+    - label: parameters.thinking_type.options.enabled.label
+      value: enabled
+    - label: parameters.thinking_type.options.disabled.label
+      value: disabled
+  - key: thinking_budget_tokens
+    label: parameters.thinking_budget_tokens.label
+    description: parameters.thinking_budget_tokens.description
+    type: integer
+    control: number
+    order: 15
+    send_mode: optional
+    enabled_by_default: false
+    default_value: 1024
+    min: 1024
+    step: 1
+  - key: temperature
+    label: parameters.temperature.label
+    description: parameters.temperature.description
+    type: number
+    control: slider
+    order: 20
+    send_mode: optional
+    enabled_by_default: false
+    default_value: 0.7
+    min: 0
+    max: 1
+    step: 0.1
+  - key: top_p
+    label: parameters.top_p.label
+    description: parameters.top_p.description
+    type: number
+    control: slider
+    order: 30
+    send_mode: optional
+    enabled_by_default: false
+    default_value: 1.0
+    min: 0
+    max: 1
+    step: 0.01
+  - key: top_k
+    label: parameters.top_k.label
+    description: parameters.top_k.description
+    type: integer
+    control: number
+    order: 40
+    send_mode: optional
+    enabled_by_default: false
+    min: 1
+    step: 1
+  - key: max_tokens
+    label: parameters.max_tokens.label
+    description: parameters.max_tokens.description
+    type: integer
+    control: number
+    order: 50
+    send_mode: optional
+    enabled_by_default: true
+    default_value: 4096
+    min: 1
+    step: 1
+  - key: tool_choice
+    label: parameters.tool_choice.label
+    description: parameters.tool_choice.description
+    type: enum
+    order: 60
+    send_mode: optional
+    enabled_by_default: false
+    control: select
+    options:
+    - label: parameters.tool_choice.options.auto.label
+      value: auto
+    - label: parameters.tool_choice.options.any.label
+      value: any
+    - label: parameters.tool_choice.options.none.label
+      value: none
+
+config_schema:
+- key: base_url
+  type: string
+  required: true
+  default: https://api.anthropic.com
+- key: api_key
+  type: secret
+  required: true
+- key: anthropic_version
+  type: string
+  required: false
+  default: "2023-06-01"
+  advanced: true

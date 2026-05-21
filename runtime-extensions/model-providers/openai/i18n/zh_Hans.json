@@ -1,0 +1,109 @@
+{
+  "plugin": {
+    "label": "OpenAI",
+    "description": "OpenAI Responses API 模型供应商运行时扩展。"
+  },
+  "provider": {
+    "label": "OpenAI"
+  },
+  "fields": {
+    "base_url": {
+      "label": "基础地址"
+    },
+    "api_key": {
+      "label": "API Key"
+    },
+    "organization": {
+      "label": "Organization"
+    },
+    "project": {
+      "label": "Project"
+    },
+    "validate_model": {
+      "label": "按发现目录校验模型"
+    },
+    "transport_mode": {
+      "label": "传输模式"
+    }
+  },
+  "models": {
+    "gpt-5.2": {
+      "label": "GPT-5.2"
+    },
+    "gpt-5.1": {
+      "label": "GPT-5.1"
+    },
+    "gpt-5-mini": {
+      "label": "GPT-5 mini"
+    }
+  },
+  "demo": {
+    "title": "OpenAI 调试页",
+    "subtitle": "本地加载插件到 plugin-runner，验证凭据、查看模型列表并发送一次 Responses API 调用。"
+  },
+  "parameters": {
+    "title": "OpenAI Responses 参数",
+    "description": "OpenAI Responses API 调用桥支持的供应商级请求参数。",
+    "reasoning_effort": {
+      "label": "推理强度",
+      "description": "控制推理模型投入的推理量。",
+      "options": {
+        "minimal": {
+          "label": "极低"
+        },
+        "low": {
+          "label": "低"
+        },
+        "medium": {
+          "label": "中"
+        },
+        "high": {
+          "label": "高"
+        }
+      }
+    },
+    "temperature": {
+      "label": "温度",
+      "description": "控制输出随机性，值越高越发散。"
+    },
+    "top_p": {
+      "label": "Top P",
+      "description": "nucleus sampling 采样阈值，限制候选 token 的累计概率。"
+    },
+    "max_output_tokens": {
+      "label": "最大输出 Token 数",
+      "description": "模型可生成的最大输出 token 数。"
+    },
+    "response_format": {
+      "label": "响应格式",
+      "description": "通过 Responses text.format 请求文本或 JSON object 输出。",
+      "options": {
+        "text": {
+          "label": "文本"
+        },
+        "json_object": {
+          "label": "JSON Object"
+        }
+      }
+    },
+    "tool_choice": {
+      "label": "工具选择",
+      "description": "控制模型是否可以或必须调用工具。",
+      "options": {
+        "auto": {
+          "label": "自动"
+        },
+        "required": {
+          "label": "必须"
+        },
+        "none": {
+          "label": "不使用"
+        }
+      }
+    },
+    "store": {
+      "label": "存储响应",
+      "description": "控制是否按 API 请求选项允许 OpenAI 存储响应。"
+    }
+  }
+}

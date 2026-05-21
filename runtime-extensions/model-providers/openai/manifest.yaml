@@ -1,14 +1,14 @@
 manifest_version: 1
-plugin_id: deepseek
-version: 0.1.4
+plugin_id: openai
+version: 0.1.0
 vendor: 1flowbase
-display_name: DeepSeek
-description: DeepSeek model provider runtime extension
+display_name: OpenAI
+description: OpenAI Responses API provider runtime extension
 icon: icon.svg
 source_kind: official_registry
 trust_level: verified_official
 consumption_kind: runtime_extension
-execution_mode: process_per_call
+execution_mode: stateful_provider_worker
 slot_codes:
   - model_provider
 binding_targets:
@@ -24,8 +24,8 @@ permissions:
   mcp: none
   subprocess: deny
 runtime:
-  protocol: stdio_json
-  entry: bin/deepseek-provider
+  protocol: stdio_json_worker
+  entry: bin/openai-provider
   limits:
     timeout_ms: 30000
     memory_bytes: 268435456

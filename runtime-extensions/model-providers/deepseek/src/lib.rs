@@ -498,12 +498,10 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     if let Some(response_format) = input
         .response_format
         .clone()
+        .and_then(normalize_response_format_value)
         .or_else(|| parameter_value(input, "response_format"))
     {
-        body.insert(
-            "response_format".to_string(),
-            response_format_type(response_format),
-        );
+        body.insert("response_format".to_string(), response_format);
     }
     if !input.tools.is_empty() {
         body.insert("tools".to_string(), Value::Array(input.tools.clone()));
@@ -556,11 +554,64 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
             );
         }
         if let Some(tool_calls) = message.tool_calls.as_ref().filter(|value| !value.is_null()) {
-            item.insert("tool_calls".to_string(), tool_calls.clone());
+            item.insert(
+                "tool_calls".to_string(),
+                build_chat_completion_tool_calls(tool_calls),
+            );
         }
         messages.push(Value::Object(item));
     }
     messages
+}
+
+fn build_chat_completion_tool_calls(tool_calls: &Value) -> Value {
+    let Some(calls) = tool_calls.as_array() else {
+        return tool_calls.clone();
+    };
+    Value::Array(calls.iter().map(build_chat_completion_tool_call).collect())
+}
+
+fn build_chat_completion_tool_call(tool_call: &Value) -> Value {
+    let Some(object) = tool_call.as_object() else {
+        return tool_call.clone();
+    };
+    if object.contains_key("function") {
+        let mut mapped = object.clone();
+        mapped
+            .entry("type".to_string())
+            .or_insert_with(|| Value::String("function".to_string()));
+        return Value::Object(mapped);
+    }
+    let Some(name) = object
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+    else {
+        return tool_call.clone();
+    };
+    let arguments = object
+        .get("arguments")
+        .map(chat_completion_tool_arguments)
+        .unwrap_or_else(|| "{}".to_string());
+
+    let mut function = Map::new();
+    function.insert("name".to_string(), Value::String(name.to_string()));
+    function.insert("arguments".to_string(), Value::String(arguments));
+
+    let mut mapped = Map::new();
+    if let Some(id) = object.get("id") {
+        mapped.insert("id".to_string(), id.clone());
+    }
+    mapped.insert("type".to_string(), Value::String("function".to_string()));
+    mapped.insert("function".to_string(), Value::Object(function));
+    Value::Object(mapped)
+}
+
+fn chat_completion_tool_arguments(arguments: &Value) -> String {
+    match arguments {
+        Value::String(value) => value.clone(),
+        other => other.to_string(),
+    }
 }
 
 fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> {
@@ -574,9 +625,19 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
 
 fn normalize_parameter_value(key: &str, value: Value) -> Option<Value> {
     match key {
-        "response_format" => normalize_scalar_parameter(value).map(response_format_type),
+        "response_format" => normalize_response_format_value(value),
         _ if JSON_CHAT_COMPLETION_PARAMETERS.contains(&key) => normalize_json_parameter(value),
         _ => normalize_scalar_parameter(value),
+    }
+}
+
+fn normalize_response_format_value(value: Value) -> Option<Value> {
+    match normalize_scalar_parameter(value)? {
+        Value::String(text) => serde_json::from_str::<Value>(&text)
+            .ok()
+            .map(response_format_type)
+            .or_else(|| Some(response_format_type(Value::String(text)))),
+        other => Some(response_format_type(other)),
     }
 }
 
@@ -1283,6 +1344,159 @@ mod tests {
             body["stream_options"],
             serde_json::json!({ "include_usage": true })
         );
+    }
+
+    #[test]
+    fn build_chat_completion_body_maps_deepseek_json_mode_from_native_response_format() {
+        let input = ProviderInvocationInput {
+            model: "deepseek-v4-pro".to_string(),
+            messages: vec![ProviderMessage {
+                role: "user".to_string(),
+                content: serde_json::json!("Return JSON only"),
+                name: None,
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            response_format: Some(serde_json::json!({ "type": "json_object" })),
+            ..ProviderInvocationInput::default()
+        };
+
+        let body = build_chat_completion_body(&input).unwrap();
+
+        assert_eq!(
+            body["response_format"],
+            serde_json::json!({ "type": "json_object" })
+        );
+    }
+
+    #[test]
+    fn build_chat_completion_body_maps_deepseek_json_mode_from_string_parameter() {
+        let input = ProviderInvocationInput {
+            model: "deepseek-v4-pro".to_string(),
+            messages: vec![ProviderMessage {
+                role: "user".to_string(),
+                content: serde_json::json!("Return JSON only"),
+                name: None,
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            model_parameters: BTreeMap::from([(
+                "response_format".to_string(),
+                serde_json::json!(r#"{"type":"json_object"}"#),
+            )]),
+            ..ProviderInvocationInput::default()
+        };
+
+        let body = build_chat_completion_body(&input).unwrap();
+
+        assert_eq!(
+            body["response_format"],
+            serde_json::json!({ "type": "json_object" })
+        );
+    }
+
+    #[test]
+    fn build_invocation_messages_maps_native_tool_calls_to_deepseek_wire_shape() {
+        let input = ProviderInvocationInput {
+            messages: vec![ProviderMessage {
+                role: "assistant".to_string(),
+                content: Value::Null,
+                name: None,
+                tool_call_id: None,
+                tool_calls: Some(serde_json::json!([
+                    {
+                        "id": "call_00_XRooTtPLMotGXDkskaIA9845",
+                        "name": "Read",
+                        "arguments": {
+                            "file_path": "E:\\code\\taichuCode\\1flowbase\\.memory\\user-memory.md"
+                        }
+                    }
+                ])),
+            }],
+            ..ProviderInvocationInput::default()
+        };
+
+        let messages = build_invocation_messages(&input);
+        let call = &messages[0]["tool_calls"][0];
+
+        assert_eq!(call["id"], "call_00_XRooTtPLMotGXDkskaIA9845");
+        assert_eq!(call["type"], "function");
+        assert_eq!(call["function"]["name"], "Read");
+        assert_eq!(
+            call["function"]["arguments"],
+            r#"{"file_path":"E:\\code\\taichuCode\\1flowbase\\.memory\\user-memory.md"}"#
+        );
+        assert!(call.get("name").is_none());
+        assert!(call.get("arguments").is_none());
+    }
+
+    #[test]
+    fn build_chat_completion_body_passes_deepseek_tool_calls_request_shape() {
+        let input = ProviderInvocationInput {
+            model: "deepseek-v4-pro".to_string(),
+            messages: vec![
+                ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: Value::Null,
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(serde_json::json!([
+                        {
+                            "id": "call_1",
+                            "name": "get_weather",
+                            "arguments": { "location": "Hangzhou" }
+                        }
+                    ])),
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: serde_json::json!("Sunny"),
+                    name: None,
+                    tool_call_id: Some("call_1".to_string()),
+                    tool_calls: None,
+                },
+            ],
+            tools: vec![serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "strict": true,
+                    "description": "Get weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": { "type": "string" }
+                        },
+                        "required": ["location"],
+                        "additionalProperties": false
+                    }
+                }
+            })],
+            model_parameters: BTreeMap::from([(
+                "tool_choice".to_string(),
+                serde_json::json!("required"),
+            )]),
+            ..ProviderInvocationInput::default()
+        };
+
+        let body = build_chat_completion_body(&input).unwrap();
+        let tool_call = &body["messages"][0]["tool_calls"][0];
+
+        assert_eq!(body["tools"][0]["function"]["name"], "get_weather");
+        assert_eq!(body["tools"][0]["function"]["strict"], true);
+        assert_eq!(
+            body["tools"][0]["function"]["parameters"]["additionalProperties"],
+            false
+        );
+        assert_eq!(body["tool_choice"], "required");
+        assert_eq!(tool_call["type"], "function");
+        assert_eq!(tool_call["function"]["name"], "get_weather");
+        assert_eq!(
+            tool_call["function"]["arguments"],
+            serde_json::json!(r#"{"location":"Hangzhou"}"#)
+        );
+        assert_eq!(body["messages"][1]["role"], "tool");
+        assert_eq!(body["messages"][1]["tool_call_id"], "call_1");
     }
 
     #[test]

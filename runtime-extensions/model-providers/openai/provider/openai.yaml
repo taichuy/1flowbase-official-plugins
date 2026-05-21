@@ -1,0 +1,124 @@
+provider_code: openai
+display_name: OpenAI
+protocol: openai_responses
+help_url: https://platform.openai.com/docs/api-reference/responses
+default_base_url: https://api.openai.com/v1
+model_discovery: hybrid
+supports_model_fetch_without_credentials: false
+parameter_form:
+  schema_version: 1.0.0
+  title: parameters.title
+  description: parameters.description
+  fields:
+  - key: reasoning_effort
+    label: parameters.reasoning_effort.label
+    description: parameters.reasoning_effort.description
+    type: enum
+    order: 10
+    send_mode: optional
+    enabled_by_default: false
+    control: select
+    options:
+    - label: parameters.reasoning_effort.options.minimal.label
+      value: minimal
+    - label: parameters.reasoning_effort.options.low.label
+      value: low
+    - label: parameters.reasoning_effort.options.medium.label
+      value: medium
+    - label: parameters.reasoning_effort.options.high.label
+      value: high
+  - key: temperature
+    label: parameters.temperature.label
+    description: parameters.temperature.description
+    type: number
+    control: slider
+    order: 20
+    send_mode: optional
+    enabled_by_default: false
+    default_value: 0.7
+    min: 0
+    max: 2
+    step: 0.1
+  - key: top_p
+    label: parameters.top_p.label
+    description: parameters.top_p.description
+    type: number
+    control: slider
+    order: 30
+    send_mode: optional
+    enabled_by_default: false
+    default_value: 1.0
+    min: 0
+    max: 1
+    step: 0.01
+  - key: max_output_tokens
+    label: parameters.max_output_tokens.label
+    description: parameters.max_output_tokens.description
+    type: integer
+    control: number
+    order: 40
+    send_mode: optional
+    enabled_by_default: false
+    min: 1
+    step: 1
+  - key: response_format
+    label: parameters.response_format.label
+    description: parameters.response_format.description
+    type: enum
+    order: 50
+    send_mode: optional
+    enabled_by_default: false
+    control: select
+    options:
+    - label: parameters.response_format.options.text.label
+      value: text
+    - label: parameters.response_format.options.json_object.label
+      value: json_object
+  - key: tool_choice
+    label: parameters.tool_choice.label
+    description: parameters.tool_choice.description
+    type: enum
+    order: 60
+    send_mode: optional
+    enabled_by_default: false
+    control: select
+    options:
+    - label: parameters.tool_choice.options.auto.label
+      value: auto
+    - label: parameters.tool_choice.options.required.label
+      value: required
+    - label: parameters.tool_choice.options.none.label
+      value: none
+  - key: store
+    label: parameters.store.label
+    description: parameters.store.description
+    type: boolean
+    control: toggle
+    order: 70
+    send_mode: optional
+    enabled_by_default: false
+
+config_schema:
+- key: base_url
+  type: string
+  required: true
+  default: https://api.openai.com/v1
+- key: api_key
+  type: secret
+  required: true
+- key: organization
+  type: string
+  required: false
+  advanced: true
+- key: project
+  type: string
+  required: false
+  advanced: true
+- key: validate_model
+  type: boolean
+  required: false
+  advanced: true
+- key: transport_mode
+  type: string
+  required: false
+  advanced: true
