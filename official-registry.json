@@ -1,7 +1,253 @@
 {
   "version": 1,
-  "generated_at": "2026-05-20T16:06:13.994Z",
+  "generated_at": "2026-05-21T13:40:26.783Z",
   "plugins": [
+    {
+      "plugin_id": "1flowbase.anthropic",
+      "plugin_type": "model_provider",
+      "provider_code": "anthropic",
+      "display_name": "Anthropic",
+      "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/anthropic/_assets/icon.svg",
+      "protocol": "anthropic_messages",
+      "latest_version": "0.1.1",
+      "help_url": "https://docs.anthropic.com/en/api/messages",
+      "model_discovery_mode": "static",
+      "i18n_summary": {
+        "default_locale": "en_US",
+        "available_locales": [
+          "en_US",
+          "zh_Hans"
+        ],
+        "bundles": {
+          "en_US": {
+            "plugin": {
+              "label": "Anthropic",
+              "description": "Anthropic Messages API model provider runtime extension."
+            },
+            "provider": {
+              "label": "Anthropic"
+            },
+            "fields": {
+              "base_url": {
+                "label": "Base URL"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "anthropic_version": {
+                "label": "Anthropic Version"
+              }
+            },
+            "models": {
+              "claude-opus-4-1-20250805": {
+                "label": "Claude Opus 4.1"
+              },
+              "claude-sonnet-4-20250514": {
+                "label": "Claude Sonnet 4"
+              },
+              "claude-3-5-haiku-20241022": {
+                "label": "Claude Haiku 3.5"
+              }
+            },
+            "parameters": {
+              "title": "Anthropic Messages Parameters",
+              "description": "Provider-level request parameters supported by the Anthropic Messages API bridge.",
+              "thinking_type": {
+                "label": "Thinking",
+                "description": "Enables extended thinking for compatible Claude models.",
+                "options": {
+                  "enabled": {
+                    "label": "Enabled"
+                  },
+                  "disabled": {
+                    "label": "Disabled"
+                  }
+                }
+              },
+              "thinking_budget_tokens": {
+                "label": "Thinking Budget Tokens",
+                "description": "Token budget for extended thinking. It must be lower than Max Tokens."
+              },
+              "temperature": {
+                "label": "Temperature",
+                "description": "Controls output randomness."
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "Nucleus sampling threshold."
+              },
+              "top_k": {
+                "label": "Top K",
+                "description": "Limits candidate tokens by rank."
+              },
+              "max_tokens": {
+                "label": "Max Tokens",
+                "description": "Maximum number of output tokens."
+              },
+              "tool_choice": {
+                "label": "Tool Choice",
+                "description": "Controls whether the model may or must use tools.",
+                "options": {
+                  "auto": {
+                    "label": "Auto"
+                  },
+                  "any": {
+                    "label": "Any"
+                  },
+                  "none": {
+                    "label": "None"
+                  }
+                }
+              }
+            }
+          },
+          "zh_Hans": {
+            "plugin": {
+              "label": "Anthropic",
+              "description": "Anthropic Messages API 模型供应商运行时扩展。"
+            },
+            "provider": {
+              "label": "Anthropic"
+            },
+            "fields": {
+              "base_url": {
+                "label": "基础地址"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "anthropic_version": {
+                "label": "Anthropic Version"
+              }
+            },
+            "models": {
+              "claude-opus-4-1-20250805": {
+                "label": "Claude Opus 4.1"
+              },
+              "claude-sonnet-4-20250514": {
+                "label": "Claude Sonnet 4"
+              },
+              "claude-3-5-haiku-20241022": {
+                "label": "Claude Haiku 3.5"
+              }
+            },
+            "parameters": {
+              "title": "Anthropic Messages 参数",
+              "description": "Anthropic Messages API 调用桥支持的供应商级请求参数。",
+              "thinking_type": {
+                "label": "扩展思考",
+                "description": "为兼容的 Claude 模型启用 extended thinking。",
+                "options": {
+                  "enabled": {
+                    "label": "启用"
+                  },
+                  "disabled": {
+                    "label": "关闭"
+                  }
+                }
+              },
+              "thinking_budget_tokens": {
+                "label": "思考预算 Token 数",
+                "description": "extended thinking 使用的 token 预算，必须小于最大 Token 数。"
+              },
+              "temperature": {
+                "label": "温度",
+                "description": "控制输出随机性。"
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "nucleus sampling 采样阈值。"
+              },
+              "top_k": {
+                "label": "Top K",
+                "description": "按排序限制候选 token。"
+              },
+              "max_tokens": {
+                "label": "最大 Token 数",
+                "description": "最大输出 token 数。"
+              },
+              "tool_choice": {
+                "label": "工具选择",
+                "description": "控制模型是否可以或必须调用工具。",
+                "options": {
+                  "auto": {
+                    "label": "自动"
+                  },
+                  "any": {
+                    "label": "任意工具"
+                  },
+                  "none": {
+                    "label": "不使用"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "checksum": "sha256:83c91f723e4445ef0b4e7564d67735313207a6226ee0eea2f89a80490fe5ab5c",
+          "libc": null,
+          "rust_target": "x86_64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/anthropic-v0.1.1/1flowbase@anthropic@0.1.1@darwin-amd64@83c91f723e4445ef0b4e7564d67735313207a6226ee0eea2f89a80490fe5ab5c.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "checksum": "sha256:f20b307233de662a0d31da5ec647fe77d89f8709dd8c818fb4a47341c42e0aea",
+          "libc": null,
+          "rust_target": "aarch64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/anthropic-v0.1.1/1flowbase@anthropic@0.1.1@darwin-arm64@f20b307233de662a0d31da5ec647fe77d89f8709dd8c818fb4a47341c42e0aea.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "amd64",
+          "checksum": "sha256:c746f515215d42cb0271218c0075960378634c5fa034012780f0c5ad4ded7c8d",
+          "libc": "musl",
+          "rust_target": "x86_64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/anthropic-v0.1.1/1flowbase@anthropic@0.1.1@linux-amd64@c746f515215d42cb0271218c0075960378634c5fa034012780f0c5ad4ded7c8d.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "arm64",
+          "checksum": "sha256:148e363aa5a7389fa7185f9b0214921939104a29c23399540a2cb93d7be891d6",
+          "libc": "musl",
+          "rust_target": "aarch64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/anthropic-v0.1.1/1flowbase@anthropic@0.1.1@linux-arm64@148e363aa5a7389fa7185f9b0214921939104a29c23399540a2cb93d7be891d6.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "amd64",
+          "checksum": "sha256:\\f52d6eb8e892ec4f69e3e567590970418cff84235deda1ff5282c6e081f5fb3e",
+          "libc": "msvc",
+          "rust_target": "x86_64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/anthropic-v0.1.1/1flowbase@anthropic@0.1.1@windows-amd64@f52d6eb8e892ec4f69e3e567590970418cff84235deda1ff5282c6e081f5fb3e.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "arm64",
+          "checksum": "sha256:\\9cfccfd5e2b95328317802b72e49302f0404ee0941c029a16408b63d7ed984be",
+          "libc": "msvc",
+          "rust_target": "aarch64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/anthropic-v0.1.1/1flowbase@anthropic@0.1.1@windows-arm64@9cfccfd5e2b95328317802b72e49302f0404ee0941c029a16408b63d7ed984be.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        }
+      ]
+    },
     {
       "plugin_id": "1flowbase.deepseek",
       "plugin_type": "model_provider",
@@ -9,7 +255,7 @@
       "display_name": "DeepSeek",
       "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/deepseek/_assets/icon.svg",
       "protocol": "openai_compatible",
-      "latest_version": "0.1.3",
+      "latest_version": "0.1.5",
       "help_url": "https://api-docs.deepseek.com/zh-cn/api/deepseek-api",
       "model_discovery_mode": "hybrid",
       "i18n_summary": {
@@ -249,60 +495,60 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "checksum": "sha256:4fe98239cbb97232896c4f7439daae339b83d36525af69b7a2e0fd4f7297b247",
+          "checksum": "sha256:dc6881819a4af7da38bb5eed5f2f3c9b7a62c1fec1b953abce34899eb021584f",
           "libc": null,
           "rust_target": "x86_64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.3/1flowbase@deepseek@0.1.3@darwin-amd64@4fe98239cbb97232896c4f7439daae339b83d36525af69b7a2e0fd4f7297b247.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.5/1flowbase@deepseek@0.1.5@darwin-amd64@dc6881819a4af7da38bb5eed5f2f3c9b7a62c1fec1b953abce34899eb021584f.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "darwin",
           "arch": "arm64",
-          "checksum": "sha256:e3fddc74b28010febf622bc80aeb2865e042bba99ddf98edb7dd648217ee5368",
+          "checksum": "sha256:2adf5147b9e769dc34fbe7993bc8f4890f3051ad917765cb226f4785a2e5a113",
           "libc": null,
           "rust_target": "aarch64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.3/1flowbase@deepseek@0.1.3@darwin-arm64@e3fddc74b28010febf622bc80aeb2865e042bba99ddf98edb7dd648217ee5368.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.5/1flowbase@deepseek@0.1.5@darwin-arm64@2adf5147b9e769dc34fbe7993bc8f4890f3051ad917765cb226f4785a2e5a113.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "amd64",
-          "checksum": "sha256:4540993646757c03d000851799e37c941d6af9f3395aca66723e2176bf48f41a",
+          "checksum": "sha256:fc93a65dbb3de3c015fa5336fad621ed393c90b8399869db5ba99c5b10a85a52",
           "libc": "musl",
           "rust_target": "x86_64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.3/1flowbase@deepseek@0.1.3@linux-amd64@4540993646757c03d000851799e37c941d6af9f3395aca66723e2176bf48f41a.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.5/1flowbase@deepseek@0.1.5@linux-amd64@fc93a65dbb3de3c015fa5336fad621ed393c90b8399869db5ba99c5b10a85a52.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "arm64",
-          "checksum": "sha256:00d1f96f0836968afd6c038ac10381b0d04795ec6855e646650aa03e7b0bbe80",
+          "checksum": "sha256:8f9c9d9480e137eb6a6950659d5e14d311fa08b88a39cdc0b9cc2b8c811b383c",
           "libc": "musl",
           "rust_target": "aarch64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.3/1flowbase@deepseek@0.1.3@linux-arm64@00d1f96f0836968afd6c038ac10381b0d04795ec6855e646650aa03e7b0bbe80.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.5/1flowbase@deepseek@0.1.5@linux-arm64@8f9c9d9480e137eb6a6950659d5e14d311fa08b88a39cdc0b9cc2b8c811b383c.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "amd64",
-          "checksum": "sha256:\\7a7c101b8090369d18b8b9d10c5e223947d9a3914e2f5bdfc47250e3bff0e08a",
+          "checksum": "sha256:\\8129a87aea946c3f87749cb3d35ec5908a3141b45a13b5867280cdd641bdf13c",
           "libc": "msvc",
           "rust_target": "x86_64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.3/1flowbase@deepseek@0.1.3@windows-amd64@7a7c101b8090369d18b8b9d10c5e223947d9a3914e2f5bdfc47250e3bff0e08a.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.5/1flowbase@deepseek@0.1.5@windows-amd64@8129a87aea946c3f87749cb3d35ec5908a3141b45a13b5867280cdd641bdf13c.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "arm64",
-          "checksum": "sha256:\\83843719830bc243a1b8be5a2d2dcd6224603e6911341e710e4bde4fd1dd9e45",
+          "checksum": "sha256:\\e6f5fc54a8d92173890bd67dbd2e648fd4cc95c35f08b5860a1803d1fc4a2c2e",
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.3/1flowbase@deepseek@0.1.3@windows-arm64@83843719830bc243a1b8be5a2d2dcd6224603e6911341e710e4bde4fd1dd9e45.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/deepseek-v0.1.5/1flowbase@deepseek@0.1.5@windows-arm64@e6f5fc54a8d92173890bd67dbd2e648fd4cc95c35f08b5860a1803d1fc4a2c2e.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
@@ -315,7 +561,7 @@
       "display_name": "Gemini",
       "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/gemini/_assets/icon.svg",
       "protocol": "gemini",
-      "latest_version": "0.1.1",
+      "latest_version": "0.1.2",
       "help_url": "https://ai.google.dev/gemini-api/docs",
       "model_discovery_mode": "hybrid",
       "i18n_summary": {
@@ -555,60 +801,360 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "checksum": "sha256:74a08bbcc52cdf17d4b5a687355160a015ae9f0d3f897132ecee0884b1614fd4",
+          "checksum": "sha256:3b1690fe17a02c25f5d94432eee7deba2e65a5780b955dbe64a22221d0e4a407",
           "libc": null,
           "rust_target": "x86_64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.1/1flowbase@gemini@0.1.1@darwin-amd64@74a08bbcc52cdf17d4b5a687355160a015ae9f0d3f897132ecee0884b1614fd4.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.2/1flowbase@gemini@0.1.2@darwin-amd64@3b1690fe17a02c25f5d94432eee7deba2e65a5780b955dbe64a22221d0e4a407.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "darwin",
           "arch": "arm64",
-          "checksum": "sha256:0e7ee120b736598f7da5bd77e770b18985b36fb79e648462c04a76bdbccb39b7",
+          "checksum": "sha256:8c16d9b3843bb07c3a120e3302c227c214eff36025abc05443261a424bd6ad7c",
           "libc": null,
           "rust_target": "aarch64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.1/1flowbase@gemini@0.1.1@darwin-arm64@0e7ee120b736598f7da5bd77e770b18985b36fb79e648462c04a76bdbccb39b7.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.2/1flowbase@gemini@0.1.2@darwin-arm64@8c16d9b3843bb07c3a120e3302c227c214eff36025abc05443261a424bd6ad7c.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "amd64",
-          "checksum": "sha256:76edea8ca1523f2aa070405942b081ac42ad306e4f4a1e886c96dd7b0971a161",
+          "checksum": "sha256:70048b292431bf9de6b24d3b63253f435752d569a16e7cd81767e78d40bfa551",
           "libc": "musl",
           "rust_target": "x86_64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.1/1flowbase@gemini@0.1.1@linux-amd64@76edea8ca1523f2aa070405942b081ac42ad306e4f4a1e886c96dd7b0971a161.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.2/1flowbase@gemini@0.1.2@linux-amd64@70048b292431bf9de6b24d3b63253f435752d569a16e7cd81767e78d40bfa551.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "arm64",
-          "checksum": "sha256:642a9155bf7b12b480ba11830ec249bda02fc940a358fe1a1fba5ddaad5011cd",
+          "checksum": "sha256:24e35e9ee16e41e12a07a77122b3aea07184d9be5b6969b58d85c84713f1c8db",
           "libc": "musl",
           "rust_target": "aarch64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.1/1flowbase@gemini@0.1.1@linux-arm64@642a9155bf7b12b480ba11830ec249bda02fc940a358fe1a1fba5ddaad5011cd.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.2/1flowbase@gemini@0.1.2@linux-arm64@24e35e9ee16e41e12a07a77122b3aea07184d9be5b6969b58d85c84713f1c8db.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "amd64",
-          "checksum": "sha256:\\8b67001b6907d6ad01a1e5ef72aea9e314afdb9530922ecf13901bbd9ab3bed9",
+          "checksum": "sha256:\\ef629527f5ca32edcbf5a24a643f0b7faf6613a026fa6e72b48cc4e90ae66bd4",
           "libc": "msvc",
           "rust_target": "x86_64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.1/1flowbase@gemini@0.1.1@windows-amd64@8b67001b6907d6ad01a1e5ef72aea9e314afdb9530922ecf13901bbd9ab3bed9.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.2/1flowbase@gemini@0.1.2@windows-amd64@ef629527f5ca32edcbf5a24a643f0b7faf6613a026fa6e72b48cc4e90ae66bd4.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "arm64",
-          "checksum": "sha256:\\414819f7338015032e63273a1b9b2bfa12fc93aff36d45aa099f143bc5a1bf13",
+          "checksum": "sha256:\\f4f3678f69ac2b22456cae33c2dda849fddeb7870f3183d06cf60976497766a1",
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.1/1flowbase@gemini@0.1.1@windows-arm64@414819f7338015032e63273a1b9b2bfa12fc93aff36d45aa099f143bc5a1bf13.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/gemini-v0.1.2/1flowbase@gemini@0.1.2@windows-arm64@f4f3678f69ac2b22456cae33c2dda849fddeb7870f3183d06cf60976497766a1.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        }
+      ]
+    },
+    {
+      "plugin_id": "1flowbase.openai",
+      "plugin_type": "model_provider",
+      "provider_code": "openai",
+      "display_name": "OpenAI",
+      "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai/_assets/icon.svg",
+      "protocol": "openai_responses",
+      "latest_version": "0.1.1",
+      "help_url": "https://platform.openai.com/docs/api-reference/responses",
+      "model_discovery_mode": "hybrid",
+      "i18n_summary": {
+        "default_locale": "en_US",
+        "available_locales": [
+          "en_US",
+          "zh_Hans"
+        ],
+        "bundles": {
+          "en_US": {
+            "plugin": {
+              "label": "OpenAI",
+              "description": "OpenAI Responses API model provider runtime extension."
+            },
+            "provider": {
+              "label": "OpenAI"
+            },
+            "fields": {
+              "base_url": {
+                "label": "Base URL"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "organization": {
+                "label": "Organization"
+              },
+              "project": {
+                "label": "Project"
+              },
+              "validate_model": {
+                "label": "Validate model against discovered catalog"
+              },
+              "transport_mode": {
+                "label": "Transport mode"
+              }
+            },
+            "models": {
+              "gpt-5.2": {
+                "label": "GPT-5.2"
+              },
+              "gpt-5.1": {
+                "label": "GPT-5.1"
+              },
+              "gpt-5-mini": {
+                "label": "GPT-5 mini"
+              }
+            },
+            "demo": {
+              "title": "OpenAI Provider Demo",
+              "subtitle": "Use the local demo to load this plugin into plugin-runner, validate credentials, inspect /models, and send a Responses API invocation."
+            },
+            "parameters": {
+              "title": "OpenAI Responses Parameters",
+              "description": "Provider-level request parameters supported by the OpenAI Responses API bridge.",
+              "reasoning_effort": {
+                "label": "Reasoning Effort",
+                "description": "Controls how much reasoning effort a reasoning model should spend.",
+                "options": {
+                  "minimal": {
+                    "label": "Minimal"
+                  },
+                  "low": {
+                    "label": "Low"
+                  },
+                  "medium": {
+                    "label": "Medium"
+                  },
+                  "high": {
+                    "label": "High"
+                  }
+                }
+              },
+              "temperature": {
+                "label": "Temperature",
+                "description": "Controls output randomness. Higher values make responses more varied."
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "Nucleus sampling threshold that limits candidates by cumulative token probability."
+              },
+              "max_output_tokens": {
+                "label": "Max Output Tokens",
+                "description": "Maximum number of output tokens the model may generate."
+              },
+              "response_format": {
+                "label": "Response Format",
+                "description": "Requests plain text or JSON object output through Responses text.format.",
+                "options": {
+                  "text": {
+                    "label": "Text"
+                  },
+                  "json_object": {
+                    "label": "JSON Object"
+                  }
+                }
+              },
+              "tool_choice": {
+                "label": "Tool Choice",
+                "description": "Controls whether the model may or must call tools.",
+                "options": {
+                  "auto": {
+                    "label": "Auto"
+                  },
+                  "required": {
+                    "label": "Required"
+                  },
+                  "none": {
+                    "label": "None"
+                  }
+                }
+              },
+              "store": {
+                "label": "Store",
+                "description": "Controls whether OpenAI may store the response according to the API request option."
+              }
+            }
+          },
+          "zh_Hans": {
+            "plugin": {
+              "label": "OpenAI",
+              "description": "OpenAI Responses API 模型供应商运行时扩展。"
+            },
+            "provider": {
+              "label": "OpenAI"
+            },
+            "fields": {
+              "base_url": {
+                "label": "基础地址"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "organization": {
+                "label": "Organization"
+              },
+              "project": {
+                "label": "Project"
+              },
+              "validate_model": {
+                "label": "按发现目录校验模型"
+              },
+              "transport_mode": {
+                "label": "传输模式"
+              }
+            },
+            "models": {
+              "gpt-5.2": {
+                "label": "GPT-5.2"
+              },
+              "gpt-5.1": {
+                "label": "GPT-5.1"
+              },
+              "gpt-5-mini": {
+                "label": "GPT-5 mini"
+              }
+            },
+            "demo": {
+              "title": "OpenAI 调试页",
+              "subtitle": "本地加载插件到 plugin-runner，验证凭据、查看模型列表并发送一次 Responses API 调用。"
+            },
+            "parameters": {
+              "title": "OpenAI Responses 参数",
+              "description": "OpenAI Responses API 调用桥支持的供应商级请求参数。",
+              "reasoning_effort": {
+                "label": "推理强度",
+                "description": "控制推理模型投入的推理量。",
+                "options": {
+                  "minimal": {
+                    "label": "极低"
+                  },
+                  "low": {
+                    "label": "低"
+                  },
+                  "medium": {
+                    "label": "中"
+                  },
+                  "high": {
+                    "label": "高"
+                  }
+                }
+              },
+              "temperature": {
+                "label": "温度",
+                "description": "控制输出随机性，值越高越发散。"
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "nucleus sampling 采样阈值，限制候选 token 的累计概率。"
+              },
+              "max_output_tokens": {
+                "label": "最大输出 Token 数",
+                "description": "模型可生成的最大输出 token 数。"
+              },
+              "response_format": {
+                "label": "响应格式",
+                "description": "通过 Responses text.format 请求文本或 JSON object 输出。",
+                "options": {
+                  "text": {
+                    "label": "文本"
+                  },
+                  "json_object": {
+                    "label": "JSON Object"
+                  }
+                }
+              },
+              "tool_choice": {
+                "label": "工具选择",
+                "description": "控制模型是否可以或必须调用工具。",
+                "options": {
+                  "auto": {
+                    "label": "自动"
+                  },
+                  "required": {
+                    "label": "必须"
+                  },
+                  "none": {
+                    "label": "不使用"
+                  }
+                }
+              },
+              "store": {
+                "label": "存储响应",
+                "description": "控制是否按 API 请求选项允许 OpenAI 存储响应。"
+              }
+            }
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "checksum": "sha256:7707842099e16201eba6c0a8bd6957b4ff6f55ed4f83b55dc24728ce2e6e828c",
+          "libc": null,
+          "rust_target": "x86_64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.1.1/1flowbase@openai@0.1.1@darwin-amd64@7707842099e16201eba6c0a8bd6957b4ff6f55ed4f83b55dc24728ce2e6e828c.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "checksum": "sha256:2241f4d0eb5d9381d1694f3b16a910916a4e6f0e902ecba34a249e467ee11f49",
+          "libc": null,
+          "rust_target": "aarch64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.1.1/1flowbase@openai@0.1.1@darwin-arm64@2241f4d0eb5d9381d1694f3b16a910916a4e6f0e902ecba34a249e467ee11f49.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "amd64",
+          "checksum": "sha256:5d1dad6a8588979ab189209555350a13c59327d3cbd8fde4619b206369327278",
+          "libc": "musl",
+          "rust_target": "x86_64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.1.1/1flowbase@openai@0.1.1@linux-amd64@5d1dad6a8588979ab189209555350a13c59327d3cbd8fde4619b206369327278.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "arm64",
+          "checksum": "sha256:fc33179f3f6501e2d7786f5a28350c3cf26304efd05650624aeddcfcd74c43ea",
+          "libc": "musl",
+          "rust_target": "aarch64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.1.1/1flowbase@openai@0.1.1@linux-arm64@fc33179f3f6501e2d7786f5a28350c3cf26304efd05650624aeddcfcd74c43ea.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "amd64",
+          "checksum": "sha256:\\d499472cf3541af012bdeaa1aa60aac1368d2a8b4f2e095c45e69b82218025a9",
+          "libc": "msvc",
+          "rust_target": "x86_64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.1.1/1flowbase@openai@0.1.1@windows-amd64@d499472cf3541af012bdeaa1aa60aac1368d2a8b4f2e095c45e69b82218025a9.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "arm64",
+          "checksum": "sha256:\\cbbfdd7f3686cb4976cda01241c148381530abb7291d9b23c6cfa82556edd962",
+          "libc": "msvc",
+          "rust_target": "aarch64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.1.1/1flowbase@openai@0.1.1@windows-arm64@cbbfdd7f3686cb4976cda01241c148381530abb7291d9b23c6cfa82556edd962.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
@@ -867,60 +1413,60 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "checksum": "sha256:b72ffadd79135dfae073215e546ec5f395363b9f2395159edc37b617b9fc81a5",
+          "checksum": "sha256:2e0a5702788058eb62e320e7564d2362335213cca49282fe4ee40ade5f264c67",
           "libc": null,
           "rust_target": "x86_64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.21/1flowbase@openai_compatible@0.3.21@darwin-amd64@b72ffadd79135dfae073215e546ec5f395363b9f2395159edc37b617b9fc81a5.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.22/1flowbase@openai_compatible@0.3.22@darwin-amd64@2e0a5702788058eb62e320e7564d2362335213cca49282fe4ee40ade5f264c67.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "darwin",
           "arch": "arm64",
-          "checksum": "sha256:7286c788ec7f7eb9a9d293b3017f86aaaf0e391f9afdbce466cd49bbfa37a582",
+          "checksum": "sha256:be884408fd98c868ff2c676ec3b12867f6d266efd55a7a6d8dbd850b75e0c418",
           "libc": null,
           "rust_target": "aarch64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.21/1flowbase@openai_compatible@0.3.21@darwin-arm64@7286c788ec7f7eb9a9d293b3017f86aaaf0e391f9afdbce466cd49bbfa37a582.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.22/1flowbase@openai_compatible@0.3.22@darwin-arm64@be884408fd98c868ff2c676ec3b12867f6d266efd55a7a6d8dbd850b75e0c418.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "amd64",
-          "checksum": "sha256:67b3e5d0d955e97ce1a06fde5f546a56a4f30522bb67e07635883785f8b625a5",
+          "checksum": "sha256:eebc06255fc7948c702db5b7272d8b562ec4c9154b4ff2ab970cc117f2123680",
           "libc": "musl",
           "rust_target": "x86_64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.21/1flowbase@openai_compatible@0.3.21@linux-amd64@67b3e5d0d955e97ce1a06fde5f546a56a4f30522bb67e07635883785f8b625a5.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.22/1flowbase@openai_compatible@0.3.22@linux-amd64@eebc06255fc7948c702db5b7272d8b562ec4c9154b4ff2ab970cc117f2123680.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "arm64",
-          "checksum": "sha256:b61891508b6dee71c13ac2fc9787bea4e4d7f56e7360be138fad167fb356f61a",
+          "checksum": "sha256:03abaf2a18bcb4806a6c6a9445e178d97a514b99f56d7581113cfaf240a8bb40",
           "libc": "musl",
           "rust_target": "aarch64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.21/1flowbase@openai_compatible@0.3.21@linux-arm64@b61891508b6dee71c13ac2fc9787bea4e4d7f56e7360be138fad167fb356f61a.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.22/1flowbase@openai_compatible@0.3.22@linux-arm64@03abaf2a18bcb4806a6c6a9445e178d97a514b99f56d7581113cfaf240a8bb40.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "amd64",
-          "checksum": "sha256:\\7890ae9bbf43635d05c3690afdb7db71ce4de7b16f49dc82135e0427fea8cf35",
+          "checksum": "sha256:\\82958eb06260c4b3bc6f91de1e1b61f593bbc4050e5b61a9aff11a7e4c12e415",
           "libc": "msvc",
           "rust_target": "x86_64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.21/1flowbase@openai_compatible@0.3.21@windows-amd64@7890ae9bbf43635d05c3690afdb7db71ce4de7b16f49dc82135e0427fea8cf35.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.22/1flowbase@openai_compatible@0.3.22@windows-amd64@82958eb06260c4b3bc6f91de1e1b61f593bbc4050e5b61a9aff11a7e4c12e415.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "arm64",
-          "checksum": "sha256:\\d5b31bc5adc77be09ac042331e6841d91be1b22417c7ca0e81fedb00a4eec389",
+          "checksum": "sha256:\\364b3f03cb0ec1024cf369708d6003f6814b9cd0686d8d7a0c42c1187432884c",
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.21/1flowbase@openai_compatible@0.3.21@windows-arm64@d5b31bc5adc77be09ac042331e6841d91be1b22417c7ca0e81fedb00a4eec389.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.3.22/1flowbase@openai_compatible@0.3.22@windows-arm64@364b3f03cb0ec1024cf369708d6003f6814b9cd0686d8d7a0c42c1187432884c.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
