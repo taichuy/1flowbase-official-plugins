@@ -767,13 +767,11 @@ where
         reason: finish_reason.clone(),
     });
     emit_new_events(&events, final_event_start, on_event)?;
-    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
-
     Ok(RuntimeInvocationEnvelope {
         events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
-            response_id: native_response_id,
+            response_id: None,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -1598,7 +1596,11 @@ mod tests {
         assert_eq!(result.final_content.as_deref(), Some("answer"));
         assert_eq!(result.tool_calls, vec![expected_tool_call]);
         assert_eq!(result.finish_reason, Some(ProviderFinishReason::Stop));
-        assert_eq!(result.response_id.as_deref(), Some("chatcmpl_test"));
+        assert_eq!(result.response_id, None);
+        assert_eq!(
+            result.provider_metadata["response_id"],
+            json!("chatcmpl_test")
+        );
         assert_eq!(result.usage.input_cache_hit_tokens, Some(40));
         assert_eq!(result.usage.input_cache_miss_tokens, Some(60));
         assert_eq!(result.usage.cache_write_tokens, None);

@@ -658,12 +658,11 @@ where
     });
     emit_new_events(&events, on_event)?;
     all_events.extend(events);
-    let native_response_id = message_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
         events: all_events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
-            response_id: native_response_id,
+            response_id: None,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -854,6 +853,36 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::Duration,
+    };
+
+    fn start_sse_server(response_body: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("response should be writable");
+        });
+
+        address
+    }
 
     #[test]
     fn messages_body_maps_native_tool_calls_and_tool_results() {
@@ -956,5 +985,39 @@ mod tests {
         assert_eq!(usage.output_tokens, Some(3));
         assert_eq!(usage.total_tokens, Some(5));
         assert_eq!(finish_reason, ProviderFinishReason::ToolCall);
+    }
+
+    #[tokio::test]
+    async fn anthropic_streaming_result_keeps_message_id_metadata_only() {
+        let response = reqwest::get(start_sse_server(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1}}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":3}}\n\n",
+            "data: [DONE]\n\n"
+        )))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope = read_streaming_message(
+            response,
+            "claude-sonnet-4-20250514".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("hello"));
+        assert_eq!(envelope.result.response_id, None);
+        assert_eq!(
+            envelope.result.provider_metadata["message_id"],
+            json!("msg_1")
+        );
+        assert!(events.contains(&ProviderStreamEvent::Finish {
+            reason: ProviderFinishReason::Stop
+        }));
     }
 }

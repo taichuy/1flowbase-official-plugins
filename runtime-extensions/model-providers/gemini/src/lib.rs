@@ -1529,13 +1529,11 @@ where
         reason: finish_reason.clone(),
     });
     emit_new_events(&events, final_event_start, on_event)?;
-    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
-
     Ok(RuntimeInvocationEnvelope {
         events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
-            response_id: native_response_id,
+            response_id: None,
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -1821,6 +1819,36 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::Duration,
+    };
+
+    fn start_sse_server(response_body: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("response should be writable");
+        });
+
+        address
+    }
 
     #[test]
     fn normalizes_openai_tool_to_gemini_function_declaration() {
@@ -1890,5 +1918,37 @@ mod tests {
         assert_eq!(finish_reason, Some(ProviderFinishReason::Stop));
         assert_eq!(response_id, json!("resp_gemini"));
         assert_eq!(events.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn gemini_streaming_result_keeps_response_id_metadata_only() {
+        let response = reqwest::get(start_sse_server(
+            "data: {\"responseId\":\"resp_gemini\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"hello\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":2,\"candidatesTokenCount\":3,\"totalTokenCount\":5}}\n\n",
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope = read_streaming_generate_content(
+            response,
+            "gemini-2.5-flash".to_string(),
+            "test-key",
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("hello"));
+        assert_eq!(envelope.result.response_id, None);
+        assert_eq!(
+            envelope.result.provider_metadata["response_id"],
+            json!("resp_gemini")
+        );
+        assert!(events.contains(&ProviderStreamEvent::Finish {
+            reason: ProviderFinishReason::Stop
+        }));
     }
 }
