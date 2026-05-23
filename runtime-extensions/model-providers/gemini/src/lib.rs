@@ -12,7 +12,6 @@ use serde_json::{json, Map, Value};
 const PROVIDER_CODE: &str = "gemini";
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
 const DEFAULT_VALIDATE_MODEL: bool = true;
-const GEMINI_DUMMY_THOUGHT_SIGNATURE: &str = "skip_thought_signature_validator";
 const JSON_PARAMETERS: &[&str] = &[
     "tools",
     "tool_choice",
@@ -167,6 +166,8 @@ pub struct ProviderToolCall {
     pub name: String,
     #[serde(default)]
     pub arguments: Value,
+    #[serde(default, skip_serializing_if = "is_empty_object")]
+    pub provider_metadata: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -633,6 +634,7 @@ fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value>
     let mut body = Map::new();
     let mut contents = Vec::new();
     let mut system_parts = Vec::new();
+    let mut tool_call_names_by_id = BTreeMap::new();
 
     if let Some(system) = input
         .system
@@ -651,13 +653,17 @@ fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value>
 
         let gemini_role = normalize_gemini_role(&role);
         let mut parts = if role == "tool" || role == "function" {
-            build_tool_response_parts(message)
+            build_tool_response_parts(message, &tool_call_names_by_id)
         } else {
             build_content_parts(&message.content)
         };
 
         if gemini_role == "model" {
-            append_tool_call_parts(&mut parts, message.tool_calls.as_ref());
+            append_tool_call_parts(
+                &mut parts,
+                message.tool_calls.as_ref(),
+                &mut tool_call_names_by_id,
+            );
         }
 
         if parts.is_empty() {
@@ -921,7 +927,10 @@ fn function_response_part_from_object(object: &Map<String, Value>) -> Option<Val
     Some(json!({ "functionResponse": function_response }))
 }
 
-fn build_tool_response_parts(message: &ProviderMessage) -> Vec<Value> {
+fn build_tool_response_parts(
+    message: &ProviderMessage,
+    tool_call_names_by_id: &BTreeMap<String, String>,
+) -> Vec<Value> {
     let native_parts = build_content_parts(&message.content)
         .into_iter()
         .filter(|part| part.get("functionResponse").is_some())
@@ -934,6 +943,13 @@ fn build_tool_response_parts(message: &ProviderMessage) -> Vec<Value> {
         .name
         .as_deref()
         .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            message
+                .tool_call_id
+                .as_deref()
+                .and_then(|id| tool_call_names_by_id.get(id))
+                .map(String::as_str)
+        })
         .or(message.tool_call_id.as_deref())
         .unwrap_or("tool");
     let mut response = Map::new();
@@ -965,7 +981,11 @@ fn ensure_object_response(value: Value) -> Value {
     }
 }
 
-fn append_tool_call_parts(parts: &mut Vec<Value>, tool_calls: Option<&Value>) {
+fn append_tool_call_parts(
+    parts: &mut Vec<Value>,
+    tool_calls: Option<&Value>,
+    tool_call_names_by_id: &mut BTreeMap<String, String>,
+) {
     let Some(tool_calls) = tool_calls else {
         return;
     };
@@ -974,13 +994,17 @@ fn append_tool_call_parts(parts: &mut Vec<Value>, tool_calls: Option<&Value>) {
     };
 
     for (index, item) in items.iter().enumerate() {
-        if let Some(part) = function_call_part_from_tool_call(item, index) {
+        if let Some((part, id, name)) = function_call_part_from_tool_call(item, index) {
+            tool_call_names_by_id.insert(id, name);
             parts.push(part);
         }
     }
 }
 
-fn function_call_part_from_tool_call(tool_call: &Value, index: usize) -> Option<Value> {
+fn function_call_part_from_tool_call(
+    tool_call: &Value,
+    index: usize,
+) -> Option<(Value, String, String)> {
     let object = tool_call.as_object()?;
     let function = object.get("function").and_then(Value::as_object);
 
@@ -989,7 +1013,8 @@ fn function_call_part_from_tool_call(tool_call: &Value, index: usize) -> Option<
         .or_else(|| object.get("name"))
         .and_then(Value::as_str)
         .unwrap_or_default()
-        .trim();
+        .trim()
+        .to_string();
     if name.is_empty() {
         return None;
     }
@@ -1006,15 +1031,47 @@ fn function_call_part_from_tool_call(tool_call: &Value, index: usize) -> Option<
         .filter(|value| !value.trim().is_empty())
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| format!("{name}-{index}"));
-
-    Some(json!({
+    let mut part = json!({
         "functionCall": {
-            "name": name,
+            "name": name.clone(),
             "args": args,
-            "id": id
-        },
-        "thoughtSignature": GEMINI_DUMMY_THOUGHT_SIGNATURE
-    }))
+            "id": id.clone()
+        }
+    });
+    if let Some(thought_signature) = tool_call_thought_signature(object) {
+        part["thoughtSignature"] = Value::String(thought_signature.to_string());
+    }
+
+    Some((part, id, name))
+}
+
+fn tool_call_thought_signature(object: &Map<String, Value>) -> Option<&str> {
+    object
+        .get("provider_metadata")
+        .and_then(Value::as_object)
+        .and_then(|metadata| {
+            metadata
+                .get("gemini")
+                .and_then(Value::as_object)
+                .and_then(|gemini| {
+                    gemini
+                        .get("thought_signature")
+                        .or_else(|| gemini.get("thoughtSignature"))
+                        .and_then(Value::as_str)
+                })
+                .or_else(|| {
+                    metadata
+                        .get("thought_signature")
+                        .or_else(|| metadata.get("thoughtSignature"))
+                        .and_then(Value::as_str)
+                })
+        })
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn is_empty_object(value: &Value) -> bool {
+    value.as_object().is_some_and(|object| object.is_empty())
 }
 
 fn normalize_arguments(value: Value) -> Value {
@@ -1663,7 +1720,7 @@ fn process_response_part(
         .get("functionCall")
         .or_else(|| part.get("function_call"))
     {
-        if let Some(call) = provider_tool_call_from_gemini(function_call, tool_calls.len()) {
+        if let Some(call) = provider_tool_call_from_gemini(part, function_call, tool_calls.len()) {
             tool_calls.push(call);
         }
     }
@@ -1705,7 +1762,11 @@ fn process_response_part(
     Ok(())
 }
 
-fn provider_tool_call_from_gemini(function_call: &Value, index: usize) -> Option<ProviderToolCall> {
+fn provider_tool_call_from_gemini(
+    part: &Value,
+    function_call: &Value,
+    index: usize,
+) -> Option<ProviderToolCall> {
     let object = function_call.as_object()?;
     let name = object
         .get("name")
@@ -1726,12 +1787,34 @@ fn provider_tool_call_from_gemini(function_call: &Value, index: usize) -> Option
         .or_else(|| object.get("arguments"))
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let provider_metadata = gemini_tool_call_provider_metadata(part, function_call);
 
     Some(ProviderToolCall {
         id,
         name: name.to_string(),
         arguments,
+        provider_metadata,
     })
+}
+
+fn gemini_tool_call_provider_metadata(part: &Value, function_call: &Value) -> Value {
+    let thought_signature = part
+        .get("thoughtSignature")
+        .or_else(|| part.get("thought_signature"))
+        .or_else(|| function_call.get("thoughtSignature"))
+        .or_else(|| function_call.get("thought_signature"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
+    match thought_signature {
+        Some(thought_signature) => json!({
+            "gemini": {
+                "thought_signature": thought_signature,
+            }
+        }),
+        None => json!({}),
+    }
 }
 
 fn markdown_image_from_inline_data(object: &Map<String, Value>) -> Option<String> {
@@ -1886,6 +1969,173 @@ mod tests {
         assert!(body["tools"][0]["functionDeclarations"][0]["parameters"]
             .get("additionalProperties")
             .is_none());
+    }
+
+    #[test]
+    fn generate_content_body_replays_gemini_tool_call_thought_signature() {
+        let input = ProviderInvocationInput {
+            model: "gemini-3-flash-preview".to_string(),
+            messages: vec![
+                ProviderMessage {
+                    role: "user".to_string(),
+                    content: Value::String("Search files".to_string()),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+                ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: Value::String(String::new()),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(json!([{
+                        "id": "call_glob",
+                        "name": "Glob",
+                        "arguments": { "pattern": ".memory/**/*.md" },
+                        "provider_metadata": {
+                            "gemini": {
+                                "thought_signature": "real-gemini-signature"
+                            }
+                        }
+                    }])),
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: Value::String("No files matched".to_string()),
+                    name: Some("Glob".to_string()),
+                    tool_call_id: Some("call_glob".to_string()),
+                    tool_calls: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let body = build_generate_content_body(&input).unwrap();
+        assert_eq!(
+            body["contents"][1]["parts"][0]["thoughtSignature"],
+            json!("real-gemini-signature")
+        );
+    }
+
+    #[test]
+    fn generate_content_body_omits_absent_gemini_thought_signature() {
+        let input = ProviderInvocationInput {
+            model: "gemini-3-flash-preview".to_string(),
+            messages: vec![
+                ProviderMessage {
+                    role: "user".to_string(),
+                    content: Value::String("Search files".to_string()),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+                ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: Value::String(String::new()),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(json!([{
+                        "id": "call_glob",
+                        "name": "Glob",
+                        "arguments": { "pattern": ".memory/**/*.md" }
+                    }])),
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: Value::String("No files matched".to_string()),
+                    name: Some("Glob".to_string()),
+                    tool_call_id: Some("call_glob".to_string()),
+                    tool_calls: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let body = build_generate_content_body(&input).unwrap();
+        assert!(body["contents"][1]["parts"][0]
+            .get("thoughtSignature")
+            .is_none());
+    }
+
+    #[test]
+    fn generate_content_body_uses_prior_tool_call_name_for_tool_result() {
+        let input = ProviderInvocationInput {
+            model: "gemini-3-flash-preview".to_string(),
+            messages: vec![
+                ProviderMessage {
+                    role: "user".to_string(),
+                    content: Value::String("Search files".to_string()),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+                ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: Value::String(String::new()),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(json!([{
+                        "id": "call_glob",
+                        "name": "Glob",
+                        "arguments": { "pattern": ".memory/**/*.md" },
+                        "provider_metadata": {
+                            "gemini": {
+                                "thought_signature": "real-gemini-signature"
+                            }
+                        }
+                    }])),
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: Value::String("No files matched".to_string()),
+                    name: None,
+                    tool_call_id: Some("call_glob".to_string()),
+                    tool_calls: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let body = build_generate_content_body(&input).unwrap();
+        assert_eq!(
+            body["contents"][2]["parts"][0]["functionResponse"]["name"],
+            json!("Glob")
+        );
+        assert_eq!(
+            body["contents"][2]["parts"][0]["functionResponse"]["id"],
+            json!("call_glob")
+        );
+    }
+
+    #[test]
+    fn parses_gemini_tool_call_thought_signature_into_provider_metadata() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut reasoning = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = None;
+        let mut response_id = Value::Null;
+        let mut model_version = Value::Null;
+
+        process_sse_line(
+            r#"data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"Glob","args":{"pattern":".memory/**/*.md"},"id":"call_glob"},"thoughtSignature":"real-gemini-signature"}]},"finishReason":"MALFORMED_FUNCTION_CALL"}]}"#,
+            &mut events,
+            &mut text,
+            &mut reasoning,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+            &mut model_version,
+        )
+        .unwrap();
+
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(
+            tool_calls[0].provider_metadata["gemini"]["thought_signature"],
+            json!("real-gemini-signature")
+        );
     }
 
     #[test]
