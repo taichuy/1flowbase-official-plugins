@@ -71,10 +71,7 @@ test('gemini provider config matches AI Studio and sub2api-compatible auth', () 
     /^- key: base_url\n  type: string\n  required: true\n  default: https:\/\/generativelanguage\.googleapis\.com$/m
   );
   assert.match(provider, /^- key: api_key\n  type: secret\n  required: true$/m);
-  assert.match(
-    provider,
-    /^- key: auth_type\n  type: string\n  required: false\n  default: api_key\n  advanced: true$/m
-  );
+  assert.doesNotMatch(provider, /^- key: auth_type$/m);
   assert.match(provider, /^- key: validate_model\n  type: boolean\n  required: false\n  advanced: true$/m);
 });
 
