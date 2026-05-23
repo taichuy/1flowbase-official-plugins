@@ -72,3 +72,21 @@ test('official-registry.json tracks the current openai_compatible manifest and s
     ]
   );
 });
+
+test('official-registry.json stores normalized sha256 checksums', () => {
+  const registry = readRepoJson('official-registry.json');
+
+  for (const plugin of registry.plugins) {
+    for (const artifact of plugin.artifacts) {
+      assert.match(
+        artifact.checksum,
+        /^sha256:[0-9a-f]{64}$/i,
+        `${plugin.provider_code} ${artifact.os}-${artifact.arch} has invalid checksum`
+      );
+      assert.ok(
+        artifact.download_url.includes(artifact.checksum.slice('sha256:'.length)),
+        `${plugin.provider_code} ${artifact.os}-${artifact.arch} checksum does not match URL`
+      );
+    }
+  }
+});

@@ -145,6 +145,22 @@ function compareArtifacts(left, right) {
     );
 }
 
+function normalizeArtifact(artifact) {
+  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
+    return artifact;
+  }
+
+  const checksum =
+    typeof artifact.checksum === 'string'
+      ? artifact.checksum.replace(/^sha256:\\+/, 'sha256:')
+      : artifact.checksum;
+
+  return {
+    ...artifact,
+    checksum,
+  };
+}
+
 function isExternalAssetUrl(value) {
   return /^https?:\/\//.test(value) || value.startsWith('data:');
 }
@@ -205,7 +221,9 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     help_url: nullableField(providerYaml, 'help_url'),
     model_discovery_mode: readField(providerYaml, 'model_discovery', 'hybrid'),
     i18n_summary: i18nSummary,
-    artifacts: [...(Array.isArray(artifacts) ? artifacts : [])].sort(compareArtifacts),
+    artifacts: [...(Array.isArray(artifacts) ? artifacts : [])]
+      .map(normalizeArtifact)
+      .sort(compareArtifacts),
   };
 }
 

@@ -149,3 +149,26 @@ test('buildRegistryEntry emits a raw GitHub icon URL for repository asset icons'
     'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
   );
 });
+
+test('buildRegistryEntry strips Windows shell escapes from sha256 checksums', () => {
+  const entry = buildRegistryEntry({
+    pluginDir: path.join(repoRoot, 'runtime-extensions', 'model-providers', 'gemini'),
+    providerCode: 'gemini',
+    version: '0.1.4',
+    artifacts: [
+      {
+        os: 'windows',
+        arch: 'amd64',
+        libc: 'msvc',
+        rust_target: 'x86_64-pc-windows-msvc',
+        download_url: 'https://example.test/windows',
+        checksum: 'sha256:\\a077092765c25d7da3606c3252054900f3f07f6653486a682479fcd68763dd7c',
+      },
+    ],
+  });
+
+  assert.equal(
+    entry.artifacts[0].checksum,
+    'sha256:a077092765c25d7da3606c3252054900f3f07f6653486a682479fcd68763dd7c'
+  );
+});
