@@ -45,6 +45,9 @@ fn read_http_request(stream: &mut TcpStream) {
                 return;
             }
         }
+        if header_end.is_some() && body_length.is_none() {
+            return;
+        }
     }
 }
 
@@ -81,7 +84,40 @@ fn start_two_response_server() -> (String, thread::JoinHandle<()>) {
     (address, handle)
 }
 
-fn invoke_line(base_url: &str) -> String {
+fn start_websocket_reject_then_sse_server() -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+    let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+    let handle = thread::spawn(move || {
+        let (mut first_stream, _) = listener.accept().expect("websocket request should connect");
+        read_http_request(&mut first_stream);
+        let error_body = r#"{"error":{"message":"websocket unavailable"}}"#;
+        write!(
+            first_stream,
+            "HTTP/1.1 405 Method Not Allowed\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            error_body.len(),
+            error_body
+        )
+        .expect("websocket rejection should be writable");
+
+        let (mut second_stream, _) = listener.accept().expect("fallback request should connect");
+        read_http_request(&mut second_stream);
+        let response_body = concat!(
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_fallback\",\"delta\":\"fallback ok\"}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_fallback\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
+        );
+        write!(
+            second_stream,
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            response_body.len(),
+            response_body
+        )
+        .expect("fallback response should be writable");
+    });
+
+    (address, handle)
+}
+
+fn invoke_line(base_url: &str, transport_mode: &str) -> String {
     serde_json::to_string(&json!({
         "method": "invoke",
         "input": {
@@ -89,7 +125,7 @@ fn invoke_line(base_url: &str) -> String {
             "provider_config": {
                 "base_url": base_url,
                 "api_key": "test-key",
-                "transport_mode": "http_sse"
+                "transport_mode": transport_mode
             },
             "messages": [
                 { "role": "user", "content": "hello" }
@@ -126,7 +162,7 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
-    writeln!(stdin, "{}", invoke_line(&base_url)).expect("first request should write");
+    writeln!(stdin, "{}", invoke_line(&base_url, "http_sse")).expect("first request should write");
     stdin.flush().expect("first request should flush");
 
     let error_line = next_json_line(&mut stdout);
@@ -141,7 +177,7 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
     assert_eq!(result_line["type"], "result");
     assert_eq!(result_line["result"]["finish_reason"], "error");
 
-    writeln!(stdin, "{}", invoke_line(&base_url)).expect("second request should write");
+    writeln!(stdin, "{}", invoke_line(&base_url, "http_sse")).expect("second request should write");
     stdin.flush().expect("second request should flush");
 
     let mut saw_text_delta = false;
@@ -157,6 +193,48 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
                 assert_eq!(line["result"]["response_id"], "resp_ok");
                 break;
             }
+            _ => {}
+        }
+    }
+    assert!(saw_text_delta);
+
+    let _ = child.kill();
+    let _ = child.wait();
+    server.join().expect("server thread should finish");
+}
+
+#[test]
+fn websocket_transport_falls_back_to_sse_before_response_events() {
+    let (base_url, server) = start_websocket_reject_then_sse_server();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("openai provider binary should spawn");
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let mut stdout = BufReader::new(stdout);
+
+    writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
+        .expect("request should write");
+    stdin.flush().expect("request should flush");
+
+    let mut saw_text_delta = false;
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("text_delta") => {
+                saw_text_delta = true;
+                assert_eq!(line["delta"], "fallback ok");
+            }
+            Some("result") => {
+                assert_eq!(line["result"]["final_content"], "fallback ok");
+                assert_eq!(line["result"]["response_id"], "resp_fallback");
+                assert_eq!(line["result"]["provider_metadata"]["transport"], "http_sse");
+                break;
+            }
+            Some("error") => panic!("fallback should not emit an error line: {line}"),
             _ => {}
         }
     }

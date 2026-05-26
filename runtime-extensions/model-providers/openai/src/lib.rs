@@ -599,10 +599,19 @@ impl OpenAiProviderRuntime {
             OpenAiTransportMode::HttpSse => {
                 invoke_response_http_sse(&config, body, input.model, &mut on_event).await
             }
-            OpenAiTransportMode::ResponsesWebsocket => self
-                .invoke_response_websocket(&config, &input, body, &mut on_event)
-                .await
-                .map_err(|error| error.source),
+            OpenAiTransportMode::ResponsesWebsocket => {
+                let websocket_body = body.clone();
+                match self
+                    .invoke_response_websocket(&config, &input, websocket_body, &mut on_event)
+                    .await
+                {
+                    Ok(output) => Ok(output),
+                    Err(error) if !error.event_started && can_fallback_to_http(&error.source) => {
+                        invoke_response_http_sse(&config, body, input.model, &mut on_event).await
+                    }
+                    Err(error) => Err(error.source),
+                }
+            }
             OpenAiTransportMode::Auto => {
                 let websocket_body = body.clone();
                 match self
@@ -1032,20 +1041,28 @@ where
     let mut event_started = false;
 
     loop {
-        let next_message = tokio::time::timeout(STREAM_IDLE_TIMEOUT, session.stream.next())
-            .await
-            .map_err(|_| {
-                WebsocketInvocationError::after_events(anyhow!(
-                    "idle timeout waiting for Responses websocket"
-                ))
-            })?;
+        let next_message =
+            match tokio::time::timeout(STREAM_IDLE_TIMEOUT, session.stream.next()).await {
+                Ok(message) => message,
+                Err(_) => {
+                    let error = anyhow!("idle timeout waiting for Responses websocket");
+                    return Err(if event_started {
+                        WebsocketInvocationError::after_events(error)
+                    } else {
+                        WebsocketInvocationError::before_events(error)
+                    });
+                }
+            };
         let Some(message) = next_message else {
             if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
                 break;
             }
-            return Err(WebsocketInvocationError::after_events(anyhow!(
-                "websocket closed before response.completed"
-            )));
+            let error = anyhow!("websocket closed before response.completed");
+            return Err(if event_started {
+                WebsocketInvocationError::after_events(error)
+            } else {
+                WebsocketInvocationError::before_events(error)
+            });
         };
         let message = message.map_err(|error| {
             if event_started {
@@ -1109,15 +1126,18 @@ where
                 if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
                     break;
                 }
-                return Err(WebsocketInvocationError::after_events(anyhow!(
-                    "websocket closed by server before response.completed"
-                )));
+                let error = anyhow!("websocket closed by server before response.completed");
+                return Err(if event_started {
+                    WebsocketInvocationError::after_events(error)
+                } else {
+                    WebsocketInvocationError::before_events(error)
+                });
             }
             Message::Binary(_) | Message::Frame(_) => {}
         }
     }
 
-    if response_id.is_null() {
+    if response_id.is_null() && !can_finalize_response_on_close(&response_id, &text, &tool_calls) {
         return Err(WebsocketInvocationError::after_events(anyhow!(
             "websocket closed before response.completed"
         )));
@@ -1196,14 +1216,11 @@ fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
 }
 
 fn can_finalize_response_on_close(
-    response_id: &Value,
+    _response_id: &Value,
     text: &str,
     tool_calls: &[ProviderToolCall],
 ) -> bool {
-    response_id
-        .as_str()
-        .is_some_and(|value| !value.trim().is_empty())
-        && (!text.is_empty() || !tool_calls.is_empty())
+    !text.is_empty() || !tool_calls.is_empty()
 }
 
 fn close_finalized_finish_reason(tool_calls: &[ProviderToolCall]) -> ProviderFinishReason {
@@ -1455,6 +1472,7 @@ fn process_response_sse_payload(
         return Ok(());
     }
     let payload: Value = serde_json::from_str(data)?;
+    capture_response_id(&payload, response_id);
     let event_type = payload
         .get("type")
         .and_then(Value::as_str)
@@ -1524,6 +1542,23 @@ fn process_response_sse_payload(
         _ => {}
     }
     Ok(())
+}
+
+fn capture_response_id(payload: &Value, response_id: &mut Value) {
+    if !response_id.is_null() {
+        return;
+    }
+    if let Some(id) = payload
+        .get("response_id")
+        .or_else(|| payload.get("item").and_then(|item| item.get("response_id")))
+        .or_else(|| {
+            payload
+                .get("response")
+                .and_then(|response| response.get("id"))
+        })
+    {
+        *response_id = id.clone();
+    }
 }
 
 fn process_terminal_response_event(
@@ -1941,6 +1976,35 @@ mod tests {
         ));
         finish_reason = close_finalized_finish_reason(&tool_calls);
         assert_eq!(finish_reason, ProviderFinishReason::Stop);
+    }
+
+    #[test]
+    fn response_text_delta_captures_top_level_response_id() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.output_text.delta","response_id":"resp_delta","delta":"OK"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_delta"));
+        assert_eq!(text, "OK");
+        assert!(can_finalize_response_on_close(
+            &response_id,
+            &text,
+            &tool_calls
+        ));
     }
 
     #[test]
