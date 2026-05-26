@@ -7,7 +7,11 @@ use std::{
 };
 
 use serde_json::{json, Value};
-use tokio_tungstenite::tungstenite::{accept, Message};
+use tokio_tungstenite::tungstenite::{
+    accept, accept_hdr,
+    handshake::server::{Request, Response},
+    Message,
+};
 
 fn read_http_request(stream: &mut TcpStream) {
     stream
@@ -226,6 +230,94 @@ fn start_websocket_close_then_reconnect_server() -> (String, thread::JoinHandle<
     (address, handle)
 }
 
+fn accept_with_turn_state(
+    stream: TcpStream,
+    turn_state: &'static str,
+) -> tokio_tungstenite::tungstenite::WebSocket<TcpStream> {
+    accept_hdr(stream, |_request: &Request, mut response: Response| {
+        response
+            .headers_mut()
+            .insert("x-codex-turn-state", turn_state.parse().unwrap());
+        Ok(response)
+    })
+    .expect("websocket handshake should succeed")
+}
+
+fn accept_expect_turn_state(
+    stream: TcpStream,
+    expected: &'static str,
+) -> tokio_tungstenite::tungstenite::WebSocket<TcpStream> {
+    accept_hdr(stream, |request: &Request, response: Response| {
+        let got = request
+            .headers()
+            .get("x-codex-turn-state")
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(
+            got,
+            Some(expected),
+            "continuation reconnect should replay the sticky turn state"
+        );
+        Ok(response)
+    })
+    .expect("websocket handshake should succeed")
+}
+
+fn start_websocket_turn_state_reconnect_server() -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+    let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+    let handle = thread::spawn(move || {
+        let (first_stream, _) = listener.accept().expect("first websocket should connect");
+        let mut websocket = accept_with_turn_state(first_stream, "sticky-turn-1");
+        let _ = websocket
+            .read()
+            .expect("first response.create should be readable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.output_text.delta","response_id":"resp_previous","delta":"first"}"#.into(),
+            ))
+            .expect("first delta should be writable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.completed","response":{"id":"resp_previous","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
+            ))
+            .expect("first completion should be writable");
+        websocket
+            .close(None)
+            .expect("first websocket close should be writable");
+
+        let (second_stream, _) = listener
+            .accept()
+            .expect("continuation reconnect should connect");
+        let mut websocket = accept_expect_turn_state(second_stream, "sticky-turn-1");
+        let request = websocket
+            .read()
+            .expect("continuation response.create should be readable")
+            .into_text()
+            .expect("continuation request should be text");
+        assert!(
+            request.contains("\"previous_response_id\":\"resp_previous\""),
+            "continuation websocket request should carry the response cursor: {request}"
+        );
+        assert!(
+            request.contains("\"type\":\"function_call_output\"")
+                && request.contains("\"call_id\":\"call_lookup\""),
+            "continuation websocket request should carry the tool output delta: {request}"
+        );
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.output_text.delta","response_id":"resp_final","delta":"sticky ok"}"#.into(),
+            ))
+            .expect("continuation delta should be writable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.completed","response":{"id":"resp_final","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
+            ))
+            .expect("continuation completion should be writable");
+    });
+
+    (address, handle)
+}
+
 fn invoke_line(base_url: &str, transport_mode: &str) -> String {
     serde_json::to_string(&json!({
         "method": "invoke",
@@ -283,6 +375,63 @@ fn next_json_line(reader: &mut impl BufRead) -> Value {
             return serde_json::from_str(line.trim()).expect("stdout line should be JSON");
         }
     }
+}
+
+#[test]
+fn websocket_previous_response_reconnect_replays_turn_state() {
+    let (base_url, server) = start_websocket_turn_state_reconnect_server();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("openai provider binary should spawn");
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let mut stdout = BufReader::new(stdout);
+
+    writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
+        .expect("first request should write");
+    stdin.flush().expect("first request should flush");
+
+    loop {
+        let line = next_json_line(&mut stdout);
+        if line["type"].as_str() == Some("result") {
+            assert_eq!(line["result"]["response_id"], "resp_previous");
+            break;
+        }
+    }
+
+    writeln!(
+        stdin,
+        "{}",
+        invoke_line_with_previous_response_id(&base_url, "responses_websocket", "resp_previous")
+    )
+    .expect("continuation request should write");
+    stdin.flush().expect("continuation request should flush");
+
+    let mut saw_text_delta = false;
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("text_delta") => {
+                saw_text_delta = true;
+                assert_eq!(line["delta"], "sticky ok");
+            }
+            Some("result") => {
+                assert_eq!(line["result"]["final_content"], "sticky ok");
+                assert_eq!(line["result"]["response_id"], "resp_final");
+                break;
+            }
+            Some("error") => panic!("continuation reconnect should keep sticky turn state: {line}"),
+            _ => {}
+        }
+    }
+    assert!(saw_text_delta);
+
+    let _ = child.kill();
+    let _ = child.wait();
+    server.join().expect("server thread should finish");
 }
 
 #[test]

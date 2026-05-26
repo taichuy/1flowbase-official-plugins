@@ -21,6 +21,7 @@ const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const STREAM_IDLE_TIMEOUT: Duration = Duration::from_millis(300_000);
 const RESPONSES_WEBSOCKETS_BETA: &str = "responses_websockets=2026-02-06";
+const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
 const PASSTHROUGH_RESPONSE_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
@@ -314,6 +315,7 @@ impl ProviderRuntimeError {
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
+    websocket_turn_states_by_response_id: HashMap<String, String>,
 }
 
 impl OpenAiProviderRuntime {
@@ -685,7 +687,10 @@ impl OpenAiProviderRuntime {
     {
         let session_key = websocket_session_key(config, input);
         if !self.websocket_sessions.contains_key(&session_key) {
-            let session = connect_responses_websocket(config)
+            let turn_state = responses_body_previous_response_id(&body)
+                .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
+                .map(String::as_str);
+            let session = connect_responses_websocket(config, turn_state)
                 .await
                 .map_err(WebsocketInvocationError::fallback_allowed)?;
             self.websocket_sessions.insert(session_key.clone(), session);
@@ -710,6 +715,10 @@ impl OpenAiProviderRuntime {
                 {
                     self.websocket_response_ids_seen
                         .insert(response_id.to_string());
+                    if let Some(turn_state) = session.turn_state.as_deref() {
+                        self.websocket_turn_states_by_response_id
+                            .insert(response_id.to_string(), turn_state.to_string());
+                    }
                 }
                 Ok(output)
             }
@@ -974,6 +983,7 @@ fn response_tool_arguments(arguments: &Value) -> String {
 #[derive(Debug)]
 struct ResponsesWebsocketSession {
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    turn_state: Option<String>,
 }
 
 #[derive(Debug)]
@@ -1006,7 +1016,10 @@ impl WebsocketInvocationError {
     }
 }
 
-async fn connect_responses_websocket(config: &ProviderConfig) -> Result<ResponsesWebsocketSession> {
+async fn connect_responses_websocket(
+    config: &ProviderConfig,
+    turn_state: Option<&str>,
+) -> Result<ResponsesWebsocketSession> {
     let url = build_websocket_url(config)?;
     let mut request = url
         .as_str()
@@ -1014,11 +1027,18 @@ async fn connect_responses_websocket(config: &ProviderConfig) -> Result<Response
         .map_err(|error| anyhow!("failed to build websocket request: {error}"))?;
     request
         .headers_mut()
-        .extend(build_websocket_headers(config)?);
-    let (stream, _response) = connect_async(request)
+        .extend(build_websocket_headers(config, turn_state)?);
+    let (stream, response) = connect_async(request)
         .await
         .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))?;
-    Ok(ResponsesWebsocketSession { stream })
+    let turn_state = response
+        .headers()
+        .get(X_CODEX_TURN_STATE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| turn_state.map(ToOwned::to_owned));
+    Ok(ResponsesWebsocketSession { stream, turn_state })
 }
 
 fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
@@ -1034,8 +1054,14 @@ fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
     Ok(url)
 }
 
-fn build_websocket_headers(config: &ProviderConfig) -> Result<HeaderMap> {
+fn build_websocket_headers(config: &ProviderConfig, turn_state: Option<&str>) -> Result<HeaderMap> {
     let mut headers = build_headers(config, false, "application/json")?;
+    if let Some(turn_state) = turn_state.filter(|value| !value.trim().is_empty()) {
+        headers.insert(
+            HeaderName::from_static(X_CODEX_TURN_STATE_HEADER),
+            HeaderValue::from_str(turn_state).context("invalid x-codex-turn-state header")?,
+        );
+    }
     headers.insert(
         HeaderName::from_static("openai-beta"),
         HeaderValue::from_static(RESPONSES_WEBSOCKETS_BETA),
@@ -2319,7 +2345,7 @@ mod tests {
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
         };
 
-        let headers = build_websocket_headers(&config).unwrap();
+        let headers = build_websocket_headers(&config, None).unwrap();
 
         assert_eq!(
             headers
@@ -2328,6 +2354,27 @@ mod tests {
             Some(RESPONSES_WEBSOCKETS_BETA)
         );
         assert!(headers.get(CONTENT_TYPE).is_none());
+    }
+
+    #[test]
+    fn websocket_headers_replay_turn_state_when_available() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "sk-test".to_string(),
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+        };
+
+        let headers = build_websocket_headers(&config, Some("sticky-turn-1")).unwrap();
+
+        assert_eq!(
+            headers
+                .get(HeaderName::from_static(X_CODEX_TURN_STATE_HEADER))
+                .and_then(|value| value.to_str().ok()),
+            Some("sticky-turn-1")
+        );
     }
 
     #[test]
