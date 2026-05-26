@@ -1031,13 +1031,16 @@ async fn connect_responses_websocket(
     let (stream, response) = connect_async(request)
         .await
         .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))?;
-    let turn_state = response
-        .headers()
-        .get(X_CODEX_TURN_STATE_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| !value.trim().is_empty())
-        .map(ToOwned::to_owned)
-        .or_else(|| turn_state.map(ToOwned::to_owned));
+    // Codex turn state is first-writer-wins within a turn; continuation handshakes
+    // must not rotate the sticky routing token for later tool callbacks.
+    let turn_state = turn_state.map(ToOwned::to_owned).or_else(|| {
+        response
+            .headers()
+            .get(X_CODEX_TURN_STATE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .filter(|value| !value.trim().is_empty())
+            .map(ToOwned::to_owned)
+    });
     Ok(ResponsesWebsocketSession { stream, turn_state })
 }
 
@@ -1081,13 +1084,6 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
         }
     }
     Value::Object(object)
-}
-
-fn build_response_processed_body(response_id: &str) -> Value {
-    json!({
-        "type": "response.processed",
-        "response_id": response_id,
-    })
 }
 
 fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
@@ -1249,11 +1245,6 @@ where
         && can_finalize_response_on_close(&response_id, &text, &tool_calls)
     {
         finish_reason = close_finalized_finish_reason(&tool_calls);
-    }
-
-    if let Some(response_id_text) = response_id.as_str() {
-        let _ =
-            send_websocket_json(session, &build_response_processed_body(response_id_text)).await;
     }
 
     finalize_response_stream(
