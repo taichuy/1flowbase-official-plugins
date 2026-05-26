@@ -1459,51 +1459,79 @@ fn process_response_sse_payload(
         "response.incomplete" => {
             bail!("{}", response_incomplete_message(payload.get("response")));
         }
-        "response.completed" => {
-            if let Some(response) = payload.get("response") {
-                if let Some(id) = response.get("id") {
-                    *response_id = id.clone();
-                }
-                *usage = normalize_usage(response.get("usage").unwrap_or(&Value::Null));
-                if let Some(calls) = response
-                    .get("output")
-                    .and_then(Value::as_array)
-                    .map(|items| {
-                        items
-                            .iter()
-                            .filter_map(|item| provider_tool_call_from_response_item(Some(item)))
-                            .collect::<Vec<_>>()
-                    })
-                {
-                    for call in calls {
-                        upsert_tool_call(tool_calls, call);
-                    }
-                }
-                if text.is_empty() {
-                    if let Some(output_text) = response
-                        .get("output")
-                        .and_then(Value::as_array)
-                        .map(|items| {
-                            items
-                                .iter()
-                                .filter_map(|item| response_item_text(Some(item)))
-                                .collect::<Vec<_>>()
-                                .join("")
-                        })
-                        .filter(|value| !value.is_empty())
-                    {
-                        text.push_str(&output_text);
-                    }
-                }
-                *finish_reason = if tool_calls.is_empty() {
-                    ProviderFinishReason::Stop
-                } else {
-                    ProviderFinishReason::ToolCall
-                };
-            }
+        "response.completed" | "response.done" => {
+            process_terminal_response_event(
+                &payload,
+                text,
+                tool_calls,
+                usage,
+                finish_reason,
+                response_id,
+            )?;
         }
         _ => {}
     }
+    Ok(())
+}
+
+fn process_terminal_response_event(
+    payload: &Value,
+    text: &mut String,
+    tool_calls: &mut Vec<ProviderToolCall>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut ProviderFinishReason,
+    response_id: &mut Value,
+) -> Result<()> {
+    let Some(response) = payload.get("response") else {
+        return Ok(());
+    };
+    if let Some(status) = response.get("status").and_then(Value::as_str) {
+        match status {
+            "failed" => bail!("{}", response_failed_message(Some(response))),
+            "incomplete" => bail!("{}", response_incomplete_message(Some(response))),
+            "cancelled" => bail!("response.cancelled"),
+            _ => {}
+        }
+    }
+    if let Some(id) = response.get("id") {
+        *response_id = id.clone();
+    }
+    *usage = normalize_usage(response.get("usage").unwrap_or(&Value::Null));
+    if let Some(calls) = response
+        .get("output")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| provider_tool_call_from_response_item(Some(item)))
+                .collect::<Vec<_>>()
+        })
+    {
+        for call in calls {
+            upsert_tool_call(tool_calls, call);
+        }
+    }
+    if text.is_empty() {
+        if let Some(output_text) = response
+            .get("output")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| response_item_text(Some(item)))
+                    .collect::<Vec<_>>()
+                    .join("")
+            })
+            .filter(|value| !value.is_empty())
+        {
+            text.push_str(&output_text);
+        }
+    }
+    *finish_reason = if tool_calls.is_empty() {
+        ProviderFinishReason::Stop
+    } else {
+        ProviderFinishReason::ToolCall
+    };
     Ok(())
 }
 
@@ -1771,6 +1799,55 @@ mod tests {
         assert_eq!(tool_calls[0].arguments["query"], "refund");
         assert_eq!(usage.total_tokens, Some(5));
         assert_eq!(finish_reason, ProviderFinishReason::ToolCall);
+    }
+
+    #[test]
+    fn response_done_completes_websocket_stream() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.done","response":{"id":"resp_ws","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_ws"));
+        assert_eq!(text, "OK");
+        assert_eq!(usage.total_tokens, Some(2));
+        assert_eq!(finish_reason, ProviderFinishReason::Stop);
+    }
+
+    #[test]
+    fn response_done_failed_status_returns_provider_error() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        let error = process_response_sse_payload(
+            r#"{"type":"response.done","response":{"id":"resp_ws","status":"failed","error":{"code":"server_error","message":"upstream closed"}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "server_error: upstream closed");
     }
 
     #[test]
