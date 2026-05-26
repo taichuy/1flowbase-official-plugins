@@ -210,6 +210,7 @@ pub enum ProviderFinishReason {
     Length,
     ToolCall,
     ContentFilter,
+    Error,
     Unknown,
 }
 
@@ -238,12 +239,75 @@ pub enum ProviderStreamEvent {
     ToolCallCommit { call: ProviderToolCall },
     UsageSnapshot { usage: ProviderUsage },
     Finish { reason: ProviderFinishReason },
+    Error { error: ProviderRuntimeError },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RuntimeInvocationEnvelope {
     pub events: Vec<ProviderStreamEvent>,
     pub result: ProviderInvocationResult,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeErrorKind {
+    AuthFailed,
+    EndpointUnreachable,
+    ModelNotFound,
+    RateLimited,
+    ProviderInvalidResponse,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderRuntimeError {
+    pub kind: ProviderRuntimeErrorKind,
+    pub message: String,
+    pub provider_summary: Option<String>,
+}
+
+impl ProviderRuntimeError {
+    pub fn normalize<M>(code: &str, message: M, provider_summary: Option<&str>) -> Self
+    where
+        M: Into<String>,
+    {
+        let message = message.into();
+        let haystack = format!("{code} {message}").to_ascii_lowercase();
+        let kind = if haystack.contains("auth")
+            || haystack.contains("api_key")
+            || haystack.contains("unauthorized")
+            || haystack.contains("forbidden")
+            || haystack.contains("401")
+        {
+            ProviderRuntimeErrorKind::AuthFailed
+        } else if haystack.contains("rate")
+            || haystack.contains("quota")
+            || haystack.contains("too_many")
+            || haystack.contains("429")
+        {
+            ProviderRuntimeErrorKind::RateLimited
+        } else if (haystack.contains("model") && haystack.contains("not found"))
+            || haystack.contains("unknown_model")
+            || haystack.contains("model_not_found")
+        {
+            ProviderRuntimeErrorKind::ModelNotFound
+        } else if haystack.contains("timeout")
+            || haystack.contains("connect")
+            || haystack.contains("unreachable")
+            || haystack.contains("refused")
+            || haystack.contains("dns")
+            || haystack.contains("503")
+        {
+            ProviderRuntimeErrorKind::EndpointUnreachable
+        } else {
+            ProviderRuntimeErrorKind::ProviderInvalidResponse
+        };
+
+        Self {
+            kind,
+            message,
+            provider_summary: provider_summary.map(ToOwned::to_owned),
+        }
+    }
 }
 
 #[derive(Debug, Default)]

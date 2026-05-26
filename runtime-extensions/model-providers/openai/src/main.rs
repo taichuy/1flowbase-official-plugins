@@ -1,6 +1,9 @@
 use std::io::{self, BufRead, Write};
 
-use openai_provider::{OpenAiProviderRuntime, ProviderStdioRequest, ProviderStdioResponse};
+use openai_provider::{
+    OpenAiProviderRuntime, ProviderFinishReason, ProviderInvocationResult, ProviderRuntimeError,
+    ProviderStdioRequest, ProviderStdioResponse, ProviderUsage,
+};
 
 #[tokio::main]
 async fn main() {
@@ -57,8 +60,36 @@ async fn run_streaming_invoke(runtime: &mut OpenAiProviderRuntime, request: Prov
             stdout.flush().unwrap();
         }
         Err(error) => {
-            eprintln!("{error}");
-            std::process::exit(1);
+            let runtime_error = ProviderRuntimeError::normalize("invoke", error.to_string(), None);
+            writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string(&serde_json::json!({
+                    "type": "error",
+                    "error": runtime_error,
+                }))
+                .unwrap()
+            )
+            .unwrap();
+            writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string(&serde_json::json!({
+                    "type": "result",
+                    "result": ProviderInvocationResult {
+                        final_content: None,
+                        response_id: None,
+                        tool_calls: Vec::new(),
+                        mcp_calls: Vec::new(),
+                        usage: ProviderUsage::default(),
+                        finish_reason: Some(ProviderFinishReason::Error),
+                        provider_metadata: serde_json::json!({}),
+                    },
+                }))
+                .unwrap()
+            )
+            .unwrap();
+            stdout.flush().unwrap();
         }
     }
 }
