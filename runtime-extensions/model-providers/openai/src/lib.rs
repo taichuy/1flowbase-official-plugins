@@ -1032,25 +1032,28 @@ where
     let mut event_started = false;
 
     loop {
-        let message = tokio::time::timeout(STREAM_IDLE_TIMEOUT, session.stream.next())
+        let next_message = tokio::time::timeout(STREAM_IDLE_TIMEOUT, session.stream.next())
             .await
             .map_err(|_| {
                 WebsocketInvocationError::after_events(anyhow!(
                     "idle timeout waiting for Responses websocket"
                 ))
-            })?
-            .ok_or_else(|| {
-                WebsocketInvocationError::after_events(anyhow!(
-                    "websocket closed before response.completed"
-                ))
-            })?
-            .map_err(|error| {
-                if event_started {
-                    WebsocketInvocationError::after_events(map_websocket_error(error))
-                } else {
-                    WebsocketInvocationError::before_events(map_websocket_error(error))
-                }
             })?;
+        let Some(message) = next_message else {
+            if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+                break;
+            }
+            return Err(WebsocketInvocationError::after_events(anyhow!(
+                "websocket closed before response.completed"
+            )));
+        };
+        let message = message.map_err(|error| {
+            if event_started {
+                WebsocketInvocationError::after_events(map_websocket_error(error))
+            } else {
+                WebsocketInvocationError::before_events(map_websocket_error(error))
+            }
+        })?;
 
         match message {
             Message::Text(payload) => {
@@ -1088,7 +1091,7 @@ where
                         .map_err(WebsocketInvocationError::after_events)?;
                     all_events.extend(events.drain(..));
                 }
-                if !response_id.is_null() {
+                if response_stream_finished(&finish_reason) {
                     break;
                 }
             }
@@ -1103,12 +1106,26 @@ where
             }
             Message::Pong(_) => {}
             Message::Close(_) => {
+                if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+                    break;
+                }
                 return Err(WebsocketInvocationError::after_events(anyhow!(
                     "websocket closed by server before response.completed"
                 )));
             }
             Message::Binary(_) | Message::Frame(_) => {}
         }
+    }
+
+    if response_id.is_null() {
+        return Err(WebsocketInvocationError::after_events(anyhow!(
+            "websocket closed before response.completed"
+        )));
+    }
+    if matches!(finish_reason, ProviderFinishReason::Unknown)
+        && can_finalize_response_on_close(&response_id, &text, &tool_calls)
+    {
+        finish_reason = close_finalized_finish_reason(&tool_calls);
     }
 
     if let Some(response_id_text) = response_id.as_str() {
@@ -1174,6 +1191,29 @@ fn websocket_payload_started_response(payload: &str) -> bool {
         .is_some_and(|event_type| event_type.starts_with("response."))
 }
 
+fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
+    !matches!(finish_reason, ProviderFinishReason::Unknown)
+}
+
+fn can_finalize_response_on_close(
+    response_id: &Value,
+    text: &str,
+    tool_calls: &[ProviderToolCall],
+) -> bool {
+    response_id
+        .as_str()
+        .is_some_and(|value| !value.trim().is_empty())
+        && (!text.is_empty() || !tool_calls.is_empty())
+}
+
+fn close_finalized_finish_reason(tool_calls: &[ProviderToolCall]) -> ProviderFinishReason {
+    if tool_calls.is_empty() {
+        ProviderFinishReason::Stop
+    } else {
+        ProviderFinishReason::ToolCall
+    }
+}
+
 async fn read_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
@@ -1236,8 +1276,12 @@ where
         emit_new_events(&events, on_event)?;
         all_events.extend(events.drain(..));
     }
-    if response_id.is_null() {
-        bail!("stream closed before response.completed");
+    if response_id.is_null() || !response_stream_finished(&finish_reason) {
+        if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+            finish_reason = close_finalized_finish_reason(&tool_calls);
+        } else {
+            bail!("stream closed before response.completed");
+        }
     }
     if usage.has_any_value() {
         events.push(ProviderStreamEvent::UsageSnapshot {
@@ -1416,6 +1460,14 @@ fn process_response_sse_payload(
         .and_then(Value::as_str)
         .unwrap_or_default();
     match event_type {
+        "response.created" => {
+            if let Some(id) = payload
+                .get("response")
+                .and_then(|response| response.get("id"))
+            {
+                *response_id = id.clone();
+            }
+        }
         "response.output_text.delta" => {
             if let Some(delta) = payload.get("delta").and_then(Value::as_str) {
                 text.push_str(delta);
@@ -1848,6 +1900,76 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.to_string(), "server_error: upstream closed");
+    }
+
+    #[test]
+    fn response_created_and_text_delta_can_finalize_on_transport_close_without_terminal_event() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.created","response":{"id":"resp_ws"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        process_response_sse_payload(
+            r#"{"type":"response.output_text.delta","delta":"OK"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_ws"));
+        assert!(!response_stream_finished(&finish_reason));
+        assert!(can_finalize_response_on_close(
+            &response_id,
+            &text,
+            &tool_calls
+        ));
+        finish_reason = close_finalized_finish_reason(&tool_calls);
+        assert_eq!(finish_reason, ProviderFinishReason::Stop);
+    }
+
+    #[test]
+    fn response_created_without_content_does_not_finalize_on_transport_close() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.created","response":{"id":"resp_ws"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_ws"));
+        assert!(!response_stream_finished(&finish_reason));
+        assert!(!can_finalize_response_on_close(
+            &response_id,
+            &text,
+            &tool_calls
+        ));
     }
 
     #[test]
