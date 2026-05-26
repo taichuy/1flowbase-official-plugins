@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -313,6 +313,7 @@ impl ProviderRuntimeError {
 #[derive(Debug, Default)]
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
+    websocket_response_ids_seen: HashSet<String>,
 }
 
 impl OpenAiProviderRuntime {
@@ -600,31 +601,75 @@ impl OpenAiProviderRuntime {
                 invoke_response_http_sse(&config, body, input.model, &mut on_event).await
             }
             OpenAiTransportMode::ResponsesWebsocket => {
-                let websocket_body = body.clone();
+                let requires_websocket_cursor =
+                    self.responses_body_uses_websocket_response_cursor(&body);
                 match self
-                    .invoke_response_websocket(&config, &input, websocket_body, &mut on_event)
+                    .invoke_response_websocket_with_cursor_retry(
+                        &config,
+                        &input,
+                        body.clone(),
+                        &mut on_event,
+                    )
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(error) if error.fallback_allowed && can_fallback_to_http(&error.source) => {
+                    Err(error)
+                        if error.fallback_allowed
+                            && !requires_websocket_cursor
+                            && can_fallback_to_http(&error.source) =>
+                    {
                         invoke_response_http_sse(&config, body, input.model, &mut on_event).await
                     }
                     Err(error) => Err(error.source),
                 }
             }
             OpenAiTransportMode::Auto => {
-                let websocket_body = body.clone();
+                let requires_websocket_cursor =
+                    self.responses_body_uses_websocket_response_cursor(&body);
                 match self
-                    .invoke_response_websocket(&config, &input, websocket_body, &mut on_event)
+                    .invoke_response_websocket_with_cursor_retry(
+                        &config,
+                        &input,
+                        body.clone(),
+                        &mut on_event,
+                    )
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(error) if error.fallback_allowed && can_fallback_to_http(&error.source) => {
+                    Err(error)
+                        if error.fallback_allowed
+                            && !requires_websocket_cursor
+                            && can_fallback_to_http(&error.source) =>
+                    {
                         invoke_response_http_sse(&config, body, input.model, &mut on_event).await
                     }
                     Err(error) => Err(error.source),
                 }
             }
+        }
+    }
+
+    async fn invoke_response_websocket_with_cursor_retry<F>(
+        &mut self,
+        config: &ProviderConfig,
+        input: &ProviderInvocationInput,
+        body: Value,
+        on_event: &mut F,
+    ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
+    where
+        F: FnMut(&ProviderStreamEvent) -> Result<()>,
+    {
+        let retry_websocket_cursor = self.responses_body_uses_websocket_response_cursor(&body);
+        match self
+            .invoke_response_websocket(config, input, body.clone(), on_event)
+            .await
+        {
+            Ok(output) => Ok(output),
+            Err(error) if retry_websocket_cursor && error.fallback_allowed => {
+                self.invoke_response_websocket(config, input, body, on_event)
+                    .await
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -656,12 +701,28 @@ impl OpenAiProviderRuntime {
                 .await;
 
         match result {
-            Ok(output) => Ok(output),
+            Ok(output) => {
+                if let Some(response_id) = output
+                    .result
+                    .response_id
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                {
+                    self.websocket_response_ids_seen
+                        .insert(response_id.to_string());
+                }
+                Ok(output)
+            }
             Err(error) => {
                 self.websocket_sessions.remove(&session_key);
                 Err(error)
             }
         }
+    }
+
+    fn responses_body_uses_websocket_response_cursor(&self, body: &Value) -> bool {
+        responses_body_previous_response_id(body)
+            .is_some_and(|response_id| self.websocket_response_ids_seen.contains(response_id))
     }
 }
 
@@ -745,6 +806,12 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
         }
     }
     Ok(Value::Object(body))
+}
+
+fn responses_body_previous_response_id(body: &Value) -> Option<&str> {
+    body.get("previous_response_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
 }
 
 fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {

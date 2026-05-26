@@ -154,6 +154,78 @@ fn start_websocket_created_close_then_sse_server() -> (String, thread::JoinHandl
     (address, handle)
 }
 
+fn start_websocket_close_then_reconnect_server() -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+    let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+    let handle = thread::spawn(move || {
+        let (first_stream, _) = listener.accept().expect("first websocket should connect");
+        let mut websocket = accept(first_stream).expect("first websocket handshake should succeed");
+        let _ = websocket
+            .read()
+            .expect("first response.create should be readable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.output_text.delta","response_id":"resp_previous","delta":"first"}"#.into(),
+            ))
+            .expect("first delta should be writable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.completed","response":{"id":"resp_previous","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
+            ))
+            .expect("first completion should be writable");
+        websocket
+            .close(None)
+            .expect("first websocket close should be writable");
+
+        let (mut second_stream, _) = listener
+            .accept()
+            .expect("second continuation request should connect");
+        second_stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("second request read timeout");
+        let mut prefix = [0_u8; 4];
+        let read = second_stream
+            .peek(&mut prefix)
+            .expect("second request should be peekable");
+        if read >= 4 && &prefix == b"POST" {
+            read_http_request(&mut second_stream);
+            let error_body = r#"{"error":{"message":"previous_response_id is only supported on Responses WebSocket v2"}}"#;
+            write!(
+                second_stream,
+                "HTTP/1.1 400 Bad Request\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                error_body.len(),
+                error_body
+            )
+            .expect("fallback error should be writable");
+            return;
+        }
+
+        let mut websocket =
+            accept(second_stream).expect("continuation websocket handshake should succeed");
+        let request = websocket
+            .read()
+            .expect("continuation response.create should be readable")
+            .into_text()
+            .expect("continuation request should be text");
+        assert!(
+            request.contains("\"previous_response_id\":\"resp_previous\""),
+            "continuation websocket request should carry the response cursor: {request}"
+        );
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.output_text.delta","response_id":"resp_final","delta":"reconnected ok"}"#.into(),
+            ))
+            .expect("continuation delta should be writable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.completed","response":{"id":"resp_final","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
+            ))
+            .expect("continuation completion should be writable");
+    });
+
+    (address, handle)
+}
+
 fn invoke_line(base_url: &str, transport_mode: &str) -> String {
     serde_json::to_string(&json!({
         "method": "invoke",
@@ -172,6 +244,33 @@ fn invoke_line(base_url: &str, transport_mode: &str) -> String {
     .expect("invoke request should serialize")
 }
 
+fn invoke_line_with_previous_response_id(
+    base_url: &str,
+    transport_mode: &str,
+    previous_response_id: &str,
+) -> String {
+    serde_json::to_string(&json!({
+        "method": "invoke",
+        "input": {
+            "model": "gpt-5.3-codex-spark",
+            "previous_response_id": previous_response_id,
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "test-key",
+                "transport_mode": transport_mode
+            },
+            "messages": [
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_lookup",
+                    "content": "tool result"
+                }
+            ]
+        }
+    }))
+    .expect("invoke request should serialize")
+}
+
 fn next_json_line(reader: &mut impl BufRead) -> Value {
     let mut line = String::new();
     loop {
@@ -184,6 +283,114 @@ fn next_json_line(reader: &mut impl BufRead) -> Value {
             return serde_json::from_str(line.trim()).expect("stdout line should be JSON");
         }
     }
+}
+
+#[test]
+fn websocket_previous_response_reconnects_instead_of_http_fallback() {
+    let (base_url, server) = start_websocket_close_then_reconnect_server();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("openai provider binary should spawn");
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let mut stdout = BufReader::new(stdout);
+
+    writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
+        .expect("first request should write");
+    stdin.flush().expect("first request should flush");
+
+    loop {
+        let line = next_json_line(&mut stdout);
+        if line["type"].as_str() == Some("result") {
+            assert_eq!(line["result"]["final_content"], "first");
+            assert_eq!(line["result"]["response_id"], "resp_previous");
+            break;
+        }
+    }
+
+    writeln!(
+        stdin,
+        "{}",
+        invoke_line_with_previous_response_id(&base_url, "responses_websocket", "resp_previous")
+    )
+    .expect("continuation request should write");
+    stdin.flush().expect("continuation request should flush");
+
+    let mut saw_text_delta = false;
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("text_delta") => {
+                saw_text_delta = true;
+                assert_eq!(line["delta"], "reconnected ok");
+            }
+            Some("result") => {
+                assert_eq!(line["result"]["final_content"], "reconnected ok");
+                assert_eq!(line["result"]["response_id"], "resp_final");
+                assert_eq!(
+                    line["result"]["provider_metadata"]["transport"],
+                    "responses_websocket"
+                );
+                break;
+            }
+            Some("error") => panic!("continuation should not fall back to HTTP SSE: {line}"),
+            _ => {}
+        }
+    }
+    assert!(saw_text_delta);
+
+    let _ = child.kill();
+    let _ = child.wait();
+    server.join().expect("server thread should finish");
+}
+
+#[test]
+fn websocket_previous_response_can_fallback_to_sse_without_prior_websocket_session() {
+    let (base_url, server) = start_websocket_reject_then_sse_server();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("openai provider binary should spawn");
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let mut stdout = BufReader::new(stdout);
+
+    writeln!(
+        stdin,
+        "{}",
+        invoke_line_with_previous_response_id(&base_url, "responses_websocket", "resp_previous")
+    )
+    .expect("request should write");
+    stdin.flush().expect("request should flush");
+
+    let mut saw_text_delta = false;
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("text_delta") => {
+                saw_text_delta = true;
+                assert_eq!(line["delta"], "fallback ok");
+            }
+            Some("result") => {
+                assert_eq!(line["result"]["final_content"], "fallback ok");
+                assert_eq!(line["result"]["response_id"], "resp_fallback");
+                assert_eq!(line["result"]["provider_metadata"]["transport"], "http_sse");
+                break;
+            }
+            Some("error") => panic!("HTTP-only provider should still be able to fallback: {line}"),
+            _ => {}
+        }
+    }
+    assert!(saw_text_delta);
+
+    let _ = child.kill();
+    let _ = child.wait();
+    server.join().expect("server thread should finish");
 }
 
 #[test]
