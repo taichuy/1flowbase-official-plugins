@@ -606,7 +606,7 @@ impl OpenAiProviderRuntime {
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(error) if !error.event_started && can_fallback_to_http(&error.source) => {
+                    Err(error) if error.fallback_allowed && can_fallback_to_http(&error.source) => {
                         invoke_response_http_sse(&config, body, input.model, &mut on_event).await
                     }
                     Err(error) => Err(error.source),
@@ -619,7 +619,7 @@ impl OpenAiProviderRuntime {
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(error) if !error.event_started && can_fallback_to_http(&error.source) => {
+                    Err(error) if error.fallback_allowed && can_fallback_to_http(&error.source) => {
                         invoke_response_http_sse(&config, body, input.model, &mut on_event).await
                     }
                     Err(error) => Err(error.source),
@@ -642,7 +642,7 @@ impl OpenAiProviderRuntime {
         if !self.websocket_sessions.contains_key(&session_key) {
             let session = connect_responses_websocket(config)
                 .await
-                .map_err(WebsocketInvocationError::before_events)?;
+                .map_err(WebsocketInvocationError::fallback_allowed)?;
             self.websocket_sessions.insert(session_key.clone(), session);
         }
 
@@ -912,21 +912,29 @@ struct ResponsesWebsocketSession {
 #[derive(Debug)]
 struct WebsocketInvocationError {
     source: anyhow::Error,
-    event_started: bool,
+    fallback_allowed: bool,
 }
 
 impl WebsocketInvocationError {
-    fn before_events(source: anyhow::Error) -> Self {
+    fn fallback_allowed(source: anyhow::Error) -> Self {
         Self {
             source,
-            event_started: false,
+            fallback_allowed: true,
         }
     }
 
-    fn after_events(source: anyhow::Error) -> Self {
+    fn fallback_blocked(source: anyhow::Error) -> Self {
         Self {
             source,
-            event_started: true,
+            fallback_allowed: false,
+        }
+    }
+
+    fn from_stream_state(source: anyhow::Error, fallback_blocked: bool) -> Self {
+        if fallback_blocked {
+            Self::fallback_blocked(source)
+        } else {
+            Self::fallback_allowed(source)
         }
     }
 }
@@ -1029,7 +1037,7 @@ where
 {
     send_websocket_json(session, request_body)
         .await
-        .map_err(WebsocketInvocationError::before_events)?;
+        .map_err(WebsocketInvocationError::fallback_allowed)?;
 
     let mut events = Vec::new();
     let mut all_events = Vec::new();
@@ -1038,7 +1046,8 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut event_started = false;
+    let mut visible_output_started = false;
+    let mut semantic_terminal_failure_seen = false;
 
     loop {
         let next_message =
@@ -1046,11 +1055,10 @@ where
                 Ok(message) => message,
                 Err(_) => {
                     let error = anyhow!("idle timeout waiting for Responses websocket");
-                    return Err(if event_started {
-                        WebsocketInvocationError::after_events(error)
-                    } else {
-                        WebsocketInvocationError::before_events(error)
-                    });
+                    return Err(WebsocketInvocationError::from_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    ));
                 }
             };
         let Some(message) = next_message else {
@@ -1058,18 +1066,16 @@ where
                 break;
             }
             let error = anyhow!("websocket closed before response.completed");
-            return Err(if event_started {
-                WebsocketInvocationError::after_events(error)
-            } else {
-                WebsocketInvocationError::before_events(error)
-            });
+            return Err(WebsocketInvocationError::from_stream_state(
+                error,
+                visible_output_started || semantic_terminal_failure_seen,
+            ));
         };
         let message = message.map_err(|error| {
-            if event_started {
-                WebsocketInvocationError::after_events(map_websocket_error(error))
-            } else {
-                WebsocketInvocationError::before_events(map_websocket_error(error))
-            }
+            WebsocketInvocationError::from_stream_state(
+                map_websocket_error(error),
+                visible_output_started || semantic_terminal_failure_seen,
+            )
         })?;
 
         match message {
@@ -1077,15 +1083,12 @@ where
                 let payload = payload.as_str();
                 if let Some(message) = websocket_error_message(payload) {
                     let error = anyhow!(message);
-                    return Err(if event_started {
-                        WebsocketInvocationError::after_events(error)
-                    } else {
-                        WebsocketInvocationError::before_events(error)
-                    });
+                    return Err(WebsocketInvocationError::from_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    ));
                 }
-                if websocket_payload_started_response(payload) {
-                    event_started = true;
-                }
+                semantic_terminal_failure_seen |= websocket_payload_blocks_http_fallback(payload);
                 process_response_sse_payload(
                     payload,
                     &mut events,
@@ -1096,17 +1099,16 @@ where
                     &mut response_id,
                 )
                 .map_err(|error| {
-                    if event_started {
-                        WebsocketInvocationError::after_events(error)
-                    } else {
-                        WebsocketInvocationError::before_events(error)
-                    }
+                    WebsocketInvocationError::from_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    )
                 })?;
                 if !events.is_empty() {
-                    event_started = true;
                     emit_new_events(&events, on_event)
-                        .map_err(WebsocketInvocationError::after_events)?;
-                    all_events.extend(events.drain(..));
+                        .map_err(WebsocketInvocationError::fallback_blocked)?;
+                    visible_output_started = true;
+                    all_events.append(&mut events);
                 }
                 if response_stream_finished(&finish_reason) {
                     break;
@@ -1118,7 +1120,10 @@ where
                     .send(Message::Pong(payload))
                     .await
                     .map_err(|error| {
-                        WebsocketInvocationError::before_events(map_websocket_error(error))
+                        WebsocketInvocationError::from_stream_state(
+                            map_websocket_error(error),
+                            visible_output_started || semantic_terminal_failure_seen,
+                        )
                     })?;
             }
             Message::Pong(_) => {}
@@ -1127,18 +1132,23 @@ where
                     break;
                 }
                 let error = anyhow!("websocket closed by server before response.completed");
-                return Err(if event_started {
-                    WebsocketInvocationError::after_events(error)
-                } else {
-                    WebsocketInvocationError::before_events(error)
-                });
+                return Err(WebsocketInvocationError::from_stream_state(
+                    error,
+                    visible_output_started || semantic_terminal_failure_seen,
+                ));
             }
             Message::Binary(_) | Message::Frame(_) => {}
         }
     }
 
     if response_id.is_null() && !can_finalize_response_on_close(&response_id, &text, &tool_calls) {
-        return Err(WebsocketInvocationError::after_events(anyhow!(
+        return Err(WebsocketInvocationError::from_stream_state(
+            anyhow!("websocket closed before response.completed"),
+            visible_output_started || semantic_terminal_failure_seen,
+        ));
+    }
+    if response_id.is_null() && can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+        return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
             "websocket closed before response.completed"
         )));
     }
@@ -1166,7 +1176,7 @@ where
         }),
         on_event,
     )
-    .map_err(WebsocketInvocationError::after_events)
+    .map_err(WebsocketInvocationError::fallback_blocked)
 }
 
 fn map_websocket_error(error: WebSocketError) -> anyhow::Error {
@@ -1199,16 +1209,24 @@ fn websocket_error_message(payload: &str) -> Option<String> {
     })
 }
 
-fn websocket_payload_started_response(payload: &str) -> bool {
-    serde_json::from_str::<Value>(payload)
-        .ok()
-        .and_then(|value| {
-            value
-                .get("type")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .is_some_and(|event_type| event_type.starts_with("response."))
+fn websocket_payload_blocks_http_fallback(payload: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<Value>(payload) else {
+        return false;
+    };
+    match value.get("type").and_then(Value::as_str) {
+        Some("response.failed") | Some("response.incomplete") => true,
+        Some("response.completed") | Some("response.done") => value
+            .get("response")
+            .is_some_and(response_status_blocks_http_fallback),
+        _ => false,
+    }
+}
+
+fn response_status_blocks_http_fallback(response: &Value) -> bool {
+    response
+        .get("status")
+        .and_then(Value::as_str)
+        .is_some_and(|status| matches!(status, "failed" | "incomplete" | "cancelled"))
 }
 
 fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
@@ -1277,7 +1295,7 @@ where
                 &mut response_id,
             )?;
             emit_new_events(&events, on_event)?;
-            all_events.extend(events.drain(..));
+            all_events.append(&mut events);
         }
     }
     if !buffer.trim().is_empty() {
@@ -1291,7 +1309,7 @@ where
             &mut response_id,
         )?;
         emit_new_events(&events, on_event)?;
-        all_events.extend(events.drain(..));
+        all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
         if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
@@ -1335,6 +1353,7 @@ where
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn finalize_response_stream<F>(
     mut all_events: Vec<ProviderStreamEvent>,
     text: String,
@@ -2245,12 +2264,18 @@ mod tests {
     }
 
     #[test]
-    fn websocket_response_created_marks_stream_started() {
-        assert!(websocket_payload_started_response(
+    fn websocket_lifecycle_frame_does_not_block_http_fallback() {
+        assert!(!websocket_payload_blocks_http_fallback(
             r#"{"type":"response.created","response":{"id":"resp_1"}}"#
         ));
-        assert!(!websocket_payload_started_response(
+        assert!(!websocket_payload_blocks_http_fallback(
             r#"{"type":"error","status":426}"#
+        ));
+        assert!(websocket_payload_blocks_http_fallback(
+            r#"{"type":"response.failed","response":{"error":{"message":"failed"}}}"#
+        ));
+        assert!(websocket_payload_blocks_http_fallback(
+            r#"{"type":"response.done","response":{"status":"failed","error":{"message":"failed"}}}"#
         ));
     }
 }

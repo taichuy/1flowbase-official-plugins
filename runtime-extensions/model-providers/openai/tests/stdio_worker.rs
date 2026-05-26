@@ -7,6 +7,7 @@ use std::{
 };
 
 use serde_json::{json, Value};
+use tokio_tungstenite::tungstenite::{accept, Message};
 
 fn read_http_request(stream: &mut TcpStream) {
     stream
@@ -103,6 +104,42 @@ fn start_websocket_reject_then_sse_server() -> (String, thread::JoinHandle<()>) 
         read_http_request(&mut second_stream);
         let response_body = concat!(
             "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_fallback\",\"delta\":\"fallback ok\"}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_fallback\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
+        );
+        write!(
+            second_stream,
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            response_body.len(),
+            response_body
+        )
+        .expect("fallback response should be writable");
+    });
+
+    (address, handle)
+}
+
+fn start_websocket_created_close_then_sse_server() -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+    let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+    let handle = thread::spawn(move || {
+        let (first_stream, _) = listener.accept().expect("websocket request should connect");
+        let mut websocket = accept(first_stream).expect("websocket handshake should succeed");
+        let _ = websocket
+            .read()
+            .expect("response.create should be readable");
+        websocket
+            .send(Message::Text(
+                r#"{"type":"response.created","response":{"id":"resp_ws"}}"#.into(),
+            ))
+            .expect("response.created should be writable");
+        websocket
+            .close(None)
+            .expect("websocket close should be writable");
+
+        let (mut second_stream, _) = listener.accept().expect("fallback request should connect");
+        read_http_request(&mut second_stream);
+        let response_body = concat!(
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_fallback\",\"delta\":\"fallback after close\"}\n\n",
             "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_fallback\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
         );
         write!(
@@ -230,6 +267,48 @@ fn websocket_transport_falls_back_to_sse_before_response_events() {
             }
             Some("result") => {
                 assert_eq!(line["result"]["final_content"], "fallback ok");
+                assert_eq!(line["result"]["response_id"], "resp_fallback");
+                assert_eq!(line["result"]["provider_metadata"]["transport"], "http_sse");
+                break;
+            }
+            Some("error") => panic!("fallback should not emit an error line: {line}"),
+            _ => {}
+        }
+    }
+    assert!(saw_text_delta);
+
+    let _ = child.kill();
+    let _ = child.wait();
+    server.join().expect("server thread should finish");
+}
+
+#[test]
+fn websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output() {
+    let (base_url, server) = start_websocket_created_close_then_sse_server();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("openai provider binary should spawn");
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let mut stdout = BufReader::new(stdout);
+
+    writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
+        .expect("request should write");
+    stdin.flush().expect("request should flush");
+
+    let mut saw_text_delta = false;
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("text_delta") => {
+                saw_text_delta = true;
+                assert_eq!(line["delta"], "fallback after close");
+            }
+            Some("result") => {
+                assert_eq!(line["result"]["final_content"], "fallback after close");
                 assert_eq!(line["result"]["response_id"], "resp_fallback");
                 assert_eq!(line["result"]["provider_metadata"]["transport"], "http_sse");
                 break;
