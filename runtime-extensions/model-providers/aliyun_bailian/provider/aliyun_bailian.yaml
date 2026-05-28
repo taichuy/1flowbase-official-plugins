@@ -18,7 +18,7 @@ parameter_form:
     send_mode: optional
     enabled_by_default: true
     control: select
-    default_value: openai_responses
+    default_value: openai_chat
     options:
     - label: parameters.api_protocol.options.openai_responses.label
       value: openai_responses
@@ -140,8 +140,19 @@ config_schema:
   type: secret
   required: true
 - key: api_protocol
-  type: string
+  type: enum
   required: false
+  control: select
+  default_value: openai_chat
+  options:
+  - label: OpenAI Chat Completions
+    value: openai_chat
+  - label: OpenAI Responses
+    value: openai_responses
+  - label: Anthropic Messages
+    value: anthropic_messages
+  - label: DashScope Native
+    value: dashscope
 - key: validate_model
   type: boolean
   required: false

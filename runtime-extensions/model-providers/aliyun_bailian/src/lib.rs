@@ -385,7 +385,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
         api_protocol: config
             .get("api_protocol")
             .and_then(|value| normalize_protocol(&value_to_string(value)).ok())
-            .unwrap_or(BailianProtocol::OpenAiResponses),
+            .unwrap_or(BailianProtocol::OpenAiChat),
         validate_model: config
             .get("validate_model")
             .and_then(Value::as_bool)
@@ -405,7 +405,8 @@ fn invocation_protocol(
 
 fn normalize_protocol(value: &str) -> Result<BailianProtocol> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "" | "openai_responses" | "responses" => Ok(BailianProtocol::OpenAiResponses),
+        "" => Ok(BailianProtocol::OpenAiChat),
+        "openai_responses" | "responses" => Ok(BailianProtocol::OpenAiResponses),
         "openai_chat" | "chat" | "chat_completions" | "openai_compatible" => {
             Ok(BailianProtocol::OpenAiChat)
         }

@@ -32,6 +32,16 @@ fn protocol_model_parameter_overrides_provider_config() {
 }
 
 #[test]
+fn provider_config_defaults_to_openai_chat_protocol() {
+    let config = normalize_provider_config(&json!({
+        "api_key": "test"
+    }))
+    .unwrap();
+
+    assert_eq!(config.api_protocol, BailianProtocol::OpenAiChat);
+}
+
+#[test]
 fn chat_messages_map_native_tool_calls_to_openai_function_shape() {
     let mut assistant = provider_message("assistant", Value::Null);
     assistant.tool_calls = Some(json!([{
