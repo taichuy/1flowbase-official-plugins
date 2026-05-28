@@ -1,6 +1,7 @@
 [package]
-name = "aliyun_bailian_provider"
-version = "0.1.0"
+name = "aliyun_bailian-provider"
+# Cargo requires a package version, but plugin release version is sourced from manifest.yaml.
+version = "0.0.0"
 edition = "2021"
 
 [[bin]]
@@ -10,7 +11,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 futures-util = "0.3"
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "io-std"] }
