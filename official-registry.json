@@ -1,7 +1,313 @@
 {
   "version": 1,
-  "generated_at": "2026-05-27T03:32:57.247Z",
+  "generated_at": "2026-05-28T05:31:04.365Z",
   "plugins": [
+    {
+      "plugin_id": "1flowbase.aliyun_bailian",
+      "plugin_type": "model_provider",
+      "provider_code": "aliyun_bailian",
+      "display_name": "Alibaba Cloud Bailian",
+      "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/aliyun_bailian/_assets/icon.svg",
+      "protocol": "aliyun_bailian",
+      "latest_version": "0.1.1",
+      "help_url": "https://help.aliyun.com/zh/model-studio/",
+      "model_discovery_mode": "hybrid",
+      "i18n_summary": {
+        "default_locale": "en_US",
+        "available_locales": [
+          "en_US",
+          "zh_Hans"
+        ],
+        "bundles": {
+          "en_US": {
+            "plugin": {
+              "label": "Alibaba Cloud Bailian",
+              "description": "Alibaba Cloud Model Studio provider with OpenAI Responses, OpenAI Chat Completions, Anthropic Messages, and DashScope protocols."
+            },
+            "provider": {
+              "label": "Alibaba Cloud Bailian"
+            },
+            "fields": {
+              "base_url": {
+                "label": "Base URL"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "api_protocol": {
+                "label": "Default API Protocol"
+              },
+              "validate_model": {
+                "label": "Validate model against discovered catalog"
+              }
+            },
+            "models": {},
+            "parameters": {
+              "title": "Alibaba Cloud Bailian Parameters",
+              "description": "Provider-level request parameters for Bailian protocol selection and Qwen generation controls.",
+              "api_protocol": {
+                "label": "API Protocol",
+                "description": "Select which Bailian-compatible protocol this request should use. The shared API key works across protocols.",
+                "options": {
+                  "openai_responses": {
+                    "label": "OpenAI Responses"
+                  },
+                  "openai_chat": {
+                    "label": "OpenAI Chat Completions"
+                  },
+                  "anthropic_messages": {
+                    "label": "Anthropic Messages"
+                  },
+                  "dashscope": {
+                    "label": "DashScope"
+                  }
+                }
+              },
+              "reasoning_effort": {
+                "label": "Reasoning Effort",
+                "description": "Controls reasoning effort for compatible reasoning models when the selected protocol supports it.",
+                "options": {
+                  "low": {
+                    "label": "Low"
+                  },
+                  "medium": {
+                    "label": "Medium"
+                  },
+                  "high": {
+                    "label": "High"
+                  }
+                }
+              },
+              "enable_thinking": {
+                "label": "Enable Thinking",
+                "description": "Requests Qwen thinking output when supported by the selected model and protocol."
+              },
+              "enable_search": {
+                "label": "Enable Search",
+                "description": "Allows the model to use Bailian search capabilities when supported."
+              },
+              "temperature": {
+                "label": "Temperature",
+                "description": "Controls output randomness. Higher values make responses more varied."
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "Nucleus sampling threshold that limits candidates by cumulative token probability."
+              },
+              "max_tokens": {
+                "label": "Max Tokens",
+                "description": "Output token limit used by Chat Completions, Anthropic Messages, and DashScope-compatible requests."
+              },
+              "max_output_tokens": {
+                "label": "Max Output Tokens",
+                "description": "Output token limit used by OpenAI Responses-compatible requests."
+              },
+              "response_format": {
+                "label": "Response Format",
+                "description": "Requests plain text or JSON object output when the selected protocol and model support it.",
+                "options": {
+                  "text": {
+                    "label": "Text"
+                  },
+                  "json_object": {
+                    "label": "JSON Object"
+                  }
+                }
+              },
+              "tool_choice": {
+                "label": "Tool Choice",
+                "description": "Controls whether the model may, must, or must not call tools.",
+                "options": {
+                  "auto": {
+                    "label": "Auto"
+                  },
+                  "required": {
+                    "label": "Required"
+                  },
+                  "none": {
+                    "label": "None"
+                  }
+                }
+              }
+            }
+          },
+          "zh_Hans": {
+            "plugin": {
+              "label": "阿里云百炼",
+              "description": "支持 OpenAI Responses、OpenAI Chat Completions、Anthropic Messages 和 DashScope 协议的阿里云百炼模型供应商。"
+            },
+            "provider": {
+              "label": "阿里云百炼"
+            },
+            "fields": {
+              "base_url": {
+                "label": "基础地址"
+              },
+              "api_key": {
+                "label": "API Key"
+              },
+              "api_protocol": {
+                "label": "默认 API 协议"
+              },
+              "validate_model": {
+                "label": "按发现目录校验模型"
+              }
+            },
+            "models": {},
+            "parameters": {
+              "title": "阿里云百炼参数",
+              "description": "用于选择百炼协议和控制 Qwen 生成行为的供应商级请求参数。",
+              "api_protocol": {
+                "label": "API 协议",
+                "description": "选择本次请求使用的百炼兼容协议；同一个 API Key 可在这些协议间共用。",
+                "options": {
+                  "openai_responses": {
+                    "label": "OpenAI Responses"
+                  },
+                  "openai_chat": {
+                    "label": "OpenAI Chat Completions"
+                  },
+                  "anthropic_messages": {
+                    "label": "Anthropic Messages"
+                  },
+                  "dashscope": {
+                    "label": "DashScope"
+                  }
+                }
+              },
+              "reasoning_effort": {
+                "label": "推理强度",
+                "description": "在所选协议支持时，控制推理模型投入的推理量。",
+                "options": {
+                  "low": {
+                    "label": "低"
+                  },
+                  "medium": {
+                    "label": "中"
+                  },
+                  "high": {
+                    "label": "高"
+                  }
+                }
+              },
+              "enable_thinking": {
+                "label": "启用思考",
+                "description": "在模型和协议支持时，请求 Qwen 返回思考内容。"
+              },
+              "enable_search": {
+                "label": "启用搜索",
+                "description": "在支持时允许模型使用百炼搜索能力。"
+              },
+              "temperature": {
+                "label": "温度",
+                "description": "控制输出随机性，值越高越发散。"
+              },
+              "top_p": {
+                "label": "Top P",
+                "description": "nucleus sampling 采样阈值，限制候选 token 的累计概率。"
+              },
+              "max_tokens": {
+                "label": "最大 Token 数",
+                "description": "Chat Completions、Anthropic Messages 和 DashScope 兼容请求使用的输出 token 上限。"
+              },
+              "max_output_tokens": {
+                "label": "最大输出 Token 数",
+                "description": "OpenAI Responses 兼容请求使用的输出 token 上限。"
+              },
+              "response_format": {
+                "label": "响应格式",
+                "description": "在所选协议和模型支持时，请求文本或 JSON Object 输出。",
+                "options": {
+                  "text": {
+                    "label": "文本"
+                  },
+                  "json_object": {
+                    "label": "JSON Object"
+                  }
+                }
+              },
+              "tool_choice": {
+                "label": "工具选择",
+                "description": "控制模型可以、必须或不得调用工具。",
+                "options": {
+                  "auto": {
+                    "label": "自动"
+                  },
+                  "required": {
+                    "label": "必须"
+                  },
+                  "none": {
+                    "label": "不调用"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "checksum": "sha256:cc2cc79510a5a8524c6512234e6b9e83cdc91b4304aa34d5d242606febf38655",
+          "libc": null,
+          "rust_target": "x86_64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/aliyun_bailian-v0.1.1/1flowbase@aliyun_bailian@0.1.1@darwin-amd64@cc2cc79510a5a8524c6512234e6b9e83cdc91b4304aa34d5d242606febf38655.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "checksum": "sha256:613f53a4f71a40cf357496576b7bc06daee8b61b1a466c54ea19d0183f2a75c7",
+          "libc": null,
+          "rust_target": "aarch64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/aliyun_bailian-v0.1.1/1flowbase@aliyun_bailian@0.1.1@darwin-arm64@613f53a4f71a40cf357496576b7bc06daee8b61b1a466c54ea19d0183f2a75c7.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "amd64",
+          "checksum": "sha256:b1ebf7bc16318d0f9b81adb05fa9be9cee9e39187b54461339f544022470d3ff",
+          "libc": "musl",
+          "rust_target": "x86_64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/aliyun_bailian-v0.1.1/1flowbase@aliyun_bailian@0.1.1@linux-amd64@b1ebf7bc16318d0f9b81adb05fa9be9cee9e39187b54461339f544022470d3ff.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "arm64",
+          "checksum": "sha256:50eeea92d3e462c40d03f94ec5d928c614a16e95ed60517ff4efdeebc37d06f0",
+          "libc": "musl",
+          "rust_target": "aarch64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/aliyun_bailian-v0.1.1/1flowbase@aliyun_bailian@0.1.1@linux-arm64@50eeea92d3e462c40d03f94ec5d928c614a16e95ed60517ff4efdeebc37d06f0.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "amd64",
+          "checksum": "sha256:020d3125b2f0c09f37c9abf971c1791e6966ad596624ec4235f26269f2a880af",
+          "libc": "msvc",
+          "rust_target": "x86_64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/aliyun_bailian-v0.1.1/1flowbase@aliyun_bailian@0.1.1@windows-amd64@020d3125b2f0c09f37c9abf971c1791e6966ad596624ec4235f26269f2a880af.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "arm64",
+          "checksum": "sha256:9f12b6a0078ab16fe2d869685e5443a96d1a3aac093e7e51505595711079f2b3",
+          "libc": "msvc",
+          "rust_target": "aarch64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/aliyun_bailian-v0.1.1/1flowbase@aliyun_bailian@0.1.1@windows-arm64@9f12b6a0078ab16fe2d869685e5443a96d1a3aac093e7e51505595711079f2b3.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        }
+      ]
+    },
     {
       "plugin_id": "1flowbase.anthropic",
       "plugin_type": "model_provider",
