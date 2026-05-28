@@ -1,0 +1,112 @@
+{
+  "plugin": {
+    "label": "阿里云百炼",
+    "description": "支持 OpenAI Responses、OpenAI Chat Completions、Anthropic Messages 和 DashScope 协议的阿里云百炼模型供应商。"
+  },
+  "provider": {
+    "label": "阿里云百炼"
+  },
+  "fields": {
+    "base_url": {
+      "label": "基础地址"
+    },
+    "api_key": {
+      "label": "API Key"
+    },
+    "api_protocol": {
+      "label": "默认 API 协议"
+    },
+    "validate_model": {
+      "label": "按发现目录校验模型"
+    }
+  },
+  "models": {},
+  "parameters": {
+    "title": "阿里云百炼参数",
+    "description": "用于选择百炼协议和控制 Qwen 生成行为的供应商级请求参数。",
+    "api_protocol": {
+      "label": "API 协议",
+      "description": "选择本次请求使用的百炼兼容协议；同一个 API Key 可在这些协议间共用。",
+      "options": {
+        "openai_responses": {
+          "label": "OpenAI Responses"
+        },
+        "openai_chat": {
+          "label": "OpenAI Chat Completions"
+        },
+        "anthropic_messages": {
+          "label": "Anthropic Messages"
+        },
+        "dashscope": {
+          "label": "DashScope"
+        }
+      }
+    },
+    "reasoning_effort": {
+      "label": "推理强度",
+      "description": "在所选协议支持时，控制推理模型投入的推理量。",
+      "options": {
+        "low": {
+          "label": "低"
+        },
+        "medium": {
+          "label": "中"
+        },
+        "high": {
+          "label": "高"
+        }
+      }
+    },
+    "enable_thinking": {
+      "label": "启用思考",
+      "description": "在模型和协议支持时，请求 Qwen 返回思考内容。"
+    },
+    "enable_search": {
+      "label": "启用搜索",
+      "description": "在支持时允许模型使用百炼搜索能力。"
+    },
+    "temperature": {
+      "label": "温度",
+      "description": "控制输出随机性，值越高越发散。"
+    },
+    "top_p": {
+      "label": "Top P",
+      "description": "nucleus sampling 采样阈值，限制候选 token 的累计概率。"
+    },
+    "max_tokens": {
+      "label": "最大 Token 数",
+      "description": "Chat Completions、Anthropic Messages 和 DashScope 兼容请求使用的输出 token 上限。"
+    },
+    "max_output_tokens": {
+      "label": "最大输出 Token 数",
+      "description": "OpenAI Responses 兼容请求使用的输出 token 上限。"
+    },
+    "response_format": {
+      "label": "响应格式",
+      "description": "在所选协议和模型支持时，请求文本或 JSON Object 输出。",
+      "options": {
+        "text": {
+          "label": "文本"
+        },
+        "json_object": {
+          "label": "JSON Object"
+        }
+      }
+    },
+    "tool_choice": {
+      "label": "工具选择",
+      "description": "控制模型可以、必须或不得调用工具。",
+      "options": {
+        "auto": {
+          "label": "自动"
+        },
+        "required": {
+          "label": "必须"
+        },
+        "none": {
+          "label": "不调用"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "plugin": {
+    "label": "Alibaba Cloud Bailian",
+    "description": "Alibaba Cloud Model Studio provider with OpenAI Responses, OpenAI Chat Completions, Anthropic Messages, and DashScope protocols."
+  },
+  "provider": {
+    "label": "Alibaba Cloud Bailian"
+  },
+  "fields": {
+    "base_url": {
+      "label": "Base URL"
+    },
+    "api_key": {
+      "label": "API Key"
+    },
+    "api_protocol": {
+      "label": "Default API Protocol"
+    },
+    "validate_model": {
+      "label": "Validate model against discovered catalog"
+    }
+  },
+  "models": {},
+  "parameters": {
+    "title": "Alibaba Cloud Bailian Parameters",
+    "description": "Provider-level request parameters for Bailian protocol selection and Qwen generation controls.",
+    "api_protocol": {
+      "label": "API Protocol",
+      "description": "Select which Bailian-compatible protocol this request should use. The shared API key works across protocols.",
+      "options": {
+        "openai_responses": {
+          "label": "OpenAI Responses"
+        },
+        "openai_chat": {
+          "label": "OpenAI Chat Completions"
+        },
+        "anthropic_messages": {
+          "label": "Anthropic Messages"
+        },
+        "dashscope": {
+          "label": "DashScope"
+        }
+      }
+    },
+    "reasoning_effort": {
+      "label": "Reasoning Effort",
+      "description": "Controls reasoning effort for compatible reasoning models when the selected protocol supports it.",
+      "options": {
+        "low": {
+          "label": "Low"
+        },
+        "medium": {
+          "label": "Medium"
+        },
+        "high": {
+          "label": "High"
+        }
+      }
+    },
+    "enable_thinking": {
+      "label": "Enable Thinking",
+      "description": "Requests Qwen thinking output when supported by the selected model and protocol."
+    },
+    "enable_search": {
+      "label": "Enable Search",
+      "description": "Allows the model to use Bailian search capabilities when supported."
+    },
+    "temperature": {
+      "label": "Temperature",
+      "description": "Controls output randomness. Higher values make responses more varied."
+    },
+    "top_p": {
+      "label": "Top P",
+      "description": "Nucleus sampling threshold that limits candidates by cumulative token probability."
+    },
+    "max_tokens": {
+      "label": "Max Tokens",
+      "description": "Output token limit used by Chat Completions, Anthropic Messages, and DashScope-compatible requests."
+    },
+    "max_output_tokens": {
+      "label": "Max Output Tokens",
+      "description": "Output token limit used by OpenAI Responses-compatible requests."
+    },
+    "response_format": {
+      "label": "Response Format",
+      "description": "Requests plain text or JSON object output when the selected protocol and model support it.",
+      "options": {
+        "text": {
+          "label": "Text"
+        },
+        "json_object": {
+          "label": "JSON Object"
+        }
+      }
+    },
+    "tool_choice": {
+      "label": "Tool Choice",
+      "description": "Controls whether the model may, must, or must not call tools.",
+      "options": {
+        "auto": {
+          "label": "Auto"
+        },
+        "required": {
+          "label": "Required"
+        },
+        "none": {
+          "label": "None"
+        }
+      }
+    }
+  }
+}
