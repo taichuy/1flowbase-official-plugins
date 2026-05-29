@@ -20,6 +20,7 @@ const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const STREAM_IDLE_TIMEOUT: Duration = Duration::from_millis(300_000);
+const WEBSOCKET_CURSOR_RECONNECT_ATTEMPTS: usize = 3;
 const RESPONSES_WEBSOCKETS_BETA: &str = "responses_websockets=2026-02-06";
 const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
 const PASSTHROUGH_RESPONSE_PARAMETERS: &[&str] = &[
@@ -243,6 +244,95 @@ pub enum ProviderStreamEvent {
     Error { error: ProviderRuntimeError },
 }
 
+#[derive(Debug, Default)]
+struct ResponseToolCalls {
+    calls: Vec<ProviderToolCall>,
+    item_id_to_call_id: HashMap<String, String>,
+}
+
+impl std::ops::Deref for ResponseToolCalls {
+    type Target = [ProviderToolCall];
+
+    fn deref(&self) -> &Self::Target {
+        &self.calls
+    }
+}
+
+impl ResponseToolCalls {
+    fn into_vec(self) -> Vec<ProviderToolCall> {
+        self.calls
+    }
+
+    fn upsert_from_added_item(&mut self, item: Option<&Value>) {
+        let Some(item) = item else {
+            return;
+        };
+        let has_stable_tool_identity = item
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty());
+        if has_stable_tool_identity {
+            self.upsert_from_item(Some(item));
+        }
+    }
+
+    fn upsert_from_item(&mut self, item: Option<&Value>) {
+        let item_id = response_item_id(item);
+        if let Some(call) = provider_tool_call_from_response_item(item) {
+            self.upsert(call, item_id);
+        }
+    }
+
+    fn upsert(&mut self, mut call: ProviderToolCall, item_id: Option<String>) {
+        if let Some(item_id) = item_id.filter(|value| !value.is_empty()) {
+            if item_id != call.id {
+                if let Some(position) = self
+                    .calls
+                    .iter()
+                    .position(|existing| existing.id == item_id)
+                {
+                    let previous = self.calls.remove(position);
+                    merge_tool_call_fields(&mut call, previous);
+                }
+            }
+            self.item_id_to_call_id.insert(item_id, call.id.clone());
+        }
+        upsert_tool_call(&mut self.calls, call);
+    }
+
+    fn find_by_id_or_item_id(&self, id: &str) -> Option<&ProviderToolCall> {
+        let resolved_id = self
+            .item_id_to_call_id
+            .get(id)
+            .map(String::as_str)
+            .unwrap_or(id);
+        self.calls.iter().find(|call| call.id == resolved_id)
+    }
+
+    fn call_id_for_item_id(&self, item_id: &str) -> Option<&str> {
+        self.item_id_to_call_id.get(item_id).map(String::as_str)
+    }
+}
+
+fn merge_tool_call_fields(call: &mut ProviderToolCall, previous: ProviderToolCall) {
+    if call.name == "unknown_tool" && previous.name != "unknown_tool" {
+        call.name = previous.name;
+    }
+    if tool_call_arguments_empty(&call.arguments) && !tool_call_arguments_empty(&previous.arguments)
+    {
+        call.arguments = previous.arguments;
+    }
+}
+
+fn tool_call_arguments_empty(arguments: &Value) -> bool {
+    match arguments {
+        Value::Null => true,
+        Value::Object(map) => map.is_empty(),
+        Value::String(text) => text.is_empty(),
+        _ => false,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RuntimeInvocationEnvelope {
     pub events: Vec<ProviderStreamEvent>,
@@ -316,6 +406,7 @@ pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
+    websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
 }
 
 impl OpenAiProviderRuntime {
@@ -661,17 +752,68 @@ impl OpenAiProviderRuntime {
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
-        let retry_websocket_cursor = self.responses_body_uses_websocket_response_cursor(&body);
-        match self
-            .invoke_response_websocket(config, input, body.clone(), on_event)
-            .await
-        {
-            Ok(output) => Ok(output),
-            Err(error) if retry_websocket_cursor && error.fallback_allowed => {
-                self.invoke_response_websocket(config, input, body, on_event)
-                    .await
+        let mut retry_body = body;
+        let mut reconnect_attempts = 0;
+        let mut full_context_retry_used = false;
+        loop {
+            let retry_response_id =
+                responses_body_previous_response_id(&retry_body).map(ToOwned::to_owned);
+            match self
+                .invoke_response_websocket(config, input, retry_body.clone(), on_event)
+                .await
+            {
+                Ok(output) => return Ok(output),
+                Err(error)
+                    if retry_response_id.is_some()
+                        && !full_context_retry_used
+                        && (error.reconnect_allowed || error.fallback_allowed)
+                        && websocket_previous_response_unavailable(&error.source) =>
+                {
+                    let Some(full_context_body) =
+                        retry_response_id.as_deref().and_then(|response_id| {
+                            self.websocket_full_context_retry_body(response_id, &retry_body)
+                        })
+                    else {
+                        return Err(error);
+                    };
+                    retry_body = full_context_body;
+                    reconnect_attempts = 0;
+                    full_context_retry_used = true;
+                    continue;
+                }
+                Err(error)
+                    if retry_response_id.is_some()
+                        && error.reconnect_allowed
+                        && reconnect_attempts < WEBSOCKET_CURSOR_RECONNECT_ATTEMPTS =>
+                {
+                    reconnect_attempts += 1;
+                    if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
+                        if let Some(response_id) = retry_response_id.as_deref() {
+                            self.websocket_turn_states_by_response_id
+                                .remove(response_id);
+                        }
+                    }
+                    continue;
+                }
+                Err(error)
+                    if retry_response_id.is_some()
+                        && error.reconnect_allowed
+                        && !full_context_retry_used =>
+                {
+                    let Some(full_context_body) =
+                        retry_response_id.as_deref().and_then(|response_id| {
+                            self.websocket_full_context_retry_body(response_id, &retry_body)
+                        })
+                    else {
+                        return Err(error);
+                    };
+                    retry_body = full_context_body;
+                    reconnect_attempts = 0;
+                    full_context_retry_used = true;
+                    continue;
+                }
+                Err(error) => return Err(error),
             }
-            Err(error) => Err(error),
         }
     }
 
@@ -700,13 +842,18 @@ impl OpenAiProviderRuntime {
             .websocket_sessions
             .get_mut(&session_key)
             .expect("websocket session should be initialized");
-        let mut request_body = build_websocket_response_create_body(body);
+        let mut request_body = build_websocket_response_create_body(body.clone());
         let result =
             read_websocket_response(session, &mut request_body, input.model.clone(), on_event)
                 .await;
 
         match result {
-            Ok(output) => {
+            Ok(response) => {
+                let output = response.envelope;
+                let turn_state = self
+                    .websocket_sessions
+                    .get(&session_key)
+                    .and_then(|session| session.turn_state.clone());
                 if let Some(response_id) = output
                     .result
                     .response_id
@@ -715,10 +862,14 @@ impl OpenAiProviderRuntime {
                 {
                     self.websocket_response_ids_seen
                         .insert(response_id.to_string());
-                    if let Some(turn_state) = session.turn_state.as_deref() {
+                    if let Some(turn_state) = turn_state.as_deref() {
                         self.websocket_turn_states_by_response_id
                             .insert(response_id.to_string(), turn_state.to_string());
                     }
+                    self.record_websocket_response_chain(response_id, &body, &output.result);
+                }
+                if !response.session_reusable {
+                    self.websocket_sessions.remove(&session_key);
                 }
                 Ok(output)
             }
@@ -732,6 +883,48 @@ impl OpenAiProviderRuntime {
     fn responses_body_uses_websocket_response_cursor(&self, body: &Value) -> bool {
         responses_body_previous_response_id(body)
             .is_some_and(|response_id| self.websocket_response_ids_seen.contains(response_id))
+    }
+
+    fn websocket_full_context_retry_body(
+        &self,
+        previous_response_id: &str,
+        body: &Value,
+    ) -> Option<Value> {
+        let previous_chain_inputs = self
+            .websocket_chain_inputs_by_response_id
+            .get(previous_response_id)?;
+        let mut retry_body = body.clone();
+        let object = retry_body.as_object_mut()?;
+        object.remove("previous_response_id");
+        let mut full_input = previous_chain_inputs.clone();
+        full_input.extend(responses_body_input_items(body));
+        object.insert("input".to_string(), Value::Array(full_input));
+        Some(retry_body)
+    }
+
+    fn record_websocket_response_chain(
+        &mut self,
+        response_id: &str,
+        request_body: &Value,
+        result: &ProviderInvocationResult,
+    ) {
+        let previous_response_id = responses_body_previous_response_id(request_body);
+        let mut chain_inputs = match previous_response_id {
+            Some(previous_response_id) => {
+                let Some(previous_inputs) = self
+                    .websocket_chain_inputs_by_response_id
+                    .get(previous_response_id)
+                else {
+                    return;
+                };
+                previous_inputs.clone()
+            }
+            None => Vec::new(),
+        };
+        chain_inputs.extend(responses_body_input_items(request_body));
+        chain_inputs.extend(response_output_input_items(result));
+        self.websocket_chain_inputs_by_response_id
+            .insert(response_id.to_string(), chain_inputs);
     }
 }
 
@@ -821,6 +1014,36 @@ fn responses_body_previous_response_id(body: &Value) -> Option<&str> {
     body.get("previous_response_id")
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
+}
+
+fn responses_body_input_items(body: &Value) -> Vec<Value> {
+    body.get("input")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn response_output_input_items(result: &ProviderInvocationResult) -> Vec<Value> {
+    let mut items = Vec::new();
+    if let Some(content) = result
+        .final_content
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
+        items.push(json!({
+            "role": "assistant",
+            "content": content,
+        }));
+    }
+    for call in &result.tool_calls {
+        items.push(json!({
+            "type": "function_call",
+            "call_id": call.id,
+            "name": call.name,
+            "arguments": response_tool_arguments(&call.arguments),
+        }));
+    }
+    items
 }
 
 fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
@@ -987,9 +1210,16 @@ struct ResponsesWebsocketSession {
 }
 
 #[derive(Debug)]
+struct WebsocketResponseOutput {
+    envelope: RuntimeInvocationEnvelope,
+    session_reusable: bool,
+}
+
+#[derive(Debug)]
 struct WebsocketInvocationError {
     source: anyhow::Error,
     fallback_allowed: bool,
+    reconnect_allowed: bool,
 }
 
 impl WebsocketInvocationError {
@@ -997,6 +1227,7 @@ impl WebsocketInvocationError {
         Self {
             source,
             fallback_allowed: true,
+            reconnect_allowed: false,
         }
     }
 
@@ -1004,6 +1235,7 @@ impl WebsocketInvocationError {
         Self {
             source,
             fallback_allowed: false,
+            reconnect_allowed: false,
         }
     }
 
@@ -1012,6 +1244,22 @@ impl WebsocketInvocationError {
             Self::fallback_blocked(source)
         } else {
             Self::fallback_allowed(source)
+        }
+    }
+
+    fn reconnect_allowed(source: anyhow::Error) -> Self {
+        Self {
+            source,
+            fallback_allowed: true,
+            reconnect_allowed: true,
+        }
+    }
+
+    fn from_reconnectable_stream_state(source: anyhow::Error, fallback_blocked: bool) -> Self {
+        if fallback_blocked {
+            Self::fallback_blocked(source)
+        } else {
+            Self::reconnect_allowed(source)
         }
     }
 }
@@ -1106,6 +1354,19 @@ fn can_fallback_to_http(error: &anyhow::Error) -> bool {
         || message.contains("invalid_api_key"))
 }
 
+fn websocket_proxy_failure_requires_fresh_turn_state(error: &anyhow::Error) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("upstream websocket proxy failed")
+}
+
+fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("previous_response_id")
+        && (message.contains("no longer available")
+            || message.contains("not available")
+            || message.contains("unavailable"))
+}
+
 async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
     let payload = serde_json::to_string(body)?;
     session
@@ -1115,28 +1376,43 @@ async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Val
         .map_err(map_websocket_error)
 }
 
+async fn send_websocket_response_processed(
+    session: &mut ResponsesWebsocketSession,
+    response_id: &str,
+) -> Result<()> {
+    send_websocket_json(
+        session,
+        &json!({
+            "type": "response.processed",
+            "response_id": response_id,
+        }),
+    )
+    .await
+}
+
 async fn read_websocket_response<F>(
     session: &mut ResponsesWebsocketSession,
     request_body: &mut Value,
     request_model: String,
     on_event: &mut F,
-) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
+) -> Result<WebsocketResponseOutput, WebsocketInvocationError>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     send_websocket_json(session, request_body)
         .await
-        .map_err(WebsocketInvocationError::fallback_allowed)?;
+        .map_err(WebsocketInvocationError::reconnect_allowed)?;
 
     let mut events = Vec::new();
     let mut all_events = Vec::new();
     let mut text = String::new();
-    let mut tool_calls = Vec::new();
+    let mut tool_calls = ResponseToolCalls::default();
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
     let mut visible_output_started = false;
     let mut semantic_terminal_failure_seen = false;
+    let mut session_reusable = true;
 
     loop {
         let next_message =
@@ -1144,7 +1420,7 @@ where
                 Ok(message) => message,
                 Err(_) => {
                     let error = anyhow!("idle timeout waiting for Responses websocket");
-                    return Err(WebsocketInvocationError::from_stream_state(
+                    return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                         error,
                         visible_output_started || semantic_terminal_failure_seen,
                     ));
@@ -1152,16 +1428,17 @@ where
             };
         let Some(message) = next_message else {
             if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+                session_reusable = false;
                 break;
             }
             let error = anyhow!("websocket closed before response.completed");
-            return Err(WebsocketInvocationError::from_stream_state(
+            return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
                 visible_output_started || semantic_terminal_failure_seen,
             ));
         };
         let message = message.map_err(|error| {
-            WebsocketInvocationError::from_stream_state(
+            WebsocketInvocationError::from_reconnectable_stream_state(
                 map_websocket_error(error),
                 visible_output_started || semantic_terminal_failure_seen,
             )
@@ -1209,19 +1486,20 @@ where
                     .send(Message::Pong(payload))
                     .await
                     .map_err(|error| {
-                        WebsocketInvocationError::from_stream_state(
+                        WebsocketInvocationError::from_reconnectable_stream_state(
                             map_websocket_error(error),
                             visible_output_started || semantic_terminal_failure_seen,
                         )
                     })?;
             }
             Message::Pong(_) => {}
-            Message::Close(_) => {
+            Message::Close(frame) => {
                 if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+                    session_reusable = false;
                     break;
                 }
-                let error = anyhow!("websocket closed by server before response.completed");
-                return Err(WebsocketInvocationError::from_stream_state(
+                let error = websocket_closed_before_completed_error(frame);
+                return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                     error,
                     visible_output_started || semantic_terminal_failure_seen,
                 ));
@@ -1247,10 +1525,10 @@ where
         finish_reason = close_finalized_finish_reason(&tool_calls);
     }
 
-    finalize_response_stream(
+    let output = finalize_response_stream(
         all_events,
         text,
-        tool_calls,
+        tool_calls.into_vec(),
         usage,
         finish_reason,
         response_id,
@@ -1260,11 +1538,48 @@ where
         }),
         on_event,
     )
-    .map_err(WebsocketInvocationError::fallback_blocked)
+    .map_err(WebsocketInvocationError::fallback_blocked)?;
+    if let Some(response_id) = output
+        .result
+        .response_id
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        if send_websocket_response_processed(session, response_id)
+            .await
+            .is_err()
+        {
+            session_reusable = false;
+        }
+    }
+    Ok(WebsocketResponseOutput {
+        envelope: output,
+        session_reusable,
+    })
 }
 
 fn map_websocket_error(error: WebSocketError) -> anyhow::Error {
     anyhow!("Responses websocket error: {error}")
+}
+
+fn websocket_closed_before_completed_error(
+    frame: Option<tokio_tungstenite::tungstenite::protocol::CloseFrame>,
+) -> anyhow::Error {
+    let Some(frame) = frame else {
+        return anyhow!("websocket closed by server before response.completed");
+    };
+    if frame.reason.is_empty() {
+        anyhow!(
+            "websocket closed by server before response.completed (code: {})",
+            frame.code
+        )
+    } else {
+        anyhow!(
+            "websocket closed by server before response.completed (code: {}, reason: {})",
+            frame.code,
+            frame.reason
+        )
+    }
 }
 
 fn websocket_error_message(payload: &str) -> Option<String> {
@@ -1318,11 +1633,11 @@ fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
 }
 
 fn can_finalize_response_on_close(
-    _response_id: &Value,
+    response_id: &Value,
     text: &str,
     tool_calls: &[ProviderToolCall],
 ) -> bool {
-    !text.is_empty() || !tool_calls.is_empty()
+    !response_id.is_null() && (!text.is_empty() || !tool_calls.is_empty())
 }
 
 fn close_finalized_finish_reason(tool_calls: &[ProviderToolCall]) -> ProviderFinishReason {
@@ -1355,7 +1670,7 @@ where
     let mut events = Vec::new();
     let mut all_events = Vec::new();
     let mut text = String::new();
-    let mut tool_calls = Vec::new();
+    let mut tool_calls = ResponseToolCalls::default();
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
@@ -1407,7 +1722,7 @@ where
             usage: usage.clone(),
         });
     }
-    for call in &tool_calls {
+    for call in tool_calls.iter() {
         events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
     }
     events.push(ProviderStreamEvent::Finish {
@@ -1421,7 +1736,7 @@ where
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
             response_id: native_response_id,
-            tool_calls,
+            tool_calls: tool_calls.into_vec(),
             mcp_calls: Vec::new(),
             usage,
             finish_reason: Some(finish_reason),
@@ -1510,7 +1825,7 @@ fn process_response_sse_block(
     block: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
-    tool_calls: &mut Vec<ProviderToolCall>,
+    tool_calls: &mut ResponseToolCalls,
     usage: &mut ProviderUsage,
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
@@ -1541,7 +1856,7 @@ fn process_response_sse_line(
     line: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
-    tool_calls: &mut Vec<ProviderToolCall>,
+    tool_calls: &mut ResponseToolCalls,
     usage: &mut ProviderUsage,
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
@@ -1566,7 +1881,7 @@ fn process_response_sse_payload(
     data: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
-    tool_calls: &mut Vec<ProviderToolCall>,
+    tool_calls: &mut ResponseToolCalls,
     usage: &mut ProviderUsage,
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
@@ -1616,10 +1931,29 @@ fn process_response_sse_payload(
                 delta: payload.get("delta").cloned().unwrap_or(Value::Null),
             });
         }
-        "response.output_item.done" => {
-            if let Some(call) = provider_tool_call_from_response_item(payload.get("item")) {
-                upsert_tool_call(tool_calls, call);
+        "response.output_item.added" => {
+            tool_calls.upsert_from_added_item(payload.get("item"));
+        }
+        "response.function_call_arguments.done" => {
+            if let Some(call) = provider_tool_call_from_function_call_arguments_done(
+                &payload,
+                tool_calls,
+                ResponseToolCallKind::Function,
+            ) {
+                tool_calls.upsert(call, response_item_id_from_payload(&payload));
             }
+        }
+        "response.custom_tool_call_input.done" => {
+            if let Some(call) = provider_tool_call_from_function_call_arguments_done(
+                &payload,
+                tool_calls,
+                ResponseToolCallKind::Custom,
+            ) {
+                tool_calls.upsert(call, response_item_id_from_payload(&payload));
+            }
+        }
+        "response.output_item.done" => {
+            tool_calls.upsert_from_item(payload.get("item"));
             if text.is_empty() {
                 if let Some(item_text) = response_item_text(payload.get("item")) {
                     text.push_str(&item_text);
@@ -1667,7 +2001,7 @@ fn capture_response_id(payload: &Value, response_id: &mut Value) {
 fn process_terminal_response_event(
     payload: &Value,
     text: &mut String,
-    tool_calls: &mut Vec<ProviderToolCall>,
+    tool_calls: &mut ResponseToolCalls,
     usage: &mut ProviderUsage,
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
@@ -1687,18 +2021,9 @@ fn process_terminal_response_event(
         *response_id = id.clone();
     }
     *usage = normalize_usage(response.get("usage").unwrap_or(&Value::Null));
-    if let Some(calls) = response
-        .get("output")
-        .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(|item| provider_tool_call_from_response_item(Some(item)))
-                .collect::<Vec<_>>()
-        })
-    {
-        for call in calls {
-            upsert_tool_call(tool_calls, call);
+    if let Some(items) = response.get("output").and_then(Value::as_array) {
+        for item in items {
+            tool_calls.upsert_from_item(Some(item));
         }
     }
     if text.is_empty() {
@@ -1793,6 +2118,86 @@ fn provider_tool_call_from_response_item(item: Option<&Value>) -> Option<Provide
             .to_string(),
         arguments,
     })
+}
+
+fn response_item_id(item: Option<&Value>) -> Option<String> {
+    item.and_then(|item| item.get("id"))
+        .map(value_to_string)
+        .filter(|value| !value.is_empty())
+}
+
+fn response_item_id_from_payload(payload: &Value) -> Option<String> {
+    payload
+        .get("item_id")
+        .map(value_to_string)
+        .filter(|value| !value.is_empty())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResponseToolCallKind {
+    Function,
+    Custom,
+}
+
+fn provider_tool_call_from_function_call_arguments_done(
+    payload: &Value,
+    tool_calls: &ResponseToolCalls,
+    kind: ResponseToolCallKind,
+) -> Option<ProviderToolCall> {
+    let call_id = payload
+        .get("call_id")
+        .map(value_to_string)
+        .filter(|value| !value.is_empty());
+    let item_id = response_item_id_from_payload(payload);
+    let id = call_id
+        .clone()
+        .or_else(|| {
+            item_id
+                .as_deref()
+                .and_then(|id| tool_calls.call_id_for_item_id(id))
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| item_id.clone())?;
+    let existing = tool_calls.find_by_id_or_item_id(&id);
+    let name = payload
+        .get("name")
+        .or_else(|| payload.get("item").and_then(|item| item.get("name")))
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            existing
+                .filter(|call| call.name != "unknown_tool")
+                .map(|call| call.name.clone())
+        });
+    let name = name?;
+    let arguments = match kind {
+        ResponseToolCallKind::Function => payload
+            .get("arguments")
+            .map(function_call_arguments_value)
+            .or_else(|| existing.map(|call| call.arguments.clone()))
+            .unwrap_or_else(|| json!({})),
+        ResponseToolCallKind::Custom => payload
+            .get("input")
+            .cloned()
+            .map(normalize_custom_tool_input)
+            .or_else(|| existing.map(|call| call.arguments.clone()))
+            .unwrap_or_else(|| json!({})),
+    };
+
+    Some(ProviderToolCall {
+        id,
+        name,
+        arguments,
+    })
+}
+
+fn function_call_arguments_value(value: &Value) -> Value {
+    match value {
+        Value::String(text) => serde_json::from_str::<Value>(text).unwrap_or_else(|_| json!({})),
+        Value::Null => json!({}),
+        other => other.clone(),
+    }
 }
 
 fn normalize_custom_tool_input(input: Value) -> Value {
@@ -1956,7 +2361,7 @@ mod tests {
     fn response_completed_commits_function_calls() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -1992,10 +2397,132 @@ mod tests {
     }
 
     #[test]
+    fn response_function_arguments_done_merges_output_item_alias() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_line(
+            r#"data: {"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        process_response_sse_line(
+            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "Bash");
+        assert_eq!(tool_calls[0].arguments["command"], "pwd");
+    }
+
+    #[test]
+    fn response_function_arguments_done_without_alias_waits_for_complete_item() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_line(
+            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert!(tool_calls.is_empty());
+
+        process_response_sse_line(
+            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "Bash");
+        assert_eq!(tool_calls[0].arguments["command"], "pwd");
+    }
+
+    #[test]
+    fn response_output_item_added_without_name_waits_for_stable_identity() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_line(
+            r#"data: {"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert!(tool_calls.is_empty());
+
+        process_response_sse_line(
+            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","call_id":"call_1","arguments":"{\"command\":\"pwd\"}" }"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert!(tool_calls.is_empty());
+
+        process_response_sse_line(
+            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "Bash");
+    }
+
+    #[test]
     fn response_done_completes_websocket_stream() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2021,7 +2548,7 @@ mod tests {
     fn response_done_failed_status_returns_provider_error() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2044,7 +2571,7 @@ mod tests {
     fn response_created_and_text_delta_can_finalize_on_transport_close_without_terminal_event() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2085,7 +2612,7 @@ mod tests {
     fn response_text_delta_captures_top_level_response_id() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2114,7 +2641,7 @@ mod tests {
     fn response_created_without_content_does_not_finalize_on_transport_close() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2143,7 +2670,7 @@ mod tests {
     fn response_failed_event_returns_error() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2166,7 +2693,7 @@ mod tests {
     fn response_stream_maps_reasoning_and_custom_tool_delta() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2210,7 +2737,7 @@ mod tests {
     fn response_incomplete_event_returns_error() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
@@ -2233,7 +2760,7 @@ mod tests {
     fn response_output_item_done_supplies_text_fallback() {
         let mut events = Vec::new();
         let mut text = String::new();
-        let mut tool_calls = Vec::new();
+        let mut tool_calls = ResponseToolCalls::default();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
