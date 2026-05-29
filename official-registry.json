@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T02:00:58.078Z",
+  "generated_at": "2026-05-29T09:26:33.048Z",
   "plugins": [
     {
       "plugin_id": "1flowbase.aliyun_bailian",
@@ -1167,7 +1167,7 @@
       "display_name": "OpenAI",
       "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai/_assets/icon.svg",
       "protocol": "openai_responses",
-      "latest_version": "0.2.2",
+      "latest_version": "0.2.3",
       "help_url": "https://platform.openai.com/docs/api-reference/responses",
       "model_discovery_mode": "hybrid",
       "i18n_summary": {
@@ -1202,7 +1202,22 @@
                 "label": "Validate model against discovered catalog"
               },
               "transport_mode": {
-                "label": "Transport mode"
+                "label": "Transport mode",
+                "description": "Controls how OpenAI Responses streaming is transported.",
+                "options": {
+                  "http_sse": {
+                    "label": "HTTP SSE",
+                    "description": "Use Responses HTTP streaming by default."
+                  },
+                  "responses_websocket": {
+                    "label": "Responses WebSocket",
+                    "description": "Use the Responses WebSocket transport explicitly."
+                  },
+                  "auto": {
+                    "label": "Auto",
+                    "description": "Try Responses WebSocket first, then fall back to HTTP SSE when safe."
+                  }
+                }
               }
             },
             "models": {
@@ -1311,7 +1326,22 @@
                 "label": "按发现目录校验模型"
               },
               "transport_mode": {
-                "label": "传输模式"
+                "label": "传输模式",
+                "description": "控制 OpenAI Responses 流式调用使用的传输方式。",
+                "options": {
+                  "http_sse": {
+                    "label": "HTTP SSE",
+                    "description": "默认使用 Responses HTTP 流式传输。"
+                  },
+                  "responses_websocket": {
+                    "label": "Responses WebSocket",
+                    "description": "显式使用 Responses WebSocket 传输。"
+                  },
+                  "auto": {
+                    "label": "自动",
+                    "description": "优先尝试 Responses WebSocket，并在安全时回退到 HTTP SSE。"
+                  }
+                }
               }
             },
             "models": {
@@ -1401,60 +1431,60 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "checksum": "sha256:e49da8a968ea2b83535803df974241e45a04d54039240864859660ad4d0238fa",
+          "checksum": "sha256:92bfee2d596174b20f65e7efe40a675e57e2a71ff41a2a97ca5472d5dc14e17c",
           "libc": null,
           "rust_target": "x86_64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.2/1flowbase@openai@0.2.2@darwin-amd64@e49da8a968ea2b83535803df974241e45a04d54039240864859660ad4d0238fa.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.3/1flowbase@openai@0.2.3@darwin-amd64@92bfee2d596174b20f65e7efe40a675e57e2a71ff41a2a97ca5472d5dc14e17c.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "darwin",
           "arch": "arm64",
-          "checksum": "sha256:87ff76347d806099da08a256bd8dc679f862cf1208327980cc2ac6fab18acdc2",
+          "checksum": "sha256:f33a533bdb1de9095fb63b0f9fa785dee3b62f033bcf6c2532f6f2af0512ec0e",
           "libc": null,
           "rust_target": "aarch64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.2/1flowbase@openai@0.2.2@darwin-arm64@87ff76347d806099da08a256bd8dc679f862cf1208327980cc2ac6fab18acdc2.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.3/1flowbase@openai@0.2.3@darwin-arm64@f33a533bdb1de9095fb63b0f9fa785dee3b62f033bcf6c2532f6f2af0512ec0e.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "amd64",
-          "checksum": "sha256:6e4a2070d5a96b6bba1d9157305caf92fea513b337d32cea126549144cb86783",
+          "checksum": "sha256:e3b724c9747ac1abec3b29786584badb6d4245203613480d4e53d9ee32ebc7f4",
           "libc": "musl",
           "rust_target": "x86_64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.2/1flowbase@openai@0.2.2@linux-amd64@6e4a2070d5a96b6bba1d9157305caf92fea513b337d32cea126549144cb86783.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.3/1flowbase@openai@0.2.3@linux-amd64@e3b724c9747ac1abec3b29786584badb6d4245203613480d4e53d9ee32ebc7f4.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "arm64",
-          "checksum": "sha256:fa90be6c7714e65fc2d022b894f26f0157189c4348dba795b8f624ccae2824b7",
+          "checksum": "sha256:7f5962c90014a3e028357b52e53a811f17f7b611cab851b634a4b665f1221ea3",
           "libc": "musl",
           "rust_target": "aarch64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.2/1flowbase@openai@0.2.2@linux-arm64@fa90be6c7714e65fc2d022b894f26f0157189c4348dba795b8f624ccae2824b7.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.3/1flowbase@openai@0.2.3@linux-arm64@7f5962c90014a3e028357b52e53a811f17f7b611cab851b634a4b665f1221ea3.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "amd64",
-          "checksum": "sha256:c079bd062758d93730d1bfb3c13df687e46af3666feabfe481ce95b644f61916",
+          "checksum": "sha256:b143c525d332b3d4b607a3eafb97253c6aff627529b2789cca2cd2b3daea7eb5",
           "libc": "msvc",
           "rust_target": "x86_64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.2/1flowbase@openai@0.2.2@windows-amd64@c079bd062758d93730d1bfb3c13df687e46af3666feabfe481ce95b644f61916.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.3/1flowbase@openai@0.2.3@windows-amd64@b143c525d332b3d4b607a3eafb97253c6aff627529b2789cca2cd2b3daea7eb5.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "arm64",
-          "checksum": "sha256:7e81ed8adc9c5005ad0926f91c736a5640ac37afe20e74f783f500aa9d0a84c1",
+          "checksum": "sha256:735e591481e16cda6fe1472e04f1b90073b1f655cd76a5de6969571cbce24f1e",
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.2/1flowbase@openai@0.2.2@windows-arm64@7e81ed8adc9c5005ad0926f91c736a5640ac37afe20e74f783f500aa9d0a84c1.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.3/1flowbase@openai@0.2.3@windows-arm64@735e591481e16cda6fe1472e04f1b90073b1f655cd76a5de6969571cbce24f1e.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
