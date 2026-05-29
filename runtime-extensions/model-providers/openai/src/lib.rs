@@ -2294,7 +2294,7 @@ mod tests {
             })],
             model_parameters: BTreeMap::from([
                 ("response_format".to_string(), json!("json_object")),
-                ("reasoning_effort".to_string(), json!("medium")),
+                ("reasoning_effort".to_string(), json!("xhigh")),
                 ("tool_choice".to_string(), json!("required")),
                 ("parallel_tool_calls".to_string(), json!(true)),
                 (
@@ -2312,7 +2312,7 @@ mod tests {
         assert_eq!(body["tools"][0]["name"], "lookup");
         assert_eq!(body["tools"][0]["strict"], true);
         assert_eq!(body["tool_choice"], "required");
-        assert_eq!(body["reasoning"], json!({ "effort": "medium" }));
+        assert_eq!(body["reasoning"], json!({ "effort": "xhigh" }));
         assert_eq!(body["text"]["format"], json!({ "type": "json_object" }));
         assert_eq!(body["parallel_tool_calls"], true);
         assert_eq!(body["include"], json!(["reasoning.encrypted_content"]));

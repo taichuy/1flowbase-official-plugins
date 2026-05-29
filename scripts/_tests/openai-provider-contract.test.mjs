@@ -70,6 +70,16 @@ test('openai provider exposes responses parameters in order', () => {
   }
 });
 
+test('openai provider exposes current reasoning effort choices', () => {
+  const provider = read('provider/openai.yaml');
+  const match = provider.match(/- key: reasoning_effort\n[\s\S]*?(?=\n  - key: temperature)/);
+
+  assert.ok(match, 'reasoning_effort parameter field should be declared');
+  for (const effort of ['minimal', 'low', 'medium', 'high', 'xhigh']) {
+    assert.match(match[0], new RegExp(`^      value: ${effort}$`, 'm'));
+  }
+});
+
 test('openai provider exposes transport mode as a selectable config field', () => {
   const provider = read('provider/openai.yaml');
   const match = provider.match(/- key: transport_mode\n[\s\S]*?(?=\n- key:|\nmodels:|\n$)/);
