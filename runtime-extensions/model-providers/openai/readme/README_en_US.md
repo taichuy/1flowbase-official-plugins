@@ -42,7 +42,7 @@ Native 1flowbase tool calls are converted inside the plugin to Responses `functi
 
 The runtime also forwards Codex-style Responses fields when the host passes them through the provider invocation contract: `parallel_tool_calls`, `include`, `service_tier`, `prompt_cache_key`, and `metadata`.
 
-Streaming prefers the Responses WebSocket transport in `auto` mode, keeps the upstream connection inside the provider worker, acknowledges completed responses with `response.processed`, and falls back to HTTP SSE when the WebSocket handshake is unavailable. Continuations that reuse a WebSocket response cursor reconnect WebSocket once instead of downgrading that cursor to HTTP SSE. Both transports use a 5-minute idle timeout, matching Codex's long-running stream posture: active streams can keep flowing, but a silent upstream connection fails instead of hanging forever.
+Streaming defaults to HTTP SSE. `transport_mode` can explicitly select `responses_websocket` or `auto`; in `auto` mode the runtime tries the Responses WebSocket transport first, keeps the upstream connection inside the provider worker, acknowledges completed responses with `response.processed`, and falls back to HTTP SSE when the WebSocket handshake is unavailable. Continuations that reuse a WebSocket response cursor reconnect WebSocket once instead of downgrading that cursor to HTTP SSE. Both transports use a 5-minute idle timeout, matching Codex's long-running stream posture: active streams can keep flowing, but a silent upstream connection fails instead of hanging forever.
 
 ## Static Models
 

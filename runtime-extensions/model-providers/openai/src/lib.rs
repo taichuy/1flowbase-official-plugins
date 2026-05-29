@@ -521,7 +521,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
 
 fn normalize_transport_mode(value: Option<&Value>) -> Result<OpenAiTransportMode> {
     let Some(value) = value else {
-        return Ok(OpenAiTransportMode::Auto);
+        return Ok(OpenAiTransportMode::HttpSse);
     };
     let text = value_to_string(value).trim().to_ascii_lowercase();
     match text.as_str() {
@@ -2816,6 +2816,27 @@ mod tests {
             headers.get(ACCEPT).and_then(|value| value.to_str().ok()),
             Some("text/event-stream")
         );
+    }
+
+    #[test]
+    fn default_transport_mode_is_http_sse() {
+        let config = normalize_provider_config(&json!({
+            "api_key": "sk-test"
+        }))
+        .unwrap();
+
+        assert_eq!(config.transport_mode, OpenAiTransportMode::HttpSse);
+    }
+
+    #[test]
+    fn explicit_auto_transport_mode_stays_available() {
+        let config = normalize_provider_config(&json!({
+            "api_key": "sk-test",
+            "transport_mode": "auto"
+        }))
+        .unwrap();
+
+        assert_eq!(config.transport_mode, OpenAiTransportMode::Auto);
     }
 
     #[test]

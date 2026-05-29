@@ -23,7 +23,22 @@
       "label": "Validate model against discovered catalog"
     },
     "transport_mode": {
-      "label": "Transport mode"
+      "label": "Transport mode",
+      "description": "Controls how OpenAI Responses streaming is transported.",
+      "options": {
+        "http_sse": {
+          "label": "HTTP SSE",
+          "description": "Use Responses HTTP streaming by default."
+        },
+        "responses_websocket": {
+          "label": "Responses WebSocket",
+          "description": "Use the Responses WebSocket transport explicitly."
+        },
+        "auto": {
+          "label": "Auto",
+          "description": "Try Responses WebSocket first, then fall back to HTTP SSE when safe."
+        }
+      }
     }
   },
   "models": {

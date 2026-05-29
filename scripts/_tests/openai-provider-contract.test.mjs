@@ -70,6 +70,21 @@ test('openai provider exposes responses parameters in order', () => {
   }
 });
 
+test('openai provider exposes transport mode as a selectable config field', () => {
+  const provider = read('provider/openai.yaml');
+  const match = provider.match(/- key: transport_mode\n[\s\S]*?(?=\n- key:|\nmodels:|\n$)/);
+
+  assert.ok(match, 'transport_mode config field should be declared');
+  assert.match(match[0], /^  label: fields\.transport_mode\.label$/m);
+  assert.match(match[0], /^  description: fields\.transport_mode\.description$/m);
+  assert.match(match[0], /^  type: enum$/m);
+  assert.match(match[0], /^  control: select$/m);
+  assert.match(match[0], /^  default_value: http_sse$/m);
+  assert.match(match[0], /^    value: http_sse$/m);
+  assert.match(match[0], /^    value: responses_websocket$/m);
+  assert.match(match[0], /^    value: auto$/m);
+});
+
 test('openai provider static models declare current responses defaults', () => {
   const position = read('models/llm/_position.yaml');
 

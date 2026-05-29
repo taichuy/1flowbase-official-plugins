@@ -23,7 +23,22 @@
       "label": "按发现目录校验模型"
     },
     "transport_mode": {
-      "label": "传输模式"
+      "label": "传输模式",
+      "description": "控制 OpenAI Responses 流式调用使用的传输方式。",
+      "options": {
+        "http_sse": {
+          "label": "HTTP SSE",
+          "description": "默认使用 Responses HTTP 流式传输。"
+        },
+        "responses_websocket": {
+          "label": "Responses WebSocket",
+          "description": "显式使用 Responses WebSocket 传输。"
+        },
+        "auto": {
+          "label": "自动",
+          "description": "优先尝试 Responses WebSocket，并在安全时回退到 HTTP SSE。"
+        }
+      }
     }
   },
   "models": {
