@@ -115,6 +115,8 @@ pub struct ProviderMessage {
     pub tool_call_id: Option<String>,
     #[serde(default)]
     pub tool_calls: Option<Value>,
+    #[serde(default)]
+    pub content_blocks: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -445,10 +447,7 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
             }
             continue;
         }
-        let mut content = Vec::new();
-        if let Some(text) = text_content_block(&message.content) {
-            content.push(text);
-        }
+        let mut content = message_content_blocks(message);
         append_tool_use_blocks(&mut content, message.tool_calls.as_ref());
         if !content.is_empty() {
             messages.push(json!({
@@ -458,6 +457,137 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         }
     }
     messages
+}
+
+fn message_content_blocks(message: &ProviderMessage) -> Vec<Value> {
+    if let Some(content_blocks) = message.content_blocks.as_ref() {
+        let blocks = content_blocks_from_value(content_blocks);
+        if !blocks.is_empty() {
+            return blocks;
+        }
+    }
+    text_content_block(&message.content).into_iter().collect()
+}
+
+fn content_blocks_from_value(content: &Value) -> Vec<Value> {
+    match content {
+        Value::Array(parts) => parts.iter().filter_map(content_block_from_part).collect(),
+        Value::Object(object) => {
+            if let Some(parts) = object.get("parts").and_then(Value::as_array) {
+                return parts.iter().filter_map(content_block_from_part).collect();
+            }
+            content_block_from_part(content).into_iter().collect()
+        }
+        _ => text_content_block(content).into_iter().collect(),
+    }
+}
+
+fn content_block_from_part(part: &Value) -> Option<Value> {
+    match part {
+        Value::String(text) => {
+            (!text.trim().is_empty()).then(|| json!({ "type": "text", "text": text }))
+        }
+        Value::Object(object) => {
+            let part_type = object
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            match part_type.as_str() {
+                "text" | "input_text" => text_block_from_object(object),
+                "image" | "image_url" | "input_image" => image_block_from_object(object),
+                "document" | "input_document" => document_block_from_object(object),
+                "tool_use" | "tool_result" => Some(Value::Object(object.clone())),
+                _ => object
+                    .get("text")
+                    .or_else(|| object.get("content"))
+                    .and_then(Value::as_str)
+                    .filter(|text| !text.trim().is_empty())
+                    .map(|text| json!({ "type": "text", "text": text })),
+            }
+        }
+        Value::Null => None,
+        other => text_content_block(other),
+    }
+}
+
+fn text_block_from_object(object: &Map<String, Value>) -> Option<Value> {
+    let text = object
+        .get("text")
+        .or_else(|| object.get("content"))
+        .and_then(Value::as_str)
+        .filter(|text| !text.trim().is_empty())?;
+    let mut block = Map::new();
+    block.insert("type".to_string(), Value::String("text".to_string()));
+    block.insert("text".to_string(), Value::String(text.to_string()));
+    copy_optional_field(object, &mut block, "cache_control");
+    Some(Value::Object(block))
+}
+
+fn image_block_from_object(object: &Map<String, Value>) -> Option<Value> {
+    if object.get("source").is_some() {
+        let mut block = object.clone();
+        block.insert("type".to_string(), Value::String("image".to_string()));
+        return Some(Value::Object(block));
+    }
+    let url = url_from_block_value(
+        object
+            .get("image_url")
+            .or_else(|| object.get("image"))
+            .or_else(|| object.get("url"))?,
+    )?;
+    let mut block = Map::new();
+    block.insert("type".to_string(), Value::String("image".to_string()));
+    block.insert(
+        "source".to_string(),
+        json!({
+            "type": "url",
+            "url": url,
+        }),
+    );
+    copy_optional_field(object, &mut block, "cache_control");
+    Some(Value::Object(block))
+}
+
+fn document_block_from_object(object: &Map<String, Value>) -> Option<Value> {
+    if object.get("source").is_some() {
+        let mut block = object.clone();
+        block.insert("type".to_string(), Value::String("document".to_string()));
+        return Some(Value::Object(block));
+    }
+    let url = object
+        .get("document")
+        .or_else(|| object.get("document_url"))
+        .or_else(|| object.get("url"))
+        .and_then(url_from_block_value)?;
+    let mut block = Map::new();
+    block.insert("type".to_string(), Value::String("document".to_string()));
+    block.insert(
+        "source".to_string(),
+        json!({
+            "type": "url",
+            "url": url,
+        }),
+    );
+    copy_optional_field(object, &mut block, "title");
+    copy_optional_field(object, &mut block, "cache_control");
+    Some(Value::Object(block))
+}
+
+fn url_from_block_value(value: &Value) -> Option<String> {
+    let url = match value {
+        Value::String(text) => text.as_str(),
+        Value::Object(object) => object.get("url").and_then(Value::as_str)?,
+        _ => return None,
+    }
+    .trim();
+    (!url.is_empty()).then(|| url.to_string())
+}
+
+fn copy_optional_field(from: &Map<String, Value>, to: &mut Map<String, Value>, key: &str) {
+    if let Some(value) = from.get(key) {
+        to.insert(key.to_string(), value.clone());
+    }
 }
 
 fn text_content_block(content: &Value) -> Option<Value> {
@@ -638,7 +768,7 @@ where
                 &mut message_id,
             )?;
             emit_new_events(&events, on_event)?;
-            all_events.extend(events.drain(..));
+            all_events.append(&mut events);
         }
     }
     let tool_calls = tool_builders
@@ -898,6 +1028,7 @@ mod tests {
                     tool_calls: Some(
                         json!([{ "id": "toolu_1", "name": "lookup", "arguments": { "query": "refund" }}]),
                     ),
+                    content_blocks: None,
                 },
                 ProviderMessage {
                     role: "tool".to_string(),
@@ -905,6 +1036,7 @@ mod tests {
                     name: None,
                     tool_call_id: Some("toolu_1".to_string()),
                     tool_calls: None,
+                    content_blocks: None,
                 },
             ],
             tools: vec![json!({
@@ -947,6 +1079,130 @@ mod tests {
         assert_eq!(body["messages"][1]["role"], "user");
         assert_eq!(body["messages"][1]["content"][0]["type"], "tool_result");
         assert_eq!(body["messages"][1]["content"][0]["tool_use_id"], "toolu_1");
+    }
+
+    #[test]
+    fn messages_body_forwards_content_blocks_and_appends_native_tool_calls() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "claude-sonnet-4-20250514",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "fallback text",
+                    "content_blocks": [
+                        { "type": "text", "text": "Describe these" },
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "aW1hZ2U="
+                            }
+                        },
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "url",
+                                "url": "https://example.com/file.pdf"
+                            }
+                        },
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "toolu_previous",
+                            "content": "previous result"
+                        }
+                    ]
+                },
+                {
+                    "role": "assistant",
+                    "content": "fallback assistant",
+                    "content_blocks": [
+                        { "type": "text", "text": "I will use a tool" },
+                        {
+                            "type": "tool_use",
+                            "id": "toolu_prior",
+                            "name": "lookup",
+                            "input": { "query": "prior" }
+                        }
+                    ],
+                    "tool_calls": [
+                        {
+                            "id": "toolu_native",
+                            "name": "lookup",
+                            "arguments": "{\"query\":\"native\"}"
+                        }
+                    ]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let body = build_messages_body(&input).unwrap();
+
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["messages"][0]["content"][0]["text"], "Describe these");
+        assert_eq!(body["messages"][0]["content"][1]["type"], "image");
+        assert_eq!(
+            body["messages"][0]["content"][1]["source"]["media_type"],
+            "image/png"
+        );
+        assert_eq!(body["messages"][0]["content"][2]["type"], "document");
+        assert_eq!(
+            body["messages"][0]["content"][2]["source"]["url"],
+            "https://example.com/file.pdf"
+        );
+        assert_eq!(body["messages"][0]["content"][3]["type"], "tool_result");
+        assert_eq!(
+            body["messages"][0]["content"][3]["tool_use_id"],
+            "toolu_previous"
+        );
+        assert_eq!(body["messages"][1]["role"], "assistant");
+        assert_eq!(
+            body["messages"][1]["content"][0]["text"],
+            "I will use a tool"
+        );
+        assert_eq!(body["messages"][1]["content"][1]["type"], "tool_use");
+        assert_eq!(body["messages"][1]["content"][1]["id"], "toolu_prior");
+        assert_eq!(body["messages"][1]["content"][2]["type"], "tool_use");
+        assert_eq!(body["messages"][1]["content"][2]["id"], "toolu_native");
+        assert_eq!(
+            body["messages"][1]["content"][2]["input"]["query"],
+            "native"
+        );
+    }
+
+    #[test]
+    fn messages_body_without_content_blocks_keeps_legacy_text_normalization() {
+        let input = ProviderInvocationInput {
+            model: "claude-sonnet-4-20250514".to_string(),
+            messages: vec![ProviderMessage {
+                role: "user".to_string(),
+                content: json!([
+                    { "type": "text", "text": "hello " },
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": "aW1hZ2U="
+                        }
+                    },
+                    { "content": "world" }
+                ]),
+                name: None,
+                tool_call_id: None,
+                tool_calls: None,
+                content_blocks: None,
+            }],
+            ..Default::default()
+        };
+
+        let body = build_messages_body(&input).unwrap();
+
+        assert_eq!(
+            body["messages"][0]["content"],
+            json!([{ "type": "text", "text": "hello world" }])
+        );
     }
 
     #[test]
