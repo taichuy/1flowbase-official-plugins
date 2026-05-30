@@ -1,34 +1,57 @@
-use std::io::{self, BufRead, Write};
+use std::io::{self, Read, Write};
 
-use aliyun_bailian_provider::{handle_request, ProviderStdioRequest, ProviderStdioResponse};
-use anyhow::Result;
+use aliyun_bailian_provider::{
+    handle_invoke_request_streaming, handle_request, ProviderStdioRequest, ProviderStdioResponse,
+};
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
+async fn main() {
+    let mut stdin = String::new();
+    io::stdin().read_to_string(&mut stdin).unwrap();
 
-    for line in stdin.lock().lines() {
-        let line = line?;
-        if line.trim().is_empty() {
-            continue;
-        }
+    let request: ProviderStdioRequest =
+        serde_json::from_str(&stdin).unwrap_or(ProviderStdioRequest {
+            method: "invalid".to_string(),
+            input: serde_json::Value::Null,
+        });
 
-        let response = match serde_json::from_str::<ProviderStdioRequest>(&line) {
-            Ok(request) => match handle_request(request).await {
-                Ok(response) => response,
-                Err(error) => {
-                    ProviderStdioResponse::error("provider_invalid_response", error.to_string())
-                }
-            },
-            Err(error) => {
-                ProviderStdioResponse::error("provider_invalid_response", error.to_string())
-            }
-        };
-
-        writeln!(stdout, "{}", serde_json::to_string(&response)?)?;
-        stdout.flush()?;
+    if request.method == "invoke" {
+        run_streaming_invoke(request).await;
+        return;
     }
 
-    Ok(())
+    let response = handle_request(request).await.unwrap_or_else(|error| {
+        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+    });
+    print!("{}", serde_json::to_string(&response).unwrap());
+}
+
+async fn run_streaming_invoke(request: ProviderStdioRequest) {
+    let mut stdout = io::stdout().lock();
+    let result = handle_invoke_request_streaming(request.input, |event| {
+        writeln!(stdout, "{}", serde_json::to_string(event)?)?;
+        stdout.flush()?;
+        Ok(())
+    })
+    .await;
+
+    match result {
+        Ok(result) => {
+            writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string(&serde_json::json!({
+                    "type": "result",
+                    "result": result,
+                }))
+                .unwrap()
+            )
+            .unwrap();
+            stdout.flush().unwrap();
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    }
 }
