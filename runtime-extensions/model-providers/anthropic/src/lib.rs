@@ -441,7 +441,7 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
                     "content": [{
                         "type": "tool_result",
                         "tool_use_id": tool_use_id,
-                        "content": normalize_message_content(&message.content),
+                        "content": tool_result_content(message),
                     }]
                 }));
             }
@@ -593,6 +593,16 @@ fn copy_optional_field(from: &Map<String, Value>, to: &mut Map<String, Value>, k
 fn text_content_block(content: &Value) -> Option<Value> {
     let text = normalize_message_content(content);
     (!text.trim().is_empty()).then(|| json!({ "type": "text", "text": text }))
+}
+
+fn tool_result_content(message: &ProviderMessage) -> Value {
+    if let Some(content_blocks) = message.content_blocks.as_ref() {
+        let blocks = content_blocks_from_value(content_blocks);
+        if !blocks.is_empty() {
+            return Value::Array(blocks);
+        }
+    }
+    Value::String(normalize_message_content(&message.content))
 }
 
 fn append_tool_use_blocks(content: &mut Vec<Value>, tool_calls: Option<&Value>) {
@@ -1079,6 +1089,48 @@ mod tests {
         assert_eq!(body["messages"][1]["role"], "user");
         assert_eq!(body["messages"][1]["content"][0]["type"], "tool_result");
         assert_eq!(body["messages"][1]["content"][0]["tool_use_id"], "toolu_1");
+    }
+
+    #[test]
+    fn messages_body_preserves_media_tool_result_content_blocks() {
+        let input = ProviderInvocationInput {
+            model: "claude-sonnet-4-20250514".to_string(),
+            messages: vec![ProviderMessage {
+                role: "tool".to_string(),
+                content: Value::Null,
+                name: None,
+                tool_call_id: Some("toolu_image".to_string()),
+                tool_calls: None,
+                content_blocks: Some(json!([
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": "aW1hZ2U="
+                        }
+                    }
+                ])),
+            }],
+            ..Default::default()
+        };
+
+        let body = build_messages_body(&input).unwrap();
+
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["messages"][0]["content"][0]["type"], "tool_result");
+        assert_eq!(
+            body["messages"][0]["content"][0]["tool_use_id"],
+            "toolu_image"
+        );
+        assert_eq!(
+            body["messages"][0]["content"][0]["content"][0]["type"],
+            "image"
+        );
+        assert_eq!(
+            body["messages"][0]["content"][0]["content"][0]["source"]["media_type"],
+            "image/png"
+        );
     }
 
     #[test]
