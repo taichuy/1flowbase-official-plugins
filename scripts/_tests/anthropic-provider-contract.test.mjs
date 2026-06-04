@@ -41,6 +41,7 @@ test('anthropic provider declares messages identity and runtime entry', () => {
   assert.match(manifest, /^plugin_id: anthropic$/m);
   assert.match(manifest, /^display_name: Anthropic$/m);
   assert.match(manifest, /^  entry: bin\/anthropic-provider$/m);
+  assert.match(manifest, /^    invoke_timeout_ms: 300000$/m);
   assert.match(manifest, /^  - model_provider$/m);
   assert.match(manifest, /^trust_level: verified_official$/m);
   assert.match(manifest, /^consumption_kind: runtime_extension$/m);
