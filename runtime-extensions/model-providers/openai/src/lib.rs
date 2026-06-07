@@ -154,6 +154,8 @@ pub struct ProviderMessage {
     pub tool_call_id: Option<String>,
     #[serde(default)]
     pub tool_calls: Option<Value>,
+    #[serde(default)]
+    pub content_blocks: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1060,8 +1062,8 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
             }
             continue;
         }
-        let content = normalize_message_content(&message.content);
-        if !content.is_empty() {
+        let content = response_message_content(message);
+        if !response_message_content_is_empty(&content) {
             items.push(json!({
                 "role": normalize_responses_role(&role),
                 "content": content,
@@ -1146,6 +1148,76 @@ fn build_response_tool(tool: &Value) -> Value {
         mapped.insert("strict".to_string(), strict.clone());
     }
     Value::Object(mapped)
+}
+
+fn response_message_content(message: &ProviderMessage) -> Value {
+    if let Some(content_blocks) = message.content_blocks.as_ref() {
+        let blocks = response_content_blocks(content_blocks);
+        if !blocks.is_empty() {
+            return Value::Array(blocks);
+        }
+    }
+
+    Value::String(normalize_message_content(&message.content))
+}
+
+fn response_message_content_is_empty(content: &Value) -> bool {
+    match content {
+        Value::String(text) => text.is_empty(),
+        Value::Array(parts) => parts.is_empty(),
+        Value::Null => true,
+        _ => false,
+    }
+}
+
+fn response_content_blocks(content: &Value) -> Vec<Value> {
+    let Some(parts) = content.as_array() else {
+        return Vec::new();
+    };
+
+    parts
+        .iter()
+        .filter_map(response_content_part)
+        .collect::<Vec<_>>()
+}
+
+fn response_content_part(part: &Value) -> Option<Value> {
+    let object = part.as_object()?;
+    match object
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+    {
+        "text" | "input_text" => object
+            .get("text")
+            .or_else(|| object.get("content"))
+            .and_then(Value::as_str)
+            .filter(|text| !text.is_empty())
+            .map(|text| json!({ "type": "input_text", "text": text })),
+        "image_url" | "input_image" | "image" => {
+            let image_url = object
+                .get("image_url")
+                .or_else(|| object.get("imageUrl"))
+                .or_else(|| object.get("url"))
+                .or_else(|| object.get("image"))?;
+            let mut block = Map::new();
+            block.insert("type".to_string(), Value::String("input_image".to_string()));
+            block.insert("image_url".to_string(), response_image_url_value(image_url));
+            if let Some(detail) = object.get("detail") {
+                block.insert("detail".to_string(), detail.clone());
+            }
+            Some(Value::Object(block))
+        }
+        _ => None,
+    }
+}
+
+fn response_image_url_value(value: &Value) -> Value {
+    value
+        .as_object()
+        .and_then(|object| object.get("url"))
+        .cloned()
+        .unwrap_or_else(|| value.clone())
 }
 
 fn normalize_message_content(content: &Value) -> String {
@@ -2274,6 +2346,7 @@ mod tests {
                     tool_calls: Some(
                         json!([{ "id": "call_1", "name": "lookup", "arguments": { "query": "refund" }}]),
                     ),
+                    content_blocks: None,
                 },
                 ProviderMessage {
                     role: "tool".to_string(),
@@ -2281,6 +2354,7 @@ mod tests {
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
                     tool_calls: None,
+                    content_blocks: None,
                 },
             ],
             tools: vec![json!({
@@ -2322,6 +2396,39 @@ mod tests {
         assert_eq!(body["input"][0]["arguments"], r#"{"query":"refund"}"#);
         assert_eq!(body["input"][1]["type"], "function_call_output");
         assert_eq!(body["input"][1]["call_id"], "call_1");
+    }
+
+    #[test]
+    fn responses_body_preserves_image_content_blocks() {
+        let input = ProviderInvocationInput {
+            model: "gpt-5.1".to_string(),
+            messages: vec![ProviderMessage {
+                role: "user".to_string(),
+                content: json!("Describe image"),
+                name: None,
+                tool_call_id: None,
+                tool_calls: None,
+                content_blocks: Some(json!([
+                    {"type": "text", "text": "Describe image"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "https://example.com/cat.png"},
+                        "detail": "low"
+                    }
+                ])),
+            }],
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).unwrap();
+
+        assert_eq!(body["input"][0]["content"][0]["type"], "input_text");
+        assert_eq!(body["input"][0]["content"][1]["type"], "input_image");
+        assert_eq!(
+            body["input"][0]["content"][1]["image_url"],
+            "https://example.com/cat.png"
+        );
+        assert_eq!(body["input"][0]["content"][1]["detail"], "low");
     }
 
     #[test]
