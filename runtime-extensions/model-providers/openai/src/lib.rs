@@ -149,6 +149,8 @@ pub struct ProviderMessage {
     #[serde(default)]
     pub content: Value,
     #[serde(default)]
+    pub content_blocks: Option<Value>,
+    #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
     pub tool_call_id: Option<String>,
@@ -1055,13 +1057,12 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
                 items.push(json!({
                     "type": "function_call_output",
                     "call_id": call_id,
-                    "output": normalize_message_content(&message.content),
+                    "output": responses_tool_output(message),
                 }));
             }
             continue;
         }
-        let content = normalize_message_content(&message.content);
-        if !content.is_empty() {
+        if let Some(content) = responses_message_content(message) {
             items.push(json!({
                 "role": normalize_responses_role(&role),
                 "content": content,
@@ -1070,6 +1071,136 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
         append_response_function_calls(&mut items, message.tool_calls.as_ref());
     }
     items
+}
+
+fn responses_message_content(message: &ProviderMessage) -> Option<Value> {
+    let structured = message
+        .content_blocks
+        .as_ref()
+        .and_then(responses_structured_content);
+    if structured.is_some() {
+        return structured;
+    }
+    let content = normalize_message_content(&message.content);
+    (!content.is_empty()).then_some(Value::String(content))
+}
+
+fn responses_tool_output(message: &ProviderMessage) -> Value {
+    message
+        .content_blocks
+        .as_ref()
+        .and_then(responses_structured_content)
+        .unwrap_or_else(|| Value::String(normalize_message_content(&message.content)))
+}
+
+fn responses_structured_content(content_blocks: &Value) -> Option<Value> {
+    let items = responses_content_items_from_value(content_blocks);
+    if !responses_content_items_contain_media(&items) {
+        return None;
+    }
+    Some(Value::Array(items))
+}
+
+fn responses_content_items_from_value(content: &Value) -> Vec<Value> {
+    match content {
+        Value::Array(parts) => parts.iter().filter_map(responses_content_item).collect(),
+        Value::Object(object) => {
+            if let Some(parts) = object.get("parts").and_then(Value::as_array) {
+                return parts.iter().filter_map(responses_content_item).collect();
+            }
+            responses_content_item(content).into_iter().collect()
+        }
+        Value::String(text) => responses_text_content_item(text).into_iter().collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn responses_content_item(part: &Value) -> Option<Value> {
+    match part {
+        Value::String(text) => responses_text_content_item(text),
+        Value::Object(object) => {
+            let part_type = object
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            match part_type.as_str() {
+                "text" | "input_text" => object
+                    .get("text")
+                    .or_else(|| object.get("content"))
+                    .and_then(Value::as_str)
+                    .and_then(responses_text_content_item),
+                "image" | "image_url" | "input_image" => responses_image_content_item(object),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+fn responses_text_content_item(text: &str) -> Option<Value> {
+    let trimmed = text.trim();
+    (!trimmed.is_empty()).then(|| json!({ "type": "input_text", "text": text }))
+}
+
+fn responses_image_content_item(object: &Map<String, Value>) -> Option<Value> {
+    let image_url = object
+        .get("source")
+        .and_then(responses_image_source_url)
+        .or_else(|| object.get("image_url").and_then(responses_image_url))
+        .or_else(|| object.get("image").and_then(responses_image_url))
+        .or_else(|| object.get("url").and_then(responses_image_url))?;
+    let mut item = Map::new();
+    item.insert("type".to_string(), Value::String("input_image".to_string()));
+    item.insert("image_url".to_string(), Value::String(image_url));
+    if let Some(detail) = object
+        .get("detail")
+        .or_else(|| {
+            object
+                .get("image_url")
+                .and_then(|value| value.get("detail"))
+        })
+        .cloned()
+    {
+        item.insert("detail".to_string(), detail);
+    }
+    Some(Value::Object(item))
+}
+
+fn responses_image_source_url(source: &Value) -> Option<String> {
+    let object = source.as_object()?;
+    match object.get("type").and_then(Value::as_str) {
+        Some("base64") => {
+            let media_type = object
+                .get("media_type")
+                .and_then(Value::as_str)
+                .unwrap_or("image/png");
+            let data = object.get("data").and_then(Value::as_str)?;
+            Some(format!("data:{media_type};base64,{data}"))
+        }
+        Some("url") => object
+            .get("url")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        _ => None,
+    }
+}
+
+fn responses_image_url(value: &Value) -> Option<String> {
+    value.as_str().map(ToOwned::to_owned).or_else(|| {
+        value
+            .get("url")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn responses_content_items_contain_media(items: &[Value]) -> bool {
+    items.iter().any(|item| {
+        item.get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|item_type| item_type == "input_image" || item_type == "input_file")
+    })
 }
 
 fn normalize_responses_role(role: &str) -> &str {
@@ -2269,6 +2400,7 @@ mod tests {
                 ProviderMessage {
                     role: "assistant".to_string(),
                     content: Value::Null,
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: Some(
@@ -2278,6 +2410,7 @@ mod tests {
                 ProviderMessage {
                     role: "tool".to_string(),
                     content: json!("found"),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
                     tool_calls: None,
@@ -2322,6 +2455,61 @@ mod tests {
         assert_eq!(body["input"][0]["arguments"], r#"{"query":"refund"}"#);
         assert_eq!(body["input"][1]["type"], "function_call_output");
         assert_eq!(body["input"][1]["call_id"], "call_1");
+    }
+
+    #[test]
+    fn responses_body_preserves_media_content_blocks() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gpt-5.1",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Describe image",
+                    "content_blocks": [
+                        {"type": "text", "text": "Describe image"},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "aW1hZ2U="
+                            }
+                        }
+                    ]
+                },
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_read",
+                    "content": "",
+                    "content_blocks": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "cmVzdWx0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let body = build_responses_body(&input).unwrap();
+
+        assert_eq!(body["input"][0]["content"][0]["type"], "input_text");
+        assert_eq!(body["input"][0]["content"][1]["type"], "input_image");
+        assert_eq!(
+            body["input"][0]["content"][1]["image_url"],
+            "data:image/png;base64,aW1hZ2U="
+        );
+        assert_eq!(body["input"][1]["type"], "function_call_output");
+        assert_eq!(body["input"][1]["output"][0]["type"], "input_image");
+        assert_eq!(
+            body["input"][1]["output"][0]["image_url"],
+            "data:image/png;base64,cmVzdWx0"
+        );
     }
 
     #[test]
