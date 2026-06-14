@@ -25,7 +25,9 @@ function assertModelMetadata(modelId, label) {
   assert.match(model, /^family: llm$/m);
   assert.match(model, /^  - stream$/m);
   assert.match(model, /^  - tool_call$/m);
+  assert.match(model, /^  - vision$/m);
   assert.match(model, /^  - structured_output$/m);
+  assert.match(model, /^supports_multimodal: true$/m);
   assert.match(model, /^  owned_by: google$/m);
   assert.match(model, /^  pricing_source: dynamic$/m);
 }
@@ -82,6 +84,7 @@ test('gemini static models mirror the sub2api fallback catalog', () => {
     ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
     ['gemini-2.5-flash-image', 'Gemini 2.5 Flash Image'],
     ['gemini-2.5-pro', 'Gemini 2.5 Pro'],
+    ['gemini-3-flash', 'Gemini 3 Flash'],
     ['gemini-3-flash-preview', 'Gemini 3 Flash Preview'],
     ['gemini-3-pro-preview', 'Gemini 3 Pro Preview'],
     ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'],
