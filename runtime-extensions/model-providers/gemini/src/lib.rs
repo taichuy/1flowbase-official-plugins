@@ -125,6 +125,8 @@ pub struct ProviderMessage {
     #[serde(default)]
     pub content: Value,
     #[serde(default)]
+    pub content_blocks: Option<Value>,
+    #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
     pub tool_call_id: Option<String>,
@@ -653,9 +655,14 @@ fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value>
 
         let gemini_role = normalize_gemini_role(&role);
         let mut parts = if role == "tool" || role == "function" {
-            build_tool_response_parts(message, &tool_call_names_by_id)
+            let content_block_parts = build_message_content_parts(message);
+            if content_parts_contain_media(&content_block_parts) {
+                content_block_parts
+            } else {
+                build_tool_response_parts(message, &tool_call_names_by_id)
+            }
         } else {
-            build_content_parts(&message.content)
+            build_message_content_parts(message)
         };
 
         if gemini_role == "model" {
@@ -725,6 +732,22 @@ fn append_text_parts(parts: &mut Vec<Value>, content: &Value) {
     if !text.trim().is_empty() {
         parts.push(json!({ "text": text }));
     }
+}
+
+fn build_message_content_parts(message: &ProviderMessage) -> Vec<Value> {
+    if let Some(content_blocks) = &message.content_blocks {
+        let parts = build_content_parts(content_blocks);
+        if !parts.is_empty() {
+            return parts;
+        }
+    }
+    build_content_parts(&message.content)
+}
+
+fn content_parts_contain_media(parts: &[Value]) -> bool {
+    parts
+        .iter()
+        .any(|part| part.get("inlineData").is_some() || part.get("fileData").is_some())
 }
 
 fn content_to_text(content: &Value) -> String {
@@ -800,7 +823,7 @@ fn normalize_content_part(part: &Value) -> Option<Value> {
                     .and_then(Value::as_str)
                     .filter(|text| !text.is_empty())
                     .map(|text| json!({ "text": text })),
-                "image_url" | "input_image" => image_part_from_object(object),
+                "image" | "image_url" | "input_image" => image_part_from_object(object),
                 "function_response" | "tool_result" => function_response_part_from_object(object),
                 _ => object
                     .get("text")
@@ -846,6 +869,10 @@ fn rename_key(object: &mut Map<String, Value>, from: &str, to: &str) {
 }
 
 fn image_part_from_object(object: &Map<String, Value>) -> Option<Value> {
+    if let Some(part) = object.get("source").and_then(image_part_from_source) {
+        return Some(part);
+    }
+
     let image_value = object
         .get("image_url")
         .or_else(|| object.get("imageUrl"))
@@ -868,7 +895,30 @@ fn image_part_from_object(object: &Map<String, Value>) -> Option<Value> {
         return None;
     }
 
-    if let Some((mime_type, data)) = parse_data_url(&url) {
+    image_part_from_url(&url, object)
+}
+
+fn image_part_from_source(source: &Value) -> Option<Value> {
+    let object = source.as_object()?;
+    if let Some(data) = object
+        .get("data")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Some(inline_image_part(object, data));
+    }
+    let url = object
+        .get("url")
+        .or_else(|| object.get("image_url"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())?;
+    image_part_from_url(url, object)
+}
+
+fn image_part_from_url(url: &str, object: &Map<String, Value>) -> Option<Value> {
+    if let Some((mime_type, data)) = parse_data_url(url) {
         return Some(json!({
             "inlineData": {
                 "mimeType": mime_type,
@@ -880,6 +930,7 @@ fn image_part_from_object(object: &Map<String, Value>) -> Option<Value> {
     let mime_type = object
         .get("mime_type")
         .or_else(|| object.get("mimeType"))
+        .or_else(|| object.get("media_type"))
         .and_then(Value::as_str)
         .unwrap_or("image/*");
     Some(json!({
@@ -888,6 +939,21 @@ fn image_part_from_object(object: &Map<String, Value>) -> Option<Value> {
             "fileUri": url,
         }
     }))
+}
+
+fn inline_image_part(object: &Map<String, Value>, data: &str) -> Value {
+    let mime_type = object
+        .get("media_type")
+        .or_else(|| object.get("mime_type"))
+        .or_else(|| object.get("mimeType"))
+        .and_then(Value::as_str)
+        .unwrap_or("image/png");
+    json!({
+        "inlineData": {
+            "mimeType": mime_type,
+            "data": data,
+        }
+    })
 }
 
 fn parse_data_url(url: &str) -> Option<(String, String)> {
@@ -1940,6 +2006,7 @@ mod tests {
             messages: vec![ProviderMessage {
                 role: "user".to_string(),
                 content: Value::String("hi".to_string()),
+                content_blocks: None,
                 name: None,
                 tool_call_id: None,
                 tool_calls: None,
@@ -1979,6 +2046,7 @@ mod tests {
                 ProviderMessage {
                     role: "user".to_string(),
                     content: Value::String("Search files".to_string()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: None,
@@ -1986,6 +2054,7 @@ mod tests {
                 ProviderMessage {
                     role: "assistant".to_string(),
                     content: Value::String(String::new()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: Some(json!([{
@@ -2002,6 +2071,7 @@ mod tests {
                 ProviderMessage {
                     role: "tool".to_string(),
                     content: Value::String("No files matched".to_string()),
+                    content_blocks: None,
                     name: Some("Glob".to_string()),
                     tool_call_id: Some("call_glob".to_string()),
                     tool_calls: None,
@@ -2025,6 +2095,7 @@ mod tests {
                 ProviderMessage {
                     role: "user".to_string(),
                     content: Value::String("Search files".to_string()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: None,
@@ -2032,6 +2103,7 @@ mod tests {
                 ProviderMessage {
                     role: "assistant".to_string(),
                     content: Value::String(String::new()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: Some(json!([{
@@ -2043,6 +2115,7 @@ mod tests {
                 ProviderMessage {
                     role: "tool".to_string(),
                     content: Value::String("No files matched".to_string()),
+                    content_blocks: None,
                     name: Some("Glob".to_string()),
                     tool_call_id: Some("call_glob".to_string()),
                     tool_calls: None,
@@ -2065,6 +2138,7 @@ mod tests {
                 ProviderMessage {
                     role: "user".to_string(),
                     content: Value::String("Search files".to_string()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: None,
@@ -2072,6 +2146,7 @@ mod tests {
                 ProviderMessage {
                     role: "assistant".to_string(),
                     content: Value::String(String::new()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: None,
                     tool_calls: Some(json!([{
@@ -2088,6 +2163,7 @@ mod tests {
                 ProviderMessage {
                     role: "tool".to_string(),
                     content: Value::String("No files matched".to_string()),
+                    content_blocks: None,
                     name: None,
                     tool_call_id: Some("call_glob".to_string()),
                     tool_calls: None,
@@ -2105,6 +2181,53 @@ mod tests {
             body["contents"][2]["parts"][0]["functionResponse"]["id"],
             json!("call_glob")
         );
+    }
+
+    #[test]
+    fn generate_content_body_maps_content_blocks_image_to_inline_data() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gemini-3-flash-preview",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "id": "call_read",
+                            "name": "Read",
+                            "arguments": { "file_path": "image.png" }
+                        }
+                    ]
+                },
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_read",
+                    "name": "Read",
+                    "content": "",
+                    "content_blocks": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "data": "aW1hZ2U="
+                            }
+                        }
+                    ]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let body = build_generate_content_body(&input).unwrap();
+        let parts = body["contents"][1]["parts"]
+            .as_array()
+            .expect("tool result should have parts");
+        let image_part = parts
+            .iter()
+            .find(|part| part.get("inlineData").is_some())
+            .expect("tool result should include inline image data");
+
+        assert_eq!(image_part["inlineData"]["mimeType"], json!("image/png"));
+        assert_eq!(image_part["inlineData"]["data"], json!("aW1hZ2U="));
     }
 
     #[test]

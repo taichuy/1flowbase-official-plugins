@@ -1170,20 +1170,22 @@ fn responses_image_content_item(object: &Map<String, Value>) -> Option<Value> {
 fn responses_image_source_url(source: &Value) -> Option<String> {
     let object = source.as_object()?;
     match object.get("type").and_then(Value::as_str) {
-        Some("base64") => {
-            let media_type = object
-                .get("media_type")
-                .and_then(Value::as_str)
-                .unwrap_or("image/png");
-            let data = object.get("data").and_then(Value::as_str)?;
-            Some(format!("data:{media_type};base64,{data}"))
-        }
+        Some("base64") | None => responses_base64_image_source_url(object),
         Some("url") => object
             .get("url")
             .and_then(Value::as_str)
             .map(ToOwned::to_owned),
         _ => None,
     }
+}
+
+fn responses_base64_image_source_url(object: &Map<String, Value>) -> Option<String> {
+    let media_type = object
+        .get("media_type")
+        .and_then(Value::as_str)
+        .unwrap_or("image/png");
+    let data = object.get("data").and_then(Value::as_str)?;
+    Some(format!("data:{media_type};base64,{data}"))
 }
 
 fn responses_image_url(value: &Value) -> Option<String> {
@@ -2508,6 +2510,38 @@ mod tests {
         assert_eq!(body["input"][1]["output"][0]["type"], "input_image");
         assert_eq!(
             body["input"][1]["output"][0]["image_url"],
+            "data:image/png;base64,cmVzdWx0"
+        );
+    }
+
+    #[test]
+    fn responses_body_accepts_native_image_source_data_without_type() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gpt-5.1",
+            "messages": [
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_read",
+                    "content": "",
+                    "content_blocks": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "data": "cmVzdWx0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let body = build_responses_body(&input).unwrap();
+
+        assert_eq!(body["input"][0]["type"], "function_call_output");
+        assert_eq!(body["input"][0]["output"][0]["type"], "input_image");
+        assert_eq!(
+            body["input"][0]["output"][0]["image_url"],
             "data:image/png;base64,cmVzdWx0"
         );
     }
