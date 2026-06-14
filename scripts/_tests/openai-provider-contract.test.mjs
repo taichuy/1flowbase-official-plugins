@@ -100,8 +100,12 @@ test('openai provider static models declare current responses defaults', () => {
 
   assert.match(position, /^  - gpt-5\.2$/m);
   assert.match(position, /^  - gpt-5\.1$/m);
+  assert.match(position, /^  - gpt-5\.5$/m);
+  assert.match(position, /^  - gpt-5\.4$/m);
   assert.match(position, /^  - gpt-5-mini$/m);
   assertModelMetadata('gpt-5.2', 'GPT-5.2');
   assertModelMetadata('gpt-5.1', 'GPT-5.1');
+  assertModelMetadata('gpt-5.5', 'GPT-5.5');
+  assertModelMetadata('gpt-5.4', 'GPT-5.4');
   assertModelMetadata('gpt-5-mini', 'GPT-5 mini');
 });
