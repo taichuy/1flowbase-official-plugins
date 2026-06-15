@@ -27,6 +27,10 @@ function assertModelMetadata(modelId, label) {
   assert.match(model, /^  - tool_call$/m);
   assert.match(model, /^  - structured_output$/m);
   assert.match(model, /^  - reasoning$/m);
+  // Protects taichuy/1flowbase#916: Responses models must remain declared as
+  // multimodal so routed image_llm calls can receive image content. Do not
+  // weaken or remove this assertion without explicit user consent.
+  assert.match(model, /^supports_multimodal: true$/m);
   assert.match(model, /^  owned_by: openai$/m);
   assert.match(model, /^  api: responses$/m);
   assert.match(model, /^  pricing_source: dynamic$/m);
