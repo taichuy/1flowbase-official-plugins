@@ -20,6 +20,7 @@
 - `runtime-extensions/model-providers/`：模型供应商运行时扩展目录
 - `capability-plugins/`：能力插件目录
 - `capability-plugins/nodes/`：节点能力插件目录
+- `agent-flow/`：官方 AgentFlow 工作流模板与生成目录
 - `official-registry.json`：已发布插件目录元数据
 - `scripts/`：注册表与发布辅助脚本
 - `.github/workflows/`：CI 与发布自动化

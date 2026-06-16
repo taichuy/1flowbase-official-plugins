@@ -1,0 +1,570 @@
+{
+  "schema_version": "1flowbase.application-template/v1",
+  "application": {
+    "application_type": "agent_flow",
+    "name": "多模态挂载测试",
+    "description": "",
+    "icon": "RobotOutlined",
+    "icon_type": "iconfont",
+    "icon_background": "#E6F7F2"
+  },
+  "flow_document": {
+    "meta": {
+      "name": "Untitled agentFlow",
+      "tags": [],
+      "flowId": "019eb647-bee3-7ae2-a89d-5c6bca7921ad",
+      "description": ""
+    },
+    "graph": {
+      "edges": [
+        {
+          "id": "edge-llm-answer",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-answer",
+          "containerId": null,
+          "sourceHandle": null,
+          "targetHandle": null
+        },
+        {
+          "id": "edge-start-llm",
+          "points": [],
+          "source": "node-start",
+          "target": "node-llm",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-llm-1",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-llm-1",
+          "containerId": null,
+          "sourceHandle": "visible_internal_llm_tool:tool_1",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-1-tool-result-1",
+          "points": [],
+          "source": "node-llm-1",
+          "target": "node-tool-result-1",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        }
+      ],
+      "nodes": [
+        {
+          "id": "node-start",
+          "type": "start",
+          "alias": "Start",
+          "config": {
+            "model_list": [
+              {
+                "id": "flowbase",
+                "name": "flowbase",
+                "reasoning": {
+                  "default_effort": "medium",
+                  "supported_efforts": [
+                    "minimal",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                },
+                "capabilities": {
+                  "reasoning": true,
+                  "tool_call": true,
+                  "multimodal": true,
+                  "structured_output": true
+                },
+                "context_window": 257000,
+                "max_output_tokens": 257000,
+                "max_context_window": 257000,
+                "auto_compact_token_limit": 218450
+              }
+            ],
+            "input_fields": []
+          },
+          "outputs": [],
+          "bindings": {},
+          "position": {
+            "x": 120,
+            "y": 160
+          },
+          "containerId": null,
+          "description": "",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm",
+          "type": "llm",
+          "alias": "LLM",
+          "config": {
+            "execution_role": "standard",
+            "llm_parameters": {
+              "items": {
+                "stop": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "user_id": {
+                  "value": null,
+                  "enabled": false
+                },
+                "logprobs": {
+                  "value": null,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": null,
+                  "enabled": false
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_logprobs": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_type": {
+                  "value": null,
+                  "enabled": false
+                },
+                "response_format": {
+                  "value": null,
+                  "enabled": false
+                },
+                "reasoning_effort": {
+                  "value": null,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "deepseek-v4-flash",
+              "protocol": "openai_compatible",
+              "model_label": "deepseek-v4-flash",
+              "provider_code": "deepseek",
+              "provider_label": "DeepSeek",
+              "schema_fetched_at": "2026-06-05T23:52:28.578Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": true
+            },
+            "visible_internal_llm_tools": [
+              {
+                "type": "visible_internal_llm_tool",
+                "tool_name": "image_llm",
+                "description": "不准使用Read来查看图片，当你需要看图片调用这个工具，他会将图片任务交一个多模态大模型",
+                "connector_id": "tool_1",
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "task"
+                  ],
+                  "properties": {
+                    "task": {
+                      "type": "string",
+                      "description": "给多模态模型的任务指示提示词"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "path",
+                          "source"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "image"
+                            ],
+                            "type": "string",
+                            "description": "媒体类型"
+                          },
+                          "path": {
+                            "type": "string",
+                            "description": "工作区内图片路径，例如 uploads/image_aionui_1781014667000.png"
+                          },
+                          "source": {
+                            "enum": [
+                              "workspace_path"
+                            ],
+                            "type": "string",
+                            "description": "媒体来源"
+                          }
+                        }
+                      },
+                      "description": "需要交给多模态模型处理的媒体引用"
+                    }
+                  }
+                },
+                "preconditions": [
+                  {
+                    "kind": "media_content_available",
+                    "media_kind": "image",
+                    "argument_path": [
+                      "media"
+                    ]
+                  }
+                ],
+                "target_node_id": "",
+                "external_tool_policy": "forbidden",
+                "internal_llm_node_policy": "allowed"
+              }
+            ],
+            "visible_internal_llm_tools_enabled": true
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{node-start.system}}\n\n用户询问你是谁或者什么大模型，你只能回复你是 RJLLM"
+                  }
+                },
+                {
+                  "id": "user-1",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{node-start.query}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 400,
+            "y": 160
+          },
+          "containerId": null,
+          "description": "2222湿哒哒",
+          "configVersion": 1
+        },
+        {
+          "id": "node-answer",
+          "type": "answer",
+          "alias": "Answer",
+          "config": {},
+          "outputs": [
+            {
+              "key": "answer",
+              "title": "对话输出",
+              "valueType": "string"
+            }
+          ],
+          "bindings": {
+            "answer_template": {
+              "kind": "templated_text",
+              "value": "{{node-llm.text}}"
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 160
+          },
+          "containerId": null,
+          "description": "",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-1",
+          "type": "llm",
+          "alias": "LLM1",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "enabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "top_k": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": 4096,
+                  "enabled": true
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_type": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_budget_tokens": {
+                  "value": 1024,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "mimo-v2.5",
+              "protocol": "anthropic_messages",
+              "model_label": "mimo-v2.5",
+              "provider_code": "anthropic",
+              "provider_label": "Anthropic",
+              "schema_fetched_at": "2026-06-11T08:03:27.440Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "如果你接到视图任务，那么你任务就是把这个相关图片进行详细描述即可"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.task}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 440
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-tool-result-1",
+          "type": "tool_result",
+          "alias": "Tool Result",
+          "config": {},
+          "outputs": [
+            {
+              "key": "result",
+              "title": "工具返回",
+              "valueType": "string"
+            }
+          ],
+          "bindings": {
+            "result_template": {
+              "kind": "templated_text",
+              "value": "{{node-llm-1.text}}"
+            }
+          },
+          "position": {
+            "x": 960,
+            "y": 440
+          },
+          "containerId": null,
+          "description": "定义工具调用返回内容。",
+          "configVersion": 1
+        }
+      ]
+    },
+    "editor": {
+      "viewport": {
+        "x": 15.632708564705808,
+        "y": -2.5187702706513164,
+        "zoom": 1.0000000000000009
+      },
+      "annotations": [],
+      "activeContainerPath": []
+    },
+    "schemaVersion": "1flowbase.flow/v2"
+  },
+  "dependencies": [
+    {
+      "kind": "builtin_node",
+      "node_id": "node-start",
+      "node_type": "start",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "deepseek",
+      "model_id": "deepseek-v4-flash",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-answer",
+      "node_type": "answer",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-1",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-1",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "anthropic",
+      "model_id": "mimo-v2.5",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-tool-result-1",
+      "node_type": "tool_result",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    }
+  ]
+}

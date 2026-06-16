@@ -1,0 +1,46 @@
+name: agent-flow-catalog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */2 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - 'agent-flow/workflows/**'
+      - 'scripts/update-agent-flow-catalog.mjs'
+      - '.github/workflows/agent-flow-catalog.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-agent-flow-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout official plugins repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Update AgentFlow catalog
+        run: node scripts/update-agent-flow-catalog.mjs
+
+      - name: Commit generated catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add agent-flow/catalog agent-flow/_maintenance
+          if git diff --cached --quiet -- agent-flow/catalog agent-flow/_maintenance; then
+            echo "AgentFlow catalog is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update official agent-flow catalog"
+          git push
