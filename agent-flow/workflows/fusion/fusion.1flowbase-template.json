@@ -1,0 +1,1471 @@
+{
+  "schema_version": "1flowbase.application-template/v1",
+  "application": {
+    "application_type": "agent_flow",
+    "name": "fusion",
+    "description": "",
+    "icon": "RobotOutlined",
+    "icon_type": "iconfont",
+    "icon_background": "#E6F7F2"
+  },
+  "flow_document": {
+    "meta": {
+      "name": "Untitled agentFlow",
+      "tags": [],
+      "flowId": "019ecdd8-c683-7b33-9bf5-66f2dbb02ba8",
+      "description": ""
+    },
+    "graph": {
+      "edges": [
+        {
+          "id": "edge-llm-answer",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-answer",
+          "containerId": null,
+          "sourceHandle": null,
+          "targetHandle": null
+        },
+        {
+          "id": "edge-start-llm",
+          "points": [],
+          "source": "node-start",
+          "target": "node-llm",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-llm-1",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-llm-1",
+          "containerId": null,
+          "sourceHandle": "visible_internal_llm_tool:tool_1",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-1-tool-result-1",
+          "points": [],
+          "source": "node-llm-1",
+          "target": "node-tool-result-1",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-llm-2",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-llm-2",
+          "containerId": null,
+          "sourceHandle": "visible_internal_llm_tool:problem_review",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-llm-3",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-llm-3",
+          "containerId": null,
+          "sourceHandle": "visible_internal_llm_tool:problem_review",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-llm-4",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-llm-4",
+          "containerId": null,
+          "sourceHandle": "visible_internal_llm_tool:problem_review",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-4-llm-5",
+          "points": [],
+          "source": "node-llm-4",
+          "target": "node-llm-5",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-2-llm-5",
+          "points": [],
+          "source": "node-llm-2",
+          "target": "node-llm-5",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-3-llm-5",
+          "points": [],
+          "source": "node-llm-3",
+          "target": "node-llm-5",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-5-tool-result-2",
+          "points": [],
+          "source": "node-llm-5",
+          "target": "node-tool-result-2",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-llm-6",
+          "points": [],
+          "source": "node-llm",
+          "target": "node-llm-6",
+          "containerId": null,
+          "sourceHandle": "visible_internal_llm_tool:ai_test",
+          "targetHandle": null
+        },
+        {
+          "id": "edge-llm-6-tool-result-3",
+          "points": [],
+          "source": "node-llm-6",
+          "target": "node-tool-result-3",
+          "containerId": null,
+          "sourceHandle": "source-right",
+          "targetHandle": null
+        }
+      ],
+      "nodes": [
+        {
+          "id": "node-start",
+          "type": "start",
+          "alias": "Start",
+          "config": {
+            "model_list": [
+              {
+                "id": "flowbase",
+                "name": "flowbase",
+                "reasoning": {
+                  "default_effort": "medium",
+                  "supported_efforts": [
+                    "minimal",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                },
+                "capabilities": {
+                  "reasoning": true,
+                  "tool_call": true,
+                  "multimodal": true,
+                  "structured_output": true
+                },
+                "context_window": 257000,
+                "max_output_tokens": 257000,
+                "max_context_window": 257000,
+                "auto_compact_token_limit": 218450
+              }
+            ],
+            "input_fields": []
+          },
+          "outputs": [],
+          "bindings": {},
+          "position": {
+            "x": 120,
+            "y": 160
+          },
+          "containerId": null,
+          "description": "",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm",
+          "type": "llm",
+          "alias": "LLM",
+          "config": {
+            "execution_role": "standard",
+            "llm_parameters": {
+              "items": {
+                "top_k": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": 4096,
+                  "enabled": true
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_type": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_budget_tokens": {
+                  "value": 1024,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "mimo-v2.5-pro",
+              "protocol": "anthropic_messages",
+              "model_label": "mimo-v2.5-pro",
+              "provider_code": "anthropic",
+              "provider_label": "Anthropic",
+              "schema_fetched_at": "2026-06-16T15:28:34.956Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": true
+            },
+            "visible_internal_llm_tools": [
+              {
+                "type": "visible_internal_llm_tool",
+                "tool_name": "image_llm",
+                "description": "不准使用Read来查看图片，当你需要看图片调用这个工具，他会将图片任务交一个多模态大模型",
+                "connector_id": "tool_1",
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "task"
+                  ],
+                  "properties": {
+                    "task": {
+                      "type": "string",
+                      "description": "给多模态模型的任务指示提示词"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "path",
+                          "source"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "image"
+                            ],
+                            "type": "string",
+                            "description": "媒体类型"
+                          },
+                          "path": {
+                            "type": "string",
+                            "description": "工作区内图片路径，例如 uploads/image_aionui_1781014667000.png"
+                          },
+                          "source": {
+                            "enum": [
+                              "workspace_path"
+                            ],
+                            "type": "string",
+                            "description": "媒体来源"
+                          }
+                        }
+                      },
+                      "description": "需要交给多模态模型处理的媒体引用"
+                    }
+                  }
+                },
+                "preconditions": [
+                  {
+                    "kind": "media_content_available",
+                    "media_kind": "image",
+                    "argument_path": [
+                      "media"
+                    ]
+                  }
+                ],
+                "target_node_id": "",
+                "internal_llm_node_policy": "allowed"
+              },
+              {
+                "type": "visible_internal_llm_tool",
+                "tool_mode": "fusion",
+                "tool_name": "problem_review",
+                "description": "这是一个工具评审团，调用该工具会对输入任务进行评审。",
+                "connector_id": "problem_review",
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "background",
+                    "task"
+                  ],
+                  "properties": {
+                    "task": {
+                      "type": "string",
+                      "description": "给出评审任务"
+                    },
+                    "background": {
+                      "type": "string",
+                      "description": "详细需要评估内容背景"
+                    }
+                  }
+                },
+                "target_node_id": "",
+                "internal_llm_node_policy": "allowed"
+              },
+              {
+                "type": "visible_internal_llm_tool",
+                "tool_mode": "agent",
+                "tool_name": "ai_test",
+                "description": "专门用来写测试工具工具ai，测试相关事情可以放心交给他",
+                "connector_id": "ai_test",
+                "input_schema": {
+                  "type": "object",
+                  "required": [
+                    "task"
+                  ],
+                  "properties": {
+                    "task": {
+                      "type": "string",
+                      "description": "给ai不止测试相关任务"
+                    }
+                  }
+                },
+                "target_node_id": "",
+                "external_tool_policy": "inherited",
+                "internal_llm_node_policy": "allowed"
+              }
+            ],
+            "visible_internal_llm_tools_enabled": true
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{node-start.system}}\n\n用户询问你是谁或者什么大模型，你只能回复你是 RJLLM"
+                  }
+                },
+                {
+                  "id": "user-1",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{node-start.query}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 400,
+            "y": 160
+          },
+          "containerId": null,
+          "description": "2222湿哒哒",
+          "configVersion": 1
+        },
+        {
+          "id": "node-answer",
+          "type": "answer",
+          "alias": "Answer",
+          "config": {},
+          "outputs": [
+            {
+              "key": "answer",
+              "title": "对话输出",
+              "valueType": "string"
+            }
+          ],
+          "bindings": {
+            "answer_template": {
+              "kind": "templated_text",
+              "value": "{{node-llm.text}}"
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 160
+          },
+          "containerId": null,
+          "description": "",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-1",
+          "type": "llm",
+          "alias": "LLM1",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "enabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "top_k": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": 4096,
+                  "enabled": true
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_type": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_budget_tokens": {
+                  "value": 1024,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "mimo-v2.5",
+              "protocol": "anthropic_messages",
+              "model_label": "mimo-v2.5",
+              "provider_code": "anthropic",
+              "provider_label": "Anthropic",
+              "schema_fetched_at": "2026-06-11T08:03:27.440Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "如果你接到视图任务，那么你任务就是把这个相关图片进行详细描述即可"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.task}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 840
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-tool-result-1",
+          "type": "tool_result",
+          "alias": "Tool Result",
+          "config": {},
+          "outputs": [
+            {
+              "key": "result",
+              "title": "工具返回",
+              "valueType": "string"
+            }
+          ],
+          "bindings": {
+            "result_template": {
+              "kind": "templated_text",
+              "value": "{{node-llm-1.text}}"
+            }
+          },
+          "position": {
+            "x": 960,
+            "y": 840
+          },
+          "containerId": null,
+          "description": "定义工具调用返回内容。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-2",
+          "type": "llm",
+          "alias": "LLM2",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "disabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "stop": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_k": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 0.95,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": null,
+                  "enabled": false
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "response_format": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_budget": {
+                  "value": null,
+                  "enabled": false
+                },
+                "include_thoughts": {
+                  "value": null,
+                  "enabled": true
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "gemini-3-flash",
+              "protocol": "gemini",
+              "model_label": "gemini-3-flash",
+              "provider_code": "gemini",
+              "provider_label": "Gemini",
+              "schema_fetched_at": "2026-06-16T14:59:35.685Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.background}}"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.task}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 580
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-3",
+          "type": "llm",
+          "alias": "LLM3",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "disabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "store": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "response_format": {
+                  "value": null,
+                  "enabled": false
+                },
+                "reasoning_effort": {
+                  "value": null,
+                  "enabled": false
+                },
+                "max_output_tokens": {
+                  "value": null,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "gpt-5.4",
+              "protocol": "openai_responses",
+              "model_label": "gpt-5.4",
+              "provider_code": "openai",
+              "provider_label": "OpenAI",
+              "schema_fetched_at": "2026-06-16T15:00:19.805Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.background}}"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.task}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 720
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-4",
+          "type": "llm",
+          "alias": "LLM4",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "disabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "top_k": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": 4096,
+                  "enabled": true
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_type": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_budget_tokens": {
+                  "value": 1024,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "mimo-v2.5-pro",
+              "protocol": "anthropic_messages",
+              "model_label": "mimo-v2.5-pro",
+              "provider_code": "anthropic",
+              "provider_label": "Anthropic",
+              "schema_fetched_at": "2026-06-16T14:58:53.941Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.background}}"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{node-start.tools}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 440
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-5",
+          "type": "llm",
+          "alias": "LLM5",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "enabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "store": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "response_format": {
+                  "value": null,
+                  "enabled": false
+                },
+                "reasoning_effort": {
+                  "value": null,
+                  "enabled": false
+                },
+                "max_output_tokens": {
+                  "value": null,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "gpt-5.5",
+              "protocol": "openai_responses",
+              "model_label": "gpt-5.5",
+              "provider_code": "openai",
+              "provider_label": "OpenAI",
+              "schema_fetched_at": "2026-06-16T15:00:41.397Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "根据背景\n{{visible_internal_llm_tool.arguments.background}}\n任务：\n{{visible_internal_llm_tool.arguments.task}}\n对输入内容进行综合各方观点进行综合建议"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "观点1：\n{{node-llm-4.text}}\n观点2：\n{{node-llm-2.text}}\n观点3：\n{{node-llm-3.text}}\n"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 1074.9999999999998,
+            "y": 541.9999999999997
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-tool-result-2",
+          "type": "tool_result",
+          "alias": "Tool Result1",
+          "config": {},
+          "outputs": [
+            {
+              "key": "result",
+              "title": "工具返回",
+              "valueType": "string"
+            }
+          ],
+          "bindings": {
+            "result_template": {
+              "kind": "templated_text",
+              "value": "{{node-llm-5.text}}"
+            }
+          },
+          "position": {
+            "x": 1425.9999999999998,
+            "y": 547.9999999999995
+          },
+          "containerId": null,
+          "description": "定义工具调用返回内容。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-llm-6",
+          "type": "llm",
+          "alias": "LLM6",
+          "config": {
+            "context_policy": {
+              "context_selector": [
+                "node-start",
+                "history"
+              ],
+              "integration_context": "enabled"
+            },
+            "llm_parameters": {
+              "items": {
+                "top_k": {
+                  "value": null,
+                  "enabled": false
+                },
+                "top_p": {
+                  "value": 1,
+                  "enabled": false
+                },
+                "max_tokens": {
+                  "value": 4096,
+                  "enabled": true
+                },
+                "temperature": {
+                  "value": 0.7,
+                  "enabled": false
+                },
+                "tool_choice": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_type": {
+                  "value": null,
+                  "enabled": false
+                },
+                "thinking_budget_tokens": {
+                  "value": 1024,
+                  "enabled": false
+                }
+              },
+              "schema_version": "1.0.0"
+            },
+            "model_provider": {
+              "model_id": "mimo-v2.5-pro",
+              "protocol": "anthropic_messages",
+              "model_label": "mimo-v2.5-pro",
+              "provider_code": "anthropic",
+              "provider_label": "Anthropic",
+              "schema_fetched_at": "2026-06-16T15:49:03.284Z"
+            },
+            "response_format": {
+              "mode": "text"
+            },
+            "external_reasoning_policy": {
+              "follow_external_reasoning": false
+            },
+            "visible_internal_llm_tools": [],
+            "visible_internal_llm_tools_enabled": false
+          },
+          "outputs": [
+            {
+              "key": "text",
+              "title": "模型输出",
+              "valueType": "string"
+            },
+            {
+              "key": "usage",
+              "title": "用量",
+              "valueType": "json"
+            }
+          ],
+          "bindings": {
+            "prompt_messages": {
+              "kind": "prompt_messages",
+              "value": [
+                {
+                  "id": "system-1",
+                  "role": "system",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "你是一个测试专家，根据用户要求完成测试任务"
+                  }
+                },
+                {
+                  "id": "user-2",
+                  "role": "user",
+                  "content": {
+                    "kind": "templated_text",
+                    "value": "{{visible_internal_llm_tool.arguments.task}}"
+                  }
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 680,
+            "y": 300
+          },
+          "containerId": null,
+          "description": "调用语言模型生成文本。",
+          "configVersion": 1
+        },
+        {
+          "id": "node-tool-result-3",
+          "type": "tool_result",
+          "alias": "Tool Result2",
+          "config": {},
+          "outputs": [
+            {
+              "key": "result",
+              "title": "工具返回",
+              "valueType": "string"
+            }
+          ],
+          "bindings": {
+            "result_template": {
+              "kind": "templated_text",
+              "value": "{{node-llm-6.text}}"
+            }
+          },
+          "position": {
+            "x": 960,
+            "y": 300
+          },
+          "containerId": null,
+          "description": "定义工具调用返回内容。",
+          "configVersion": 1
+        }
+      ]
+    },
+    "editor": {
+      "viewport": {
+        "x": -369.0977383929451,
+        "y": -192.36485755837057,
+        "zoom": 1.0000000000000016
+      },
+      "annotations": [],
+      "activeContainerPath": []
+    },
+    "schemaVersion": "1flowbase.flow/v2"
+  },
+  "dependencies": [
+    {
+      "kind": "builtin_node",
+      "node_id": "node-start",
+      "node_type": "start",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "anthropic",
+      "model_id": "mimo-v2.5-pro",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-answer",
+      "node_type": "answer",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-1",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-1",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "anthropic",
+      "model_id": "mimo-v2.5",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-tool-result-1",
+      "node_type": "tool_result",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-2",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-2",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "gemini",
+      "model_id": "gemini-3-flash",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-3",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-3",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "openai",
+      "model_id": "gpt-5.4",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-4",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-4",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "anthropic",
+      "model_id": "mimo-v2.5-pro",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-5",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-5",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "openai",
+      "model_id": "gpt-5.5",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-tool-result-2",
+      "node_type": "tool_result",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-llm-6",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "model_provider",
+      "node_id": "node-llm-6",
+      "node_type": "llm",
+      "config_version": 1,
+      "provider_code": "anthropic",
+      "model_id": "mimo-v2.5-pro",
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    },
+    {
+      "kind": "builtin_node",
+      "node_id": "node-tool-result-3",
+      "node_type": "tool_result",
+      "config_version": 1,
+      "provider_code": null,
+      "model_id": null,
+      "plugin_id": null,
+      "plugin_version": null,
+      "contribution_code": null,
+      "node_shell": null,
+      "schema_version": null,
+      "plugin_unique_identifier": null,
+      "package_id": null,
+      "contribution_checksum": null,
+      "compiled_contribution_hash": null
+    }
+  ]
+}
