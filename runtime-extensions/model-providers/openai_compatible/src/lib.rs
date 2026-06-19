@@ -169,8 +169,20 @@ pub struct ProviderInvocationInput {
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClientProtocolEnvelope {
+    #[serde(default)]
+    pub source_protocol: String,
+    #[serde(default)]
+    pub policy: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -356,7 +368,11 @@ fn parse_default_headers(value: Option<&Value>) -> Result<BTreeMap<String, Strin
     }
 }
 
-fn build_headers(config: &ProviderConfig, include_json_body: bool) -> Result<HeaderMap> {
+fn build_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     if include_json_body {
@@ -386,7 +402,15 @@ fn build_headers(config: &ProviderConfig, include_json_body: bool) -> Result<Hea
             HeaderValue::from_str(project).context("invalid project header")?,
         );
     }
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
     Ok(headers)
+}
+
+fn apply_default_client_protocol_policy(
+    _headers: &mut HeaderMap,
+    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) {
+    // Default provider policy is deny-all; providers add explicit allowlists when needed.
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -406,7 +430,7 @@ async fn request_json(
     method: Method,
     body: Option<Value>,
 ) -> Result<Value> {
-    let response = send_provider_request(config, pathname, method, body).await?;
+    let response = send_provider_request(config, pathname, method, body, None).await?;
     let status = response.status();
     let payload = read_json_response(response).await?;
     ensure_success_status(status, &payload)?;
@@ -419,11 +443,16 @@ async fn send_provider_request(
     pathname: &str,
     method: Method,
     body: Option<Value>,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<reqwest::Response> {
     let client = reqwest::Client::new();
     let mut request = client
         .request(method.clone(), build_url(config, pathname)?)
-        .headers(build_headers(config, body.is_some())?);
+        .headers(build_headers(
+            config,
+            body.is_some(),
+            client_protocol_envelope,
+        )?);
     if let Some(body) = body {
         request = request.json(&body);
     }
@@ -662,6 +691,7 @@ where
         "/chat/completions",
         Method::POST,
         Some(Value::Object(body)),
+        input.client_protocol_envelope.as_ref(),
     )
     .await?;
     read_streaming_chat_completion(response, input.model, &mut on_event).await
@@ -1187,6 +1217,47 @@ mod tests {
         stream
             .write_all(b"\r\n")
             .expect("chunk trailer should be writable");
+    }
+
+    #[test]
+    fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gpt-compatible",
+            "client_protocol_envelope": {
+                "source_protocol": "openai_chat",
+                "policy": "default_deny",
+                "headers": {
+                    "authorization": "Bearer client-secret",
+                    "x-api-key": "client-api-key",
+                    "x-client-name": "ClaudeCode",
+                    "connection": "keep-alive"
+                }
+            }
+        }))
+        .unwrap();
+
+        assert!(input.client_protocol_envelope.is_some());
+        assert!(!input.extra.contains_key("client_protocol_envelope"));
+
+        let config = normalize_provider_config(&json!({
+            "base_url": "https://compatible.example/v1",
+            "api_key": "provider-secret",
+            "default_headers": {
+                "x-provider-default": "kept"
+            }
+        }))
+        .unwrap();
+        let headers =
+            build_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+
+        assert_eq!(
+            headers.get(AUTHORIZATION).unwrap(),
+            "Bearer provider-secret"
+        );
+        assert_eq!(headers.get("x-provider-default").unwrap(), "kept");
+        assert!(headers.get("x-api-key").is_none());
+        assert!(headers.get("x-client-name").is_none());
+        assert!(headers.get("connection").is_none());
     }
 
     #[test]

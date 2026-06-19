@@ -169,8 +169,20 @@ pub struct ProviderInvocationInput {
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClientProtocolEnvelope {
+    #[serde(default)]
+    pub source_protocol: String,
+    #[serde(default)]
+    pub policy: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -401,7 +413,10 @@ fn normalize_balance_payload(payload: &Value) -> Result<ProviderBalanceResult> {
     serde_json::from_value(payload.clone()).with_context(|| "provider returned invalid balance")
 }
 
-fn build_headers(config: &ProviderConfig) -> Result<HeaderMap> {
+fn build_headers(
+    config: &ProviderConfig,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -410,7 +425,15 @@ fn build_headers(config: &ProviderConfig) -> Result<HeaderMap> {
         HeaderValue::from_str(&format!("Bearer {}", config.api_key))
             .context("invalid api_key for authorization header")?,
     );
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
     Ok(headers)
+}
+
+fn apply_default_client_protocol_policy(
+    _headers: &mut HeaderMap,
+    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) {
+    // Default provider policy is deny-all; providers add explicit allowlists when needed.
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -424,7 +447,7 @@ async fn request_json(config: &ProviderConfig, pathname: &str, method: Method) -
     let client = reqwest::Client::new();
     let response = client
         .request(method, build_url(config, pathname)?)
-        .headers(build_headers(config)?)
+        .headers(build_headers(config, None)?)
         .send()
         .await
         .map_err(|error| sanitize_error(error, &config.api_key))?;
@@ -469,7 +492,10 @@ where
             Method::POST,
             build_url(&config, "/chat/completions").context("invalid chat completions endpoint")?,
         )
-        .headers(build_headers(&config)?)
+        .headers(build_headers(
+            &config,
+            input.client_protocol_envelope.as_ref(),
+        )?)
         .json(&body)
         .send()
         .await
@@ -1224,9 +1250,44 @@ mod tests {
             "https://api.deepseek.com/user/balance"
         );
 
-        let headers = build_headers(&config).unwrap();
+        let headers = build_headers(&config, None).unwrap();
         assert_eq!(headers.get(ACCEPT).unwrap(), "application/json");
         assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer secret");
+    }
+
+    #[test]
+    fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "deepseek-chat",
+            "client_protocol_envelope": {
+                "source_protocol": "openai_chat",
+                "policy": "default_deny",
+                "headers": {
+                    "authorization": "Bearer client-secret",
+                    "x-api-key": "client-api-key",
+                    "x-client-name": "ClaudeCode",
+                    "transfer-encoding": "chunked"
+                }
+            }
+        }))
+        .unwrap();
+
+        assert!(input.client_protocol_envelope.is_some());
+        assert!(!input.extra.contains_key("client_protocol_envelope"));
+
+        let config = normalize_provider_config(&json!({
+            "api_key": "provider-secret",
+        }))
+        .unwrap();
+        let headers = build_headers(&config, input.client_protocol_envelope.as_ref()).unwrap();
+
+        assert_eq!(
+            headers.get(AUTHORIZATION).unwrap(),
+            "Bearer provider-secret"
+        );
+        assert!(headers.get("x-api-key").is_none());
+        assert!(headers.get("x-client-name").is_none());
+        assert!(headers.get("transfer-encoding").is_none());
     }
 
     #[tokio::test]

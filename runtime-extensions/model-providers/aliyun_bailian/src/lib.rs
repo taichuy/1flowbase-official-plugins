@@ -203,8 +203,20 @@ pub struct ProviderInvocationInput {
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClientProtocolEnvelope {
+    #[serde(default)]
+    pub source_protocol: String,
+    #[serde(default)]
+    pub policy: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -480,6 +492,7 @@ fn build_headers(
     protocol: BailianProtocol,
     include_json_body: bool,
     stream: bool,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -514,7 +527,15 @@ fn build_headers(
             HeaderValue::from_static("enable"),
         );
     }
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
     Ok(headers)
+}
+
+fn apply_default_client_protocol_policy(
+    _headers: &mut HeaderMap,
+    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) {
+    // Default provider policy is deny-all; providers add explicit allowlists when needed.
 }
 
 async fn request_json(
@@ -528,7 +549,13 @@ async fn request_json(
     let client = reqwest::Client::new();
     let mut request = client
         .request(method, build_url(config, protocol, pathname)?)
-        .headers(build_headers(config, protocol, body.is_some(), stream)?);
+        .headers(build_headers(
+            config,
+            protocol,
+            body.is_some(),
+            stream,
+            None,
+        )?);
     if let Some(body) = body {
         request = request.json(&body);
     }
@@ -606,6 +633,7 @@ where
             BailianProtocol::OpenAiChat,
             true,
             true,
+            input.client_protocol_envelope.as_ref(),
         )?)
         .json(&Value::Object(body))
         .send()
@@ -771,6 +799,7 @@ where
             BailianProtocol::OpenAiResponses,
             true,
             true,
+            input.client_protocol_envelope.as_ref(),
         )?)
         .json(&body)
         .send()
@@ -978,6 +1007,7 @@ where
             BailianProtocol::AnthropicMessages,
             true,
             true,
+            input.client_protocol_envelope.as_ref(),
         )?)
         .json(&body)
         .send()
@@ -1180,6 +1210,7 @@ where
             BailianProtocol::DashScope,
             true,
             true,
+            input.client_protocol_envelope.as_ref(),
         )?)
         .json(&body)
         .send()

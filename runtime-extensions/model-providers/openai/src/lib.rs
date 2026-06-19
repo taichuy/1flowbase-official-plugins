@@ -186,8 +186,20 @@ pub struct ProviderInvocationInput {
     pub trace_context: BTreeMap<String, String>,
     #[serde(default)]
     pub run_context: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClientProtocolEnvelope {
+    #[serde(default)]
+    pub source_protocol: String,
+    #[serde(default)]
+    pub policy: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -563,18 +575,31 @@ fn value_to_string(value: &Value) -> String {
     }
 }
 
-fn build_json_headers(config: &ProviderConfig, include_json_body: bool) -> Result<HeaderMap> {
-    build_headers(config, include_json_body, "application/json")
+fn build_json_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
+    build_headers(
+        config,
+        include_json_body,
+        "application/json",
+        client_protocol_envelope,
+    )
 }
 
-fn build_stream_headers(config: &ProviderConfig) -> Result<HeaderMap> {
-    build_headers(config, true, "text/event-stream")
+fn build_stream_headers(
+    config: &ProviderConfig,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
+    build_headers(config, true, "text/event-stream", client_protocol_envelope)
 }
 
 fn build_headers(
     config: &ProviderConfig,
     include_json_body: bool,
     accept: &'static str,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static(accept));
@@ -598,7 +623,15 @@ fn build_headers(
             HeaderValue::from_str(project).context("invalid project header")?,
         );
     }
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
     Ok(headers)
+}
+
+fn apply_default_client_protocol_policy(
+    _headers: &mut HeaderMap,
+    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) {
+    // Default provider policy is deny-all; providers add explicit allowlists when needed.
 }
 
 fn build_http_client() -> Result<reqwest::Client> {
@@ -623,7 +656,7 @@ async fn request_json(
     let client = build_http_client()?;
     let mut request = client
         .request(method, build_url(config, pathname)?)
-        .headers(build_json_headers(config, body.is_some())?);
+        .headers(build_json_headers(config, body.is_some(), None)?);
     if let Some(body) = body {
         request = request.json(&body);
     }
@@ -693,7 +726,14 @@ impl OpenAiProviderRuntime {
         let body = build_responses_body(&input)?;
         match config.transport_mode {
             OpenAiTransportMode::HttpSse => {
-                invoke_response_http_sse(&config, body, input.model, &mut on_event).await
+                invoke_response_http_sse(
+                    &config,
+                    body,
+                    input.model.clone(),
+                    &mut on_event,
+                    input.client_protocol_envelope.as_ref(),
+                )
+                .await
             }
             OpenAiTransportMode::ResponsesWebsocket => {
                 let requires_websocket_cursor =
@@ -713,7 +753,14 @@ impl OpenAiProviderRuntime {
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {
-                        invoke_response_http_sse(&config, body, input.model, &mut on_event).await
+                        invoke_response_http_sse(
+                            &config,
+                            body,
+                            input.model.clone(),
+                            &mut on_event,
+                            input.client_protocol_envelope.as_ref(),
+                        )
+                        .await
                     }
                     Err(error) => Err(error.source),
                 }
@@ -736,7 +783,14 @@ impl OpenAiProviderRuntime {
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {
-                        invoke_response_http_sse(&config, body, input.model, &mut on_event).await
+                        invoke_response_http_sse(
+                            &config,
+                            body,
+                            input.model.clone(),
+                            &mut on_event,
+                            input.client_protocol_envelope.as_ref(),
+                        )
+                        .await
                     }
                     Err(error) => Err(error.source),
                 }
@@ -834,9 +888,13 @@ impl OpenAiProviderRuntime {
             let turn_state = responses_body_previous_response_id(&body)
                 .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
                 .map(String::as_str);
-            let session = connect_responses_websocket(config, turn_state)
-                .await
-                .map_err(WebsocketInvocationError::fallback_allowed)?;
+            let session = connect_responses_websocket(
+                config,
+                turn_state,
+                input.client_protocol_envelope.as_ref(),
+            )
+            .await
+            .map_err(WebsocketInvocationError::fallback_allowed)?;
             self.websocket_sessions.insert(session_key.clone(), session);
         }
 
@@ -935,13 +993,14 @@ async fn invoke_response_http_sse<F>(
     body: Value,
     request_model: String,
     on_event: &mut F,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let response = build_http_client()?
         .request(Method::POST, build_url(config, "/responses")?)
-        .headers(build_stream_headers(config)?)
+        .headers(build_stream_headers(config, client_protocol_envelope)?)
         .json(&body)
         .send()
         .await?;
@@ -1400,15 +1459,18 @@ impl WebsocketInvocationError {
 async fn connect_responses_websocket(
     config: &ProviderConfig,
     turn_state: Option<&str>,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<ResponsesWebsocketSession> {
     let url = build_websocket_url(config)?;
     let mut request = url
         .as_str()
         .into_client_request()
         .map_err(|error| anyhow!("failed to build websocket request: {error}"))?;
-    request
-        .headers_mut()
-        .extend(build_websocket_headers(config, turn_state)?);
+    request.headers_mut().extend(build_websocket_headers(
+        config,
+        turn_state,
+        client_protocol_envelope,
+    )?);
     let (stream, response) = connect_async(request)
         .await
         .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))?;
@@ -1438,8 +1500,12 @@ fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
     Ok(url)
 }
 
-fn build_websocket_headers(config: &ProviderConfig, turn_state: Option<&str>) -> Result<HeaderMap> {
-    let mut headers = build_headers(config, false, "application/json")?;
+fn build_websocket_headers(
+    config: &ProviderConfig,
+    turn_state: Option<&str>,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
+    let mut headers = build_headers(config, false, "application/json", client_protocol_envelope)?;
     if let Some(turn_state) = turn_state.filter(|value| !value.trim().is_empty()) {
         headers.insert(
             HeaderName::from_static(X_CODEX_TURN_STATE_HEADER),
@@ -3032,12 +3098,51 @@ mod tests {
             transport_mode: OpenAiTransportMode::Auto,
         };
 
-        let headers = build_stream_headers(&config).unwrap();
+        let headers = build_stream_headers(&config, None).unwrap();
 
         assert_eq!(
             headers.get(ACCEPT).and_then(|value| value.to_str().ok()),
             Some("text/event-stream")
         );
+    }
+
+    #[test]
+    fn client_protocol_envelope_uses_default_deny_policy_for_http_headers() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gpt-5.1",
+            "client_protocol_envelope": {
+                "source_protocol": "openai_responses",
+                "policy": "default_deny",
+                "headers": {
+                    "authorization": "Bearer client-secret",
+                    "x-api-key": "client-api-key",
+                    "openai-beta": "client-beta",
+                    "x-client-name": "ClaudeCode",
+                    "host": "evil.example"
+                }
+            }
+        }))
+        .unwrap();
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "sk-provider".to_string(),
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: OpenAiTransportMode::HttpSse,
+        };
+
+        assert!(input.client_protocol_envelope.is_some());
+        assert!(!input.extra.contains_key("client_protocol_envelope"));
+
+        let headers =
+            build_json_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+
+        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer sk-provider");
+        assert!(headers.get("x-api-key").is_none());
+        assert!(headers.get("openai-beta").is_none());
+        assert!(headers.get("x-client-name").is_none());
+        assert!(headers.get("host").is_none());
     }
 
     #[test]
@@ -3106,7 +3211,7 @@ mod tests {
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
         };
 
-        let headers = build_websocket_headers(&config, None).unwrap();
+        let headers = build_websocket_headers(&config, None, None).unwrap();
 
         assert_eq!(
             headers
@@ -3128,8 +3233,54 @@ mod tests {
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
         };
 
-        let headers = build_websocket_headers(&config, Some("sticky-turn-1")).unwrap();
+        let headers = build_websocket_headers(&config, Some("sticky-turn-1"), None).unwrap();
 
+        assert_eq!(
+            headers
+                .get(HeaderName::from_static(X_CODEX_TURN_STATE_HEADER))
+                .and_then(|value| value.to_str().ok()),
+            Some("sticky-turn-1")
+        );
+    }
+
+    #[test]
+    fn websocket_headers_keep_internal_beta_and_turn_state_over_client_envelope() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gpt-5.1",
+            "client_protocol_envelope": {
+                "source_protocol": "openai_responses",
+                "policy": "default_deny",
+                "headers": {
+                    "authorization": "Bearer client-secret",
+                    "openai-beta": "client-beta",
+                    "x-codex-turn-state": "client-turn-state"
+                }
+            }
+        }))
+        .unwrap();
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "sk-provider".to_string(),
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+        };
+
+        let headers = build_websocket_headers(
+            &config,
+            Some("sticky-turn-1"),
+            input.client_protocol_envelope.as_ref(),
+        )
+        .unwrap();
+
+        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer sk-provider");
+        assert_eq!(
+            headers
+                .get(HeaderName::from_static("openai-beta"))
+                .and_then(|value| value.to_str().ok()),
+            Some(RESPONSES_WEBSOCKETS_BETA)
+        );
         assert_eq!(
             headers
                 .get(HeaderName::from_static(X_CODEX_TURN_STATE_HEADER))

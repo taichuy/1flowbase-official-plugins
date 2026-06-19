@@ -158,8 +158,20 @@ pub struct ProviderInvocationInput {
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClientProtocolEnvelope {
+    #[serde(default)]
+    pub source_protocol: String,
+    #[serde(default)]
+    pub policy: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -472,7 +484,11 @@ fn number_or_none_ref(value: &Value) -> Option<u64> {
     }
 }
 
-fn build_headers(config: &ProviderConfig, include_json_body: bool) -> Result<HeaderMap> {
+fn build_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     if include_json_body {
@@ -496,7 +512,15 @@ fn build_headers(config: &ProviderConfig, include_json_body: bool) -> Result<Hea
         }
     }
 
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
     Ok(headers)
+}
+
+fn apply_default_client_protocol_policy(
+    _headers: &mut HeaderMap,
+    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) {
+    // Default provider policy is deny-all; providers add explicit allowlists when needed.
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -535,7 +559,7 @@ async fn request_json(
     let client = reqwest::Client::new();
     let mut request = client
         .request(method, build_url(config, pathname)?)
-        .headers(build_headers(config, body.is_some())?);
+        .headers(build_headers(config, body.is_some(), None)?);
     if let Some(body) = body {
         request = request.json(&body);
     }
@@ -619,7 +643,11 @@ where
             build_model_action_url(&config, &input.model, "streamGenerateContent", true)
                 .context("invalid streamGenerateContent endpoint")?,
         )
-        .headers(build_headers(&config, true)?)
+        .headers(build_headers(
+            &config,
+            true,
+            input.client_protocol_envelope.as_ref(),
+        )?)
         .json(&body)
         .send()
         .await
@@ -1997,6 +2025,40 @@ mod tests {
         });
 
         address
+    }
+
+    #[test]
+    fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gemini-2.5-flash",
+            "client_protocol_envelope": {
+                "source_protocol": "openai_chat",
+                "policy": "default_deny",
+                "headers": {
+                    "authorization": "Bearer client-secret",
+                    "x-goog-api-key": "client-api-key",
+                    "x-client-name": "ClaudeCode",
+                    "accept-encoding": "gzip"
+                }
+            }
+        }))
+        .unwrap();
+
+        assert!(input.client_protocol_envelope.is_some());
+        assert!(!input.extra.contains_key("client_protocol_envelope"));
+
+        let config = normalize_provider_config(&json!({
+            "api_key": "provider-secret",
+            "auth_type": "api_key"
+        }))
+        .unwrap();
+        let headers =
+            build_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+
+        assert_eq!(headers.get("x-goog-api-key").unwrap(), "provider-secret");
+        assert!(headers.get(AUTHORIZATION).is_none());
+        assert!(headers.get("x-client-name").is_none());
+        assert!(headers.get("accept-encoding").is_none());
     }
 
     #[test]

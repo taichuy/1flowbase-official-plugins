@@ -42,6 +42,54 @@ fn provider_config_defaults_to_openai_chat_protocol() {
 }
 
 #[test]
+fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
+    let input: ProviderInvocationInput = serde_json::from_value(json!({
+        "model": "qwen-plus",
+        "client_protocol_envelope": {
+            "source_protocol": "anthropic_messages",
+            "policy": "default_deny",
+            "headers": {
+                "authorization": "Bearer client-secret",
+                "x-api-key": "client-api-key",
+                "anthropic-version": "client-version",
+                "x-client-name": "ClaudeCode",
+                "content-length": "123"
+            }
+        }
+    }))
+    .unwrap();
+
+    assert!(input.client_protocol_envelope.is_some());
+    assert!(!input.extra.contains_key("client_protocol_envelope"));
+
+    let config = normalize_provider_config(&json!({
+        "api_key": "provider-secret",
+        "api_protocol": "anthropic_messages"
+    }))
+    .unwrap();
+    let headers = build_headers(
+        &config,
+        BailianProtocol::AnthropicMessages,
+        true,
+        true,
+        input.client_protocol_envelope.as_ref(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        headers.get(AUTHORIZATION).unwrap(),
+        "Bearer provider-secret"
+    );
+    assert_eq!(headers.get("x-api-key").unwrap(), "provider-secret");
+    assert_eq!(
+        headers.get("anthropic-version").unwrap(),
+        DEFAULT_ANTHROPIC_VERSION
+    );
+    assert!(headers.get("x-client-name").is_none());
+    assert!(headers.get("content-length").is_none());
+}
+
+#[test]
 fn chat_messages_map_native_tool_calls_to_openai_function_shape() {
     let mut assistant = provider_message("assistant", Value::Null);
     assistant.tool_calls = Some(json!([{
