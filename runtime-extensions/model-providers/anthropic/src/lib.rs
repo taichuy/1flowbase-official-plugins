@@ -16,6 +16,16 @@ const DEFAULT_MAX_TOKENS: u64 = 4096;
 const DEFAULT_THINKING_BUDGET_TOKENS: u64 = 1024;
 const PASSTHROUGH_MESSAGES_PARAMETERS: &[&str] =
     &["temperature", "top_p", "top_k", "max_tokens", "tool_choice"];
+const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
+    "anthropic-version",
+    "anthropic-beta",
+    "x-claude-code-session-id",
+    "anthropic-client-name",
+    "anthropic-client-version",
+    "x-client-name",
+    "x-client-version",
+    "user-agent",
+];
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProviderStdioRequest {
@@ -143,8 +153,20 @@ pub struct ProviderInvocationInput {
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClientProtocolEnvelope {
+    #[serde(default)]
+    pub source_protocol: String,
+    #[serde(default)]
+    pub policy: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -326,7 +348,10 @@ fn value_to_string(value: &Value) -> String {
     }
 }
 
-fn build_headers(config: &ProviderConfig) -> Result<HeaderMap> {
+fn build_headers(
+    config: &ProviderConfig,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -339,7 +364,34 @@ fn build_headers(config: &ProviderConfig) -> Result<HeaderMap> {
         HeaderValue::from_str(&config.anthropic_version)
             .context("invalid anthropic_version header")?,
     );
+    apply_client_protocol_headers(&mut headers, client_protocol_envelope)?;
     Ok(headers)
+}
+
+fn apply_client_protocol_headers(
+    headers: &mut HeaderMap,
+    envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = envelope else {
+        return Ok(());
+    };
+    if envelope.source_protocol != "anthropic_messages"
+        || envelope.policy != "anthropic_messages_v1"
+    {
+        return Ok(());
+    }
+    for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
+        let name = *name;
+        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
+            continue;
+        };
+        headers.insert(
+            HeaderName::from_static(name),
+            HeaderValue::from_str(value)
+                .with_context(|| format!("invalid client protocol header: {name}"))?,
+        );
+    }
+    Ok(())
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -364,7 +416,10 @@ where
     let body = build_messages_body(&input)?;
     let response = reqwest::Client::new()
         .request(Method::POST, build_url(&config, "/v1/messages")?)
-        .headers(build_headers(&config)?)
+        .headers(build_headers(
+            &config,
+            input.client_protocol_envelope.as_ref(),
+        )?)
         .json(&body)
         .send()
         .await?;
@@ -1131,6 +1186,37 @@ mod tests {
             body["messages"][0]["content"][0]["content"][0]["source"]["media_type"],
             "image/png"
         );
+    }
+
+    #[test]
+    fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "policy": "anthropic_messages_v1",
+                "headers": {
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-beta": "prompt-caching",
+                    "x-claude-code-session-id": "session-123",
+                    "user-agent": "ClaudeCode/1.0",
+                    "x-api-key": "client-auth-must-not-win"
+                }
+            }
+        }))
+        .unwrap();
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "provider-config-secret".to_string(),
+            anthropic_version: "config-version".to_string(),
+        };
+
+        let headers = build_headers(&config, input.client_protocol_envelope.as_ref()).unwrap();
+
+        assert_eq!(headers["x-api-key"], "provider-config-secret");
+        assert_eq!(headers["anthropic-version"], "2023-06-01");
+        assert_eq!(headers["anthropic-beta"], "prompt-caching");
+        assert_eq!(headers["x-claude-code-session-id"], "session-123");
+        assert_eq!(headers["user-agent"], "ClaudeCode/1.0");
     }
 
     #[test]
