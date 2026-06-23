@@ -64,10 +64,15 @@ fn start_two_response_server() -> (String, thread::JoinHandle<()>) {
     let handle = thread::spawn(move || {
         let (mut first_stream, _) = listener.accept().expect("first request should connect");
         read_http_request(&mut first_stream);
-        let error_body = r#"{"error":{"message":"upstream exploded"}}"#;
+        let error_body = concat!(
+            r#"{"error":{"message":"OpenAI codex passthrough requires a non-empty instructions field"}}"#,
+            "\n",
+            r#"data: {"type":"response.failed"}"#,
+            "\n\n"
+        );
         write!(
             first_stream,
-            "HTTP/1.1 500 Internal Server Error\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            "HTTP/1.1 400 Bad Request\r\ncontent-type: application/json; charset=utf-8\r\nx-request-id: req_mixed_body\r\nx-api-key: should-not-leak\r\nset-cookie: should-not-leak\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
             error_body.len(),
             error_body
         )
@@ -1402,11 +1407,33 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
 
     let error_line = next_json_line(&mut stdout);
     assert_eq!(error_line["type"], "error");
-    assert_eq!(error_line["error"]["kind"], "provider_invalid_response");
+    assert_eq!(error_line["error"]["kind"], "provider_upstream_error");
     assert!(error_line["error"]["message"]
         .as_str()
         .expect("error message should be a string")
-        .contains("upstream exploded"));
+        .contains("OpenAI codex passthrough requires a non-empty instructions field"));
+    assert_eq!(error_line["error"]["provider_details"]["status"], 400);
+    assert_eq!(
+        error_line["error"]["provider_details"]["content_type"],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(
+        error_line["error"]["provider_details"]["headers"]["x-request-id"],
+        "req_mixed_body"
+    );
+    assert!(error_line["error"]["provider_details"]["headers"]
+        .get("authorization")
+        .is_none());
+    assert!(error_line["error"]["provider_details"]["headers"]
+        .get("x-api-key")
+        .is_none());
+    assert!(error_line["error"]["provider_details"]["headers"]
+        .get("set-cookie")
+        .is_none());
+    assert!(error_line["error"]["provider_details"]["raw_body"]
+        .as_str()
+        .expect("raw_body should be a string")
+        .contains("data: {\"type\":\"response.failed\"}"));
 
     let result_line = next_json_line(&mut stdout);
     assert_eq!(result_line["type"], "result");

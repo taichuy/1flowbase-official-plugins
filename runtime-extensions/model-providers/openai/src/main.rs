@@ -28,7 +28,13 @@ async fn main() {
             .handle_request(request)
             .await
             .unwrap_or_else(|error| {
-                ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+                error
+                    .downcast_ref::<ProviderRuntimeError>()
+                    .cloned()
+                    .map(ProviderStdioResponse::runtime_error)
+                    .unwrap_or_else(|| {
+                        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+                    })
             });
         println!("{}", serde_json::to_string(&response).unwrap());
         io::stdout().flush().unwrap();
@@ -60,7 +66,12 @@ async fn run_streaming_invoke(runtime: &mut OpenAiProviderRuntime, request: Prov
             stdout.flush().unwrap();
         }
         Err(error) => {
-            let runtime_error = ProviderRuntimeError::normalize("invoke", error.to_string(), None);
+            let runtime_error = error
+                .downcast_ref::<ProviderRuntimeError>()
+                .cloned()
+                .unwrap_or_else(|| {
+                    ProviderRuntimeError::normalize("invoke", error.to_string(), None)
+                });
             writeln!(
                 stdout,
                 "{}",

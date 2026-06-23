@@ -1,5 +1,8 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::time::Duration;
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    fmt,
+    time::Duration,
+};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::{SinkExt, StreamExt};
@@ -49,6 +52,8 @@ pub struct ProviderStdioError {
     pub message: String,
     #[serde(default)]
     pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +82,24 @@ impl ProviderStdioResponse {
                 kind: kind.to_string(),
                 message: message.into(),
                 provider_summary: None,
+                provider_details: None,
+            }),
+        }
+    }
+
+    pub fn runtime_error(error: ProviderRuntimeError) -> Self {
+        let kind = serde_json::to_value(&error.kind)
+            .ok()
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| "provider_invalid_response".to_string());
+        Self {
+            ok: false,
+            result: Value::Null,
+            error: Some(ProviderStdioError {
+                kind,
+                message: error.message,
+                provider_summary: error.provider_summary,
+                provider_details: error.provider_details,
             }),
         }
     }
@@ -360,14 +383,18 @@ pub enum ProviderRuntimeErrorKind {
     EndpointUnreachable,
     ModelNotFound,
     RateLimited,
+    ProviderUpstreamError,
     ProviderInvalidResponse,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderRuntimeError {
     pub kind: ProviderRuntimeErrorKind,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
 }
 
 impl ProviderRuntimeError {
@@ -411,9 +438,21 @@ impl ProviderRuntimeError {
             kind,
             message,
             provider_summary: provider_summary.map(ToOwned::to_owned),
+            provider_details: None,
         }
     }
 }
+
+impl fmt::Display for ProviderRuntimeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.provider_summary {
+            Some(summary) => write!(formatter, "{:?}: {} ({summary})", self.kind, self.message),
+            None => write!(formatter, "{:?}: {}", self.kind, self.message),
+        }
+    }
+}
+
+impl std::error::Error for ProviderRuntimeError {}
 
 #[derive(Debug, Default)]
 pub struct OpenAiProviderRuntime {
@@ -662,29 +701,113 @@ async fn request_json(
     }
     let response = request.send().await?;
     let status = response.status();
-    let payload = read_json_response(response).await?;
-    ensure_success_status(status, &payload)?;
-    Ok(payload)
-}
-
-fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
     if !status.is_success() {
-        let message = payload
-            .get("error")
-            .and_then(|value| value.get("message"))
-            .and_then(Value::as_str)
-            .unwrap_or_else(|| payload.as_str().unwrap_or("provider request failed"));
-        bail!("{} {}: {}", status.as_u16(), status, message);
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
-    Ok(())
+    let text = response.text().await?;
+    parse_json_response_text(&text)
 }
 
-async fn read_json_response(response: reqwest::Response) -> Result<Value> {
-    let text = response.text().await?;
+fn parse_json_response_text(text: &str) -> Result<Value> {
     if text.trim().is_empty() {
         return Ok(json!({}));
     }
     serde_json::from_str(&text).with_context(|| "provider returned invalid JSON")
+}
+
+async fn provider_upstream_error_from_response(
+    response: reqwest::Response,
+) -> Result<ProviderRuntimeError> {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let raw_body = response.text().await?;
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
+    ))
+}
+
+fn provider_upstream_error_from_parts(
+    status: reqwest::StatusCode,
+    headers: &HeaderMap,
+    raw_body: String,
+) -> ProviderRuntimeError {
+    let content_type = headers
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let upstream_message = upstream_error_message(&raw_body);
+    let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    ProviderRuntimeError {
+        kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
+        message: message.clone(),
+        provider_summary: Some(message),
+        provider_details: Some(json!({
+            "status": status.as_u16(),
+            "content_type": content_type,
+            "headers": response_headers_payload(headers),
+            "raw_body": raw_body,
+        })),
+    }
+}
+
+fn upstream_error_message(raw_body: &str) -> String {
+    extract_upstream_error_message(raw_body)
+        .unwrap_or_else(|| "provider upstream request failed".to_string())
+}
+
+fn extract_upstream_error_message(raw_body: &str) -> Option<String> {
+    if let Ok(payload) = serde_json::from_str::<Value>(raw_body.trim()) {
+        if let Some(message) = upstream_error_message_from_json(&payload) {
+            return Some(message.to_string());
+        }
+    }
+
+    raw_body.lines().find_map(|line| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with('{') {
+            return None;
+        }
+        let payload = serde_json::from_str::<Value>(trimmed).ok()?;
+        upstream_error_message_from_json(&payload).map(ToOwned::to_owned)
+    })
+}
+
+fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
+    payload
+        .get("error")
+        .and_then(|value| value.get("message").or(Some(value)))
+        .and_then(Value::as_str)
+        .or_else(|| payload.get("message").and_then(Value::as_str))
+}
+
+fn response_headers_payload(headers: &HeaderMap) -> Value {
+    let mut payload = Map::new();
+    for (name, value) in headers {
+        let name = name.as_str().to_ascii_lowercase();
+        if sensitive_header_name(&name) {
+            continue;
+        }
+        if let Ok(value) = value.to_str() {
+            payload.insert(name, Value::String(value.to_string()));
+        }
+    }
+    Value::Object(payload)
+}
+
+fn sensitive_header_name(name: &str) -> bool {
+    matches!(
+        name,
+        "authorization"
+            | "proxy-authorization"
+            | "cookie"
+            | "set-cookie"
+            | "x-api-key"
+            | "api-key"
+            | "openai-api-key"
+    ) || name.ends_with("-api-key")
 }
 
 fn normalize_model_entries(raw: &Value) -> Result<Vec<ProviderModelDescriptor>> {
@@ -1857,9 +1980,9 @@ where
 {
     let status = response.status();
     if !status.is_success() {
-        let payload = read_json_response(response).await?;
-        ensure_success_status(status, &payload)?;
-        bail!("{} {}: provider request failed", status.as_u16(), status);
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
     let headers = response.headers().clone();
     let upstream_request_id = header_text(&headers, "x-request-id");
@@ -2458,6 +2581,47 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upstream_plain_text_body_stays_out_of_public_error_message() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        headers.insert(
+            HeaderName::from_static("x-request-id"),
+            HeaderValue::from_static("req_plain"),
+        );
+        headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer sk-secret"));
+        headers.insert(
+            HeaderName::from_static("set-cookie"),
+            HeaderValue::from_static("session=secret"),
+        );
+        let raw_body = "plain upstream failure body with request payload".to_string();
+
+        let error = provider_upstream_error_from_parts(
+            reqwest::StatusCode::BAD_REQUEST,
+            &headers,
+            raw_body.clone(),
+        );
+
+        assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+        assert!(error.message.contains("provider upstream request failed"));
+        assert!(!error.message.contains(&raw_body));
+        assert!(!error
+            .provider_summary
+            .as_deref()
+            .expect("provider_summary should exist")
+            .contains(&raw_body));
+        let details = error
+            .provider_details
+            .expect("upstream error should carry details");
+        assert_eq!(details["raw_body"], raw_body);
+        assert_eq!(details["headers"]["x-request-id"], "req_plain");
+        assert!(details["headers"].get("authorization").is_none());
+        assert!(details["headers"].get("set-cookie").is_none());
+    }
 
     #[test]
     fn responses_body_maps_native_tool_calls_and_tool_results() {
