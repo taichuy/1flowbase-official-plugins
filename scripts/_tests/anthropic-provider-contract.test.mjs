@@ -49,8 +49,17 @@ test('anthropic provider declares messages identity and runtime entry', () => {
   assert.match(provider, /^provider_code: anthropic$/m);
   assert.match(provider, /^protocol: anthropic_messages$/m);
   assert.match(provider, /^default_base_url: https:\/\/api\.anthropic\.com$/m);
+  assert.match(provider, /^model_discovery: hybrid$/m);
   assert.match(provider, /^help_url: https:\/\/docs\.anthropic\.com\/en\/api\/messages$/m);
   assert.doesNotMatch(provider, /deepseek|openai_compatible|chat_completions/);
+});
+
+test('anthropic provider supports hybrid model discovery configuration', () => {
+  const provider = read('provider/anthropic.yaml');
+
+  assert.match(provider, /^supports_model_fetch_without_credentials: false$/m);
+  assert.match(provider, /^- key: validate_model\n  type: boolean\n  required: false\n  advanced: true$/m);
+  assert.match(provider, /^- key: anthropic_version\n  type: string\n  required: false\n  default: "2023-06-01"\n  advanced: true$/m);
 });
 
 test('anthropic provider exposes messages parameters in order', () => {

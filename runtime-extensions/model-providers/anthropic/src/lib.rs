@@ -12,6 +12,7 @@ use serde_json::{json, Map, Value};
 const PROVIDER_CODE: &str = "anthropic";
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
 const DEFAULT_ANTHROPIC_VERSION: &str = "2023-06-01";
+const DEFAULT_VALIDATE_MODEL: bool = true;
 const DEFAULT_MAX_TOKENS: u64 = 4096;
 const DEFAULT_THINKING_BUDGET_TOKENS: u64 = 1024;
 const PASSTHROUGH_MESSAGES_PARAMETERS: &[&str] =
@@ -78,6 +79,7 @@ struct ProviderConfig {
     base_url: String,
     api_key: String,
     anthropic_version: String,
+    validate_model: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -231,19 +233,8 @@ pub struct RuntimeInvocationEnvelope {
 
 pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStdioResponse> {
     match request.method.as_str() {
-        "validate" => {
-            let config = normalize_provider_config(&request.input)?;
-            Ok(ProviderStdioResponse::ok(json!({
-                "ok": true,
-                "provider_code": PROVIDER_CODE,
-                "sanitized": {
-                    "base_url": config.base_url,
-                    "api_key": "***",
-                    "anthropic_version": config.anthropic_version,
-                }
-            })))
-        }
-        "list_models" => Ok(ProviderStdioResponse::ok(json!(static_models()))),
+        "validate" => validate_provider_config(&request.input).await,
+        "list_models" => list_models(&request.input).await,
         "invoke" => {
             let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
             let output = invoke_message(input).await?;
@@ -306,17 +297,81 @@ fn static_models() -> Vec<ProviderModelDescriptor> {
     ]
 }
 
+async fn validate_provider_config(input: &Value) -> Result<ProviderStdioResponse> {
+    let config = normalize_provider_config(input)?;
+    let mut model_count = 0;
+
+    if config.validate_model {
+        let models = fetch_dynamic_models(&config).await?;
+        model_count = models.len();
+
+        if let Some(model_id) = configured_model_id(input) {
+            let exists = models.iter().any(|model| model.model_id == model_id);
+            if !exists {
+                bail!("configured model was not found");
+            }
+        }
+    }
+
+    Ok(ProviderStdioResponse::ok(json!({
+        "ok": true,
+        "provider_code": PROVIDER_CODE,
+        "sanitized": {
+            "base_url": config.base_url,
+            "api_key": "***",
+            "anthropic_version": config.anthropic_version,
+            "validate_model": config.validate_model,
+        },
+        "model_count": model_count,
+    })))
+}
+
+async fn list_models(input: &Value) -> Result<ProviderStdioResponse> {
+    let config = normalize_provider_config(input)?;
+    if !config.validate_model {
+        return Ok(ProviderStdioResponse::ok(json!(static_models())));
+    }
+
+    let dynamic = fetch_dynamic_models(&config).await?;
+    let models = if dynamic.is_empty() {
+        static_models()
+    } else {
+        dynamic
+    };
+    Ok(ProviderStdioResponse::ok(json!(models)))
+}
+
 fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
-    let config = input
-        .as_object()
-        .ok_or_else(|| anyhow!("provider_config must be an object"))?;
+    let config = provider_config_object(input)?;
     Ok(ProviderConfig {
         base_url: optional_text(config.get("base_url"))
             .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),
         api_key: require_text(config.get("api_key"), "api_key")?,
         anthropic_version: optional_text(config.get("anthropic_version"))
             .unwrap_or_else(|| DEFAULT_ANTHROPIC_VERSION.to_string()),
+        validate_model: config
+            .get("validate_model")
+            .and_then(Value::as_bool)
+            .unwrap_or(DEFAULT_VALIDATE_MODEL),
     })
+}
+
+fn provider_config_object(input: &Value) -> Result<&Map<String, Value>> {
+    let object = input
+        .as_object()
+        .ok_or_else(|| anyhow!("provider_config must be an object"))?;
+    match object.get("provider_config") {
+        Some(Value::Object(provider_config)) => Ok(provider_config),
+        Some(_) => bail!("provider_config must be an object"),
+        None => Ok(object),
+    }
+}
+
+fn configured_model_id(input: &Value) -> Option<String> {
+    let object = input.as_object()?;
+    ["model", "model_id"]
+        .iter()
+        .find_map(|key| optional_text(object.get(*key)))
 }
 
 fn require_text(value: Option<&Value>, field: &str) -> Result<String> {
@@ -395,10 +450,133 @@ fn apply_client_protocol_headers(
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
+    build_url_with_query(config, pathname, &[])
+}
+
+fn build_url_with_query(
+    config: &ProviderConfig,
+    pathname: &str,
+    query: &[(&str, &str)],
+) -> Result<String> {
     let base_url = config.base_url.trim_end_matches('/');
-    Url::parse(&format!("{base_url}{pathname}"))
-        .with_context(|| format!("invalid base_url: {}", config.base_url))
-        .map(|value| value.to_string())
+    let mut url = Url::parse(&format!("{base_url}{pathname}"))
+        .with_context(|| format!("invalid base_url: {}", config.base_url))?;
+    if !query.is_empty() {
+        url.query_pairs_mut().extend_pairs(query.iter().copied());
+    }
+    Ok(url.to_string())
+}
+
+async fn fetch_dynamic_models(config: &ProviderConfig) -> Result<Vec<ProviderModelDescriptor>> {
+    let mut models = Vec::new();
+    let mut after_id: Option<String> = None;
+
+    loop {
+        let mut query = vec![("limit", "1000")];
+        if let Some(after_id) = after_id.as_deref() {
+            query.push(("after_id", after_id));
+        }
+        let payload = request_json_with_query(config, "/v1/models", Method::GET, &query).await?;
+        models.extend(normalize_model_entries(
+            payload.get("data").unwrap_or(&Value::Null),
+        )?);
+
+        if !payload
+            .get("has_more")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            break;
+        }
+
+        after_id = Some(
+            payload
+                .get("last_id")
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| anyhow!("model list response missing last_id for next page"))?
+                .to_string(),
+        );
+    }
+
+    Ok(models)
+}
+
+async fn request_json_with_query(
+    config: &ProviderConfig,
+    pathname: &str,
+    method: Method,
+    query: &[(&str, &str)],
+) -> Result<Value> {
+    let response = reqwest::Client::new()
+        .request(method, build_url_with_query(config, pathname, query)?)
+        .headers(build_headers(config, None)?)
+        .send()
+        .await?;
+    let status = response.status();
+    let payload = read_json_response(response).await?;
+    ensure_success_status(status, &payload)?;
+    Ok(payload)
+}
+
+fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
+    if !status.is_success() {
+        let message = payload
+            .get("error")
+            .and_then(|value| value.get("message"))
+            .and_then(Value::as_str)
+            .or_else(|| payload.as_str())
+            .unwrap_or("provider request failed");
+        bail!("{} {}: {}", status.as_u16(), status, message);
+    }
+    Ok(())
+}
+
+async fn read_json_response(response: reqwest::Response) -> Result<Value> {
+    let text = response.text().await?;
+    if text.trim().is_empty() {
+        return Ok(json!({}));
+    }
+    serde_json::from_str(&text).with_context(|| "provider returned invalid JSON")
+}
+
+fn normalize_model_entries(data: &Value) -> Result<Vec<ProviderModelDescriptor>> {
+    let Some(items) = data.as_array() else {
+        return Ok(Vec::new());
+    };
+    items.iter().map(normalize_model_entry).collect()
+}
+
+fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
+    let model_id = entry
+        .get("id")
+        .or_else(|| entry.get("model_id"))
+        .map(value_to_string)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if model_id.is_empty() {
+        bail!("model_id is required");
+    }
+
+    Ok(ProviderModelDescriptor {
+        model_id: model_id.clone(),
+        display_name: optional_text(entry.get("display_name"))
+            .or_else(|| optional_text(entry.get("displayName")))
+            .unwrap_or_else(|| model_id.clone()),
+        source: "dynamic".to_string(),
+        supports_streaming: true,
+        supports_tool_call: true,
+        supports_multimodal: true,
+        context_window: None,
+        max_output_tokens: None,
+        provider_metadata: json!({
+            "owned_by": "anthropic",
+            "type": entry.get("type").cloned().unwrap_or(Value::Null),
+            "created_at": entry.get("created_at").cloned().unwrap_or(Value::Null),
+            "pricing_source": "dynamic",
+        }),
+    })
 }
 
 async fn invoke_message(input: ProviderInvocationInput) -> Result<RuntimeInvocationEnvelope> {
@@ -1051,6 +1229,7 @@ mod tests {
     use std::{
         io::{Read, Write},
         net::TcpListener,
+        sync::mpsc,
         thread,
         time::Duration,
     };
@@ -1077,6 +1256,143 @@ mod tests {
         });
 
         address
+    }
+
+    fn start_json_server(response_body: &'static str) -> (String, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (sender, receiver) = mpsc::channel();
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut buffer = [0_u8; 4096];
+            let byte_count = stream
+                .read(&mut buffer)
+                .expect("request should be readable");
+            sender
+                .send(String::from_utf8_lossy(&buffer[..byte_count]).to_string())
+                .expect("request capture should send");
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("response should be writable");
+        });
+
+        (address, receiver)
+    }
+
+    fn start_json_sequence_server(
+        response_bodies: Vec<&'static str>,
+    ) -> (String, mpsc::Receiver<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (sender, receiver) = mpsc::channel();
+
+        thread::spawn(move || {
+            let mut requests = Vec::new();
+            for response_body in response_bodies {
+                let (mut stream, _) = listener.accept().expect("request should connect");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .expect("read timeout");
+                let mut buffer = [0_u8; 4096];
+                let byte_count = stream
+                    .read(&mut buffer)
+                    .expect("request should be readable");
+                requests.push(String::from_utf8_lossy(&buffer[..byte_count]).to_string());
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .expect("response should be writable");
+            }
+            sender.send(requests).expect("request captures should send");
+        });
+
+        (address, receiver)
+    }
+
+    #[test]
+    fn normalizes_anthropic_models_payload() {
+        let models = normalize_model_entries(&json!([
+            {
+                "type": "model",
+                "id": "claude-live-20260601",
+                "display_name": "Claude Live",
+                "created_at": "2026-06-01T00:00:00Z"
+            }
+        ]))
+        .unwrap();
+
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].model_id, "claude-live-20260601");
+        assert_eq!(models[0].display_name, "Claude Live");
+        assert_eq!(models[0].source, "dynamic");
+        assert_eq!(models[0].provider_metadata["owned_by"], "anthropic");
+        assert_eq!(
+            models[0].provider_metadata["created_at"],
+            "2026-06-01T00:00:00Z"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_models_fetches_anthropic_v1_models() {
+        let (base_url, request_receiver) = start_json_server(
+            r#"{"data":[{"type":"model","id":"claude-live-20260601","display_name":"Claude Live","created_at":"2026-06-01T00:00:00Z"}]}"#,
+        );
+
+        let response = list_models(&json!({
+            "base_url": base_url,
+            "api_key": "test-key",
+            "anthropic_version": "2023-06-01"
+        }))
+        .await
+        .unwrap();
+        let captured_request = request_receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("request should be captured");
+
+        assert!(response.ok);
+        assert_eq!(response.result[0]["model_id"], "claude-live-20260601");
+        assert!(captured_request.starts_with("GET /v1/models?limit=1000 HTTP/1.1"));
+        assert!(captured_request.contains("x-api-key: test-key"));
+        assert!(captured_request.contains("anthropic-version: 2023-06-01"));
+    }
+
+    #[tokio::test]
+    async fn list_models_follows_anthropic_pagination() {
+        let (base_url, request_receiver) = start_json_sequence_server(vec![
+            r#"{"data":[{"type":"model","id":"claude-page-1","display_name":"Claude Page 1"}],"has_more":true,"last_id":"claude-page-1"}"#,
+            r#"{"data":[{"type":"model","id":"claude-page-2","display_name":"Claude Page 2"}],"has_more":false}"#,
+        ]);
+
+        let response = list_models(&json!({
+            "base_url": base_url,
+            "api_key": "test-key",
+            "anthropic_version": "2023-06-01"
+        }))
+        .await
+        .unwrap();
+        let captured_requests = request_receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("requests should be captured");
+
+        assert_eq!(response.result.as_array().unwrap().len(), 2);
+        assert_eq!(response.result[0]["model_id"], "claude-page-1");
+        assert_eq!(response.result[1]["model_id"], "claude-page-2");
+        assert!(captured_requests[0].starts_with("GET /v1/models?limit=1000 HTTP/1.1"));
+        assert!(captured_requests[1]
+            .starts_with("GET /v1/models?limit=1000&after_id=claude-page-1 HTTP/1.1"));
     }
 
     #[test]
@@ -1208,6 +1524,7 @@ mod tests {
             base_url: DEFAULT_BASE_URL.to_string(),
             api_key: "provider-config-secret".to_string(),
             anthropic_version: "config-version".to_string(),
+            validate_model: true,
         };
 
         let headers = build_headers(&config, input.client_protocol_envelope.as_ref()).unwrap();

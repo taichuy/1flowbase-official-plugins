@@ -6,6 +6,7 @@ The runtime is packaged with plugin manifest v1 and invoked through the host `st
 
 It targets:
 
+- `GET /v1/models`
 - `POST /v1/messages`
 
 The plugin keeps the host boundary stable:
@@ -18,6 +19,7 @@ The plugin keeps the host boundary stable:
 
 - `base_url`
 - `api_key`
+- `validate_model`
 - `anthropic_version`
 
 The default base URL is `https://api.anthropic.com`, and the default Anthropic API version is `2023-06-01`.
@@ -36,9 +38,9 @@ The plugin declares Anthropic Messages request parameters in host-visible order:
 
 Native 1flowbase tool calls are converted inside the plugin to Anthropic `tool_use` content blocks, and native tool result messages are converted to `tool_result` content blocks.
 
-## Static Models
+## Model Discovery
 
-The bundled static catalog includes:
+The provider uses hybrid discovery. It can fetch the live Anthropic model catalog from `GET /v1/models`, and it also ships current default model descriptors for:
 
 - `claude-opus-4-1-20250805`
 - `claude-sonnet-4-20250514`
