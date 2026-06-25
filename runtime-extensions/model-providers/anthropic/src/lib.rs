@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
@@ -41,6 +41,8 @@ pub struct ProviderStdioError {
     pub message: String,
     #[serde(default)]
     pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +71,24 @@ impl ProviderStdioResponse {
                 kind: kind.to_string(),
                 message: message.into(),
                 provider_summary: None,
+                provider_details: None,
+            }),
+        }
+    }
+
+    pub fn runtime_error(error: ProviderRuntimeError) -> Self {
+        let kind = serde_json::to_value(&error.kind)
+            .ok()
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| "provider_invalid_response".to_string());
+        Self {
+            ok: false,
+            result: Value::Null,
+            error: Some(ProviderStdioError {
+                kind,
+                message: error.message,
+                provider_summary: error.provider_summary,
+                provider_details: error.provider_details,
             }),
         }
     }
@@ -195,6 +215,7 @@ pub enum ProviderFinishReason {
     Length,
     ToolCall,
     ContentFilter,
+    Error,
     Unknown,
 }
 
@@ -223,6 +244,7 @@ pub enum ProviderStreamEvent {
     ToolCallCommit { call: ProviderToolCall },
     UsageSnapshot { usage: ProviderUsage },
     Finish { reason: ProviderFinishReason },
+    Error { error: ProviderRuntimeError },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -230,6 +252,84 @@ pub struct RuntimeInvocationEnvelope {
     pub events: Vec<ProviderStreamEvent>,
     pub result: ProviderInvocationResult,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeErrorKind {
+    AuthFailed,
+    EndpointUnreachable,
+    ModelNotFound,
+    RateLimited,
+    ProviderUpstreamError,
+    ProviderInvalidResponse,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderRuntimeError {
+    pub kind: ProviderRuntimeErrorKind,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
+}
+
+impl ProviderRuntimeError {
+    pub fn normalize<M>(code: &str, message: M, provider_summary: Option<&str>) -> Self
+    where
+        M: Into<String>,
+    {
+        let message = message.into();
+        let haystack = format!("{code} {message}").to_ascii_lowercase();
+        let kind = if haystack.contains("auth")
+            || haystack.contains("api_key")
+            || haystack.contains("unauthorized")
+            || haystack.contains("forbidden")
+            || haystack.contains("401")
+        {
+            ProviderRuntimeErrorKind::AuthFailed
+        } else if haystack.contains("rate")
+            || haystack.contains("quota")
+            || haystack.contains("too_many")
+            || haystack.contains("429")
+        {
+            ProviderRuntimeErrorKind::RateLimited
+        } else if (haystack.contains("model") && haystack.contains("not found"))
+            || haystack.contains("unknown_model")
+            || haystack.contains("model_not_found")
+        {
+            ProviderRuntimeErrorKind::ModelNotFound
+        } else if haystack.contains("timeout")
+            || haystack.contains("connect")
+            || haystack.contains("unreachable")
+            || haystack.contains("refused")
+            || haystack.contains("dns")
+            || haystack.contains("503")
+        {
+            ProviderRuntimeErrorKind::EndpointUnreachable
+        } else {
+            ProviderRuntimeErrorKind::ProviderInvalidResponse
+        };
+
+        Self {
+            kind,
+            message,
+            provider_summary: provider_summary.map(ToOwned::to_owned),
+            provider_details: None,
+        }
+    }
+}
+
+impl fmt::Display for ProviderRuntimeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.provider_summary {
+            Some(summary) => write!(formatter, "{:?}: {} ({summary})", self.kind, self.message),
+            None => write!(formatter, "{:?}: {}", self.kind, self.message),
+        }
+    }
+}
+
+impl std::error::Error for ProviderRuntimeError {}
 
 pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStdioResponse> {
     match request.method.as_str() {
@@ -514,22 +614,13 @@ async fn request_json_with_query(
         .send()
         .await?;
     let status = response.status();
-    let payload = read_json_response(response).await?;
-    ensure_success_status(status, &payload)?;
-    Ok(payload)
-}
-
-fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
     if !status.is_success() {
-        let message = payload
-            .get("error")
-            .and_then(|value| value.get("message"))
-            .and_then(Value::as_str)
-            .or_else(|| payload.as_str())
-            .unwrap_or("provider request failed");
-        bail!("{} {}: {}", status.as_u16(), status, message);
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
-    Ok(())
+    let payload = read_json_response(response).await?;
+    Ok(payload)
 }
 
 async fn read_json_response(response: reqwest::Response) -> Result<Value> {
@@ -538,6 +629,120 @@ async fn read_json_response(response: reqwest::Response) -> Result<Value> {
         return Ok(json!({}));
     }
     serde_json::from_str(&text).with_context(|| "provider returned invalid JSON")
+}
+
+async fn provider_upstream_error_from_response(
+    response: reqwest::Response,
+) -> Result<ProviderRuntimeError> {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let raw_body = response.text().await?;
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
+    ))
+}
+
+fn provider_upstream_error_from_parts(
+    status: reqwest::StatusCode,
+    headers: &HeaderMap,
+    raw_body: String,
+) -> ProviderRuntimeError {
+    let content_type = headers
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let upstream_message = upstream_error_message(&raw_body);
+    let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    let mut provider_details = Map::new();
+    provider_details.insert("status".to_string(), json!(status.as_u16()));
+    provider_details.insert("content_type".to_string(), json!(content_type));
+    provider_details.insert("headers".to_string(), response_headers_payload(headers));
+    if let Some(request_id) = response_request_id(headers) {
+        provider_details.insert("request_id".to_string(), json!(request_id));
+    }
+    provider_details.insert("raw_body".to_string(), json!(raw_body));
+
+    ProviderRuntimeError {
+        kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
+        message: message.clone(),
+        provider_summary: Some(message),
+        provider_details: Some(Value::Object(provider_details)),
+    }
+}
+
+fn upstream_error_message(raw_body: &str) -> String {
+    extract_upstream_error_message(raw_body)
+        .unwrap_or_else(|| "provider upstream request failed".to_string())
+}
+
+fn extract_upstream_error_message(raw_body: &str) -> Option<String> {
+    if let Ok(payload) = serde_json::from_str::<Value>(raw_body.trim()) {
+        if let Some(message) = upstream_error_message_from_json(&payload) {
+            return Some(message.to_string());
+        }
+    }
+
+    raw_body.lines().find_map(|line| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with('{') {
+            return None;
+        }
+        let payload = serde_json::from_str::<Value>(trimmed).ok()?;
+        upstream_error_message_from_json(&payload).map(ToOwned::to_owned)
+    })
+}
+
+fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
+    payload
+        .get("error")
+        .and_then(|value| value.get("message").or(Some(value)))
+        .and_then(Value::as_str)
+        .or_else(|| payload.get("message").and_then(Value::as_str))
+}
+
+fn response_headers_payload(headers: &HeaderMap) -> Value {
+    let mut payload = Map::new();
+    for (name, value) in headers {
+        let name = name.as_str().to_ascii_lowercase();
+        if sensitive_header_name(&name) {
+            continue;
+        }
+        if let Ok(value) = value.to_str() {
+            payload.insert(name, Value::String(value.to_string()));
+        }
+    }
+    Value::Object(payload)
+}
+
+fn response_request_id(headers: &HeaderMap) -> Option<String> {
+    [
+        "x-request-id",
+        "request-id",
+        "anthropic-request-id",
+        "cf-ray",
+    ]
+    .iter()
+    .find_map(|name| {
+        headers
+            .get(*name)
+            .and_then(|value| value.to_str().ok())
+            .filter(|value| !value.trim().is_empty())
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn sensitive_header_name(name: &str) -> bool {
+    matches!(
+        name,
+        "authorization"
+            | "proxy-authorization"
+            | "cookie"
+            | "set-cookie"
+            | "x-api-key"
+            | "api-key"
+            | "anthropic-api-key"
+    ) || name.ends_with("-api-key")
 }
 
 fn normalize_model_entries(data: &Value) -> Result<Vec<ProviderModelDescriptor>> {
@@ -984,8 +1189,9 @@ where
 {
     let status = response.status();
     if !status.is_success() {
-        let payload = response.text().await.unwrap_or_default();
-        bail!("{} {}: {}", status.as_u16(), status, payload);
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
     let mut text = String::new();
     let mut events = Vec::new();
@@ -1247,6 +1453,34 @@ mod tests {
             let _ = stream.read(&mut buffer);
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                response_body.len(),
+                response_body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("response should be writable");
+        });
+
+        address
+    }
+
+    fn start_http_error_server(
+        status_line: &'static str,
+        content_type: &'static str,
+        response_body: &'static str,
+    ) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            let response = format!(
+                "{status_line}\r\ncontent-type: {content_type}\r\nx-request-id: req_stream\r\nx-api-key: response-secret\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
                 response_body.len(),
                 response_body
             );
@@ -1537,6 +1771,105 @@ mod tests {
     }
 
     #[test]
+    fn upstream_plain_text_body_stays_out_of_public_error_message() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        headers.insert(
+            HeaderName::from_static("x-request-id"),
+            HeaderValue::from_static("req_plain"),
+        );
+        headers.insert(
+            HeaderName::from_static("anthropic-request-id"),
+            HeaderValue::from_static("anthropic_req_plain"),
+        );
+        headers.insert(
+            HeaderName::from_static("authorization"),
+            HeaderValue::from_static("Bearer provider-secret"),
+        );
+        headers.insert(
+            HeaderName::from_static("cookie"),
+            HeaderValue::from_static("session=secret"),
+        );
+        headers.insert(
+            HeaderName::from_static("set-cookie"),
+            HeaderValue::from_static("session=secret"),
+        );
+        headers.insert(
+            HeaderName::from_static("x-api-key"),
+            HeaderValue::from_static("response-secret"),
+        );
+        let raw_body = "plain upstream failure body with request payload".to_string();
+
+        let error = provider_upstream_error_from_parts(
+            reqwest::StatusCode::FORBIDDEN,
+            &headers,
+            raw_body.clone(),
+        );
+
+        assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+        assert!(error.message.contains("provider upstream request failed"));
+        assert!(!error.message.contains(&raw_body));
+        assert!(!error
+            .provider_summary
+            .as_deref()
+            .expect("provider_summary should exist")
+            .contains(&raw_body));
+        let details = error
+            .provider_details
+            .expect("upstream error should carry details");
+        assert_eq!(details["status"], 403);
+        assert_eq!(details["content_type"], "text/plain; charset=utf-8");
+        assert_eq!(details["request_id"], "req_plain");
+        assert_eq!(details["headers"]["x-request-id"], "req_plain");
+        assert_eq!(
+            details["headers"]["anthropic-request-id"],
+            "anthropic_req_plain"
+        );
+        assert_eq!(details["raw_body"], raw_body);
+        assert!(details["headers"].get("authorization").is_none());
+        assert!(details["headers"].get("cookie").is_none());
+        assert!(details["headers"].get("set-cookie").is_none());
+        assert!(details["headers"].get("x-api-key").is_none());
+    }
+
+    #[test]
+    fn upstream_json_body_uses_error_message_as_public_summary() {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(
+            HeaderName::from_static("request-id"),
+            HeaderValue::from_static("req_json"),
+        );
+        let raw_body =
+            r#"{"error":{"type":"permission_error","message":"Workspace access denied"}}"#
+                .to_string();
+
+        let error = provider_upstream_error_from_parts(
+            reqwest::StatusCode::FORBIDDEN,
+            &headers,
+            raw_body.clone(),
+        );
+
+        assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+        assert!(error.message.contains("Workspace access denied"));
+        assert_eq!(
+            error.provider_summary.as_deref(),
+            Some(error.message.as_str())
+        );
+        let details = error
+            .provider_details
+            .expect("upstream error should carry details");
+        assert_eq!(details["status"], 403);
+        assert_eq!(details["content_type"], "application/json");
+        assert_eq!(details["request_id"], "req_json");
+        assert_eq!(details["headers"]["request-id"], "req_json");
+        assert_eq!(details["raw_body"], raw_body);
+    }
+
+    #[test]
     fn messages_body_forwards_content_blocks_and_appends_native_tool_calls() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "model": "claude-sonnet-4-20250514",
@@ -1730,5 +2063,44 @@ mod tests {
         assert!(events.contains(&ProviderStreamEvent::Finish {
             reason: ProviderFinishReason::Stop
         }));
+    }
+
+    #[tokio::test]
+    async fn read_streaming_message_non_success_returns_provider_runtime_error() {
+        let raw_body = "streaming upstream raw plaintext";
+        let response = reqwest::get(start_http_error_server(
+            "HTTP/1.1 403 Forbidden",
+            "text/plain; charset=utf-8",
+            raw_body,
+        ))
+        .await
+        .unwrap();
+
+        let error = read_streaming_message(
+            response,
+            "claude-sonnet-4-20250514".to_string(),
+            &mut |_| Ok(()),
+        )
+        .await
+        .expect_err("non-success response should fail");
+        let runtime_error = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("error should downcast to ProviderRuntimeError");
+        let details = runtime_error
+            .provider_details
+            .as_ref()
+            .expect("upstream error should carry details");
+
+        assert_eq!(
+            runtime_error.kind,
+            ProviderRuntimeErrorKind::ProviderUpstreamError
+        );
+        assert!(!runtime_error.message.contains(raw_body));
+        assert_eq!(details["status"], 403);
+        assert_eq!(details["content_type"], "text/plain; charset=utf-8");
+        assert_eq!(details["request_id"], "req_stream");
+        assert_eq!(details["headers"]["x-request-id"], "req_stream");
+        assert!(details["headers"].get("x-api-key").is_none());
+        assert_eq!(details["raw_body"], raw_body);
     }
 }
