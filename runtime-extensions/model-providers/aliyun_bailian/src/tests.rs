@@ -90,6 +90,57 @@ fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
 }
 
 #[test]
+fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
+    let input: ProviderInvocationInput = serde_json::from_value(json!({
+        "model": "qwen-plus",
+        "client_protocol_envelope": {
+            "source_protocol": "anthropic_messages",
+            "policy": "anthropic_messages_v1",
+            "headers": {
+                "anthropic-version": "2023-06-01",
+                "anthropic-beta": "ccr-byoc-2025-07-29",
+                "x-claude-code-session-id": "session-123",
+                "x-client-name": "ClaudeCode",
+                "user-agent": "ClaudeCode/1.0",
+                "authorization": "Bearer client-secret",
+                "x-api-key": "client-auth-must-not-win"
+            }
+        }
+    }))
+    .unwrap();
+    let config = normalize_provider_config(&json!({
+        "api_key": "provider-secret",
+        "api_protocol": "anthropic_messages"
+    }))
+    .unwrap();
+    let headers = build_headers(
+        &config,
+        BailianProtocol::AnthropicMessages,
+        true,
+        true,
+        input.client_protocol_envelope.as_ref(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        headers.get(AUTHORIZATION).unwrap(),
+        "Bearer provider-secret"
+    );
+    assert_eq!(headers.get("x-api-key").unwrap(), "provider-secret");
+    assert_eq!(headers.get("anthropic-version").unwrap(), "2023-06-01");
+    assert_eq!(
+        headers.get("anthropic-beta").unwrap(),
+        "ccr-byoc-2025-07-29"
+    );
+    assert_eq!(
+        headers.get("x-claude-code-session-id").unwrap(),
+        "session-123"
+    );
+    assert_eq!(headers.get("x-client-name").unwrap(), "ClaudeCode");
+    assert_eq!(headers.get("user-agent").unwrap(), "ClaudeCode/1.0");
+}
+
+#[test]
 fn chat_messages_map_native_tool_calls_to_openai_function_shape() {
     let mut assistant = provider_message("assistant", Value::Null);
     assistant.tool_calls = Some(json!([{

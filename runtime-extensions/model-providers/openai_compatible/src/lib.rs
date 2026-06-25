@@ -11,6 +11,16 @@ use serde_json::{json, Map, Value};
 
 const PROVIDER_CODE: &str = "openai_compatible";
 const DEFAULT_VALIDATE_MODEL: bool = true;
+const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
+    "anthropic-version",
+    "anthropic-beta",
+    "x-claude-code-session-id",
+    "anthropic-client-name",
+    "anthropic-client-version",
+    "x-client-name",
+    "x-client-version",
+    "user-agent",
+];
 const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
@@ -402,15 +412,34 @@ fn build_headers(
             HeaderValue::from_str(project).context("invalid project header")?,
         );
     }
-    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope)?;
     Ok(headers)
 }
 
 fn apply_default_client_protocol_policy(
-    _headers: &mut HeaderMap,
-    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
-) {
-    // Default provider policy is deny-all; providers add explicit allowlists when needed.
+    headers: &mut HeaderMap,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = client_protocol_envelope else {
+        return Ok(());
+    };
+    if envelope.source_protocol != "anthropic_messages"
+        || envelope.policy != "anthropic_messages_v1"
+    {
+        return Ok(());
+    }
+    for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
+        let name = *name;
+        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
+            continue;
+        };
+        headers.insert(
+            HeaderName::from_static(name),
+            HeaderValue::from_str(value)
+                .with_context(|| format!("invalid client protocol header: {name}"))?,
+        );
+    }
+    Ok(())
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -1258,6 +1287,55 @@ mod tests {
         assert!(headers.get("x-api-key").is_none());
         assert!(headers.get("x-client-name").is_none());
         assert!(headers.get("connection").is_none());
+    }
+
+    #[test]
+    fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "model": "gpt-compatible",
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "policy": "anthropic_messages_v1",
+                "headers": {
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-beta": "ccr-byoc-2025-07-29",
+                    "x-claude-code-session-id": "session-123",
+                    "x-client-name": "ClaudeCode",
+                    "user-agent": "ClaudeCode/1.0",
+                    "authorization": "Bearer client-secret",
+                    "x-api-key": "client-auth-must-not-win"
+                }
+            }
+        }))
+        .unwrap();
+        let config = normalize_provider_config(&json!({
+            "base_url": "https://compatible.example/v1",
+            "api_key": "provider-secret",
+            "default_headers": {
+                "x-provider-default": "kept"
+            }
+        }))
+        .unwrap();
+        let headers =
+            build_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+
+        assert_eq!(
+            headers.get(AUTHORIZATION).unwrap(),
+            "Bearer provider-secret"
+        );
+        assert_eq!(headers.get("x-provider-default").unwrap(), "kept");
+        assert!(headers.get("x-api-key").is_none());
+        assert_eq!(headers.get("anthropic-version").unwrap(), "2023-06-01");
+        assert_eq!(
+            headers.get("anthropic-beta").unwrap(),
+            "ccr-byoc-2025-07-29"
+        );
+        assert_eq!(
+            headers.get("x-claude-code-session-id").unwrap(),
+            "session-123"
+        );
+        assert_eq!(headers.get("x-client-name").unwrap(), "ClaudeCode");
+        assert_eq!(headers.get("user-agent").unwrap(), "ClaudeCode/1.0");
     }
 
     #[test]

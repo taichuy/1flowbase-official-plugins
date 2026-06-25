@@ -20,6 +20,16 @@ const DEFAULT_BASE_URL: &str = "https://dashscope.aliyuncs.com";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const DEFAULT_ANTHROPIC_VERSION: &str = "2023-06-01";
 const DEFAULT_ANTHROPIC_MAX_TOKENS: u64 = 4096;
+const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
+    "anthropic-version",
+    "anthropic-beta",
+    "x-claude-code-session-id",
+    "anthropic-client-name",
+    "anthropic-client-version",
+    "x-client-name",
+    "x-client-version",
+    "user-agent",
+];
 const PASSTHROUGH_CHAT_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
@@ -527,15 +537,34 @@ fn build_headers(
             HeaderValue::from_static("enable"),
         );
     }
-    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope);
+    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope)?;
     Ok(headers)
 }
 
 fn apply_default_client_protocol_policy(
-    _headers: &mut HeaderMap,
-    _client_protocol_envelope: Option<&ClientProtocolEnvelope>,
-) {
-    // Default provider policy is deny-all; providers add explicit allowlists when needed.
+    headers: &mut HeaderMap,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = client_protocol_envelope else {
+        return Ok(());
+    };
+    if envelope.source_protocol != "anthropic_messages"
+        || envelope.policy != "anthropic_messages_v1"
+    {
+        return Ok(());
+    }
+    for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
+        let name = *name;
+        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
+            continue;
+        };
+        headers.insert(
+            HeaderName::from_static(name),
+            HeaderValue::from_str(value)
+                .with_context(|| format!("invalid client protocol header: {name}"))?,
+        );
+    }
+    Ok(())
 }
 
 async fn request_json(
