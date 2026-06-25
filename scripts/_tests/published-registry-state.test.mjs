@@ -19,6 +19,16 @@ function readProviderManifestVersion(providerCode) {
   return match[1].trim();
 }
 
+function readProviderManifestField(providerCode, fieldName) {
+  const manifest = fs.readFileSync(
+    path.join(repoRoot, 'runtime-extensions', 'model-providers', providerCode, 'manifest.yaml'),
+    'utf8'
+  );
+  const match = manifest.match(new RegExp(`^${fieldName}:\\s*(.+)$`, 'm'));
+  assert.ok(match, `missing ${fieldName} in manifest for ${providerCode}`);
+  return match[1].trim();
+}
+
 test('official-registry.json tracks the current openai_compatible manifest and six-target schema', () => {
   const registry = readRepoJson('official-registry.json');
   const entry = registry.plugins.find(
@@ -27,6 +37,10 @@ test('official-registry.json tracks the current openai_compatible manifest and s
 
   assert.ok(entry, 'missing openai_compatible entry in official-registry.json');
   assert.equal(entry.latest_version, readProviderManifestVersion('openai_compatible'));
+  assert.equal(
+    entry.minimum_host_version,
+    readProviderManifestField('openai_compatible', 'minimum_host_version')
+  );
   assert.equal(entry.plugin_type, 'model_provider');
   assert.deepEqual(entry.i18n_summary.available_locales, ['en_US', 'zh_Hans']);
   assert.equal(entry.i18n_summary.default_locale, 'en_US');

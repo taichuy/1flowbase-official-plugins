@@ -8,12 +8,20 @@ import { buildRegistryEntry } from '../build-registry-entry.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 
-test('buildRegistryEntry emits plugin_type and i18n_summary', () => {
+test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summary', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
   mkdirSync(path.join(root, 'provider'), { recursive: true });
   mkdirSync(path.join(root, 'i18n'), { recursive: true });
 
-  writeFileSync(path.join(root, 'manifest.yaml'), 'plugin_type: model_provider\nversion: 0.2.1\n');
+  writeFileSync(
+    path.join(root, 'manifest.yaml'),
+    [
+      'plugin_type: model_provider',
+      'version: 0.2.1',
+      'minimum_host_version: 0.3.0',
+      '',
+    ].join('\n')
+  );
   writeFileSync(
     path.join(root, 'provider', 'openai_compatible.yaml'),
     'provider_code: openai_compatible\nprotocol: openai_compatible\nmodel_discovery: hybrid\n'
@@ -60,6 +68,7 @@ test('buildRegistryEntry emits plugin_type and i18n_summary', () => {
   });
 
   assert.equal(entry.plugin_type, 'model_provider');
+  assert.equal(entry.minimum_host_version, '0.3.0');
   assert.deepEqual(entry.i18n_summary.available_locales, ['en_US', 'zh_Hans']);
   assert.equal(entry.i18n_summary.default_locale, 'en_US');
   assert.equal(entry.i18n_summary.bundles.zh_Hans.plugin.description, '中文描述');

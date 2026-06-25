@@ -218,6 +218,7 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     icon,
     protocol: readField(providerYaml, 'protocol', providerCode),
     latest_version: version,
+    minimum_host_version: readField(manifest, 'minimum_host_version', '0.1.0'),
     help_url: nullableField(providerYaml, 'help_url'),
     model_discovery_mode: readField(providerYaml, 'model_discovery', 'hybrid'),
     i18n_summary: i18nSummary,
