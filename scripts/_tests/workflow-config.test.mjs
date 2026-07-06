@@ -78,9 +78,8 @@ test('provider workflows resolve runtime binary names from manifest metadata', (
     releaseWorkflow,
     /if \[ "\$\{\{ matrix\.os \}\}" = "windows" \] && \[ "\$\{runtime_binary_name\}" != "\$\{manifest_binary_name\}" \]; then/
   );
-  assert.match(releaseWorkflow, /mkdir -p package-runtime/);
-  assert.match(releaseWorkflow, /package_runtime_binary_path="package-runtime\/\$\{manifest_binary_name\}"/);
-  assert.match(releaseWorkflow, /fs\.copyFileSync\(process\.argv\[1\], process\.argv\[2\]\)/);
+  assert.match(releaseWorkflow, /"\$\{PLUGIN_DIR\}\/manifest\.yaml" "bin\/\$\{runtime_binary_name\}"/);
+  assert.ok(releaseWorkflow.includes('manifest.replace(/^(\\s*entry:\\s*)[^\\r\\n]+/m'));
   assert.match(releaseWorkflow, /--runtime-binary "\$\{package_runtime_binary_path\}"/);
 });
 
