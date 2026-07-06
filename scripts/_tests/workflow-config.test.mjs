@@ -69,6 +69,16 @@ test('provider workflows resolve runtime binary names from manifest metadata', (
     releaseWorkflow,
     /runtime_binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --rust-target "\$\{\{ matrix\.rust_target \}\}" --field runtime_binary_name\)"/
   );
+  assert.match(
+    releaseWorkflow,
+    /manifest_binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --field binary_name\)"/
+  );
+  assert.match(releaseWorkflow, /package_runtime_binary_path="\$\{binary_path\}"/);
+  assert.match(
+    releaseWorkflow,
+    /if \[ "\$\{\{ matrix\.os \}\}" = "windows" \] && \[ "\$\{runtime_binary_name\}" != "\$\{manifest_binary_name\}" \]; then/
+  );
+  assert.match(releaseWorkflow, /--runtime-binary "\$\{package_runtime_binary_path\}"/);
 });
 
 test('provider workflows call the current host plugin CLI path', () => {
