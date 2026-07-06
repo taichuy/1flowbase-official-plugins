@@ -230,8 +230,9 @@ jobs:
           manifest_binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${PLUGIN_DIR}" --field binary_name)"
           package_runtime_binary_path="${binary_path}"
           if [ "${{ matrix.os }}" = "windows" ] && [ "${runtime_binary_name}" != "${manifest_binary_name}" ]; then
-            package_runtime_binary_path="${PLUGIN_DIR}/target/${{ matrix.rust_target }}/release/${manifest_binary_name}"
-            cp "${binary_path}" "${package_runtime_binary_path}"
+            mkdir -p package-runtime
+            package_runtime_binary_path="package-runtime/${manifest_binary_name}"
+            node --input-type=module -e 'import fs from "node:fs"; fs.copyFileSync(process.argv[1], process.argv[2]);' "${binary_path}" "${package_runtime_binary_path}"
           fi
           package_output="$(node host/scripts/node/plugin/cli.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${package_runtime_binary_path}" --target "${{ matrix.rust_target }}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
           package_file="$(printf '%s\n' "${package_output}" | sed -n 's/.*Plugin package created at //p' | tail -n 1)"

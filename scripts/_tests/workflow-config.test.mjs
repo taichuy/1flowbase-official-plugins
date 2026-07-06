@@ -78,6 +78,9 @@ test('provider workflows resolve runtime binary names from manifest metadata', (
     releaseWorkflow,
     /if \[ "\$\{\{ matrix\.os \}\}" = "windows" \] && \[ "\$\{runtime_binary_name\}" != "\$\{manifest_binary_name\}" \]; then/
   );
+  assert.match(releaseWorkflow, /mkdir -p package-runtime/);
+  assert.match(releaseWorkflow, /package_runtime_binary_path="package-runtime\/\$\{manifest_binary_name\}"/);
+  assert.match(releaseWorkflow, /fs\.copyFileSync\(process\.argv\[1\], process\.argv\[2\]\)/);
   assert.match(releaseWorkflow, /--runtime-binary "\$\{package_runtime_binary_path\}"/);
 });
 
@@ -143,9 +146,9 @@ test('provider-release triggers only on runtime-extensions model provider manife
 
   assert.match(
     workflow,
-    /paths:\n\s+- 'runtime-extensions\/model-providers\/\*\*\/manifest\.yaml'/
+    /paths:\r?\n\s+- 'runtime-extensions\/model-providers\/\*\*\/manifest\.yaml'/
   );
-  assert.doesNotMatch(workflow, /paths:\n\s+- 'models\/\*\*\/manifest\.yaml'/);
+  assert.doesNotMatch(workflow, /paths:\r?\n\s+- 'models\/\*\*\/manifest\.yaml'/);
 });
 
 test('provider-release supports manual repair dispatches', () => {
@@ -181,7 +184,7 @@ test('provider-release creates release tags once before the package matrix start
   );
   assert.match(
     workflow,
-    /release-provider:\n\s+needs:\n\s+- detect-release-providers\n\s+- prepare-release-tags/
+    /release-provider:\r?\n\s+needs:\r?\n\s+- detect-release-providers\r?\n\s+- prepare-release-tags/
   );
 
   const prepareJobIndex = workflow.indexOf('  prepare-release-tags:');
