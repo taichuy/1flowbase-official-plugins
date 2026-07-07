@@ -20,6 +20,7 @@ The plugin keeps the host boundary stable:
 
 - `base_url`
 - `api_key`
+- `authorization_header`
 - `organization`
 - `project`
 - `api_version`
@@ -27,6 +28,10 @@ The plugin keeps the host boundary stable:
 - `validate_model`
 
 `default_headers` accepts a JSON object string and is merged into every outbound request before the standard authorization headers are applied.
+
+`authorization_header` is optional. When set, it is used as the complete `Authorization` header value, for example `123123123` or `Bearer custom-token`. When omitted, the runtime keeps the default `Bearer {api_key}` behavior.
+
+`base_url` should normally point at the API root, for example `https://provider.example/v1`. If a full Chat Completions endpoint ending in `/chat/completions` is configured, the runtime normalizes it back to the API root before appending request paths.
 
 ## Provider-Level Parameter Schema
 

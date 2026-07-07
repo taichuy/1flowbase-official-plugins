@@ -103,6 +103,7 @@ impl ProviderStdioResponse {
 struct ProviderConfig {
     base_url: String,
     api_key: String,
+    authorization_header: Option<String>,
     organization: Option<String>,
     project: Option<String>,
     api_version: Option<String>,
@@ -264,6 +265,7 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
                 "sanitized": {
                     "base_url": config.base_url,
                     "api_key": "***",
+                    "authorization_header": config.authorization_header.as_ref().map(|_| "***"),
                     "organization": config.organization,
                     "project": config.project,
                     "api_version": config.api_version,
@@ -309,8 +311,9 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
         .ok_or_else(|| anyhow!("provider_config must be an object"))?;
 
     Ok(ProviderConfig {
-        base_url: require_text(config.get("base_url"), "base_url")?,
+        base_url: normalize_base_url(require_text(config.get("base_url"), "base_url")?),
         api_key: require_text(config.get("api_key"), "api_key")?,
+        authorization_header: optional_text(config.get("authorization_header")),
         organization: optional_text(config.get("organization")),
         project: optional_text(config.get("project")),
         api_version: optional_text(config.get("api_version")),
@@ -320,6 +323,18 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
     })
+}
+
+fn normalize_base_url(base_url: String) -> String {
+    let trimmed = base_url.trim().trim_end_matches('/').to_string();
+    let lower = trimmed.to_ascii_lowercase();
+    let chat_completions_suffix = "/chat/completions";
+    if lower.ends_with(chat_completions_suffix) {
+        return trimmed[..trimmed.len() - chat_completions_suffix.len()]
+            .trim_end_matches('/')
+            .to_string();
+    }
+    trimmed
 }
 
 fn require_text(value: Option<&Value>, field: &str) -> Result<String> {
@@ -395,10 +410,13 @@ fn build_headers(
             .with_context(|| format!("invalid default header value for {key}"))?;
         headers.insert(header_name, header_value);
     }
+    let authorization_header = config
+        .authorization_header
+        .clone()
+        .unwrap_or_else(|| format!("Bearer {}", config.api_key));
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("Bearer {}", config.api_key))
-            .context("invalid api_key for authorization header")?,
+        HeaderValue::from_str(&authorization_header).context("invalid authorization header")?,
     );
     if let Some(organization) = &config.organization {
         headers.insert(
@@ -1290,6 +1308,20 @@ mod tests {
     }
 
     #[test]
+    fn headers_use_configured_authorization_header_without_bearer_prefix() {
+        let config = normalize_provider_config(&json!({
+            "base_url": "https://compatible.example/v1",
+            "api_key": "provider-secret",
+            "authorization_header": "123123123"
+        }))
+        .unwrap();
+
+        let headers = build_headers(&config, true, None).unwrap();
+
+        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "123123123");
+    }
+
+    #[test]
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "model": "gpt-compatible",
@@ -1344,6 +1376,21 @@ mod tests {
             .expect_err("missing credentials must fail");
 
         assert!(error.to_string().contains("base_url"));
+    }
+
+    #[test]
+    fn normalize_provider_config_accepts_full_chat_completions_endpoint_as_base_url() {
+        let config = normalize_provider_config(&json!({
+            "base_url": "https://compatible.example/v1/chat/completions/",
+            "api_key": "provider-secret"
+        }))
+        .unwrap();
+
+        assert_eq!(config.base_url, "https://compatible.example/v1");
+        assert_eq!(
+            build_url(&config, "/chat/completions").unwrap(),
+            "https://compatible.example/v1/chat/completions"
+        );
     }
 
     #[test]

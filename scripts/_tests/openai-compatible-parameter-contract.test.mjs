@@ -37,6 +37,15 @@ test('openai compatible parameter form exposes only direct LLM request tuning fi
   }
 });
 
+test('openai compatible config schema exposes optional authorization header override', () => {
+  const providerYaml = readProviderFile('provider/openai_compatible.yaml');
+
+  assert.match(
+    providerYaml,
+    /^- key: authorization_header\n  type: secret\n  required: false\n  advanced: true$/m
+  );
+});
+
 test('openai compatible parameter field order follows current YAML sequence', () => {
   const providerYaml = readProviderFile('provider/openai_compatible.yaml');
   const expectedFields = [
@@ -72,8 +81,9 @@ test('openai compatible parameter field order follows current YAML sequence', ()
   });
 
   for (const option of ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']) {
-    assert.ok(
-      providerYaml.includes(`    - label: ${option}\n      value: ${option}`)
+    assert.match(
+      providerYaml,
+      new RegExp(`^\\s*- label: ${option}\\r?\\n\\s+value: ${option}$`, 'm')
     );
   }
   assert.doesNotMatch(
