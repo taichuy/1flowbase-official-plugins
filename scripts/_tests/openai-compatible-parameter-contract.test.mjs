@@ -42,7 +42,7 @@ test('openai compatible config schema exposes optional authorization header over
 
   assert.match(
     providerYaml,
-    /^- key: authorization_header\n  type: secret\n  required: false\n  advanced: true$/m
+    /^- key: authorization_header\r?\n  type: secret\r?\n  required: false\r?\n  advanced: true$/m
   );
 });
 

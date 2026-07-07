@@ -11,7 +11,7 @@ function read(relativePath) {
 }
 
 function extractParameterKeys(provider) {
-  const match = provider.match(/parameter_form:\n[\s\S]*?config_schema:/);
+  const match = provider.match(/parameter_form:\r?\n[\s\S]*?config_schema:/);
   assert.ok(match, 'provider yaml should include parameter_form before config_schema');
   return [...match[0].matchAll(/^  - key: ([a-z0-9_]+)$/gm)].map((entry) => entry[1]);
 }
@@ -74,9 +74,9 @@ test('deepseek provider exposes only the requested deepseek parameter fields in 
 test('deepseek provider config keeps only api key base url and advanced validate model', () => {
   const provider = read('provider/deepseek.yaml');
 
-  assert.match(provider, /^- key: base_url\n  type: string\n  required: true\n  default: https:\/\/api\.deepseek\.com$/m);
-  assert.match(provider, /^- key: api_key\n  type: secret\n  required: true$/m);
-  assert.match(provider, /^- key: validate_model\n  type: boolean\n  required: false\n  advanced: true$/m);
+  assert.match(provider, /^- key: base_url\r?\n  type: string\r?\n  required: true\r?\n  default: https:\/\/api\.deepseek\.com$/m);
+  assert.match(provider, /^- key: api_key\r?\n  type: secret\r?\n  required: true$/m);
+  assert.match(provider, /^- key: validate_model\r?\n  type: boolean\r?\n  required: false\r?\n  advanced: true$/m);
 });
 
 test('deepseek static models declare dynamic pricing metadata without static prices', () => {
