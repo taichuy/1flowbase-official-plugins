@@ -110,6 +110,7 @@ struct ProviderConfig {
     default_headers: BTreeMap<String, String>,
     #[allow(dead_code)]
     validate_model: bool,
+    proxy_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -270,6 +271,7 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
                     "project": config.project,
                     "api_version": config.api_version,
                     "default_headers": config.default_headers.keys().collect::<Vec<_>>(),
+                    "proxy_url": config.proxy_url.as_ref().map(|_| "***"),
                 },
                 "model_count": payload["data"].as_array().map(|items| items.len()).unwrap_or(0),
             })))
@@ -322,6 +324,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .get("validate_model")
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
     })
 }
 
@@ -356,6 +359,17 @@ fn optional_text(value: Option<&Value>) -> Option<String> {
         .trim()
         .to_string();
     (!text.is_empty()).then_some(text)
+}
+
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -471,6 +485,27 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     Ok(url.to_string())
 }
 
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder();
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder
+        .build()
+        .context("building OpenAI-compatible HTTP client")
+}
+
+fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    let mut message = error.to_string().replace(&config.api_key, "***");
+    if let Some(authorization_header) = &config.authorization_header {
+        message = message.replace(authorization_header, "***");
+    }
+    if let Some(proxy_url) = &config.proxy_url {
+        message = message.replace(proxy_url, "***");
+    }
+    anyhow!(message)
+}
+
 async fn request_json(
     config: &ProviderConfig,
     pathname: &str,
@@ -492,7 +527,7 @@ async fn send_provider_request(
     body: Option<Value>,
     client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<reqwest::Response> {
-    let client = reqwest::Client::new();
+    let client = build_http_client(config)?;
     let mut request = client
         .request(method.clone(), build_url(config, pathname)?)
         .headers(build_headers(
@@ -504,7 +539,10 @@ async fn send_provider_request(
         request = request.json(&body);
     }
 
-    request.send().await.map_err(Into::into)
+    request
+        .send()
+        .await
+        .map_err(|error| sanitize_error(error, config))
 }
 
 fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
@@ -1109,6 +1147,35 @@ mod tests {
         time::Duration,
     };
 
+    #[tokio::test]
+    async fn ac_005_validate_redacts_configured_proxy_url() {
+        let (proxy_url, capture_handle) = capture_proxy_models_request();
+        let response = handle_request(ProviderStdioRequest {
+            method: "validate".to_string(),
+            input: json!({
+                "base_url": "http://api.example.test/v1",
+                "api_key": "provider-secret",
+                "validate_model": false,
+                "proxy_url": proxy_url
+            }),
+        })
+        .await
+        .unwrap();
+
+        assert!(response.ok);
+        assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+        assert!(!response.result.to_string().contains(&proxy_url));
+        assert!(!response.result.to_string().contains("proxy-pass"));
+
+        let request = capture_handle
+            .join()
+            .expect("proxy capture should finish successfully");
+        assert!(
+            request.starts_with("GET http://api.example.test/v1/models "),
+            "validate request should be sent through the configured proxy"
+        );
+    }
+
     fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         haystack
             .windows(needle.len())
@@ -1256,6 +1323,120 @@ mod tests {
         (address, handle)
     }
 
+    fn capture_proxy_chat_request() -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
+        let proxy_url = format!(
+            "http://{}",
+            listener.local_addr().expect("proxy listener addr")
+        );
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect to proxy");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("proxy read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut header_end = None;
+            let mut body_length = None;
+
+            loop {
+                let read = stream
+                    .read(&mut chunk)
+                    .expect("proxy request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+
+                if header_end.is_none() {
+                    header_end = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4);
+                    if let Some(end) = header_end {
+                        let headers = String::from_utf8_lossy(&buffer[..end]);
+                        body_length = headers.lines().find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            if name.eq_ignore_ascii_case("content-length") {
+                                return value.trim().parse::<usize>().ok();
+                            }
+                            None
+                        });
+                    }
+                }
+
+                if let (Some(end), Some(length)) = (header_end, body_length) {
+                    if buffer.len() >= end + length {
+                        let response_body = concat!(
+                            "data: {\"id\":\"chatcmpl_proxy\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{\"content\":\"proxied\"},\"finish_reason\":null}]}\n\n",
+                            "data: {\"id\":\"chatcmpl_proxy\",\"model\":\"gpt-4o-mini\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\n",
+                            "data: [DONE]\n\n"
+                        );
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                            response_body.len(),
+                            response_body
+                        );
+                        stream
+                            .write_all(response.as_bytes())
+                            .expect("proxy response should be writable");
+                        return String::from_utf8(buffer[..end + length].to_vec())
+                            .expect("proxy request should be utf8");
+                    }
+                }
+            }
+
+            panic!("proxy request was not fully captured");
+        });
+
+        (proxy_url, handle)
+    }
+
+    fn capture_proxy_models_request() -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
+        let proxy_url = format!(
+            "http://proxy-user:proxy-pass@{}",
+            listener.local_addr().expect("proxy listener addr")
+        );
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect to proxy");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("proxy read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+
+            loop {
+                let read = stream
+                    .read(&mut chunk)
+                    .expect("proxy request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+
+                if let Some(end) = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4) {
+                    let response_body = r#"{"data":[]}"#;
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                        response_body.len(),
+                        response_body
+                    );
+                    stream
+                        .write_all(response.as_bytes())
+                        .expect("proxy response should be writable");
+                    return String::from_utf8(buffer[..end].to_vec())
+                        .expect("proxy request should be utf8");
+                }
+            }
+
+            panic!("proxy request was not fully captured");
+        });
+
+        (proxy_url, handle)
+    }
+
     fn write_chunk(stream: &mut std::net::TcpStream, payload: &str) {
         write!(stream, "{:x}\r\n", payload.len()).expect("chunk size should be writable");
         stream
@@ -1391,6 +1572,40 @@ mod tests {
             build_url(&config, "/chat/completions").unwrap(),
             "https://compatible.example/v1/chat/completions"
         );
+    }
+
+    #[tokio::test]
+    async fn ac_003_http_invocation_uses_configured_proxy_url() {
+        let (proxy_url, capture_handle) = capture_proxy_chat_request();
+
+        let envelope = invoke_chat_completion(ProviderInvocationInput {
+            model: "gpt-4o-mini".to_string(),
+            provider_config: json!({
+                "base_url": "http://127.0.0.1:9/v1",
+                "api_key": "test-key",
+                "proxy_url": proxy_url
+            }),
+            messages: vec![ProviderMessage {
+                role: "user".to_string(),
+                content: json!("hello"),
+                name: None,
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            ..ProviderInvocationInput::default()
+        })
+        .await
+        .expect("invocation should use proxy and succeed");
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("proxied"));
+        let captured = capture_handle
+            .join()
+            .expect("proxy capture thread should finish");
+        assert!(
+            captured.starts_with("POST http://127.0.0.1:9/v1/chat/completions HTTP/1.1"),
+            "proxy should receive absolute-form upstream request, got: {captured}"
+        );
+        assert!(captured.contains("\"model\":\"gpt-4o-mini\""));
     }
 
     #[test]

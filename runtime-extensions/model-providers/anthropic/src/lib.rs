@@ -100,6 +100,7 @@ struct ProviderConfig {
     api_key: String,
     anthropic_version: String,
     validate_model: bool,
+    proxy_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -421,6 +422,7 @@ async fn validate_provider_config(input: &Value) -> Result<ProviderStdioResponse
             "api_key": "***",
             "anthropic_version": config.anthropic_version,
             "validate_model": config.validate_model,
+            "proxy_url": config.proxy_url.as_ref().map(|_| "***"),
         },
         "model_count": model_count,
     })))
@@ -453,6 +455,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .get("validate_model")
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
     })
 }
 
@@ -493,6 +496,17 @@ fn optional_text(value: Option<&Value>) -> Option<String> {
         .trim()
         .to_string();
     (!text.is_empty()).then_some(text)
+}
+
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -553,6 +567,22 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     build_url_with_query(config, pathname, &[])
 }
 
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder();
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder.build().context("building Anthropic HTTP client")
+}
+
+fn sanitize_reqwest_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    let mut message = error.to_string().replace(&config.api_key, "***");
+    if let Some(proxy_url) = &config.proxy_url {
+        message = message.replace(proxy_url, "***");
+    }
+    anyhow!(message)
+}
+
 fn build_url_with_query(
     config: &ProviderConfig,
     pathname: &str,
@@ -608,11 +638,12 @@ async fn request_json_with_query(
     method: Method,
     query: &[(&str, &str)],
 ) -> Result<Value> {
-    let response = reqwest::Client::new()
+    let response = build_http_client(config)?
         .request(method, build_url_with_query(config, pathname, query)?)
         .headers(build_headers(config, None)?)
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     let status = response.status();
     if !status.is_success() {
         return Err(provider_upstream_error_from_response(response)
@@ -797,7 +828,7 @@ where
 {
     let config = normalize_provider_config(&input.provider_config)?;
     let body = build_messages_body(&input)?;
-    let response = reqwest::Client::new()
+    let response = build_http_client(&config)?
         .request(Method::POST, build_url(&config, "/v1/messages")?)
         .headers(build_headers(
             &config,
@@ -805,7 +836,8 @@ where
         )?)
         .json(&body)
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, &config))?;
     read_streaming_message(response, input.model, &mut on_event).await
 }
 
@@ -1440,6 +1472,25 @@ mod tests {
         time::Duration,
     };
 
+    #[tokio::test]
+    async fn ac_005_validate_redacts_configured_proxy_url() {
+        let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
+        let response = handle_request(ProviderStdioRequest {
+            method: "validate".to_string(),
+            input: json!({
+                "api_key": "provider-secret",
+                "validate_model": false,
+                "proxy_url": proxy_url
+            }),
+        })
+        .await
+        .unwrap();
+
+        assert!(response.ok);
+        assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+        assert!(!response.result.to_string().contains(proxy_url));
+    }
+
     fn start_sse_server(response_body: &'static str) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
         let address = format!("http://{}", listener.local_addr().expect("listener addr"));
@@ -1759,6 +1810,7 @@ mod tests {
             api_key: "provider-config-secret".to_string(),
             anthropic_version: "config-version".to_string(),
             validate_model: true,
+            proxy_url: None,
         };
 
         let headers = build_headers(&config, input.client_protocol_envelope.as_ref()).unwrap();

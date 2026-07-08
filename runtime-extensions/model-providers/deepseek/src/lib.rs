@@ -85,6 +85,7 @@ struct ProviderConfig {
     base_url: String,
     api_key: String,
     validate_model: bool,
+    proxy_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -303,7 +304,8 @@ async fn validate_provider_config(input: &Value) -> Result<ProviderStdioResponse
         "provider_code": PROVIDER_CODE,
         "sanitized": {
             "base_url": config.base_url,
-            "validate_model": config.validate_model
+            "validate_model": config.validate_model,
+            "proxy_url": config.proxy_url.as_ref().map(|_| "***")
         }
     })))
 }
@@ -336,6 +338,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .get("validate_model")
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
     })
 }
 
@@ -372,6 +375,17 @@ fn optional_text(value: Option<&Value>) -> Option<String> {
         .trim()
         .to_string();
     (!text.is_empty()).then_some(text)
+}
+
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -472,20 +486,28 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     Ok(url.to_string())
 }
 
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder();
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder.build().context("building DeepSeek HTTP client")
+}
+
 async fn request_json(config: &ProviderConfig, pathname: &str, method: Method) -> Result<Value> {
-    let client = reqwest::Client::new();
+    let client = build_http_client(config)?;
     let response = client
         .request(method, build_url(config, pathname)?)
         .headers(build_headers(config, None)?)
         .send()
         .await
-        .map_err(|error| sanitize_error(error, &config.api_key))?;
+        .map_err(|error| sanitize_error(error, config))?;
 
     let status = response.status();
     let text = response
         .text()
         .await
-        .map_err(|error| sanitize_error(error, &config.api_key))?;
+        .map_err(|error| sanitize_error(error, config))?;
     let payload = if text.trim().is_empty() {
         json!({})
     } else {
@@ -493,7 +515,7 @@ async fn request_json(config: &ProviderConfig, pathname: &str, method: Method) -
     };
 
     if !status.is_success() {
-        let message = provider_error_message(&payload).replace(&config.api_key, "***");
+        let message = sanitize_text(provider_error_message(&payload), config);
         bail!("{} {}: {}", status.as_u16(), status, message);
     }
 
@@ -515,7 +537,7 @@ where
 {
     let config = normalize_provider_config(&input.provider_config)?;
     let body = build_chat_completion_body(&input)?;
-    let client = reqwest::Client::new();
+    let client = build_http_client(&config)?;
     let response = client
         .request(
             Method::POST,
@@ -528,7 +550,7 @@ where
         .json(&body)
         .send()
         .await
-        .map_err(|error| sanitize_error(error, &config.api_key))?;
+        .map_err(|error| sanitize_error(error, &config))?;
 
     read_streaming_chat_completion(response, input.model, &config.api_key, &mut on_event).await
 }
@@ -1103,9 +1125,16 @@ fn provider_error_message(payload: &Value) -> String {
         .unwrap_or_else(|| payload.to_string())
 }
 
-fn sanitize_error(error: reqwest::Error, api_key: &str) -> anyhow::Error {
-    let message = error.to_string().replace(api_key, "***");
-    anyhow!(message)
+fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    anyhow!(sanitize_text(error.to_string(), config))
+}
+
+fn sanitize_text(message: String, config: &ProviderConfig) -> String {
+    let mut sanitized = message.replace(&config.api_key, "***");
+    if let Some(proxy_url) = &config.proxy_url {
+        sanitized = sanitized.replace(proxy_url, "***");
+    }
+    sanitized
 }
 
 #[cfg(test)]
@@ -1118,6 +1147,25 @@ mod tests {
         thread,
         time::Duration,
     };
+
+    #[tokio::test]
+    async fn ac_005_validate_redacts_configured_proxy_url() {
+        let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
+        let response = handle_request(ProviderStdioRequest {
+            method: "validate".to_string(),
+            input: json!({
+                "api_key": "provider-secret",
+                "validate_model": false,
+                "proxy_url": proxy_url
+            }),
+        })
+        .await
+        .unwrap();
+
+        assert!(response.ok);
+        assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+        assert!(!response.result.to_string().contains(proxy_url));
+    }
 
     fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         haystack

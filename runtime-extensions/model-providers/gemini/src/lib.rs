@@ -89,6 +89,7 @@ struct ProviderConfig {
     api_key: String,
     auth_type: AuthType,
     validate_model: bool,
+    proxy_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -301,7 +302,8 @@ async fn validate_provider_config(input: &Value) -> Result<ProviderStdioResponse
         "sanitized": {
             "base_url": config.base_url,
             "auth_type": auth_type_name(&config.auth_type),
-            "validate_model": config.validate_model
+            "validate_model": config.validate_model,
+            "proxy_url": config.proxy_url.as_ref().map(|_| "***")
         },
         "model_count": models.len(),
     })))
@@ -329,6 +331,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .get("validate_model")
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
     })
 }
 
@@ -381,6 +384,17 @@ fn optional_text(value: Option<&Value>) -> Option<String> {
         .trim()
         .to_string();
     (!text.is_empty()).then_some(text)
+}
+
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -559,6 +573,14 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     Ok(url.to_string())
 }
 
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder();
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder.build().context("building Gemini HTTP client")
+}
+
 fn build_model_action_url(
     config: &ProviderConfig,
     model: &str,
@@ -585,7 +607,7 @@ async fn request_json(
     method: Method,
     body: Option<Value>,
 ) -> Result<Value> {
-    let client = reqwest::Client::new();
+    let client = build_http_client(config)?;
     let mut request = client
         .request(method, build_url(config, pathname)?)
         .headers(build_headers(config, body.is_some(), None)?);
@@ -595,13 +617,13 @@ async fn request_json(
     let response = request
         .send()
         .await
-        .map_err(|error| sanitize_error(error, &config.api_key))?;
+        .map_err(|error| sanitize_error(error, config))?;
 
     let status = response.status();
     let payload = read_json_response(response)
         .await
-        .map_err(|error| sanitize_anyhow_error(error, &config.api_key))?;
-    ensure_success_status(status, &payload, &config.api_key)?;
+        .map_err(|error| sanitize_anyhow_error(error, config))?;
+    ensure_success_status(status, &payload, config)?;
 
     Ok(payload)
 }
@@ -617,12 +639,12 @@ async fn read_json_response(response: reqwest::Response) -> Result<Value> {
 fn ensure_success_status(
     status: reqwest::StatusCode,
     payload: &Value,
-    api_key: &str,
+    config: &ProviderConfig,
 ) -> Result<()> {
     if status.is_success() {
         return Ok(());
     }
-    let message = provider_error_message(payload).replace(api_key, "***");
+    let message = sanitize_text(provider_error_message(payload), config);
     bail!("{} {}: {}", status.as_u16(), status, message);
 }
 
@@ -642,12 +664,20 @@ fn provider_error_message(payload: &Value) -> String {
         .unwrap_or_else(|| payload.to_string())
 }
 
-fn sanitize_error(error: reqwest::Error, api_key: &str) -> anyhow::Error {
-    anyhow!(error.to_string().replace(api_key, "***"))
+fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    anyhow!(sanitize_text(error.to_string(), config))
 }
 
-fn sanitize_anyhow_error(error: anyhow::Error, api_key: &str) -> anyhow::Error {
-    anyhow!(error.to_string().replace(api_key, "***"))
+fn sanitize_anyhow_error(error: anyhow::Error, config: &ProviderConfig) -> anyhow::Error {
+    anyhow!(sanitize_text(error.to_string(), config))
+}
+
+fn sanitize_text(message: String, config: &ProviderConfig) -> String {
+    let mut sanitized = message.replace(&config.api_key, "***");
+    if let Some(proxy_url) = &config.proxy_url {
+        sanitized = sanitized.replace(proxy_url, "***");
+    }
+    sanitized
 }
 
 async fn invoke_generate_content(
@@ -665,7 +695,7 @@ where
 {
     let config = normalize_provider_config(&input.provider_config)?;
     let body = build_generate_content_body(&input)?;
-    let client = reqwest::Client::new();
+    let client = build_http_client(&config)?;
     let response = client
         .request(
             Method::POST,
@@ -680,7 +710,7 @@ where
         .json(&body)
         .send()
         .await
-        .map_err(|error| sanitize_error(error, &config.api_key))?;
+        .map_err(|error| sanitize_error(error, &config))?;
 
     read_streaming_generate_content(response, input.model, &config.api_key, &mut on_event).await
 }
@@ -2031,6 +2061,87 @@ mod tests {
         thread,
         time::Duration,
     };
+
+    #[tokio::test]
+    async fn ac_005_validate_redacts_configured_proxy_url() {
+        let (proxy_url, capture_handle) = capture_proxy_models_request();
+        let response = handle_request(ProviderStdioRequest {
+            method: "validate".to_string(),
+            input: json!({
+                "base_url": "http://gemini.example.test",
+                "api_key": "provider-secret",
+                "validate_model": false,
+                "proxy_url": proxy_url
+            }),
+        })
+        .await
+        .unwrap();
+
+        assert!(response.ok);
+        assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+        assert!(!response.result.to_string().contains(&proxy_url));
+        assert!(!response.result.to_string().contains("proxy-pass"));
+
+        let request = capture_handle
+            .join()
+            .expect("proxy capture should finish successfully");
+        assert!(
+            request.starts_with("GET http://gemini.example.test/v1beta/models "),
+            "validate request should be sent through the configured proxy"
+        );
+    }
+
+    fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
+
+    fn capture_proxy_models_request() -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
+        let proxy_url = format!(
+            "http://proxy-user:proxy-pass@{}",
+            listener.local_addr().expect("proxy listener addr")
+        );
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect to proxy");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("proxy read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+
+            loop {
+                let read = stream
+                    .read(&mut chunk)
+                    .expect("proxy request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+
+                if let Some(end) = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4) {
+                    let response_body = r#"{"models":[]}"#;
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                        response_body.len(),
+                        response_body
+                    );
+                    stream
+                        .write_all(response.as_bytes())
+                        .expect("proxy response should be writable");
+                    return String::from_utf8(buffer[..end].to_vec())
+                        .expect("proxy request should be utf8");
+                }
+            }
+
+            panic!("proxy request was not fully captured");
+        });
+
+        (proxy_url, handle)
+    }
 
     fn start_sse_server(response_body: &'static str) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");

@@ -12,6 +12,25 @@ fn provider_message(role: &str, content: Value) -> ProviderMessage {
     }
 }
 
+#[tokio::test]
+async fn ac_005_validate_redacts_configured_proxy_url() {
+    let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
+    let response = handle_request(ProviderStdioRequest {
+        method: "validate".to_string(),
+        input: json!({
+            "api_key": "provider-secret",
+            "validate_model": false,
+            "proxy_url": proxy_url
+        }),
+    })
+    .await
+    .unwrap();
+
+    assert!(response.ok);
+    assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+    assert!(!response.result.to_string().contains(proxy_url));
+}
+
 #[test]
 fn protocol_model_parameter_overrides_provider_config() {
     let config = ProviderConfig {
@@ -19,6 +38,7 @@ fn protocol_model_parameter_overrides_provider_config() {
         api_key: "test".to_string(),
         api_protocol: BailianProtocol::OpenAiResponses,
         validate_model: true,
+        proxy_url: None,
     };
     let input = ProviderInvocationInput {
         model_parameters: BTreeMap::from([("api_protocol".to_string(), json!("openai_chat"))]),

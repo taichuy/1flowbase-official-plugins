@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
@@ -12,10 +13,17 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{client::IntoClientRequest, Error as WebSocketError, Message},
+    client_async_tls_with_config, connect_async,
+    tungstenite::{
+        client::IntoClientRequest,
+        handshake::client::{
+            Request as ClientHandshakeRequest, Response as ClientHandshakeResponse,
+        },
+        Error as WebSocketError, Message,
+    },
     MaybeTlsStream, WebSocketStream,
 };
 
@@ -123,6 +131,7 @@ struct ProviderConfig {
     project: Option<String>,
     validate_model: bool,
     transport_mode: OpenAiTransportMode,
+    proxy_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -499,6 +508,7 @@ impl OpenAiProviderRuntime {
                         "organization": config.organization,
                         "project": config.project,
                         "transport_mode": config.transport_mode.as_str(),
+                        "proxy_url": config.proxy_url.as_ref().map(|_| "***"),
                     },
                     "model_count": model_count,
                 })))
@@ -579,6 +589,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
         transport_mode: normalize_transport_mode(config.get("transport_mode"))?,
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
     })
 }
 
@@ -614,6 +625,17 @@ fn optional_text(value: Option<&Value>) -> Option<String> {
         .trim()
         .to_string();
     (!text.is_empty()).then_some(text)
+}
+
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -702,10 +724,24 @@ fn apply_default_client_protocol_policy(
     Ok(())
 }
 
-fn build_http_client() -> Result<reqwest::Client> {
-    reqwest::Client::builder()
-        .build()
-        .context("building OpenAI HTTP client")
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder();
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder.build().context("building OpenAI HTTP client")
+}
+
+fn sanitize_reqwest_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    anyhow!(redact_config_secrets(config, &error.to_string()))
+}
+
+fn redact_config_secrets(config: &ProviderConfig, message: &str) -> String {
+    let mut sanitized = message.replace(&config.api_key, "***");
+    if let Some(proxy_url) = &config.proxy_url {
+        sanitized = sanitized.replace(proxy_url, "***");
+    }
+    sanitized
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -721,14 +757,17 @@ async fn request_json(
     method: Method,
     body: Option<Value>,
 ) -> Result<Value> {
-    let client = build_http_client()?;
+    let client = build_http_client(config)?;
     let mut request = client
         .request(method, build_url(config, pathname)?)
         .headers(build_json_headers(config, body.is_some(), None)?);
     if let Some(body) = body {
         request = request.json(&body);
     }
-    let response = request.send().await?;
+    let response = request
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     let status = response.status();
     if !status.is_success() {
         return Err(provider_upstream_error_from_response(response)
@@ -1150,12 +1189,13 @@ async fn invoke_response_http_sse<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let response = build_http_client()?
+    let response = build_http_client(config)?
         .request(Method::POST, build_url(config, "/responses")?)
         .headers(build_stream_headers(config, client_protocol_envelope)?)
         .json(&body)
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     read_streaming_response(response, request_model, on_event).await
 }
 
@@ -1623,9 +1663,13 @@ async fn connect_responses_websocket(
         turn_state,
         client_protocol_envelope,
     )?);
-    let (stream, response) = connect_async(request)
-        .await
-        .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))?;
+    let (stream, response) = if config.proxy_url.is_some() {
+        connect_responses_websocket_through_proxy(config, &url, request).await
+    } else {
+        connect_async(request)
+            .await
+            .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))
+    }?;
     // Codex turn state is first-writer-wins within a turn; continuation handshakes
     // must not rotate the sticky routing token for later tool callbacks.
     let turn_state = turn_state.map(ToOwned::to_owned).or_else(|| {
@@ -1637,6 +1681,106 @@ async fn connect_responses_websocket(
             .map(ToOwned::to_owned)
     });
     Ok(ResponsesWebsocketSession { stream, turn_state })
+}
+
+async fn connect_responses_websocket_through_proxy(
+    config: &ProviderConfig,
+    url: &Url,
+    request: ClientHandshakeRequest,
+) -> Result<(
+    WebSocketStream<MaybeTlsStream<TcpStream>>,
+    ClientHandshakeResponse,
+)> {
+    let proxy_url = config
+        .proxy_url
+        .as_deref()
+        .ok_or_else(|| anyhow!("proxy_url is required"))?;
+    let target = proxy_connect_target(url)?;
+    let stream = connect_http_proxy_tunnel(proxy_url, &target).await?;
+    client_async_tls_with_config(request, stream, None, None)
+        .await
+        .map_err(|error| anyhow!("failed to connect Responses websocket through proxy: {error}"))
+}
+
+fn proxy_connect_target(url: &Url) -> Result<String> {
+    let host = url
+        .host_str()
+        .ok_or_else(|| anyhow!("websocket url missing host"))?;
+    let port = url
+        .port_or_known_default()
+        .ok_or_else(|| anyhow!("websocket url missing port"))?;
+    Ok(format!("{}:{port}", format_authority_host(host)))
+}
+
+async fn connect_http_proxy_tunnel(proxy_url: &str, target: &str) -> Result<TcpStream> {
+    let proxy = Url::parse(proxy_url).with_context(|| "invalid proxy_url")?;
+    if proxy.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    let proxy_host = proxy
+        .host_str()
+        .ok_or_else(|| anyhow!("proxy_url missing host"))?;
+    let proxy_port = proxy
+        .port_or_known_default()
+        .ok_or_else(|| anyhow!("proxy_url missing port"))?;
+    let proxy_address = format!("{}:{proxy_port}", format_authority_host(proxy_host));
+    let mut stream = TcpStream::connect(&proxy_address)
+        .await
+        .with_context(|| format!("connecting proxy {proxy_address}"))?;
+
+    let mut request = format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n");
+    if let Some(proxy_authorization) = proxy_authorization_header(&proxy) {
+        request.push_str(&proxy_authorization);
+        request.push_str("\r\n");
+    }
+    request.push_str("\r\n");
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .context("writing proxy CONNECT request")?;
+
+    let mut response = Vec::new();
+    let mut chunk = [0_u8; 1024];
+    while !response.windows(4).any(|window| window == b"\r\n\r\n") {
+        if response.len() > 8192 {
+            bail!("proxy CONNECT response headers exceeded 8192 bytes");
+        }
+        let read = stream
+            .read(&mut chunk)
+            .await
+            .context("reading proxy CONNECT response")?;
+        if read == 0 {
+            bail!("proxy closed before CONNECT response");
+        }
+        response.extend_from_slice(&chunk[..read]);
+    }
+
+    let response_text = String::from_utf8_lossy(&response);
+    let status_line = response_text.lines().next().unwrap_or_default();
+    let status = status_line.split_whitespace().nth(1).unwrap_or_default();
+    if status != "200" {
+        bail!("proxy CONNECT failed: {status_line}");
+    }
+    Ok(stream)
+}
+
+fn proxy_authorization_header(proxy: &Url) -> Option<String> {
+    let username = proxy.username();
+    if username.is_empty() {
+        return None;
+    }
+    let password = proxy.password().unwrap_or_default();
+    let credentials = format!("{username}:{password}");
+    let encoded = base64::engine::general_purpose::STANDARD.encode(credentials);
+    Some(format!("Proxy-Authorization: Basic {encoded}"))
+}
+
+fn format_authority_host(host: &str) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]")
+    } else {
+        host.to_string()
+    }
 }
 
 fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
@@ -2610,6 +2754,93 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::mpsc,
+        thread,
+        time::Duration,
+    };
+    use tokio_tungstenite::tungstenite::{
+        accept_hdr,
+        handshake::server::{
+            Request as ServerHandshakeRequest, Response as ServerHandshakeResponse,
+        },
+    };
+
+    #[tokio::test]
+    async fn ac_005_validate_redacts_configured_proxy_url() {
+        let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
+        let response = handle_request(ProviderStdioRequest {
+            method: "validate".to_string(),
+            input: json!({
+                "api_key": "provider-secret",
+                "validate_model": false,
+                "proxy_url": proxy_url
+            }),
+        })
+        .await
+        .unwrap();
+
+        assert!(response.ok);
+        assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+        assert!(!response.result.to_string().contains(proxy_url));
+    }
+
+    fn start_websocket_connect_proxy() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
+        let proxy_url = format!(
+            "http://{}",
+            listener.local_addr().expect("proxy listener addr")
+        );
+        let (request_tx, request_rx) = mpsc::channel();
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener
+                .accept()
+                .expect("websocket should connect to proxy");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("proxy read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            loop {
+                let read = stream
+                    .read(&mut chunk)
+                    .expect("CONNECT request should be readable");
+                if read == 0 {
+                    panic!("proxy connection closed before CONNECT request");
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+                if buffer.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+
+            let connect_request =
+                String::from_utf8(buffer).expect("CONNECT request should be utf8");
+            request_tx
+                .send(connect_request)
+                .expect("CONNECT request should be observed");
+            stream
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .expect("CONNECT response should be writable");
+
+            let _websocket = accept_hdr(
+                stream,
+                |_request: &ServerHandshakeRequest, mut response: ServerHandshakeResponse| {
+                    response
+                        .headers_mut()
+                        .insert("x-codex-turn-state", "proxy-turn".parse().unwrap());
+                    Ok(response)
+                },
+            )
+            .expect("websocket handshake should succeed through proxy");
+        });
+
+        (proxy_url, request_rx, handle)
+    }
 
     #[test]
     fn upstream_plain_text_body_stays_out_of_public_error_message() {
@@ -3289,6 +3520,7 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::Auto,
+            proxy_url: None,
         };
 
         let headers = build_stream_headers(&config, None).unwrap();
@@ -3323,6 +3555,7 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::HttpSse,
+            proxy_url: None,
         };
 
         assert!(input.client_protocol_envelope.is_some());
@@ -3364,6 +3597,7 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::HttpSse,
+            proxy_url: None,
         };
 
         let headers =
@@ -3414,12 +3648,42 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+            proxy_url: None,
         };
 
         assert_eq!(
             build_websocket_url(&config).unwrap().as_str(),
             "wss://api.openai.com/v1/responses"
         );
+    }
+
+    #[tokio::test]
+    async fn ac_004_websocket_connects_through_configured_proxy_url() {
+        let (proxy_url, request_rx, handle) = start_websocket_connect_proxy();
+        let config = ProviderConfig {
+            base_url: "http://127.0.0.1:9/v1".to_string(),
+            api_key: "sk-test".to_string(),
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+            proxy_url: Some(proxy_url),
+        };
+
+        let session = connect_responses_websocket(&config, None, None)
+            .await
+            .expect("websocket should connect through configured proxy");
+
+        assert_eq!(session.turn_state.as_deref(), Some("proxy-turn"));
+        drop(session);
+        let connect_request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("proxy should observe CONNECT request");
+        assert!(
+            connect_request.starts_with("CONNECT 127.0.0.1:9 HTTP/1.1"),
+            "proxy should receive CONNECT target, got: {connect_request}"
+        );
+        handle.join().expect("proxy thread should finish");
     }
 
     #[test]
@@ -3448,6 +3712,7 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+            proxy_url: None,
         };
 
         let headers = build_websocket_headers(&config, None, None).unwrap();
@@ -3470,6 +3735,7 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+            proxy_url: None,
         };
 
         let headers = build_websocket_headers(&config, Some("sticky-turn-1"), None).unwrap();
@@ -3504,6 +3770,7 @@ mod tests {
             project: None,
             validate_model: false,
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
+            proxy_url: None,
         };
 
         let headers = build_websocket_headers(

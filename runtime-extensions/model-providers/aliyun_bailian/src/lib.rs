@@ -138,6 +138,7 @@ struct ProviderConfig {
     api_key: String,
     api_protocol: BailianProtocol,
     validate_model: bool,
+    proxy_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -316,6 +317,7 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
                     "base_url": config.base_url,
                     "api_key": "***",
                     "api_protocol": config.api_protocol.as_str(),
+                    "proxy_url": config.proxy_url.as_ref().map(|_| "***"),
                 },
                 "model_count": model_count,
             })))
@@ -412,6 +414,7 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
             .get("validate_model")
             .and_then(Value::as_bool)
             .unwrap_or(DEFAULT_VALIDATE_MODEL),
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
     })
 }
 
@@ -459,6 +462,17 @@ fn optional_text(value: Option<&Value>) -> Option<String> {
     (!text.is_empty()).then_some(text)
 }
 
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
+}
+
 fn value_to_string(value: &Value) -> String {
     match value {
         Value::Null => String::new(),
@@ -495,6 +509,22 @@ fn build_url(config: &ProviderConfig, protocol: BailianProtocol, pathname: &str)
     Url::parse(&format!("{base}{pathname}"))
         .with_context(|| format!("invalid base_url: {}", config.base_url))
         .map(|value| value.to_string())
+}
+
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder();
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder.build().context("building Bailian HTTP client")
+}
+
+fn sanitize_reqwest_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    let mut message = error.to_string().replace(&config.api_key, "***");
+    if let Some(proxy_url) = &config.proxy_url {
+        message = message.replace(proxy_url, "***");
+    }
+    anyhow!(message)
 }
 
 fn build_headers(
@@ -575,7 +605,7 @@ async fn request_json(
     body: Option<Value>,
     stream: bool,
 ) -> Result<Value> {
-    let client = reqwest::Client::new();
+    let client = build_http_client(config)?;
     let mut request = client
         .request(method, build_url(config, protocol, pathname)?)
         .headers(build_headers(
@@ -588,7 +618,10 @@ async fn request_json(
     if let Some(body) = body {
         request = request.json(&body);
     }
-    let response = request.send().await?;
+    let response = request
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     let status = response.status();
     let payload = read_json_response(response).await?;
     ensure_success_status(status, &payload)?;
@@ -651,7 +684,7 @@ where
             body.insert((*key).to_string(), normalize_jsonish_parameter(value));
         }
     }
-    let response = reqwest::Client::new()
+    let response = build_http_client(config)?
         .post(build_url(
             config,
             BailianProtocol::OpenAiChat,
@@ -666,7 +699,8 @@ where
         )?)
         .json(&Value::Object(body))
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     read_chat_streaming_response(
         response,
         input.model.clone(),
@@ -817,7 +851,7 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let body = build_responses_body(input)?;
-    let response = reqwest::Client::new()
+    let response = build_http_client(config)?
         .post(build_url(
             config,
             BailianProtocol::OpenAiResponses,
@@ -832,7 +866,8 @@ where
         )?)
         .json(&body)
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     read_responses_streaming_response(response, input.model.clone(), on_event).await
 }
 
@@ -1025,7 +1060,7 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let body = build_anthropic_body(input)?;
-    let response = reqwest::Client::new()
+    let response = build_http_client(config)?
         .post(build_url(
             config,
             BailianProtocol::AnthropicMessages,
@@ -1040,7 +1075,8 @@ where
         )?)
         .json(&body)
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     read_anthropic_streaming_response(response, input.model.clone(), on_event).await
 }
 
@@ -1232,7 +1268,7 @@ where
         "/services/aigc/text-generation/generation"
     };
     let body = build_dashscope_body(input)?;
-    let response = reqwest::Client::new()
+    let response = build_http_client(config)?
         .post(build_url(config, BailianProtocol::DashScope, pathname)?)
         .headers(build_headers(
             config,
@@ -1243,7 +1279,8 @@ where
         )?)
         .json(&body)
         .send()
-        .await?;
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
     read_dashscope_streaming_response(response, input.model.clone(), on_event).await
 }
 
