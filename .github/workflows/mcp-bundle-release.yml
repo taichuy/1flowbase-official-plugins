@@ -1,0 +1,139 @@
+name: mcp-bundle-release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/**'
+      - 'scripts/*mcp*.mjs'
+      - 'scripts/_tests/*mcp*.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mcp-bundle-release-main
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.releases.outputs.matrix }}
+      has_releases: ${{ steps.releases.outputs.has_releases }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Validate MCP bundle source and tests
+        run: node --test scripts/_tests/*mcp*.test.mjs
+      - name: Detect versioned bundle changes
+        id: releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            base_ref="${{ github.event.before }}"
+            if [ -z "${base_ref}" ]; then base_ref="HEAD^"; fi
+          else
+            base_ref="${{ github.event.before }}"
+          fi
+          matrix="$(node scripts/detect-mcp-version-releases.mjs "${base_ref}" "${{ github.sha }}")"
+          count="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).include.length))' "${matrix}")"
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+          if [ "${count}" -gt 0 ]; then
+            echo "has_releases=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_releases=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.has_releases == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Materialize manifest checksums
+        run: node scripts/update-mcp-catalog.mjs
+      - name: Build portable ZIP
+        env:
+          BUNDLE_DIR: ${{ matrix.bundle_dir }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          (
+            cd "${BUNDLE_DIR}"
+            zip -q -r "${GITHUB_WORKSPACE}/dist/${ASSET_NAME}" manifest.json tools instances
+          )
+          checksum="sha256:$(sha256sum "dist/${ASSET_NAME}" | awk '{print $1}')"
+          node -e 'const fs = require("fs"); fs.writeFileSync(process.argv[1], JSON.stringify({ release_tag: process.argv[2], checksum: process.argv[3] }) + "\n")' \
+            "dist/${{ matrix.release_tag }}.json" "${{ matrix.release_tag }}" "${checksum}"
+      - name: Create release and upload ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${{ matrix.release_tag }}" >/dev/null 2>&1; then
+            echo "Release tag already exists: ${{ matrix.release_tag }}" >&2
+            exit 1
+          fi
+          gh release create "${{ matrix.release_tag }}" \
+            "dist/${{ matrix.asset_name }}" \
+            --target "${{ github.sha }}" \
+            --title "MCP ${{ matrix.organization }}/${{ matrix.bundle_id }} v${{ matrix.version }}" \
+            --generate-notes
+      - uses: actions/upload-artifact@v6
+        with:
+          name: mcp-checksum-${{ matrix.organization }}-${{ matrix.bundle_id }}
+          path: dist/${{ matrix.release_tag }}.json
+
+  update-catalog:
+    needs: [detect, release]
+    if: needs.detect.outputs.has_releases == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: mcp-checksum-*
+          path: checksum-metadata
+          merge-multiple: true
+      - name: Update catalog artifact checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/update-mcp-catalog.mjs
+          for metadata in checksum-metadata/*.json; do
+            release_tag="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1])).release_tag' "${metadata}")"
+            checksum="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1])).checksum' "${metadata}")"
+            node scripts/set-mcp-artifact-checksum.mjs "${release_tag}" "${checksum}"
+          done
+      - name: Commit generated manifests and catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add mcp
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: publish MCP bundle catalog"
+          git push origin main

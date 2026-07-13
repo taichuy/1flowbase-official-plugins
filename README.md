@@ -21,6 +21,8 @@
 - `capability-plugins/`：能力插件目录
 - `capability-plugins/nodes/`：节点能力插件目录
 - `agent-flow/`：官方 AgentFlow 工作流模板与生成目录
+- `mcp/<organization>/<bundle_id>/`：按组织维护的整套 MCP 配置包源码
+- `mcp/catalog.json`：官方 MCP 配置包 latest-only 目录
 - `official-registry.json`：已发布插件目录元数据
 - `scripts/`：注册表与发布辅助脚本
 - `.github/workflows/`：CI 与发布自动化
@@ -45,6 +47,22 @@
 
 - `provider-ci`：在 `pull_request` 和 `push main` 时运行，校验 registry JSON、执行 provider 打包 dry-run，并运行脚本测试
 - `provider-release`：在 `main` 分支收到 `runtime-extensions/model-providers/**/manifest.yaml` 变更时运行
+- `mcp-bundle-release`：校验 MCP 包版本、打包 ZIP、发布 Release，并回写 ZIP checksum
+
+### MCP 配置包
+
+每个 MCP 配置包固定放在 `mcp/<organization>/<bundle_id>/`，根目录包含
+`manifest.json`、`tools/` 和 `instances/`。ZIP 解压后的根目录保持同样结构。
+
+修改任一 Tool、Instance 或 manifest 时，必须提升 `manifest.json` 的
+`bundle_version`。合并到 `main` 后，发布流程会创建
+`mcp-<organization>-<bundle_id>-v<version>` Release，并将 ZIP 的 SHA-256
+写入 `mcp/catalog.json`。本地可运行：
+
+```bash
+node --test scripts/_tests/*mcp*.test.mjs
+node scripts/update-mcp-catalog.mjs
+```
 
 正式发布由版本号驱动：
 
