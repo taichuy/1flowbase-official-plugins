@@ -899,22 +899,26 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
 
 fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
+    let mut consecutive_tool_results = Vec::new();
     for message in &input.messages {
         let role = message.role.trim().to_ascii_lowercase();
-        if role == "system" || role == "developer" {
-            continue;
-        }
         if role == "tool" {
             if let Some(tool_use_id) = message.tool_call_id.as_deref() {
-                messages.push(json!({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": tool_use_id,
-                        "content": tool_result_content(message),
-                    }]
+                consecutive_tool_results.push(json!({
+                    "type": "tool_result",
+                    "tool_use_id": tool_use_id,
+                    "content": tool_result_content(message),
                 }));
             }
+            continue;
+        }
+        if !consecutive_tool_results.is_empty() {
+            messages.push(json!({
+                "role": "user",
+                "content": std::mem::take(&mut consecutive_tool_results),
+            }));
+        }
+        if role == "system" || role == "developer" {
             continue;
         }
         let mut content = message_content_blocks(message);
@@ -925,6 +929,12 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
                 "content": content,
             }));
         }
+    }
+    if !consecutive_tool_results.is_empty() {
+        messages.push(json!({
+            "role": "user",
+            "content": consecutive_tool_results,
+        }));
     }
     messages
 }
@@ -1745,6 +1755,64 @@ mod tests {
         assert_eq!(body["messages"][1]["role"], "user");
         assert_eq!(body["messages"][1]["content"][0]["type"], "tool_result");
         assert_eq!(body["messages"][1]["content"][0]["tool_use_id"], "toolu_1");
+    }
+
+    #[test]
+    fn ac_001_messages_body_groups_multiple_tool_results_in_one_user_turn() {
+        let input = ProviderInvocationInput {
+            model: "claude-sonnet-4-20250514".to_string(),
+            messages: vec![
+                ProviderMessage {
+                    role: "assistant".to_string(),
+                    content: json!("Checking both paths"),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: Some(json!([
+                        {
+                            "id": "toolu_1",
+                            "name": "lookup",
+                            "arguments": { "query": "first" }
+                        },
+                        {
+                            "id": "toolu_2",
+                            "name": "lookup",
+                            "arguments": { "query": "second" }
+                        }
+                    ])),
+                    content_blocks: None,
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: json!("first result"),
+                    name: Some("lookup".to_string()),
+                    tool_call_id: Some("toolu_1".to_string()),
+                    tool_calls: None,
+                    content_blocks: None,
+                },
+                ProviderMessage {
+                    role: "tool".to_string(),
+                    content: json!("second result"),
+                    name: Some("lookup".to_string()),
+                    tool_call_id: Some("toolu_2".to_string()),
+                    tool_calls: None,
+                    content_blocks: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let body = build_messages_body(&input).unwrap();
+
+        assert_eq!(body["messages"].as_array().map(Vec::len), Some(2));
+        assert_eq!(body["messages"][0]["content"][1]["id"], "toolu_1");
+        assert_eq!(body["messages"][0]["content"][2]["id"], "toolu_2");
+        assert_eq!(body["messages"][1]["role"], "user");
+        assert_eq!(
+            body["messages"][1]["content"].as_array().map(Vec::len),
+            Some(2)
+        );
+        assert_eq!(body["messages"][1]["content"][0]["tool_use_id"], "toolu_1");
+        assert_eq!(body["messages"][1]["content"][1]["tool_use_id"], "toolu_2");
     }
 
     #[test]
