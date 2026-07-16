@@ -147,13 +147,74 @@ pub struct ProviderMessage {
     #[serde(default)]
     pub tool_call_id: Option<String>,
     #[serde(default)]
+    pub is_error: Option<bool>,
+    #[serde(default)]
     pub tool_calls: Option<Value>,
     #[serde(default)]
     pub content_blocks: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
+pub enum ProviderInvocationContractVersion {
+    #[default]
+    #[serde(rename = "1flowbase.provider/v2")]
+    V2,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_control: Option<NativePromptCacheControl>,
+    },
+}
+
+#[cfg(test)]
+impl NativePromptBlock {
+    fn text(text: impl Into<String>) -> Self {
+        Self::Text {
+            text: text.into(),
+            cache_control: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    cache_type: NativePromptCacheControlType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
-pub struct ProviderInvocationInput {
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelInvocationV2 {
+    pub contract_version: ProviderInvocationContractVersion,
     #[serde(default)]
     pub provider_instance_id: String,
     #[serde(default)]
@@ -169,18 +230,28 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
     #[serde(default)]
-    pub system: Option<String>,
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: Vec<String>,
     #[serde(default)]
     pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
     #[serde(default)]
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
 }
+
+pub use NativeModelInvocationV2 as ProviderInvocationInput;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
@@ -857,12 +928,23 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
     body.insert("stream".to_string(), Value::Bool(true));
     let max_tokens = parameter_u64(input, "max_tokens").unwrap_or(DEFAULT_MAX_TOKENS);
     body.insert("max_tokens".to_string(), json!(max_tokens));
-    if let Some(system) = input
-        .system
+    if !input.system.is_empty() {
+        body.insert(
+            "system".to_string(),
+            serde_json::to_value(&input.system).context("serializing Native system blocks")?,
+        );
+    }
+    if let Some(end_user_reference) = input
+        .request_context
+        .end_user_reference
         .as_deref()
-        .filter(|value| !value.trim().is_empty())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
     {
-        body.insert("system".to_string(), Value::String(system.to_string()));
+        body.insert(
+            "metadata".to_string(),
+            json!({ "user_id": end_user_reference }),
+        );
     }
     if !input.tools.is_empty() {
         body.insert(
@@ -904,11 +986,15 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         let role = message.role.trim().to_ascii_lowercase();
         if role == "tool" {
             if let Some(tool_use_id) = message.tool_call_id.as_deref() {
-                consecutive_tool_results.push(json!({
+                let mut tool_result = json!({
                     "type": "tool_result",
                     "tool_use_id": tool_use_id,
                     "content": tool_result_content(message),
-                }));
+                });
+                if let Some(is_error) = message.is_error {
+                    tool_result["is_error"] = Value::Bool(is_error);
+                }
+                consecutive_tool_results.push(tool_result);
             }
             continue;
         }
@@ -1185,7 +1271,6 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .model_parameters
         .get(key)
         .cloned()
-        .or_else(|| input.extra.get(key).cloned())
         .and_then(normalize_scalar_parameter)
 }
 
@@ -1691,16 +1776,81 @@ mod tests {
     }
 
     #[test]
+    fn ac_004_messages_body_is_rendered_only_from_native_v2_invocation() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "model": "claude-fable-5",
+            "messages": [
+                { "role": "user", "content": "hello" }
+            ],
+            "system": [
+                {
+                    "type": "text",
+                    "text": "Use Claude Code project instructions.",
+                    "cache_control": { "type": "ephemeral" }
+                },
+                {
+                    "type": "text",
+                    "text": "，语言偏好中文"
+                }
+            ],
+            "request_context": {
+                "end_user_reference": "claude-code-user-123"
+            },
+            "required_capabilities": [
+                "system_prompt_blocks",
+                "system_prompt_cache_control",
+                "end_user_reference"
+            ]
+        }))
+        .unwrap();
+
+        let body = build_messages_body(&input).unwrap();
+
+        assert_eq!(
+            body["system"],
+            json!([
+                {
+                    "type": "text",
+                    "text": "Use Claude Code project instructions.",
+                    "cache_control": { "type": "ephemeral" }
+                },
+                {
+                    "type": "text",
+                    "text": "，语言偏好中文"
+                }
+            ])
+        );
+        assert_eq!(
+            body["metadata"],
+            json!({ "user_id": "claude-code-user-123" })
+        );
+    }
+
+    #[test]
+    fn ac_004_provider_rejects_invocation_without_v2_contract_version() {
+        let error = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "model": "claude-fable-5",
+            "messages": [{ "role": "user", "content": "hello" }],
+            "system": []
+        }))
+        .unwrap_err();
+
+        assert!(error.to_string().contains("contract_version"));
+    }
+
+    #[test]
     fn messages_body_maps_native_tool_calls_and_tool_results() {
         let input = ProviderInvocationInput {
             model: "claude-sonnet-4-20250514".to_string(),
-            system: Some("Be concise".to_string()),
+            system: vec![NativePromptBlock::text("Be concise")],
             messages: vec![
                 ProviderMessage {
                     role: "assistant".to_string(),
                     content: Value::Null,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(
                         json!([{ "id": "toolu_1", "name": "lookup", "arguments": { "query": "refund" }}]),
                     ),
@@ -1711,6 +1861,7 @@ mod tests {
                     content: json!("found"),
                     name: None,
                     tool_call_id: Some("toolu_1".to_string()),
+                    is_error: None,
                     tool_calls: None,
                     content_blocks: None,
                 },
@@ -1733,7 +1884,10 @@ mod tests {
         };
 
         let body = build_messages_body(&input).unwrap();
-        assert_eq!(body["system"], "Be concise");
+        assert_eq!(
+            body["system"],
+            json!([{ "type": "text", "text": "Be concise" }])
+        );
         assert_eq!(body["max_tokens"], 2048);
         assert_eq!(
             body["thinking"],
@@ -1767,6 +1921,7 @@ mod tests {
                     content: json!("Checking both paths"),
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(json!([
                         {
                             "id": "toolu_1",
@@ -1786,6 +1941,7 @@ mod tests {
                     content: json!("first result"),
                     name: Some("lookup".to_string()),
                     tool_call_id: Some("toolu_1".to_string()),
+                    is_error: None,
                     tool_calls: None,
                     content_blocks: None,
                 },
@@ -1794,6 +1950,7 @@ mod tests {
                     content: json!("second result"),
                     name: Some("lookup".to_string()),
                     tool_call_id: Some("toolu_2".to_string()),
+                    is_error: None,
                     tool_calls: None,
                     content_blocks: None,
                 },
@@ -1824,6 +1981,7 @@ mod tests {
                 content: Value::Null,
                 name: None,
                 tool_call_id: Some("toolu_image".to_string()),
+                is_error: None,
                 tool_calls: None,
                 content_blocks: Some(json!([
                     {
@@ -1860,6 +2018,7 @@ mod tests {
     #[test]
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
                 "policy": "anthropic_messages_v1",
@@ -1992,6 +2151,7 @@ mod tests {
     #[test]
     fn messages_body_forwards_content_blocks_and_appends_native_tool_calls() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "model": "claude-sonnet-4-20250514",
             "messages": [
                 {
@@ -2099,6 +2259,7 @@ mod tests {
                 ]),
                 name: None,
                 tool_call_id: None,
+                is_error: None,
                 tool_calls: None,
                 content_blocks: None,
             }],

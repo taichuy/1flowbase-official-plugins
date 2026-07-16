@@ -1,6 +1,6 @@
 manifest_version: 1
 plugin_id: anthropic
-version: 0.1.17
+version: 0.1.18
 vendor: 1flowbase
 display_name: Anthropic
 description: Anthropic Messages API provider runtime extension
@@ -15,7 +15,7 @@ binding_targets:
   - workspace
 selection_mode: assignment_then_select
 minimum_host_version: 0.2.6
-contract_version: 1flowbase.provider/v1
+contract_version: 1flowbase.provider/v2
 schema_version: 1flowbase.plugin.manifest/v1
 permissions:
   network: outbound_only
@@ -26,6 +26,10 @@ permissions:
 runtime:
   protocol: stdio_json
   entry: bin/anthropic-provider
+  capabilities:
+    - system_prompt_blocks
+    - system_prompt_cache_control
+    - end_user_reference
   limits:
     timeout_ms: 30000
     invoke_timeout_ms: 300000
