@@ -16,6 +16,14 @@ function extractParameterKeys(provider) {
   return [...match[0].matchAll(/^  - key: ([a-z0-9_]+)$/gm)].map((entry) => entry[1]);
 }
 
+function extractParameter(provider, key) {
+  const match = provider.match(
+    new RegExp(`^  - key: ${key}\\n[\\s\\S]*?(?=^  - key: |^config_schema:)`, 'm')
+  );
+  assert.ok(match, `provider yaml should declare ${key}`);
+  return match[0];
+}
+
 function assertModelMetadata(modelId, label, maxOutputTokens) {
   const model = read(`models/llm/${modelId}.yaml`);
 
@@ -77,6 +85,15 @@ test('anthropic provider exposes messages parameters in order', () => {
 
   assert.doesNotMatch(provider, /^  - key: response_format$/m);
   assert.doesNotMatch(provider, /^  - key: reasoning_effort$/m);
+});
+
+test('AC-001 anthropic max_tokens is optional and disabled by default', () => {
+  const provider = read('provider/anthropic.yaml');
+  const maxTokens = extractParameter(provider, 'max_tokens');
+
+  assert.match(maxTokens, /^    send_mode: optional$/m);
+  assert.match(maxTokens, /^    enabled_by_default: false$/m);
+  assert.match(maxTokens, /^    default_value: 4096$/m);
 });
 
 test('anthropic static models declare api model names', () => {

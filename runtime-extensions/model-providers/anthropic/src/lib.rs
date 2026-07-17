@@ -899,6 +899,10 @@ where
 {
     let config = normalize_provider_config(&input.provider_config)?;
     let body = build_messages_body(&input)?;
+    let effective_max_output_tokens = body
+        .get("max_tokens")
+        .and_then(Value::as_u64)
+        .context("Anthropic request max_tokens must be an unsigned integer")?;
     let response = build_http_client(&config)?
         .request(Method::POST, build_url(&config, "/v1/messages")?)
         .headers(build_headers(
@@ -909,7 +913,13 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, &config))?;
-    read_streaming_message(response, input.model, &mut on_event).await
+    read_streaming_message(
+        response,
+        input.model,
+        effective_max_output_tokens,
+        &mut on_event,
+    )
+    .await
 }
 
 fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1309,6 +1319,7 @@ fn normalize_anthropic_parameter(key: &str, value: Value) -> Value {
 async fn read_streaming_message<F>(
     response: reqwest::Response,
     request_model: String,
+    effective_max_output_tokens: u64,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -1376,6 +1387,7 @@ where
             provider_metadata: json!({
                 "request_model": request_model,
                 "message_id": message_id,
+                "effective_max_output_tokens": effective_max_output_tokens,
             }),
         },
     })
@@ -2313,7 +2325,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn anthropic_streaming_result_keeps_message_id_metadata_only() {
+    async fn ac_006_anthropic_streaming_result_records_effective_max_output_tokens() {
         let response = reqwest::get(start_sse_server(concat!(
             "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1}}}\n\n",
             "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\n",
@@ -2327,6 +2339,7 @@ mod tests {
         let envelope = read_streaming_message(
             response,
             "claude-sonnet-4-20250514".to_string(),
+            DEFAULT_MAX_TOKENS,
             &mut |event| {
                 events.push(event.clone());
                 Ok(())
@@ -2340,6 +2353,10 @@ mod tests {
         assert_eq!(
             envelope.result.provider_metadata["message_id"],
             json!("msg_1")
+        );
+        assert_eq!(
+            envelope.result.provider_metadata["effective_max_output_tokens"],
+            json!(4096)
         );
         assert!(events.contains(&ProviderStreamEvent::Finish {
             reason: ProviderFinishReason::Stop
@@ -2360,6 +2377,7 @@ mod tests {
         let error = read_streaming_message(
             response,
             "claude-sonnet-4-20250514".to_string(),
+            DEFAULT_MAX_TOKENS,
             &mut |_| Ok(()),
         )
         .await
