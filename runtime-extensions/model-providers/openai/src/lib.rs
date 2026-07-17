@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt,
     time::Duration,
 };
@@ -186,6 +186,7 @@ struct ProviderModelDescriptor {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
     pub role: String,
     #[serde(default)]
@@ -197,11 +198,55 @@ pub struct ProviderMessage {
     #[serde(default)]
     pub tool_call_id: Option<String>,
     #[serde(default)]
+    pub is_error: Option<bool>,
+    #[serde(default)]
     pub tool_calls: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum ProviderInvocationContractVersion {
+    #[serde(rename = "1flowbase.provider/v2")]
+    #[default]
+    Current,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default)]
+        cache_control: Option<Value>,
+    },
+}
+
+impl NativePromptBlock {
+    fn text_content(&self) -> &str {
+        match self {
+            Self::Text { text, .. } => text,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
+    pub contract_version: ProviderInvocationContractVersion,
     #[serde(default)]
     pub provider_instance_id: String,
     #[serde(default)]
@@ -217,9 +262,15 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
     #[serde(default)]
-    pub system: Option<String>,
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
     pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
     #[serde(default)]
     pub response_format: Option<Value>,
     #[serde(default)]
@@ -230,8 +281,19 @@ pub struct ProviderInvocationInput {
     pub run_context: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, Value>,
+}
+
+impl ProviderInvocationInput {
+    fn system_text(&self) -> Option<String> {
+        let text = self
+            .system
+            .iter()
+            .map(NativePromptBlock::text_content)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        (!text.is_empty()).then_some(text)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1223,15 +1285,8 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
         );
     }
     body.insert("stream".to_string(), Value::Bool(true));
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
-        body.insert(
-            "instructions".to_string(),
-            Value::String(system.to_string()),
-        );
+    if let Some(system) = input.system_text() {
+        body.insert("instructions".to_string(), Value::String(system));
     }
     if !input.tools.is_empty() {
         body.insert(
@@ -1554,7 +1609,6 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .model_parameters
         .get(key)
         .cloned()
-        .or_else(|| input.extra.get(key).cloned())
         .and_then(normalize_scalar_parameter)
 }
 
@@ -2886,6 +2940,7 @@ mod tests {
     #[test]
     fn responses_body_maps_native_tool_calls_and_tool_results() {
         let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
             model: "gpt-5.1".to_string(),
             previous_response_id: Some("resp_previous".to_string()),
             messages: vec![
@@ -2895,6 +2950,7 @@ mod tests {
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(
                         json!([{ "id": "call_1", "name": "lookup", "arguments": { "query": "refund" }}]),
                     ),
@@ -2905,6 +2961,7 @@ mod tests {
                     content_blocks: None,
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
+                    is_error: None,
                     tool_calls: None,
                 },
             ],
@@ -2950,8 +3007,66 @@ mod tests {
     }
 
     #[test]
+    fn d1_ac_011_current_host_input_reaches_responses_wire_without_max_tokens_alias() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "previous_response_id": null,
+            "provider_config": {},
+            "messages": [{
+                "role": "user",
+                "content": "hello",
+                "name": null,
+                "tool_call_id": null,
+                "is_error": null,
+                "tool_calls": null,
+                "content_blocks": null
+            }],
+            "system": [{
+                "type": "text",
+                "text": "D1 seed instructions"
+            }],
+            "request_context": { "end_user_reference": "native-user-1" },
+            "required_capabilities": ["system_prompt_blocks"],
+            "tools": [],
+            "mcp_bindings": [],
+            "response_format": null,
+            "model_parameters": { "max_output_tokens": 512 },
+            "client_protocol_envelope": null,
+            "trace_context": {},
+            "run_context": {}
+        }))
+        .expect("D1 current ProviderInvocationInput must deserialize directly");
+
+        let body = build_responses_body(&input).expect("Responses body should render");
+
+        assert_eq!(body["instructions"], json!("D1 seed instructions"));
+        assert_eq!(body["max_output_tokens"], json!(512));
+        assert!(body.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn d1_ac_011_missing_contract_is_rejected_by_strict_deserialization() {
+        let error = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": "http://127.0.0.1:9",
+                "api_key": "test-key"
+            },
+            "messages": [{ "role": "user", "content": "hello" }]
+        }))
+        .expect_err("missing current contract must fail before provider invocation");
+
+        assert!(error.to_string().contains("contract_version"));
+    }
+
+    #[test]
     fn responses_body_preserves_media_content_blocks() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.1",
             "messages": [
                 {
@@ -3007,6 +3122,7 @@ mod tests {
     #[test]
     fn responses_body_accepts_native_image_source_data_without_type() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.1",
             "messages": [
                 {
@@ -3534,6 +3650,7 @@ mod tests {
     #[test]
     fn client_protocol_envelope_uses_default_deny_policy_for_http_headers() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.1",
             "client_protocol_envelope": {
                 "source_protocol": "openai_responses",
@@ -3559,7 +3676,6 @@ mod tests {
         };
 
         assert!(input.client_protocol_envelope.is_some());
-        assert!(!input.extra.contains_key("client_protocol_envelope"));
 
         let headers =
             build_json_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
@@ -3574,6 +3690,7 @@ mod tests {
     #[test]
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.1",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
@@ -3751,6 +3868,7 @@ mod tests {
     #[test]
     fn websocket_headers_keep_internal_beta_and_turn_state_over_client_envelope() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.1",
             "client_protocol_envelope": {
                 "source_protocol": "openai_responses",

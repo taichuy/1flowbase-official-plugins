@@ -839,6 +839,7 @@ fn invoke_line(base_url: &str, transport_mode: &str) -> String {
     serde_json::to_string(&json!({
         "method": "invoke",
         "input": {
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.3-codex-spark",
             "provider_config": {
                 "base_url": base_url,
@@ -861,6 +862,7 @@ fn invoke_line_with_previous_response_id(
     serde_json::to_string(&json!({
         "method": "invoke",
         "input": {
+            "contract_version": "1flowbase.provider/v2",
             "model": "gpt-5.3-codex-spark",
             "previous_response_id": previous_response_id,
             "provider_config": {
