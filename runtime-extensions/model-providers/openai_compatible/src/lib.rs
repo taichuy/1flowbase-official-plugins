@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
@@ -148,50 +148,146 @@ pub struct ProviderModelDescriptor {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
-    pub role: String,
-    #[serde(default)]
-    pub content: Value,
+    pub role: ProviderMessageRole,
+    pub content: String,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
     pub tool_call_id: Option<String>,
     #[serde(default)]
+    pub is_error: Option<bool>,
+    #[serde(default)]
     pub tool_calls: Option<Value>,
+    #[serde(default)]
+    pub content_blocks: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum ProviderInvocationContractVersion {
+    #[default]
+    #[serde(rename = "1flowbase.provider/v2")]
+    Current,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default)]
+        cache_control: Option<NativePromptCacheControl>,
+    },
+}
+
+impl NativePromptBlock {
+    fn text_content(&self) -> &str {
+        match self {
+            Self::Text { text, .. } => text,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: NativePromptCacheControlType,
+    #[serde(default)]
+    pub ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
-    #[serde(default)]
+    pub contract_version: ProviderInvocationContractVersion,
     pub provider_instance_id: String,
-    #[serde(default)]
     pub provider_code: String,
-    #[serde(default)]
     pub protocol: String,
     pub model: String,
+    #[serde(default)]
+    pub previous_response_id: Option<String>,
     #[serde(default)]
     pub provider_config: Value,
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
     #[serde(default)]
-    pub system: Option<String>,
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
     pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
     #[serde(default)]
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
+}
+
+impl ProviderInvocationInput {
+    fn system_text(&self) -> Option<String> {
+        let text = self
+            .system
+            .iter()
+            .map(NativePromptBlock::text_content)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        (!text.is_empty()).then_some(text)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
-    #[serde(default)]
     pub source_protocol: String,
-    #[serde(default)]
     pub policy: String,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -227,6 +323,8 @@ pub enum ProviderFinishReason {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderInvocationResult {
     pub final_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
     #[serde(default)]
     pub tool_calls: Vec<ProviderToolCall>,
     #[serde(default)]
@@ -496,14 +594,18 @@ fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
 }
 
 fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
-    let mut message = error.to_string().replace(&config.api_key, "***");
+    anyhow!(sanitize_text(error.to_string(), config))
+}
+
+fn sanitize_text(message: String, config: &ProviderConfig) -> String {
+    let mut message = message.replace(&config.api_key, "***");
     if let Some(authorization_header) = &config.authorization_header {
         message = message.replace(authorization_header, "***");
     }
     if let Some(proxy_url) = &config.proxy_url {
         message = message.replace(proxy_url, "***");
     }
-    anyhow!(message)
+    message
 }
 
 async fn request_json(
@@ -515,7 +617,7 @@ async fn request_json(
     let response = send_provider_request(config, pathname, method, body, None).await?;
     let status = response.status();
     let payload = read_json_response(response).await?;
-    ensure_success_status(status, &payload)?;
+    ensure_success_status(status, &payload, config)?;
 
     Ok(payload)
 }
@@ -545,7 +647,11 @@ async fn send_provider_request(
         .map_err(|error| sanitize_error(error, config))
 }
 
-fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
+fn ensure_success_status(
+    status: reqwest::StatusCode,
+    payload: &Value,
+    config: &ProviderConfig,
+) -> Result<()> {
     if !status.is_success() {
         let message = payload
             .get("error")
@@ -558,8 +664,13 @@ fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
             })
-            .unwrap_or_else(|| payload.to_string());
-        bail!("{} {}: {}", status.as_u16(), status, message);
+            .unwrap_or_else(|| "provider upstream request failed".to_string());
+        bail!(
+            "{} {}: {}",
+            status.as_u16(),
+            status,
+            sanitize_text(message, config)
+        );
     }
     Ok(())
 }
@@ -622,11 +733,7 @@ fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
 
 fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
+    if let Some(system) = input.system_text() {
         messages.push(json!({
             "role": "system",
             "content": system,
@@ -634,10 +741,22 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     }
     for message in &input.messages {
         let mut item = Map::new();
-        item.insert("role".to_string(), Value::String(message.role.clone()));
+        let role = match message.role {
+            ProviderMessageRole::System => "system",
+            ProviderMessageRole::User => "user",
+            ProviderMessageRole::Assistant => "assistant",
+            ProviderMessageRole::Tool => "tool",
+        };
+        item.insert("role".to_string(), Value::String(role.to_string()));
         item.insert(
             "content".to_string(),
-            Value::String(normalize_message_content(&message.content)),
+            Value::String(
+                message
+                    .content_blocks
+                    .as_ref()
+                    .map(normalize_message_content)
+                    .unwrap_or_else(|| message.content.clone()),
+            ),
         );
         if let Some(name) = message
             .name
@@ -683,7 +802,6 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .model_parameters
         .get(key)
         .cloned()
-        .or_else(|| input.extra.get(key).cloned())
         .and_then(|value| normalize_parameter_value(key, value))
 }
 
@@ -739,11 +857,40 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let config = normalize_provider_config(&input.provider_config)?;
+    let body = build_chat_completion_body(&input)?;
+
+    let response = send_provider_request(
+        &config,
+        "/chat/completions",
+        Method::POST,
+        Some(body),
+        input.client_protocol_envelope.as_ref(),
+    )
+    .await?;
+    read_streaming_chat_completion(response, input.model, &config, &mut on_event).await
+}
+
+fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
+    if !input.required_capabilities.is_empty()
+        || input.system.iter().any(|block| {
+            matches!(
+                block,
+                NativePromptBlock::Text {
+                    cache_control: Some(_),
+                    ..
+                }
+            )
+        })
+        || input.request_context.end_user_reference.is_some()
+    {
+        bail!("OpenAI Compatible Generate does not support the requested semantic capabilities");
+    }
+    let model = input.model.trim();
+    if model.is_empty() {
+        bail!("model is required");
+    }
     let mut body = Map::new();
-    body.insert(
-        "model".to_string(),
-        Value::String(input.model.trim().to_string()),
-    );
+    body.insert("model".to_string(), Value::String(model.to_string()));
     body.insert(
         "messages".to_string(),
         Value::Array(build_invocation_messages(&input)),
@@ -771,20 +918,13 @@ where
         }
     }
 
-    let response = send_provider_request(
-        &config,
-        "/chat/completions",
-        Method::POST,
-        Some(Value::Object(body)),
-        input.client_protocol_envelope.as_ref(),
-    )
-    .await?;
-    read_streaming_chat_completion(response, input.model, &mut on_event).await
+    Ok(Value::Object(body))
 }
 
 async fn read_streaming_chat_completion<F>(
     response: reqwest::Response,
     request_model: String,
+    config: &ProviderConfig,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -793,7 +933,7 @@ where
     let status = response.status();
     if !status.is_success() {
         let payload = read_json_response(response).await?;
-        ensure_success_status(status, &payload)?;
+        ensure_success_status(status, &payload, config)?;
         unreachable!("ensure_success_status returns error for non-success response");
     }
 
@@ -877,6 +1017,7 @@ where
         events,
         result: ProviderInvocationResult {
             final_content: (!text.is_empty()).then_some(text),
+            response_id: response_id.as_str().map(ToOwned::to_owned),
             tool_calls,
             mcp_calls: Vec::new(),
             usage,
@@ -1450,6 +1591,10 @@ mod tests {
     #[test]
     fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
             "model": "gpt-compatible",
             "client_protocol_envelope": {
                 "source_protocol": "openai_chat",
@@ -1465,7 +1610,6 @@ mod tests {
         .unwrap();
 
         assert!(input.client_protocol_envelope.is_some());
-        assert!(!input.extra.contains_key("client_protocol_envelope"));
 
         let config = normalize_provider_config(&json!({
             "base_url": "https://compatible.example/v1",
@@ -1505,6 +1649,10 @@ mod tests {
     #[test]
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
             "model": "gpt-compatible",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
@@ -1586,11 +1734,13 @@ mod tests {
                 "proxy_url": proxy_url
             }),
             messages: vec![ProviderMessage {
-                role: "user".to_string(),
-                content: json!("hello"),
+                role: ProviderMessageRole::User,
+                content: "hello".to_string(),
                 name: None,
                 tool_call_id: None,
+                is_error: None,
                 tool_calls: None,
+                content_blocks: None,
             }],
             ..ProviderInvocationInput::default()
         })
@@ -1687,11 +1837,13 @@ mod tests {
                         "api_key": "test-key"
                     }),
                     messages: vec![ProviderMessage {
-                        role: "user".to_string(),
-                        content: json!("hello"),
+                        role: ProviderMessageRole::User,
+                        content: "hello".to_string(),
                         name: None,
                         tool_call_id: None,
+                        is_error: None,
                         tool_calls: None,
+                        content_blocks: None,
                     }],
                     ..ProviderInvocationInput::default()
                 },
@@ -1749,10 +1901,11 @@ mod tests {
             }),
             messages: vec![
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::Null,
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(json!([{
                         "id": "call_1",
                         "type": "function",
@@ -1761,20 +1914,25 @@ mod tests {
                             "arguments": "{\"query\":\"refund\"}"
                         }
                     }])),
+                    content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: json!("tool result"),
+                    role: ProviderMessageRole::Tool,
+                    content: "tool result".to_string(),
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
+                    is_error: None,
                     tool_calls: None,
+                    content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "user".to_string(),
-                    content: json!("hello"),
+                    role: ProviderMessageRole::User,
+                    content: "hello".to_string(),
                     name: Some("customer".to_string()),
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: None,
+                    content_blocks: None,
                 },
             ],
             model_parameters: BTreeMap::from([
@@ -1909,5 +2067,122 @@ mod tests {
         assert!(envelope.events.contains(&ProviderStreamEvent::Finish {
             reason: ProviderFinishReason::Stop
         }));
+    }
+
+    #[tokio::test]
+    async fn ac_002_fake_upstream_receives_exact_generate_wire() {
+        let (base_url, capture_handle) = capture_single_json_request();
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-4o-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "test-key"
+            },
+            "system": [{ "type": "text", "text": "Be concise" }],
+            "messages": [{ "role": "user", "content": "hello" }]
+        }))
+        .unwrap();
+
+        invoke_chat_completion(input)
+            .await
+            .expect("current Generate should complete against fake upstream");
+        let captured_body: Value = serde_json::from_str(
+            &capture_handle
+                .join()
+                .expect("fake upstream should capture request"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            captured_body,
+            json!({
+                "model": "gpt-4o-mini",
+                "messages": [
+                    { "role": "system", "content": "Be concise" },
+                    { "role": "user", "content": "hello" }
+                ],
+                "stream": true,
+                "stream_options": { "include_usage": true }
+            })
+        );
+    }
+
+    #[test]
+    fn ac_002_generate_contract_accepts_only_current_strict_input() {
+        let missing = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "model": "gpt-compatible"
+        }))
+        .expect_err("missing current contract must fail before provider invocation");
+        assert!(missing.to_string().contains("contract_version"));
+
+        let current = json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible"
+        });
+        serde_json::from_value::<ProviderInvocationInput>(current.clone())
+            .expect("current Generate input should deserialize");
+
+        let mut legacy = current.clone();
+        legacy["contract_version"] = json!("1flowbase.provider/v1");
+        assert!(serde_json::from_value::<ProviderInvocationInput>(legacy).is_err());
+
+        let mut unknown = current;
+        unknown["raw_body"] = json!("must-not-be-accepted");
+        let error = serde_json::from_value::<ProviderInvocationInput>(unknown)
+            .expect_err("unknown Generate fields must fail closed");
+        assert!(error.to_string().contains("raw_body"));
+    }
+
+    #[test]
+    fn ac_002_package_manifest_declares_only_current_generate_contract() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+        assert!(!manifest.contains("1flowbase.provider/v1"));
+        assert!(!manifest.contains("capabilities:"));
+    }
+
+    #[test]
+    fn ac_002_rejects_undeclared_generate_capabilities_before_wire_rendering() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "required_capabilities": ["end_user_reference"]
+        }))
+        .unwrap();
+
+        let error = build_chat_completion_body(&input)
+            .expect_err("undeclared semantic capabilities must not be projected away");
+        assert!(error.to_string().contains("semantic capabilities"));
+    }
+
+    #[test]
+    fn ac_005_raw_sensitive_upstream_body_is_not_retained() {
+        let canary = "raw-prompt-canary provider-secret";
+        let config = normalize_provider_config(&json!({
+            "base_url": "https://compatible.example/v1",
+            "api_key": "provider-secret"
+        }))
+        .unwrap();
+        let error = ensure_success_status(
+            reqwest::StatusCode::BAD_REQUEST,
+            &Value::String(canary.to_string()),
+            &config,
+        )
+        .expect_err("upstream failure should remain an error");
+        let message = error.to_string();
+
+        assert!(message.contains("provider upstream request failed"));
+        assert!(!message.contains(canary));
     }
 }

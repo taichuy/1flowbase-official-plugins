@@ -1,12 +1,13 @@
 use super::*;
 use crate::stream::StreamState;
 
-fn provider_message(role: &str, content: Value) -> ProviderMessage {
+fn provider_message(role: ProviderMessageRole, content: impl Into<String>) -> ProviderMessage {
     ProviderMessage {
-        role: role.to_string(),
-        content,
+        role,
+        content: content.into(),
         name: None,
         tool_call_id: None,
+        is_error: None,
         tool_calls: None,
         content_blocks: None,
     }
@@ -64,6 +65,10 @@ fn provider_config_defaults_to_openai_chat_protocol() {
 #[test]
 fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
     let input: ProviderInvocationInput = serde_json::from_value(json!({
+        "contract_version": "1flowbase.provider/v2",
+        "provider_instance_id": "provider-test",
+        "provider_code": "aliyun_bailian",
+        "protocol": "aliyun_bailian",
         "model": "qwen-plus",
         "client_protocol_envelope": {
             "source_protocol": "anthropic_messages",
@@ -80,7 +85,6 @@ fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
     .unwrap();
 
     assert!(input.client_protocol_envelope.is_some());
-    assert!(!input.extra.contains_key("client_protocol_envelope"));
 
     let config = normalize_provider_config(&json!({
         "api_key": "provider-secret",
@@ -112,6 +116,10 @@ fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
 #[test]
 fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
     let input: ProviderInvocationInput = serde_json::from_value(json!({
+        "contract_version": "1flowbase.provider/v2",
+        "provider_instance_id": "provider-test",
+        "provider_code": "aliyun_bailian",
+        "protocol": "aliyun_bailian",
         "model": "qwen-plus",
         "client_protocol_envelope": {
             "source_protocol": "anthropic_messages",
@@ -162,7 +170,7 @@ fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
 
 #[test]
 fn chat_messages_map_native_tool_calls_to_openai_function_shape() {
-    let mut assistant = provider_message("assistant", Value::Null);
+    let mut assistant = provider_message(ProviderMessageRole::Assistant, "");
     assistant.tool_calls = Some(json!([{
         "id": "call_1",
         "name": "lookup",
@@ -185,7 +193,7 @@ fn chat_messages_map_native_tool_calls_to_openai_function_shape() {
 
 #[test]
 fn responses_input_preserves_image_content_blocks() {
-    let mut message = provider_message("user", json!("ignored"));
+    let mut message = provider_message(ProviderMessageRole::User, "ignored");
     message.content_blocks = Some(json!([
         {
             "type": "image_url",
@@ -209,13 +217,13 @@ fn responses_input_preserves_image_content_blocks() {
 
 #[test]
 fn anthropic_messages_map_tool_calls_and_tool_results() {
-    let mut assistant = provider_message("assistant", Value::Null);
+    let mut assistant = provider_message(ProviderMessageRole::Assistant, "");
     assistant.tool_calls = Some(json!([{
         "id": "toolu_1",
         "name": "lookup",
         "arguments": { "query": "refund" }
     }]));
-    let mut tool = provider_message("tool", json!("found"));
+    let mut tool = provider_message(ProviderMessageRole::Tool, "found");
     tool.tool_call_id = Some("toolu_1".to_string());
     let input = ProviderInvocationInput {
         messages: vec![assistant, tool],
@@ -232,7 +240,7 @@ fn anthropic_messages_map_tool_calls_and_tool_results() {
 
 #[test]
 fn dashscope_messages_map_openai_image_parts_to_native_image_parts() {
-    let mut message = provider_message("user", Value::Null);
+    let mut message = provider_message(ProviderMessageRole::User, "");
     message.content_blocks = Some(json!([
         {
             "type": "image_url",
@@ -296,4 +304,76 @@ fn dashscope_stream_extracts_multimodal_text_and_reasoning_deltas() {
     assert_eq!(state.text, "ok");
     assert_eq!(state.finish_reason, ProviderFinishReason::Unknown);
     assert_eq!(state.usage.reasoning_tokens, Some(1));
+}
+
+#[test]
+fn ac_002_generate_contract_accepts_only_current_strict_input() {
+    let missing = serde_json::from_value::<ProviderInvocationInput>(json!({
+        "model": "qwen-plus"
+    }))
+    .expect_err("missing current contract must fail before provider invocation");
+    assert!(missing.to_string().contains("contract_version"));
+
+    let current = json!({
+        "contract_version": "1flowbase.provider/v2",
+        "provider_instance_id": "provider-test",
+        "provider_code": "aliyun_bailian",
+        "protocol": "aliyun_bailian",
+        "model": "qwen-plus"
+    });
+    serde_json::from_value::<ProviderInvocationInput>(current.clone())
+        .expect("current Generate input should deserialize");
+
+    let mut legacy = current.clone();
+    legacy["contract_version"] = json!("1flowbase.provider/v1");
+    assert!(serde_json::from_value::<ProviderInvocationInput>(legacy).is_err());
+
+    let mut unknown = current;
+    unknown["raw_body"] = json!("must-not-be-accepted");
+    let error = serde_json::from_value::<ProviderInvocationInput>(unknown)
+        .expect_err("unknown Generate fields must fail closed");
+    assert!(error.to_string().contains("raw_body"));
+}
+
+#[test]
+fn ac_002_package_manifest_declares_only_current_generate_contract() {
+    let manifest = include_str!("../manifest.yaml");
+
+    assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+    assert!(!manifest.contains("1flowbase.provider/v1"));
+    assert!(!manifest.contains("capabilities:"));
+}
+
+#[tokio::test]
+async fn ac_002_rejects_undeclared_generate_capabilities_before_wire_rendering() {
+    let input: ProviderInvocationInput = serde_json::from_value(json!({
+        "contract_version": "1flowbase.provider/v2",
+        "provider_instance_id": "provider-test",
+        "provider_code": "aliyun_bailian",
+        "protocol": "aliyun_bailian",
+        "model": "qwen-plus",
+        "required_capabilities": ["end_user_reference"]
+    }))
+    .unwrap();
+
+    let error = invoke(input)
+        .await
+        .expect_err("undeclared semantic capabilities must fail before provider configuration");
+    assert!(error.to_string().contains("semantic capabilities"));
+}
+
+#[test]
+fn ac_005_raw_sensitive_upstream_body_is_not_retained() {
+    let canary = "raw-prompt-canary provider-secret";
+    let config = normalize_provider_config(&json!({ "api_key": "provider-secret" })).unwrap();
+    let error = ensure_success_status(
+        reqwest::StatusCode::BAD_REQUEST,
+        &Value::String(canary.to_string()),
+        &config,
+    )
+    .expect_err("upstream failure should remain an error");
+    let message = error.to_string();
+
+    assert!(message.contains("provider request failed"));
+    assert!(!message.contains(canary));
 }

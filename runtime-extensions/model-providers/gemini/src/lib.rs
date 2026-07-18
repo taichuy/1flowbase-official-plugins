@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
@@ -131,10 +131,10 @@ struct ProviderModelDescriptor {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
-    pub role: String,
-    #[serde(default)]
-    pub content: Value,
+    pub role: ProviderMessageRole,
+    pub content: String,
     #[serde(default)]
     pub content_blocks: Option<Value>,
     #[serde(default)]
@@ -142,18 +142,90 @@ pub struct ProviderMessage {
     #[serde(default)]
     pub tool_call_id: Option<String>,
     #[serde(default)]
+    pub is_error: Option<bool>,
+    #[serde(default)]
     pub tool_calls: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum ProviderInvocationContractVersion {
+    #[default]
+    #[serde(rename = "1flowbase.provider/v2")]
+    Current,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default)]
+        cache_control: Option<NativePromptCacheControl>,
+    },
+}
+
+impl NativePromptBlock {
+    fn text_content(&self) -> &str {
+        match self {
+            Self::Text { text, .. } => text,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: NativePromptCacheControlType,
+    #[serde(default)]
+    pub ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
-    #[serde(default)]
+    pub contract_version: ProviderInvocationContractVersion,
     pub provider_instance_id: String,
-    #[serde(default)]
     pub provider_code: String,
-    #[serde(default)]
     pub protocol: String,
-    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub previous_response_id: Option<String>,
@@ -162,24 +234,43 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
     #[serde(default)]
-    pub system: Option<String>,
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
     pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
     #[serde(default)]
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
+}
+
+impl ProviderInvocationInput {
+    fn system_text(&self) -> Option<String> {
+        let text = self
+            .system
+            .iter()
+            .map(NativePromptBlock::text_content)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        (!text.is_empty()).then_some(text)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
-    #[serde(default)]
     pub source_protocol: String,
-    #[serde(default)]
     pub policy: String,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -661,7 +752,7 @@ fn provider_error_message(payload: &Value) -> String {
         })
         .or_else(|| payload.get("message").and_then(Value::as_str))
         .map(ToOwned::to_owned)
-        .unwrap_or_else(|| payload.to_string())
+        .unwrap_or_else(|| "provider upstream request failed".to_string())
 }
 
 fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
@@ -716,6 +807,20 @@ where
 }
 
 fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value> {
+    if !input.required_capabilities.is_empty()
+        || input.system.iter().any(|block| {
+            matches!(
+                block,
+                NativePromptBlock::Text {
+                    cache_control: Some(_),
+                    ..
+                }
+            )
+        })
+        || input.request_context.end_user_reference.is_some()
+    {
+        bail!("Gemini Generate does not support the requested semantic capabilities");
+    }
     if input.model.trim().is_empty() {
         bail!("model is required");
     }
@@ -725,23 +830,22 @@ fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value>
     let mut system_parts = Vec::new();
     let mut tool_call_names_by_id = BTreeMap::new();
 
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
+    if let Some(system) = input.system_text() {
         system_parts.push(json!({ "text": system }));
     }
 
     for message in &input.messages {
-        let role = message.role.trim().to_ascii_lowercase();
-        if role == "system" || role == "developer" {
-            append_text_parts(&mut system_parts, &message.content);
+        if message.role == ProviderMessageRole::System {
+            if let Some(content_blocks) = &message.content_blocks {
+                append_text_parts(&mut system_parts, content_blocks);
+            } else if !message.content.trim().is_empty() {
+                system_parts.push(json!({ "text": message.content }));
+            }
             continue;
         }
 
-        let gemini_role = normalize_gemini_role(&role);
-        let mut parts = if role == "tool" || role == "function" {
+        let gemini_role = normalize_gemini_role(message.role);
+        let mut parts = if message.role == ProviderMessageRole::Tool {
             let content_block_parts = build_message_content_parts(message);
             if content_parts_contain_media(&content_block_parts) {
                 content_block_parts
@@ -806,11 +910,12 @@ fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value>
     Ok(Value::Object(body))
 }
 
-fn normalize_gemini_role(role: &str) -> &'static str {
+fn normalize_gemini_role(role: ProviderMessageRole) -> &'static str {
     match role {
-        "assistant" | "model" => "model",
-        "tool" | "function" => "user",
-        _ => "user",
+        ProviderMessageRole::Assistant => "model",
+        ProviderMessageRole::System | ProviderMessageRole::User | ProviderMessageRole::Tool => {
+            "user"
+        }
     }
 }
 
@@ -828,7 +933,7 @@ fn build_message_content_parts(message: &ProviderMessage) -> Vec<Value> {
             return parts;
         }
     }
-    build_content_parts(&message.content)
+    build_content_parts(&Value::String(message.content.clone()))
 }
 
 fn content_parts_contain_media(parts: &[Value]) -> bool {
@@ -1084,7 +1189,11 @@ fn build_tool_response_parts(
     message: &ProviderMessage,
     tool_call_names_by_id: &BTreeMap<String, String>,
 ) -> Vec<Value> {
-    let native_parts = build_content_parts(&message.content)
+    let native_parts = message
+        .content_blocks
+        .as_ref()
+        .map(build_content_parts)
+        .unwrap_or_default()
         .into_iter()
         .filter(|part| part.get("functionResponse").is_some())
         .collect::<Vec<_>>();
@@ -1109,7 +1218,7 @@ fn build_tool_response_parts(
     response.insert("name".to_string(), Value::String(name.to_string()));
     response.insert(
         "response".to_string(),
-        ensure_object_response(message.content.clone()),
+        ensure_object_response(Value::String(message.content.clone())),
     );
     if let Some(tool_call_id) = message
         .tool_call_id
@@ -1609,7 +1718,6 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .model_parameters
         .get(key)
         .cloned()
-        .or_else(|| input.extra.get(key).cloned())
         .and_then(|value| normalize_parameter_value(key, value))
 }
 
@@ -2097,6 +2205,59 @@ mod tests {
             .position(|window| window == needle)
     }
 
+    fn capture_generate_content_request() -> (String, thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut header_end = None;
+            let mut body_length = None;
+
+            loop {
+                let read = stream.read(&mut chunk).expect("request should be readable");
+                if read == 0 {
+                    break;
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+                if header_end.is_none() {
+                    header_end = find_bytes(&buffer, b"\r\n\r\n").map(|offset| offset + 4);
+                    if let Some(end) = header_end {
+                        let headers = String::from_utf8_lossy(&buffer[..end]);
+                        body_length = headers.lines().find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse::<usize>().ok())
+                                .flatten()
+                        });
+                    }
+                }
+                if let (Some(end), Some(length)) = (header_end, body_length) {
+                    if buffer.len() >= end + length {
+                        let response_body = "data: {\"responseId\":\"resp_gemini\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\"}]}\n\n";
+                        write!(
+                            stream,
+                            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                            response_body.len(),
+                            response_body
+                        )
+                        .expect("response should be writable");
+                        return String::from_utf8(buffer[end..end + length].to_vec())
+                            .expect("request body should be utf8");
+                    }
+                }
+            }
+            panic!("request body was not fully captured");
+        });
+
+        (address, handle)
+    }
+
     fn capture_proxy_models_request() -> (String, thread::JoinHandle<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
         let proxy_url = format!(
@@ -2170,6 +2331,10 @@ mod tests {
     #[test]
     fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
             "model": "gemini-2.5-flash",
             "client_protocol_envelope": {
                 "source_protocol": "openai_chat",
@@ -2185,7 +2350,6 @@ mod tests {
         .unwrap();
 
         assert!(input.client_protocol_envelope.is_some());
-        assert!(!input.extra.contains_key("client_protocol_envelope"));
 
         let config = normalize_provider_config(&json!({
             "api_key": "provider-secret",
@@ -2204,6 +2368,10 @@ mod tests {
     #[test]
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
             "model": "gemini-2.5-flash",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
@@ -2248,11 +2416,12 @@ mod tests {
         let input = ProviderInvocationInput {
             model: "gemini-2.5-flash".to_string(),
             messages: vec![ProviderMessage {
-                role: "user".to_string(),
-                content: Value::String("hi".to_string()),
+                role: ProviderMessageRole::User,
+                content: "hi".to_string(),
                 content_blocks: None,
                 name: None,
                 tool_call_id: None,
+                is_error: None,
                 tool_calls: None,
             }],
             tools: vec![json!({
@@ -2288,19 +2457,21 @@ mod tests {
             model: "gemini-3-flash-preview".to_string(),
             messages: vec![
                 ProviderMessage {
-                    role: "user".to_string(),
-                    content: Value::String("Search files".to_string()),
+                    role: ProviderMessageRole::User,
+                    content: "Search files".to_string(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: None,
                 },
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::String(String::new()),
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(json!([{
                         "id": "call_glob",
                         "name": "Glob",
@@ -2313,11 +2484,12 @@ mod tests {
                     }])),
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: Value::String("No files matched".to_string()),
+                    role: ProviderMessageRole::Tool,
+                    content: "No files matched".to_string(),
                     content_blocks: None,
                     name: Some("Glob".to_string()),
                     tool_call_id: Some("call_glob".to_string()),
+                    is_error: None,
                     tool_calls: None,
                 },
             ],
@@ -2337,19 +2509,21 @@ mod tests {
             model: "gemini-3-flash-preview".to_string(),
             messages: vec![
                 ProviderMessage {
-                    role: "user".to_string(),
-                    content: Value::String("Search files".to_string()),
+                    role: ProviderMessageRole::User,
+                    content: "Search files".to_string(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: None,
                 },
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::String(String::new()),
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(json!([{
                         "id": "call_glob",
                         "name": "Glob",
@@ -2357,11 +2531,12 @@ mod tests {
                     }])),
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: Value::String("No files matched".to_string()),
+                    role: ProviderMessageRole::Tool,
+                    content: "No files matched".to_string(),
                     content_blocks: None,
                     name: Some("Glob".to_string()),
                     tool_call_id: Some("call_glob".to_string()),
+                    is_error: None,
                     tool_calls: None,
                 },
             ],
@@ -2380,19 +2555,21 @@ mod tests {
             model: "gemini-3-flash-preview".to_string(),
             messages: vec![
                 ProviderMessage {
-                    role: "user".to_string(),
-                    content: Value::String("Search files".to_string()),
+                    role: ProviderMessageRole::User,
+                    content: "Search files".to_string(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: None,
                 },
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::String(String::new()),
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(json!([{
                         "id": "call_glob",
                         "name": "Glob",
@@ -2405,11 +2582,12 @@ mod tests {
                     }])),
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: Value::String("No files matched".to_string()),
+                    role: ProviderMessageRole::Tool,
+                    content: "No files matched".to_string(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: Some("call_glob".to_string()),
+                    is_error: None,
                     tool_calls: None,
                 },
             ],
@@ -2430,6 +2608,10 @@ mod tests {
     #[test]
     fn generate_content_body_maps_content_blocks_image_to_inline_data() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
             "model": "gemini-3-flash-preview",
             "messages": [
                 {
@@ -2567,5 +2749,113 @@ mod tests {
         assert!(events.contains(&ProviderStreamEvent::Finish {
             reason: ProviderFinishReason::Stop
         }));
+    }
+
+    #[tokio::test]
+    async fn ac_002_fake_upstream_receives_exact_generate_wire() {
+        let (base_url, capture_handle) = capture_generate_content_request();
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
+            "model": "gemini-2.5-flash",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "test-key",
+                "auth_type": "api_key"
+            },
+            "system": [{ "type": "text", "text": "Be concise" }],
+            "messages": [{ "role": "user", "content": "hello" }]
+        }))
+        .unwrap();
+
+        invoke_generate_content(input)
+            .await
+            .expect("current Generate should complete against fake upstream");
+        let captured_body: Value = serde_json::from_str(
+            &capture_handle
+                .join()
+                .expect("fake upstream should capture request"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            captured_body,
+            json!({
+                "contents": [{
+                    "role": "user",
+                    "parts": [{ "text": "hello" }]
+                }],
+                "systemInstruction": {
+                    "parts": [{ "text": "Be concise" }]
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn ac_002_generate_contract_accepts_only_current_strict_input() {
+        let missing = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "model": "gemini-2.5-flash"
+        }))
+        .expect_err("missing current contract must fail before provider invocation");
+        assert!(missing.to_string().contains("contract_version"));
+
+        let current = json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
+            "model": "gemini-2.5-flash"
+        });
+        serde_json::from_value::<ProviderInvocationInput>(current.clone())
+            .expect("current Generate input should deserialize");
+
+        let mut legacy = current.clone();
+        legacy["contract_version"] = json!("1flowbase.provider/v1");
+        assert!(serde_json::from_value::<ProviderInvocationInput>(legacy).is_err());
+
+        let mut unknown = current;
+        unknown["raw_body"] = json!("must-not-be-accepted");
+        let error = serde_json::from_value::<ProviderInvocationInput>(unknown)
+            .expect_err("unknown Generate fields must fail closed");
+        assert!(error.to_string().contains("raw_body"));
+    }
+
+    #[test]
+    fn ac_002_package_manifest_declares_only_current_generate_contract() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+        assert!(!manifest.contains("1flowbase.provider/v1"));
+        assert!(!manifest.contains("capabilities:"));
+    }
+
+    #[test]
+    fn ac_002_rejects_undeclared_generate_capabilities_before_wire_rendering() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
+            "model": "gemini-2.5-flash",
+            "messages": [{ "role": "user", "content": "hello" }],
+            "required_capabilities": ["system_prompt_cache_control"]
+        }))
+        .unwrap();
+
+        let error = build_generate_content_body(&input)
+            .expect_err("undeclared semantic capabilities must not be projected away");
+        assert!(error.to_string().contains("semantic capabilities"));
+    }
+
+    #[test]
+    fn ac_005_raw_sensitive_upstream_body_is_not_retained() {
+        let canary = "raw-prompt-canary provider-secret";
+        let message = provider_error_message(&Value::String(canary.to_string()));
+
+        assert_eq!(message, "provider upstream request failed");
+        assert!(!message.contains(canary));
     }
 }

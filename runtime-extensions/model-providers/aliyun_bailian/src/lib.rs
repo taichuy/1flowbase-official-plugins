@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{anyhow, bail, Context, Result};
 use reqwest::{
@@ -176,29 +176,101 @@ struct ProviderModelDescriptor {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
-    pub role: String,
-    #[serde(default)]
-    pub content: Value,
+    pub role: ProviderMessageRole,
+    pub content: String,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
     pub tool_call_id: Option<String>,
+    #[serde(default)]
+    pub is_error: Option<bool>,
     #[serde(default)]
     pub tool_calls: Option<Value>,
     #[serde(default)]
     pub content_blocks: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum ProviderInvocationContractVersion {
+    #[default]
+    #[serde(rename = "1flowbase.provider/v2")]
+    Current,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default)]
+        cache_control: Option<NativePromptCacheControl>,
+    },
+}
+
+impl NativePromptBlock {
+    fn text_content(&self) -> &str {
+        match self {
+            Self::Text { text, .. } => text,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: NativePromptCacheControlType,
+    #[serde(default)]
+    pub ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
-    #[serde(default)]
+    pub contract_version: ProviderInvocationContractVersion,
     pub provider_instance_id: String,
-    #[serde(default)]
     pub provider_code: String,
-    #[serde(default)]
     pub protocol: String,
-    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub previous_response_id: Option<String>,
@@ -207,24 +279,43 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
     #[serde(default)]
-    pub system: Option<String>,
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
     pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
     #[serde(default)]
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
+}
+
+impl ProviderInvocationInput {
+    fn system_text(&self) -> Option<String> {
+        let text = self
+            .system
+            .iter()
+            .map(NativePromptBlock::text_content)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        (!text.is_empty()).then_some(text)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
-    #[serde(default)]
     pub source_protocol: String,
-    #[serde(default)]
     pub policy: String,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -384,6 +475,20 @@ async fn invoke_with_event_sink<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    if !input.required_capabilities.is_empty()
+        || input.system.iter().any(|block| {
+            matches!(
+                block,
+                NativePromptBlock::Text {
+                    cache_control: Some(_),
+                    ..
+                }
+            )
+        })
+        || input.request_context.end_user_reference.is_some()
+    {
+        bail!("Aliyun Bailian Generate does not support the requested semantic capabilities");
+    }
     let config = normalize_provider_config(&input.provider_config)?;
     let protocol = invocation_protocol(&config, &input)?;
     match protocol {
@@ -520,11 +625,15 @@ fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
 }
 
 fn sanitize_reqwest_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
-    let mut message = error.to_string().replace(&config.api_key, "***");
+    anyhow!(sanitize_text(error.to_string(), config))
+}
+
+fn sanitize_text(message: String, config: &ProviderConfig) -> String {
+    let mut message = message.replace(&config.api_key, "***");
     if let Some(proxy_url) = &config.proxy_url {
         message = message.replace(proxy_url, "***");
     }
-    anyhow!(message)
+    message
 }
 
 fn build_headers(
@@ -624,7 +733,7 @@ async fn request_json(
         .map_err(|error| sanitize_reqwest_error(error, config))?;
     let status = response.status();
     let payload = read_json_response(response).await?;
-    ensure_success_status(status, &payload)?;
+    ensure_success_status(status, &payload, config)?;
     Ok(payload)
 }
 
@@ -636,7 +745,11 @@ async fn read_json_response(response: reqwest::Response) -> Result<Value> {
     serde_json::from_str(&text).with_context(|| "provider returned invalid JSON")
 }
 
-fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result<()> {
+fn ensure_success_status(
+    status: reqwest::StatusCode,
+    payload: &Value,
+    config: &ProviderConfig,
+) -> Result<()> {
     if !status.is_success() {
         let message = payload
             .get("error")
@@ -644,7 +757,12 @@ fn ensure_success_status(status: reqwest::StatusCode, payload: &Value) -> Result
             .and_then(Value::as_str)
             .or_else(|| payload.get("message").and_then(Value::as_str))
             .unwrap_or_else(|| payload.as_str().unwrap_or("provider request failed"));
-        bail!("{} {}: {}", status.as_u16(), status, message);
+        bail!(
+            "{} {}: {}",
+            status.as_u16(),
+            status,
+            sanitize_text(message.to_string(), config)
+        );
     }
     Ok(())
 }
@@ -712,16 +830,15 @@ where
 
 fn build_chat_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
+    if let Some(system) = input.system_text() {
         messages.push(json!({ "role": "system", "content": system }));
     }
     for message in &input.messages {
         let mut item = Map::new();
-        item.insert("role".to_string(), Value::String(message.role.clone()));
+        item.insert(
+            "role".to_string(),
+            Value::String(message_role_name(message.role).to_string()),
+        );
         item.insert("content".to_string(), chat_content_value(message));
         if let Some(name) = message
             .name
@@ -749,10 +866,12 @@ fn build_chat_messages(input: &ProviderInvocationInput) -> Vec<Value> {
 }
 
 fn chat_content_value(message: &ProviderMessage) -> Value {
-    let content = message.content_blocks.as_ref().unwrap_or(&message.content);
+    let Some(content) = message.content_blocks.as_ref() else {
+        return Value::String(message.content.clone());
+    };
     match content {
         Value::Array(parts) => Value::Array(parts.iter().filter_map(chat_content_part).collect()),
-        Value::Null => Value::String(String::new()),
+        Value::Null => Value::String(message.content.clone()),
         Value::String(_) => content.clone(),
         other => Value::String(other.to_string()),
     }
@@ -889,15 +1008,8 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
         );
     }
     body.insert("stream".to_string(), Value::Bool(true));
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
-        body.insert(
-            "instructions".to_string(),
-            Value::String(system.to_string()),
-        );
+    if let Some(system) = input.system_text() {
+        body.insert("instructions".to_string(), Value::String(system));
     }
     if !input.tools.is_empty() {
         body.insert(
@@ -930,13 +1042,12 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
 fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut items = Vec::new();
     for message in &input.messages {
-        let role = message.role.trim().to_ascii_lowercase();
-        if role == "tool" {
+        if message.role == ProviderMessageRole::Tool {
             if let Some(call_id) = message.tool_call_id.as_deref() {
                 items.push(json!({
                     "type": "function_call_output",
                     "call_id": call_id,
-                    "output": normalize_message_text(message.content_blocks.as_ref().unwrap_or(&message.content)),
+                    "output": message.content_blocks.as_ref().map(normalize_message_text).unwrap_or_else(|| message.content.clone()),
                 }));
             }
             continue;
@@ -944,7 +1055,7 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
         let content = responses_content_value(message);
         if !is_empty_content(&content) {
             items.push(json!({
-                "role": responses_role(&role),
+                "role": responses_role(message.role),
                 "content": content,
             }));
         }
@@ -960,7 +1071,9 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
 }
 
 fn responses_content_value(message: &ProviderMessage) -> Value {
-    let content = message.content_blocks.as_ref().unwrap_or(&message.content);
+    let Some(content) = message.content_blocks.as_ref() else {
+        return Value::String(message.content.clone());
+    };
     match content {
         Value::Array(parts) => Value::Array(
             parts
@@ -1043,11 +1156,11 @@ fn response_tool(tool: &Value) -> Value {
     Value::Object(mapped)
 }
 
-fn responses_role(role: &str) -> &str {
+fn responses_role(role: ProviderMessageRole) -> &'static str {
     match role {
-        "system" | "developer" => "developer",
-        "assistant" => "assistant",
-        _ => "user",
+        ProviderMessageRole::System => "developer",
+        ProviderMessageRole::Assistant => "assistant",
+        ProviderMessageRole::User | ProviderMessageRole::Tool => "user",
     }
 }
 
@@ -1092,12 +1205,8 @@ fn build_anthropic_body(input: &ProviderInvocationInput) -> Result<Value> {
         "max_tokens".to_string(),
         json!(parameter_u64(input, "max_tokens").unwrap_or(DEFAULT_ANTHROPIC_MAX_TOKENS)),
     );
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
-        body.insert("system".to_string(), Value::String(system.to_string()));
+    if let Some(system) = input.system_text() {
+        body.insert("system".to_string(), Value::String(system));
     }
     if !input.tools.is_empty() {
         body.insert(
@@ -1122,18 +1231,17 @@ fn build_anthropic_body(input: &ProviderInvocationInput) -> Result<Value> {
 fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
     for message in &input.messages {
-        let role = message.role.trim().to_ascii_lowercase();
-        if role == "system" || role == "developer" {
+        if message.role == ProviderMessageRole::System {
             continue;
         }
-        if role == "tool" {
+        if message.role == ProviderMessageRole::Tool {
             if let Some(tool_use_id) = message.tool_call_id.as_deref() {
                 messages.push(json!({
                     "role": "user",
                     "content": [{
                         "type": "tool_result",
                         "tool_use_id": tool_use_id,
-                        "content": normalize_message_text(message.content_blocks.as_ref().unwrap_or(&message.content)),
+                        "content": message.content_blocks.as_ref().map(normalize_message_text).unwrap_or_else(|| message.content.clone()),
                     }]
                 }));
             }
@@ -1143,7 +1251,7 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         append_anthropic_tool_use_blocks(&mut content, message.tool_calls.as_ref());
         if !content.is_empty() {
             messages.push(json!({
-                "role": if role == "assistant" { "assistant" } else { "user" },
+                "role": if message.role == ProviderMessageRole::Assistant { "assistant" } else { "user" },
                 "content": content,
             }));
         }
@@ -1152,7 +1260,13 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
 }
 
 fn anthropic_content_blocks(message: &ProviderMessage) -> Vec<Value> {
-    let content = message.content_blocks.as_ref().unwrap_or(&message.content);
+    let Some(content) = message.content_blocks.as_ref() else {
+        return if message.content.trim().is_empty() {
+            Vec::new()
+        } else {
+            vec![json!({ "type": "text", "text": message.content })]
+        };
+    };
     match content {
         Value::Array(parts) => parts.iter().filter_map(anthropic_content_part).collect(),
         _ => {
@@ -1312,16 +1426,12 @@ fn build_dashscope_body(input: &ProviderInvocationInput) -> Result<Value> {
 
 fn build_dashscope_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
+    if let Some(system) = input.system_text() {
         messages.push(json!({ "role": "system", "content": system }));
     }
     for message in &input.messages {
         messages.push(json!({
-            "role": message.role,
+            "role": message_role_name(message.role),
             "content": dashscope_content_value(message),
         }));
     }
@@ -1329,7 +1439,9 @@ fn build_dashscope_messages(input: &ProviderInvocationInput) -> Vec<Value> {
 }
 
 fn dashscope_content_value(message: &ProviderMessage) -> Value {
-    let content = message.content_blocks.as_ref().unwrap_or(&message.content);
+    let Some(content) = message.content_blocks.as_ref() else {
+        return Value::String(message.content.clone());
+    };
     match content {
         Value::Array(parts) => {
             Value::Array(parts.iter().filter_map(dashscope_content_part).collect())
@@ -1367,17 +1479,18 @@ fn dashscope_content_part(part: &Value) -> Option<Value> {
 }
 
 fn message_has_media(message: &ProviderMessage) -> bool {
-    let content = message.content_blocks.as_ref().unwrap_or(&message.content);
-    content.as_array().is_some_and(|parts| {
-        parts.iter().any(|part| {
-            let part_type = part.get("type").and_then(Value::as_str).unwrap_or_default();
-            matches!(
-                part_type,
-                "image" | "image_url" | "input_image" | "video" | "video_url" | "input_video"
-            ) || part.get("image").is_some()
-                || part.get("image_url").is_some()
-                || part.get("video").is_some()
-                || part.get("video_url").is_some()
+    message.content_blocks.as_ref().is_some_and(|content| {
+        content.as_array().is_some_and(|parts| {
+            parts.iter().any(|part| {
+                let part_type = part.get("type").and_then(Value::as_str).unwrap_or_default();
+                matches!(
+                    part_type,
+                    "image" | "image_url" | "input_image" | "video" | "video_url" | "input_video"
+                ) || part.get("image").is_some()
+                    || part.get("image_url").is_some()
+                    || part.get("video").is_some()
+                    || part.get("video_url").is_some()
+            })
         })
     })
 }
@@ -1440,8 +1553,16 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .model_parameters
         .get(key)
         .cloned()
-        .or_else(|| input.extra.get(key).cloned())
         .and_then(normalize_scalar_parameter)
+}
+
+fn message_role_name(role: ProviderMessageRole) -> &'static str {
+    match role {
+        ProviderMessageRole::System => "system",
+        ProviderMessageRole::User => "user",
+        ProviderMessageRole::Assistant => "assistant",
+        ProviderMessageRole::Tool => "tool",
+    }
 }
 
 fn parameter_u64(input: &ProviderInvocationInput, key: &str) -> Option<u64> {

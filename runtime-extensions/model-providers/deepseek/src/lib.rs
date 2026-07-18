@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
@@ -144,27 +144,101 @@ struct ProviderBalanceInfo {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
-    pub role: String,
-    #[serde(default)]
-    pub content: Value,
+    pub role: ProviderMessageRole,
+    pub content: String,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
     pub tool_call_id: Option<String>,
     #[serde(default)]
+    pub is_error: Option<bool>,
+    #[serde(default)]
     pub tool_calls: Option<Value>,
+    #[serde(default)]
+    pub content_blocks: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum ProviderInvocationContractVersion {
+    #[default]
+    #[serde(rename = "1flowbase.provider/v2")]
+    Current,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default)]
+        cache_control: Option<NativePromptCacheControl>,
+    },
+}
+
+impl NativePromptBlock {
+    fn text_content(&self) -> &str {
+        match self {
+            Self::Text { text, .. } => text,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: NativePromptCacheControlType,
+    #[serde(default)]
+    pub ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
-    #[serde(default)]
+    pub contract_version: ProviderInvocationContractVersion,
     pub provider_instance_id: String,
-    #[serde(default)]
     pub provider_code: String,
-    #[serde(default)]
     pub protocol: String,
-    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub previous_response_id: Option<String>,
@@ -173,24 +247,43 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub messages: Vec<ProviderMessage>,
     #[serde(default)]
-    pub system: Option<String>,
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
     pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
     #[serde(default)]
     pub response_format: Option<Value>,
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
+}
+
+impl ProviderInvocationInput {
+    fn system_text(&self) -> Option<String> {
+        let text = self
+            .system
+            .iter()
+            .map(NativePromptBlock::text_content)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        (!text.is_empty()).then_some(text)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
-    #[serde(default)]
     pub source_protocol: String,
-    #[serde(default)]
     pub policy: String,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -556,6 +649,20 @@ where
 }
 
 fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
+    if !input.required_capabilities.is_empty()
+        || input.system.iter().any(|block| {
+            matches!(
+                block,
+                NativePromptBlock::Text {
+                    cache_control: Some(_),
+                    ..
+                }
+            )
+        })
+        || input.request_context.end_user_reference.is_some()
+    {
+        bail!("DeepSeek Generate does not support the requested semantic capabilities");
+    }
     let model = input.model.trim();
     if model.is_empty() {
         bail!("model is required");
@@ -603,11 +710,7 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
 
 fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
-    if let Some(system) = input
-        .system
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
+    if let Some(system) = input.system_text() {
         messages.push(json!({
             "role": "system",
             "content": system,
@@ -615,8 +718,20 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     }
     for message in &input.messages {
         let mut item = Map::new();
-        item.insert("role".to_string(), Value::String(message.role.clone()));
-        item.insert("content".to_string(), message.content.clone());
+        let role = match message.role {
+            ProviderMessageRole::System => "system",
+            ProviderMessageRole::User => "user",
+            ProviderMessageRole::Assistant => "assistant",
+            ProviderMessageRole::Tool => "tool",
+        };
+        item.insert("role".to_string(), Value::String(role.to_string()));
+        item.insert(
+            "content".to_string(),
+            message
+                .content_blocks
+                .clone()
+                .unwrap_or_else(|| Value::String(message.content.clone())),
+        );
         if let Some(name) = message
             .name
             .as_deref()
@@ -700,7 +815,6 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .model_parameters
         .get(key)
         .cloned()
-        .or_else(|| input.extra.get(key).cloned())
         .and_then(|value| normalize_parameter_value(key, value))
 }
 
@@ -764,8 +878,7 @@ where
             .text()
             .await
             .with_context(|| "provider error response was not readable")?;
-        let payload =
-            serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({ "message": text }));
+        let payload = serde_json::from_str::<Value>(&text).unwrap_or(Value::Null);
         let message = provider_error_message(&payload).replace(api_key, "***");
         bail!("{} {}: {}", status.as_u16(), status, message);
     }
@@ -1122,7 +1235,7 @@ fn provider_error_message(payload: &Value) -> String {
         .and_then(Value::as_str)
         .or_else(|| payload.get("message").and_then(Value::as_str))
         .map(ToOwned::to_owned)
-        .unwrap_or_else(|| payload.to_string())
+        .unwrap_or_else(|| "provider upstream request failed".to_string())
 }
 
 fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
@@ -1335,6 +1448,10 @@ mod tests {
     #[test]
     fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "deepseek",
+            "protocol": "deepseek",
             "model": "deepseek-chat",
             "client_protocol_envelope": {
                 "source_protocol": "openai_chat",
@@ -1350,7 +1467,6 @@ mod tests {
         .unwrap();
 
         assert!(input.client_protocol_envelope.is_some());
-        assert!(!input.extra.contains_key("client_protocol_envelope"));
 
         let config = normalize_provider_config(&json!({
             "api_key": "provider-secret",
@@ -1370,6 +1486,10 @@ mod tests {
     #[test]
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "deepseek",
+            "protocol": "deepseek",
             "model": "deepseek-chat",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
@@ -1430,10 +1550,11 @@ mod tests {
             provider_config: serde_json::json!({ "api_key": "secret" }),
             messages: vec![
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: serde_json::Value::Null,
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(serde_json::json!([{
                         "id": "call_1",
                         "type": "function",
@@ -1442,20 +1563,25 @@ mod tests {
                             "arguments": "{\"query\":\"refund\"}"
                         }
                     }])),
+                    content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "user".to_string(),
-                    content: serde_json::json!("Hi"),
+                    role: ProviderMessageRole::User,
+                    content: "Hi".to_string(),
                     name: Some("customer".to_string()),
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: None,
+                    content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: serde_json::json!("tool result"),
+                    role: ProviderMessageRole::Tool,
+                    content: "tool result".to_string(),
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
+                    is_error: None,
                     tool_calls: None,
+                    content_blocks: None,
                 },
             ],
             tools: vec![serde_json::json!({
@@ -1536,11 +1662,13 @@ mod tests {
         let input = ProviderInvocationInput {
             model: "deepseek-v4-pro".to_string(),
             messages: vec![ProviderMessage {
-                role: "user".to_string(),
-                content: serde_json::json!("Return JSON only"),
+                role: ProviderMessageRole::User,
+                content: "Return JSON only".to_string(),
                 name: None,
                 tool_call_id: None,
+                is_error: None,
                 tool_calls: None,
+                content_blocks: None,
             }],
             response_format: Some(serde_json::json!({ "type": "json_object" })),
             ..ProviderInvocationInput::default()
@@ -1559,11 +1687,13 @@ mod tests {
         let input = ProviderInvocationInput {
             model: "deepseek-v4-pro".to_string(),
             messages: vec![ProviderMessage {
-                role: "user".to_string(),
-                content: serde_json::json!("Return JSON only"),
+                role: ProviderMessageRole::User,
+                content: "Return JSON only".to_string(),
                 name: None,
                 tool_call_id: None,
+                is_error: None,
                 tool_calls: None,
+                content_blocks: None,
             }],
             model_parameters: BTreeMap::from([(
                 "response_format".to_string(),
@@ -1584,10 +1714,11 @@ mod tests {
     fn build_invocation_messages_maps_native_tool_calls_to_deepseek_wire_shape() {
         let input = ProviderInvocationInput {
             messages: vec![ProviderMessage {
-                role: "assistant".to_string(),
-                content: Value::Null,
+                role: ProviderMessageRole::Assistant,
+                content: String::new(),
                 name: None,
                 tool_call_id: None,
+                is_error: None,
                 tool_calls: Some(serde_json::json!([
                     {
                         "id": "call_00_XRooTtPLMotGXDkskaIA9845",
@@ -1597,6 +1728,7 @@ mod tests {
                         }
                     }
                 ])),
+                content_blocks: None,
             }],
             ..ProviderInvocationInput::default()
         };
@@ -1621,10 +1753,11 @@ mod tests {
             model: "deepseek-v4-pro".to_string(),
             messages: vec![
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::Null,
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     name: None,
                     tool_call_id: None,
+                    is_error: None,
                     tool_calls: Some(serde_json::json!([
                         {
                             "id": "call_1",
@@ -1632,13 +1765,16 @@ mod tests {
                             "arguments": { "location": "Hangzhou" }
                         }
                     ])),
+                    content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: serde_json::json!("Sunny"),
+                    role: ProviderMessageRole::Tool,
+                    content: "Sunny".to_string(),
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
+                    is_error: None,
                     tool_calls: None,
+                    content_blocks: None,
                 },
             ],
             tools: vec![serde_json::json!({
@@ -1706,17 +1842,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn chat_streaming_runtime_maps_deepseek_sse_events() {
+    async fn ac_002_fake_upstream_receives_exact_generate_wire_and_maps_sse() {
         let (base_url, capture_handle) = capture_streaming_chat_request();
         let mut events = Vec::new();
 
         let result = handle_invoke_request_streaming(
             json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-test",
+                "provider_code": "deepseek",
+                "protocol": "deepseek",
                 "model": "deepseek-v4-pro",
                 "provider_config": {
                     "base_url": base_url,
                     "api_key": "test-key"
                 },
+                "system": [{ "type": "text", "text": "Be concise" }],
                 "messages": [{
                     "role": "user",
                     "content": "hello"
@@ -1734,10 +1875,17 @@ mod tests {
             serde_json::from_str(&capture_handle.join().expect("capture thread should finish"))
                 .expect("captured body should parse");
 
-        assert_eq!(captured_body["stream"], json!(true));
         assert_eq!(
-            captured_body["stream_options"],
-            json!({ "include_usage": true })
+            captured_body,
+            json!({
+                "model": "deepseek-v4-pro",
+                "messages": [
+                    { "role": "system", "content": "Be concise" },
+                    { "role": "user", "content": "hello" }
+                ],
+                "stream": true,
+                "stream_options": { "include_usage": true }
+            })
         );
         assert!(events.contains(&ProviderStreamEvent::ReasoningDelta {
             delta: "think".to_string()
@@ -1793,6 +1941,10 @@ mod tests {
 
         let error = handle_invoke_request_streaming(
             json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-test",
+                "provider_code": "deepseek",
+                "protocol": "deepseek",
                 "model": "deepseek-v4-pro",
                 "provider_config": {
                     "base_url": base_url,
@@ -1875,5 +2027,69 @@ mod tests {
             normalize_finish_reason(Some("insufficient_system_resource"), &[]),
             ProviderFinishReason::Unknown
         );
+    }
+
+    #[test]
+    fn ac_002_generate_contract_accepts_only_current_strict_input() {
+        let missing = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "model": "deepseek-v4-pro"
+        }))
+        .expect_err("missing current contract must fail before provider invocation");
+        assert!(missing.to_string().contains("contract_version"));
+
+        let current = json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "deepseek",
+            "protocol": "deepseek",
+            "model": "deepseek-v4-pro"
+        });
+        serde_json::from_value::<ProviderInvocationInput>(current.clone())
+            .expect("current Generate input should deserialize");
+
+        let mut legacy = current.clone();
+        legacy["contract_version"] = json!("1flowbase.provider/v1");
+        assert!(serde_json::from_value::<ProviderInvocationInput>(legacy).is_err());
+
+        let mut unknown = current;
+        unknown["raw_body"] = json!("must-not-be-accepted");
+        let error = serde_json::from_value::<ProviderInvocationInput>(unknown)
+            .expect_err("unknown Generate fields must fail closed");
+        assert!(error.to_string().contains("raw_body"));
+    }
+
+    #[test]
+    fn ac_002_package_manifest_declares_only_current_generate_contract() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+        assert!(!manifest.contains("1flowbase.provider/v1"));
+        assert!(!manifest.contains("capabilities:"));
+    }
+
+    #[test]
+    fn ac_002_rejects_undeclared_generate_capabilities_before_wire_rendering() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "deepseek",
+            "protocol": "deepseek",
+            "model": "deepseek-v4-pro",
+            "required_capabilities": ["system_prompt_blocks"]
+        }))
+        .unwrap();
+
+        let error = build_chat_completion_body(&input)
+            .expect_err("undeclared semantic capabilities must not be projected away");
+        assert!(error.to_string().contains("semantic capabilities"));
+    }
+
+    #[test]
+    fn ac_005_raw_sensitive_upstream_body_is_not_retained() {
+        let canary = "raw-prompt-canary provider-secret";
+        let message = provider_error_message(&Value::String(canary.to_string()));
+
+        assert_eq!(message, "provider upstream request failed");
+        assert!(!message.contains(canary));
     }
 }

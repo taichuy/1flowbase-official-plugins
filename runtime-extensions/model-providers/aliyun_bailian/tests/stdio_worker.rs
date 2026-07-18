@@ -8,7 +8,7 @@ use std::{
 
 use serde_json::{json, Value};
 
-fn read_http_request(stream: &mut TcpStream) {
+fn read_http_request(stream: &mut TcpStream) -> String {
     stream
         .set_read_timeout(Some(Duration::from_secs(5)))
         .expect("read timeout should be set");
@@ -42,21 +42,24 @@ fn read_http_request(stream: &mut TcpStream) {
 
         if let (Some(end), Some(length)) = (header_end, body_length) {
             if buffer.len() >= end + length {
-                return;
+                return String::from_utf8(buffer[end..end + length].to_vec())
+                    .expect("request body should be utf8");
             }
         }
         if header_end.is_some() && body_length.is_none() {
-            return;
+            return String::new();
         }
     }
+
+    panic!("request body was not fully captured");
 }
 
-fn start_chat_sse_server() -> (String, thread::JoinHandle<()>) {
+fn start_chat_sse_server() -> (String, thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("request should connect");
-        read_http_request(&mut stream);
+        let request_body = read_http_request(&mut stream);
         let response_body = concat!(
             "data: {\"id\":\"chatcmpl_test\",\"choices\":[{\"delta\":{\"content\":\"hello\"},\"finish_reason\":null}]}\n\n",
             "data: {\"id\":\"chatcmpl_test\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"total_tokens\":3}}\n\n",
@@ -69,6 +72,7 @@ fn start_chat_sse_server() -> (String, thread::JoinHandle<()>) {
             response_body
         )
         .expect("response should be writable");
+        request_body
     });
 
     (address, handle)
@@ -78,6 +82,7 @@ fn invoke_line(base_url: &str) -> String {
     json!({
         "method": "invoke",
         "input": {
+            "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-test",
             "provider_code": "aliyun_bailian",
             "protocol": "aliyun_bailian",
@@ -88,6 +93,7 @@ fn invoke_line(base_url: &str) -> String {
                 "api_protocol": "openai_chat",
                 "validate_model": false
             },
+            "system": [{ "type": "text", "text": "Be concise" }],
             "messages": [
                 {
                     "role": "user",
@@ -110,7 +116,7 @@ fn next_json_line(stdout: &mut BufReader<impl Read>) -> Value {
 }
 
 #[test]
-fn invoke_emits_provider_runtime_ndjson_lines() {
+fn ac_002_fake_upstream_receives_exact_generate_wire_through_stdio() {
     let (base_url, handle) = start_chat_sse_server();
     let mut child = Command::new(env!("CARGO_BIN_EXE_aliyun_bailian-provider"))
         .stdin(Stdio::piped())
@@ -142,5 +148,22 @@ fn invoke_emits_provider_runtime_ndjson_lines() {
 
     child.kill().expect("provider process should stop");
     let _ = child.wait();
-    handle.join().expect("mock server should finish");
+    let body: Value = serde_json::from_str(
+        &handle
+            .join()
+            .expect("fake upstream should capture Generate request"),
+    )
+    .expect("captured Generate body should be JSON");
+    assert_eq!(
+        body,
+        json!({
+            "model": "qwen-plus",
+            "messages": [
+                { "role": "system", "content": "Be concise" },
+                { "role": "user", "content": "hello" }
+            ],
+            "stream": true,
+            "stream_options": { "include_usage": true }
+        })
+    );
 }
