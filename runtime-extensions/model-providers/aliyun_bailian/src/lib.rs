@@ -756,7 +756,7 @@ fn ensure_success_status(
             .and_then(|value| value.get("message"))
             .and_then(Value::as_str)
             .or_else(|| payload.get("message").and_then(Value::as_str))
-            .unwrap_or_else(|| payload.as_str().unwrap_or("provider request failed"));
+            .unwrap_or("provider request failed");
         bail!(
             "{} {}: {}",
             status.as_u16(),
