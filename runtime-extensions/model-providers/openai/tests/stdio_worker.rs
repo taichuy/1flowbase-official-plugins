@@ -840,6 +840,9 @@ fn invoke_line(base_url: &str, transport_mode: &str) -> String {
         "method": "invoke",
         "input": {
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.3-codex-spark",
             "provider_config": {
                 "base_url": base_url,
@@ -863,6 +866,9 @@ fn invoke_line_with_previous_response_id(
         "method": "invoke",
         "input": {
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.3-codex-spark",
             "previous_response_id": previous_response_id,
             "provider_config": {
@@ -1414,28 +1420,13 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
         .as_str()
         .expect("error message should be a string")
         .contains("OpenAI codex passthrough requires a non-empty instructions field"));
-    assert_eq!(error_line["error"]["provider_details"]["status"], 400);
     assert_eq!(
-        error_line["error"]["provider_details"]["content_type"],
-        "application/json; charset=utf-8"
+        error_line["error"]["provider_details"],
+        json!({ "status": 400, "request_id": "req_mixed_body" })
     );
-    assert_eq!(
-        error_line["error"]["provider_details"]["headers"]["x-request-id"],
-        "req_mixed_body"
-    );
-    assert!(error_line["error"]["provider_details"]["headers"]
-        .get("authorization")
-        .is_none());
-    assert!(error_line["error"]["provider_details"]["headers"]
-        .get("x-api-key")
-        .is_none());
-    assert!(error_line["error"]["provider_details"]["headers"]
-        .get("set-cookie")
-        .is_none());
-    assert!(error_line["error"]["provider_details"]["raw_body"]
-        .as_str()
-        .expect("raw_body should be a string")
-        .contains("data: {\"type\":\"response.failed\"}"));
+    let encoded_error = error_line.to_string();
+    assert!(!encoded_error.contains("should-not-leak"));
+    assert!(!encoded_error.contains("response.failed"));
 
     let result_line = next_json_line(&mut stdout);
     assert_eq!(result_line["type"], "result");

@@ -188,9 +188,8 @@ struct ProviderModelDescriptor {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
-    pub role: String,
-    #[serde(default)]
-    pub content: Value,
+    pub role: ProviderMessageRole,
+    pub content: String,
     #[serde(default)]
     pub content_blocks: Option<Value>,
     #[serde(default)]
@@ -201,6 +200,15 @@ pub struct ProviderMessage {
     pub is_error: Option<bool>,
     #[serde(default)]
     pub tool_calls: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -215,9 +223,32 @@ pub enum ProviderInvocationContractVersion {
 pub enum NativePromptBlock {
     Text {
         text: String,
-        #[serde(default)]
-        cache_control: Option<Value>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_control: Option<NativePromptCacheControl>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: NativePromptCacheControlType,
+    #[serde(default)]
+    pub ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
 }
 
 impl NativePromptBlock {
@@ -247,13 +278,9 @@ pub enum ProviderInvocationCapability {
 #[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
     pub contract_version: ProviderInvocationContractVersion,
-    #[serde(default)]
     pub provider_instance_id: String,
-    #[serde(default)]
     pub provider_code: String,
-    #[serde(default)]
     pub protocol: String,
-    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub previous_response_id: Option<String>,
@@ -298,9 +325,7 @@ impl ProviderInvocationInput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
-    #[serde(default)]
     pub source_protocol: String,
-    #[serde(default)]
     pub policy: String,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -863,23 +888,18 @@ fn provider_upstream_error_from_parts(
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    let content_type = headers
-        .get(CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default()
-        .to_string();
     let upstream_message = upstream_error_message(&raw_body);
     let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    let mut provider_details = Map::new();
+    provider_details.insert("status".to_string(), json!(status.as_u16()));
+    if let Some(request_id) = response_request_id(headers) {
+        provider_details.insert("request_id".to_string(), json!(request_id));
+    }
     ProviderRuntimeError {
         kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
         message: message.clone(),
         provider_summary: Some(message),
-        provider_details: Some(json!({
-            "status": status.as_u16(),
-            "content_type": content_type,
-            "headers": response_headers_payload(headers),
-            "raw_body": raw_body,
-        })),
+        provider_details: Some(Value::Object(provider_details)),
     }
 }
 
@@ -913,31 +933,16 @@ fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
         .or_else(|| payload.get("message").and_then(Value::as_str))
 }
 
-fn response_headers_payload(headers: &HeaderMap) -> Value {
-    let mut payload = Map::new();
-    for (name, value) in headers {
-        let name = name.as_str().to_ascii_lowercase();
-        if sensitive_header_name(&name) {
-            continue;
-        }
-        if let Ok(value) = value.to_str() {
-            payload.insert(name, Value::String(value.to_string()));
-        }
-    }
-    Value::Object(payload)
-}
-
-fn sensitive_header_name(name: &str) -> bool {
-    matches!(
-        name,
-        "authorization"
-            | "proxy-authorization"
-            | "cookie"
-            | "set-cookie"
-            | "x-api-key"
-            | "api-key"
-            | "openai-api-key"
-    ) || name.ends_with("-api-key")
+fn response_request_id(headers: &HeaderMap) -> Option<String> {
+    ["x-request-id", "request-id", "openai-request-id", "cf-ray"]
+        .iter()
+        .find_map(|name| {
+            headers
+                .get(*name)
+                .and_then(|value| value.to_str().ok())
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| value.chars().take(128).collect())
+        })
 }
 
 fn normalize_model_entries(raw: &Value) -> Result<Vec<ProviderModelDescriptor>> {
@@ -1265,6 +1270,20 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
     if input.model.trim().is_empty() {
         bail!("model is required");
     }
+    if !input.required_capabilities.is_empty()
+        || input.system.iter().any(|block| {
+            matches!(
+                block,
+                NativePromptBlock::Text {
+                    cache_control: Some(_),
+                    ..
+                }
+            )
+        })
+        || input.request_context.end_user_reference.is_some()
+    {
+        bail!("OpenAI Generate does not support the requested semantic capabilities");
+    }
     let mut body = Map::new();
     body.insert(
         "model".to_string(),
@@ -1357,8 +1376,7 @@ fn response_output_input_items(result: &ProviderInvocationResult) -> Vec<Value> 
 fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut items = Vec::new();
     for message in &input.messages {
-        let role = message.role.trim().to_ascii_lowercase();
-        if role == "tool" {
+        if message.role == ProviderMessageRole::Tool {
             if let Some(call_id) = message.tool_call_id.as_deref() {
                 items.push(json!({
                     "type": "function_call_output",
@@ -1370,7 +1388,7 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
         }
         if let Some(content) = responses_message_content(message) {
             items.push(json!({
-                "role": normalize_responses_role(&role),
+                "role": responses_role(message.role),
                 "content": content,
             }));
         }
@@ -1387,8 +1405,7 @@ fn responses_message_content(message: &ProviderMessage) -> Option<Value> {
     if structured.is_some() {
         return structured;
     }
-    let content = normalize_message_content(&message.content);
-    (!content.is_empty()).then_some(Value::String(content))
+    (!message.content.is_empty()).then(|| Value::String(message.content.clone()))
 }
 
 fn responses_tool_output(message: &ProviderMessage) -> Value {
@@ -1396,7 +1413,7 @@ fn responses_tool_output(message: &ProviderMessage) -> Value {
         .content_blocks
         .as_ref()
         .and_then(responses_structured_content)
-        .unwrap_or_else(|| Value::String(normalize_message_content(&message.content)))
+        .unwrap_or_else(|| Value::String(message.content.clone()))
 }
 
 fn responses_structured_content(content_blocks: &Value) -> Option<Value> {
@@ -1511,12 +1528,12 @@ fn responses_content_items_contain_media(items: &[Value]) -> bool {
     })
 }
 
-fn normalize_responses_role(role: &str) -> &str {
+fn responses_role(role: ProviderMessageRole) -> &'static str {
     match role {
-        "system" => "developer",
-        "developer" => "developer",
-        "assistant" => "assistant",
-        _ => "user",
+        ProviderMessageRole::System => "developer",
+        ProviderMessageRole::Assistant => "assistant",
+        ProviderMessageRole::User => "user",
+        ProviderMessageRole::Tool => "tool",
     }
 }
 
@@ -1585,23 +1602,6 @@ fn build_response_tool(tool: &Value) -> Value {
         mapped.insert("strict".to_string(), strict.clone());
     }
     Value::Object(mapped)
-}
-
-fn normalize_message_content(content: &Value) -> String {
-    match content {
-        Value::String(text) => text.clone(),
-        Value::Array(parts) => parts
-            .iter()
-            .filter_map(|part| {
-                part.get("text")
-                    .or_else(|| part.get("content"))
-                    .and_then(Value::as_str)
-            })
-            .collect::<Vec<_>>()
-            .join(""),
-        Value::Null => String::new(),
-        other => other.to_string(),
-    }
 }
 
 fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> {
@@ -2810,7 +2810,7 @@ mod tests {
     use super::*;
     use std::{
         io::{Read, Write},
-        net::TcpListener,
+        net::{TcpListener, TcpStream},
         sync::mpsc,
         thread,
         time::Duration,
@@ -2839,6 +2839,69 @@ mod tests {
         assert!(response.ok);
         assert_eq!(response.result["sanitized"]["proxy_url"], "***");
         assert!(!response.result.to_string().contains(proxy_url));
+    }
+
+    fn read_http_request_with_body(stream: &mut TcpStream) -> String {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("request read timeout");
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        loop {
+            let read = stream
+                .read(&mut buffer)
+                .expect("request should be readable");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+            let Some(header_end) = request.windows(4).position(|part| part == b"\r\n\r\n") else {
+                continue;
+            };
+            let headers = String::from_utf8_lossy(&request[..header_end]);
+            let content_length = headers
+                .lines()
+                .find_map(|line| {
+                    line.split_once(':').and_then(|(name, value)| {
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().ok())
+                            .flatten()
+                    })
+                })
+                .unwrap_or(0);
+            if request.len() >= header_end + 4 + content_length {
+                break;
+            }
+        }
+        String::from_utf8(request).expect("request should be utf8")
+    }
+
+    fn start_generate_sse_server() -> (String, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("generate listener should bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (request_tx, request_rx) = mpsc::channel();
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("generate request should connect");
+            let request = read_http_request_with_body(&mut stream);
+            request_tx
+                .send(request)
+                .expect("generate request should be captured");
+            let body = concat!(
+                "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n\n",
+                "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_generate\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
+            );
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("generate response should be writable");
+        });
+
+        (base_url, request_rx)
     }
 
     fn start_websocket_connect_proxy() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
@@ -2897,7 +2960,7 @@ mod tests {
     }
 
     #[test]
-    fn upstream_plain_text_body_stays_out_of_public_error_message() {
+    fn ac_005_upstream_raw_body_and_secrets_stay_out_of_error_contract() {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -2930,11 +2993,16 @@ mod tests {
             .contains(&raw_body));
         let details = error
             .provider_details
+            .as_ref()
             .expect("upstream error should carry details");
-        assert_eq!(details["raw_body"], raw_body);
-        assert_eq!(details["headers"]["x-request-id"], "req_plain");
-        assert!(details["headers"].get("authorization").is_none());
-        assert!(details["headers"].get("set-cookie").is_none());
+        assert_eq!(
+            details,
+            &json!({ "status": 400, "request_id": "req_plain" })
+        );
+        let encoded = serde_json::to_string(&error).unwrap();
+        assert!(!encoded.contains(&raw_body));
+        assert!(!encoded.contains("sk-secret"));
+        assert!(!encoded.contains("session=secret"));
     }
 
     #[test]
@@ -2945,8 +3013,8 @@ mod tests {
             previous_response_id: Some("resp_previous".to_string()),
             messages: vec![
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::Null,
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: None,
@@ -2956,8 +3024,8 @@ mod tests {
                     ),
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: json!("found"),
+                    role: ProviderMessageRole::Tool,
+                    content: "found".to_string(),
                     content_blocks: None,
                     name: None,
                     tool_call_id: Some("call_1".to_string()),
@@ -3007,7 +3075,7 @@ mod tests {
     }
 
     #[test]
-    fn d1_ac_011_current_host_input_reaches_responses_wire_without_max_tokens_alias() {
+    fn ac_002_current_generate_input_reaches_responses_renderer_without_projection() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-openai",
@@ -3029,8 +3097,6 @@ mod tests {
                 "type": "text",
                 "text": "D1 seed instructions"
             }],
-            "request_context": { "end_user_reference": "native-user-1" },
-            "required_capabilities": ["system_prompt_blocks"],
             "tools": [],
             "mcp_bindings": [],
             "response_format": null,
@@ -3048,8 +3114,56 @@ mod tests {
         assert!(body.get("max_tokens").is_none());
     }
 
+    #[tokio::test]
+    async fn ac_002_fake_upstream_receives_exact_openai_generate_wire() {
+        let (base_url, request_rx) = start_generate_sse_server();
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "wire-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "wire prompt" }],
+            "system": [{ "type": "text", "text": "wire instructions" }],
+            "model_parameters": { "max_output_tokens": 128 }
+        }))
+        .unwrap();
+
+        OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect("current Generate should complete against fake upstream");
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture Generate request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).unwrap();
+
+        assert!(headers.starts_with("POST /responses HTTP/1.1"));
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("authorization: bearer wire-secret"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "gpt-5.4-mini",
+                "input": [{ "role": "user", "content": "wire prompt" }],
+                "stream": true,
+                "instructions": "wire instructions",
+                "max_output_tokens": 128
+            })
+        );
+    }
+
     #[test]
-    fn d1_ac_011_missing_contract_is_rejected_by_strict_deserialization() {
+    fn ac_002_current_generate_input_rejects_missing_legacy_and_unknown_contract_shapes() {
         let error = serde_json::from_value::<ProviderInvocationInput>(json!({
             "model": "gpt-5.4-mini",
             "provider_config": {
@@ -3061,12 +3175,71 @@ mod tests {
         .expect_err("missing current contract must fail before provider invocation");
 
         assert!(error.to_string().contains("contract_version"));
+
+        let legacy = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "contract_version": "1flowbase.provider/v1",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini"
+        }))
+        .expect_err("legacy provider contract must be rejected");
+        assert!(legacy.to_string().contains("1flowbase.provider/v1"));
+
+        let unknown = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "raw_body": "must-not-be-accepted"
+        }))
+        .expect_err("unknown current contract fields must be rejected");
+        assert!(unknown.to_string().contains("raw_body"));
+    }
+
+    #[test]
+    fn ac_002_package_manifest_declares_only_current_generate_contract() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+        assert!(!manifest.contains("1flowbase.provider/v1"));
+        assert!(!manifest.contains("capabilities:"));
+    }
+
+    #[test]
+    fn ac_002_openai_rejects_undeclared_generate_capabilities_without_projection() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "system": [{
+                "type": "text",
+                "text": "must preserve cache policy",
+                "cache_control": { "type": "ephemeral" }
+            }],
+            "required_capabilities": [
+                "system_prompt_blocks",
+                "system_prompt_cache_control"
+            ]
+        }))
+        .unwrap();
+
+        let error = build_responses_body(&input)
+            .expect_err("undeclared Generate capabilities must not be projected away");
+
+        assert!(error.to_string().contains("semantic capabilities"));
     }
 
     #[test]
     fn responses_body_preserves_media_content_blocks() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.1",
             "messages": [
                 {
@@ -3123,6 +3296,9 @@ mod tests {
     fn responses_body_accepts_native_image_source_data_without_type() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.1",
             "messages": [
                 {
@@ -3651,6 +3827,9 @@ mod tests {
     fn client_protocol_envelope_uses_default_deny_policy_for_http_headers() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.1",
             "client_protocol_envelope": {
                 "source_protocol": "openai_responses",
@@ -3691,6 +3870,9 @@ mod tests {
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.1",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
@@ -3869,6 +4051,9 @@ mod tests {
     fn websocket_headers_keep_internal_beta_and_turn_state_over_client_envelope() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
             "model": "gpt-5.1",
             "client_protocol_envelope": {
                 "source_protocol": "openai_responses",

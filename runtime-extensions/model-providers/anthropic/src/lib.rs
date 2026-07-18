@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
@@ -138,10 +141,10 @@ struct ProviderModelDescriptor {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderMessage {
-    pub role: String,
-    #[serde(default)]
-    pub content: Value,
+    pub role: ProviderMessageRole,
+    pub content: String,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
@@ -154,11 +157,20 @@ pub struct ProviderMessage {
     pub content_blocks: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 pub enum ProviderInvocationContractVersion {
     #[default]
     #[serde(rename = "1flowbase.provider/v2")]
-    V2,
+    Current,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -211,17 +223,21 @@ pub struct NativeModelRequestContext {
     pub end_user_reference: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
-pub struct NativeModelInvocationV2 {
+pub struct ProviderInvocationInput {
     pub contract_version: ProviderInvocationContractVersion,
-    #[serde(default)]
     pub provider_instance_id: String,
-    #[serde(default)]
     pub provider_code: String,
-    #[serde(default)]
     pub protocol: String,
-    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub previous_response_id: Option<String>,
@@ -234,7 +250,7 @@ pub struct NativeModelInvocationV2 {
     #[serde(default)]
     pub request_context: NativeModelRequestContext,
     #[serde(default)]
-    pub required_capabilities: Vec<String>,
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
     pub tools: Vec<Value>,
     #[serde(default)]
@@ -251,13 +267,9 @@ pub struct NativeModelInvocationV2 {
     pub run_context: BTreeMap<String, Value>,
 }
 
-pub use NativeModelInvocationV2 as ProviderInvocationInput;
-
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
-    #[serde(default)]
     pub source_protocol: String,
-    #[serde(default)]
     pub policy: String,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -749,21 +761,13 @@ fn provider_upstream_error_from_parts(
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    let content_type = headers
-        .get(CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default()
-        .to_string();
     let upstream_message = upstream_error_message(&raw_body);
     let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
     let mut provider_details = Map::new();
     provider_details.insert("status".to_string(), json!(status.as_u16()));
-    provider_details.insert("content_type".to_string(), json!(content_type));
-    provider_details.insert("headers".to_string(), response_headers_payload(headers));
     if let Some(request_id) = response_request_id(headers) {
         provider_details.insert("request_id".to_string(), json!(request_id));
     }
-    provider_details.insert("raw_body".to_string(), json!(raw_body));
 
     ProviderRuntimeError {
         kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
@@ -803,20 +807,6 @@ fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
         .or_else(|| payload.get("message").and_then(Value::as_str))
 }
 
-fn response_headers_payload(headers: &HeaderMap) -> Value {
-    let mut payload = Map::new();
-    for (name, value) in headers {
-        let name = name.as_str().to_ascii_lowercase();
-        if sensitive_header_name(&name) {
-            continue;
-        }
-        if let Ok(value) = value.to_str() {
-            payload.insert(name, Value::String(value.to_string()));
-        }
-    }
-    Value::Object(payload)
-}
-
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
     [
         "x-request-id",
@@ -830,21 +820,8 @@ fn response_request_id(headers: &HeaderMap) -> Option<String> {
             .get(*name)
             .and_then(|value| value.to_str().ok())
             .filter(|value| !value.trim().is_empty())
-            .map(ToOwned::to_owned)
+            .map(|value| value.chars().take(128).collect())
     })
-}
-
-fn sensitive_header_name(name: &str) -> bool {
-    matches!(
-        name,
-        "authorization"
-            | "proxy-authorization"
-            | "cookie"
-            | "set-cookie"
-            | "x-api-key"
-            | "api-key"
-            | "anthropic-api-key"
-    ) || name.ends_with("-api-key")
 }
 
 fn normalize_model_entries(data: &Value) -> Result<Vec<ProviderModelDescriptor>> {
@@ -993,8 +970,7 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
     let mut messages = Vec::new();
     let mut consecutive_tool_results = Vec::new();
     for message in &input.messages {
-        let role = message.role.trim().to_ascii_lowercase();
-        if role == "tool" {
+        if message.role == ProviderMessageRole::Tool {
             if let Some(tool_use_id) = message.tool_call_id.as_deref() {
                 let mut tool_result = json!({
                     "type": "tool_result",
@@ -1014,14 +990,14 @@ fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
                 "content": std::mem::take(&mut consecutive_tool_results),
             }));
         }
-        if role == "system" || role == "developer" {
+        if message.role == ProviderMessageRole::System {
             continue;
         }
         let mut content = message_content_blocks(message);
         append_tool_use_blocks(&mut content, message.tool_calls.as_ref());
         if !content.is_empty() {
             messages.push(json!({
-                "role": if role == "assistant" { "assistant" } else { "user" },
+                "role": if message.role == ProviderMessageRole::Assistant { "assistant" } else { "user" },
                 "content": content,
             }));
         }
@@ -1042,7 +1018,10 @@ fn message_content_blocks(message: &ProviderMessage) -> Vec<Value> {
             return blocks;
         }
     }
-    text_content_block(&message.content).into_iter().collect()
+    (!message.content.is_empty())
+        .then(|| json!({ "type": "text", "text": message.content.clone() }))
+        .into_iter()
+        .collect()
 }
 
 fn content_blocks_from_value(content: &Value) -> Vec<Value> {
@@ -1178,7 +1157,7 @@ fn tool_result_content(message: &ProviderMessage) -> Value {
             return Value::Array(blocks);
         }
     }
-    Value::String(normalize_message_content(&message.content))
+    Value::String(message.content.clone())
 }
 
 fn append_tool_use_blocks(content: &mut Vec<Value>, tool_calls: Option<&Value>) {
@@ -1573,7 +1552,7 @@ mod tests {
     use super::*;
     use std::{
         io::{Read, Write},
-        net::TcpListener,
+        net::{TcpListener, TcpStream},
         sync::mpsc,
         thread,
         time::Duration,
@@ -1596,6 +1575,71 @@ mod tests {
         assert!(response.ok);
         assert_eq!(response.result["sanitized"]["proxy_url"], "***");
         assert!(!response.result.to_string().contains(proxy_url));
+    }
+
+    fn read_http_request_with_body(stream: &mut TcpStream) -> String {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("request read timeout");
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        loop {
+            let read = stream
+                .read(&mut buffer)
+                .expect("request should be readable");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+            let Some(header_end) = request.windows(4).position(|part| part == b"\r\n\r\n") else {
+                continue;
+            };
+            let headers = String::from_utf8_lossy(&request[..header_end]);
+            let content_length = headers
+                .lines()
+                .find_map(|line| {
+                    line.split_once(':').and_then(|(name, value)| {
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().ok())
+                            .flatten()
+                    })
+                })
+                .unwrap_or(0);
+            if request.len() >= header_end + 4 + content_length {
+                break;
+            }
+        }
+        String::from_utf8(request).expect("request should be utf8")
+    }
+
+    fn start_generate_sse_server() -> (String, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("generate listener should bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (request_tx, request_rx) = mpsc::channel();
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("generate request should connect");
+            let request = read_http_request_with_body(&mut stream);
+            request_tx
+                .send(request)
+                .expect("generate request should be captured");
+            let body = concat!(
+                "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_generate\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\n",
+                "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\n",
+                "data: [DONE]\n\n"
+            );
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("generate response should be writable");
+        });
+
+        (base_url, request_rx)
     }
 
     fn start_sse_server(response_body: &'static str) -> String {
@@ -1788,9 +1832,12 @@ mod tests {
     }
 
     #[test]
-    fn ac_004_messages_body_is_rendered_only_from_native_v2_invocation() {
+    fn ac_002_current_generate_input_reaches_messages_renderer_without_projection() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
             "model": "claude-fable-5",
             "messages": [
                 { "role": "user", "content": "hello" }
@@ -1839,8 +1886,61 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn ac_002_fake_upstream_receives_exact_anthropic_generate_wire() {
+        let (base_url, request_rx) = start_generate_sse_server();
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
+            "model": "claude-sonnet-4-20250514",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "wire-secret",
+                "anthropic_version": "2023-06-01"
+            },
+            "messages": [{ "role": "user", "content": "wire prompt" }],
+            "system": [{ "type": "text", "text": "wire instructions" }],
+            "request_context": { "end_user_reference": "wire-user" },
+            "required_capabilities": ["system_prompt_blocks", "end_user_reference"],
+            "model_parameters": { "max_tokens": 128 }
+        }))
+        .unwrap();
+
+        invoke_message(input)
+            .await
+            .expect("current Generate should complete against fake upstream");
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture Generate request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).unwrap();
+
+        assert!(headers.starts_with("POST /v1/messages HTTP/1.1"));
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("x-api-key: wire-secret"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "claude-sonnet-4-20250514",
+                "messages": [{
+                    "role": "user",
+                    "content": [{ "type": "text", "text": "wire prompt" }]
+                }],
+                "stream": true,
+                "max_tokens": 128,
+                "system": [{ "type": "text", "text": "wire instructions" }],
+                "metadata": { "user_id": "wire-user" }
+            })
+        );
+    }
+
     #[test]
-    fn ac_004_provider_rejects_invocation_without_v2_contract_version() {
+    fn ac_002_current_generate_input_rejects_missing_legacy_and_unknown_contract_shapes() {
         let error = serde_json::from_value::<ProviderInvocationInput>(json!({
             "model": "claude-fable-5",
             "messages": [{ "role": "user", "content": "hello" }],
@@ -1849,6 +1949,42 @@ mod tests {
         .unwrap_err();
 
         assert!(error.to_string().contains("contract_version"));
+
+        let legacy = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "contract_version": "1flowbase.provider/v1",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
+            "model": "claude-fable-5"
+        }))
+        .expect_err("legacy provider contract must be rejected");
+        assert!(legacy.to_string().contains("1flowbase.provider/v1"));
+
+        let unknown = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
+            "model": "claude-fable-5",
+            "raw_body": "must-not-be-accepted"
+        }))
+        .expect_err("unknown current contract fields must be rejected");
+        assert!(unknown.to_string().contains("raw_body"));
+    }
+
+    #[test]
+    fn ac_002_package_manifest_declares_current_generate_capabilities() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+        assert!(!manifest.contains("1flowbase.provider/v1"));
+        for capability in [
+            "system_prompt_blocks",
+            "system_prompt_cache_control",
+            "end_user_reference",
+        ] {
+            assert_eq!(manifest.matches(capability).count(), 1);
+        }
     }
 
     #[test]
@@ -1858,8 +1994,8 @@ mod tests {
             system: vec![NativePromptBlock::text("Be concise")],
             messages: vec![
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: Value::Null,
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
                     name: None,
                     tool_call_id: None,
                     is_error: None,
@@ -1869,8 +2005,8 @@ mod tests {
                     content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: json!("found"),
+                    role: ProviderMessageRole::Tool,
+                    content: "found".to_string(),
                     name: None,
                     tool_call_id: Some("toolu_1".to_string()),
                     is_error: None,
@@ -1929,8 +2065,8 @@ mod tests {
             model: "claude-sonnet-4-20250514".to_string(),
             messages: vec![
                 ProviderMessage {
-                    role: "assistant".to_string(),
-                    content: json!("Checking both paths"),
+                    role: ProviderMessageRole::Assistant,
+                    content: "Checking both paths".to_string(),
                     name: None,
                     tool_call_id: None,
                     is_error: None,
@@ -1949,8 +2085,8 @@ mod tests {
                     content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: json!("first result"),
+                    role: ProviderMessageRole::Tool,
+                    content: "first result".to_string(),
                     name: Some("lookup".to_string()),
                     tool_call_id: Some("toolu_1".to_string()),
                     is_error: None,
@@ -1958,8 +2094,8 @@ mod tests {
                     content_blocks: None,
                 },
                 ProviderMessage {
-                    role: "tool".to_string(),
-                    content: json!("second result"),
+                    role: ProviderMessageRole::Tool,
+                    content: "second result".to_string(),
                     name: Some("lookup".to_string()),
                     tool_call_id: Some("toolu_2".to_string()),
                     is_error: None,
@@ -1989,8 +2125,8 @@ mod tests {
         let input = ProviderInvocationInput {
             model: "claude-sonnet-4-20250514".to_string(),
             messages: vec![ProviderMessage {
-                role: "tool".to_string(),
-                content: Value::Null,
+                role: ProviderMessageRole::Tool,
+                content: String::new(),
                 name: None,
                 tool_call_id: Some("toolu_image".to_string()),
                 is_error: None,
@@ -2031,6 +2167,10 @@ mod tests {
     fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
+            "model": "claude-sonnet-4-20250514",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
                 "policy": "anthropic_messages_v1",
@@ -2062,7 +2202,7 @@ mod tests {
     }
 
     #[test]
-    fn upstream_plain_text_body_stays_out_of_public_error_message() {
+    fn ac_005_upstream_raw_body_and_secrets_stay_out_of_error_contract() {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -2110,20 +2250,17 @@ mod tests {
             .contains(&raw_body));
         let details = error
             .provider_details
+            .as_ref()
             .expect("upstream error should carry details");
-        assert_eq!(details["status"], 403);
-        assert_eq!(details["content_type"], "text/plain; charset=utf-8");
-        assert_eq!(details["request_id"], "req_plain");
-        assert_eq!(details["headers"]["x-request-id"], "req_plain");
         assert_eq!(
-            details["headers"]["anthropic-request-id"],
-            "anthropic_req_plain"
+            details,
+            &json!({ "status": 403, "request_id": "req_plain" })
         );
-        assert_eq!(details["raw_body"], raw_body);
-        assert!(details["headers"].get("authorization").is_none());
-        assert!(details["headers"].get("cookie").is_none());
-        assert!(details["headers"].get("set-cookie").is_none());
-        assert!(details["headers"].get("x-api-key").is_none());
+        let encoded = serde_json::to_string(&error).unwrap();
+        assert!(!encoded.contains(&raw_body));
+        assert!(!encoded.contains("provider-secret"));
+        assert!(!encoded.contains("session=secret"));
+        assert!(!encoded.contains("response-secret"));
     }
 
     #[test]
@@ -2154,16 +2291,18 @@ mod tests {
             .provider_details
             .expect("upstream error should carry details");
         assert_eq!(details["status"], 403);
-        assert_eq!(details["content_type"], "application/json");
         assert_eq!(details["request_id"], "req_json");
-        assert_eq!(details["headers"]["request-id"], "req_json");
-        assert_eq!(details["raw_body"], raw_body);
+        assert!(details.get("raw_body").is_none());
+        assert!(details.get("headers").is_none());
     }
 
     #[test]
     fn messages_body_forwards_content_blocks_and_appends_native_tool_calls() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
             "model": "claude-sonnet-4-20250514",
             "messages": [
                 {
@@ -2252,23 +2391,12 @@ mod tests {
     }
 
     #[test]
-    fn messages_body_without_content_blocks_keeps_legacy_text_normalization() {
+    fn messages_body_without_content_blocks_uses_current_text_content() {
         let input = ProviderInvocationInput {
             model: "claude-sonnet-4-20250514".to_string(),
             messages: vec![ProviderMessage {
-                role: "user".to_string(),
-                content: json!([
-                    { "type": "text", "text": "hello " },
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": "aW1hZ2U="
-                        }
-                    },
-                    { "content": "world" }
-                ]),
+                role: ProviderMessageRole::User,
+                content: "hello world".to_string(),
                 name: None,
                 tool_call_id: None,
                 is_error: None,
@@ -2395,11 +2523,12 @@ mod tests {
             ProviderRuntimeErrorKind::ProviderUpstreamError
         );
         assert!(!runtime_error.message.contains(raw_body));
-        assert_eq!(details["status"], 403);
-        assert_eq!(details["content_type"], "text/plain; charset=utf-8");
-        assert_eq!(details["request_id"], "req_stream");
-        assert_eq!(details["headers"]["x-request-id"], "req_stream");
-        assert!(details["headers"].get("x-api-key").is_none());
-        assert_eq!(details["raw_body"], raw_body);
+        assert_eq!(
+            details,
+            &json!({ "status": 403, "request_id": "req_stream" })
+        );
+        let encoded = serde_json::to_string(runtime_error).unwrap();
+        assert!(!encoded.contains(raw_body));
+        assert!(!encoded.contains("response-secret"));
     }
 }
