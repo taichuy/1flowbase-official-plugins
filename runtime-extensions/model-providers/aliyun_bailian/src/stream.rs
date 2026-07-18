@@ -6,14 +6,15 @@ use serde_json::{json, Value};
 
 use crate::{
     ensure_success_status, normalize_tool_input, read_json_response, value_to_string,
-    BailianProtocol, ProviderFinishReason, ProviderInvocationResult, ProviderStreamEvent,
-    ProviderToolCall, ProviderUsage, RuntimeInvocationEnvelope,
+    BailianProtocol, ProviderConfig, ProviderFinishReason, ProviderInvocationResult,
+    ProviderStreamEvent, ProviderToolCall, ProviderUsage, RuntimeInvocationEnvelope,
 };
 
 pub(crate) async fn read_chat_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
     protocol: BailianProtocol,
+    config: &ProviderConfig,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -22,7 +23,7 @@ where
     let status = response.status();
     if !status.is_success() {
         let payload = read_json_response(response).await?;
-        return ensure_success_status(status, &payload)
+        return ensure_success_status(status, &payload, config)
             .and_then(|_| bail!("provider request failed"));
     }
     let mut state = StreamState::new(request_model, protocol);
@@ -38,6 +39,7 @@ where
 pub(crate) async fn read_responses_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
+    config: &ProviderConfig,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -46,7 +48,7 @@ where
     let status = response.status();
     if !status.is_success() {
         let payload = read_json_response(response).await?;
-        return ensure_success_status(status, &payload)
+        return ensure_success_status(status, &payload, config)
             .and_then(|_| bail!("provider request failed"));
     }
     let mut state = StreamState::new(request_model, BailianProtocol::OpenAiResponses);
@@ -62,6 +64,7 @@ where
 pub(crate) async fn read_anthropic_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
+    config: &ProviderConfig,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -70,7 +73,7 @@ where
     let status = response.status();
     if !status.is_success() {
         let payload = read_json_response(response).await.unwrap_or(Value::Null);
-        return ensure_success_status(status, &payload)
+        return ensure_success_status(status, &payload, config)
             .and_then(|_| bail!("provider request failed"));
     }
     let mut state = StreamState::new(request_model, BailianProtocol::AnthropicMessages);
@@ -86,6 +89,7 @@ where
 pub(crate) async fn read_dashscope_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
+    config: &ProviderConfig,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -94,7 +98,7 @@ where
     let status = response.status();
     if !status.is_success() {
         let payload = read_json_response(response).await?;
-        return ensure_success_status(status, &payload)
+        return ensure_success_status(status, &payload, config)
             .and_then(|_| bail!("provider request failed"));
     }
     let mut state = StreamState::new(request_model, BailianProtocol::DashScope);

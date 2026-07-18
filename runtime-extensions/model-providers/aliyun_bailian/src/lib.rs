@@ -823,6 +823,7 @@ where
         response,
         input.model.clone(),
         BailianProtocol::OpenAiChat,
+        config,
         on_event,
     )
     .await
@@ -987,7 +988,7 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_responses_streaming_response(response, input.model.clone(), on_event).await
+    read_responses_streaming_response(response, input.model.clone(), config, on_event).await
 }
 
 fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1190,7 +1191,7 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_anthropic_streaming_response(response, input.model.clone(), on_event).await
+    read_anthropic_streaming_response(response, input.model.clone(), config, on_event).await
 }
 
 fn build_anthropic_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1395,7 +1396,7 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_dashscope_streaming_response(response, input.model.clone(), on_event).await
+    read_dashscope_streaming_response(response, input.model.clone(), config, on_event).await
 }
 
 fn build_dashscope_body(input: &ProviderInvocationInput) -> Result<Value> {
