@@ -269,15 +269,38 @@ pub struct NativeModelRequestContext {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderInvocationCapability {
+    #[serde(rename = "compact.responses_compact")]
+    CompactResponsesCompact,
+    #[serde(rename = "compact.responses_compaction_v2")]
+    CompactResponsesCompactionV2,
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderCompactProfile {
+    ResponsesCompact,
+    ResponsesCompactionV2,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderWireOperation {
+    #[default]
+    Generate,
+    Compact,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
+    #[serde(default)]
+    pub operation: ProviderWireOperation,
     pub contract_version: ProviderInvocationContractVersion,
+    #[serde(default)]
+    pub profile: Option<ProviderCompactProfile>,
     pub provider_instance_id: String,
     pub provider_code: String,
     pub protocol: String,
@@ -320,6 +343,24 @@ impl ProviderInvocationInput {
             .collect::<Vec<_>>()
             .join("\n\n");
         (!text.is_empty()).then_some(text)
+    }
+
+    fn ensure_generate_operation(&self) -> Result<()> {
+        if self.operation != ProviderWireOperation::Generate {
+            bail!("Generate input must declare operation=generate");
+        }
+        if self.profile.is_some() {
+            bail!("Generate input must not declare a compact profile");
+        }
+        Ok(())
+    }
+
+    fn compact_profile(&self) -> Result<ProviderCompactProfile> {
+        if self.operation != ProviderWireOperation::Compact {
+            bail!("Compact input must declare operation=compact");
+        }
+        self.profile
+            .ok_or_else(|| anyhow!("Compact input must declare a compact profile"))
     }
 }
 
@@ -482,6 +523,26 @@ pub struct RuntimeInvocationEnvelope {
     pub result: ProviderInvocationResult,
 }
 
+/// Compact never reuses the Generate envelope. V2 carries only the opaque
+/// provider-produced encrypted value after its completed-response checks.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "result_type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ProviderCompactResult {
+    ResponseItems {
+        operation: ProviderWireOperation,
+        profile: ProviderCompactProfile,
+        response_items: Vec<Value>,
+    },
+    CompletedOpaqueCompactionItem {
+        operation: ProviderWireOperation,
+        profile: ProviderCompactProfile,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        response_id: Option<String>,
+        compaction_item: Value,
+        encrypted_content: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderRuntimeErrorKind {
@@ -609,8 +670,15 @@ impl OpenAiProviderRuntime {
             }
             "invoke" => {
                 let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
-                let output = self.invoke_response(input).await?;
-                Ok(ProviderStdioResponse::ok(serde_json::to_value(output)?))
+                let output = match input.operation {
+                    ProviderWireOperation::Generate => {
+                        serde_json::to_value(self.invoke_response(input).await?)?
+                    }
+                    ProviderWireOperation::Compact => {
+                        serde_json::to_value(self.invoke_compact_response(input).await?)?
+                    }
+                };
+                Ok(ProviderStdioResponse::ok(output))
             }
             other => Ok(ProviderStdioResponse::error(
                 "provider_invalid_response",
@@ -628,6 +696,7 @@ impl OpenAiProviderRuntime {
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
         let input: ProviderInvocationInput = serde_json::from_value(input)?;
+        input.ensure_generate_operation()?;
         let output = self
             .invoke_response_with_event_sink(input, on_event)
             .await?;
@@ -640,6 +709,28 @@ impl OpenAiProviderRuntime {
     ) -> Result<RuntimeInvocationEnvelope> {
         self.invoke_response_with_event_sink(input, |_| Ok(()))
             .await
+    }
+
+    async fn invoke_compact_response(
+        &mut self,
+        input: ProviderInvocationInput,
+    ) -> Result<ProviderCompactResult> {
+        let profile = input.compact_profile()?;
+        let config = normalize_provider_config(&input.provider_config)?;
+        let body = build_compact_body(&input, profile)?;
+        let pathname = match profile {
+            ProviderCompactProfile::ResponsesCompact => "/responses/compact",
+            ProviderCompactProfile::ResponsesCompactionV2 => "/responses",
+        };
+        let payload = request_json_with_client_protocol(
+            &config,
+            pathname,
+            Method::POST,
+            Some(body),
+            input.client_protocol_envelope.as_ref(),
+        )
+        .await?;
+        compact_result_from_upstream(profile, payload)
     }
 }
 
@@ -844,10 +935,24 @@ async fn request_json(
     method: Method,
     body: Option<Value>,
 ) -> Result<Value> {
+    request_json_with_client_protocol(config, pathname, method, body, None).await
+}
+
+async fn request_json_with_client_protocol(
+    config: &ProviderConfig,
+    pathname: &str,
+    method: Method,
+    body: Option<Value>,
+    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+) -> Result<Value> {
     let client = build_http_client(config)?;
     let mut request = client
         .request(method, build_url(config, pathname)?)
-        .headers(build_json_headers(config, body.is_some(), None)?);
+        .headers(build_json_headers(
+            config,
+            body.is_some(),
+            client_protocol_envelope,
+        )?);
     if let Some(body) = body {
         request = request.json(&body);
     }
@@ -980,6 +1085,7 @@ impl OpenAiProviderRuntime {
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
+        input.ensure_generate_operation()?;
         let config = normalize_provider_config(&input.provider_config)?;
         let body = build_responses_body(&input)?;
         match config.transport_mode {
@@ -1267,22 +1373,54 @@ where
 }
 
 fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
+    input.ensure_generate_operation()?;
+    let mut body = build_responses_request_body(input)?;
+    body.as_object_mut()
+        .expect("Responses request body must be an object")
+        .insert("stream".to_string(), Value::Bool(true));
+    Ok(body)
+}
+
+fn build_compact_body(
+    input: &ProviderInvocationInput,
+    profile: ProviderCompactProfile,
+) -> Result<Value> {
+    if input.compact_profile()? != profile {
+        bail!("Compact input profile does not match the requested Compact renderer");
+    }
+    let mut body = build_responses_request_body(input)?;
+    if profile == ProviderCompactProfile::ResponsesCompactionV2 {
+        let input_items = body
+            .get_mut("input")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| anyhow!("Compact request input must be an array"))?;
+        input_items.push(json!({ "type": "compaction_trigger" }));
+    }
+    Ok(body)
+}
+
+fn build_responses_request_body(input: &ProviderInvocationInput) -> Result<Value> {
     if input.model.trim().is_empty() {
         bail!("model is required");
     }
-    if !input.required_capabilities.is_empty()
-        || input.system.iter().any(|block| {
-            matches!(
-                block,
-                NativePromptBlock::Text {
-                    cache_control: Some(_),
-                    ..
-                }
-            )
-        })
-        || input.request_context.end_user_reference.is_some()
+    if input.required_capabilities.iter().any(|capability| {
+        matches!(
+            capability,
+            ProviderInvocationCapability::SystemPromptBlocks
+                | ProviderInvocationCapability::SystemPromptCacheControl
+                | ProviderInvocationCapability::EndUserReference
+        )
+    }) || input.system.iter().any(|block| {
+        matches!(
+            block,
+            NativePromptBlock::Text {
+                cache_control: Some(_),
+                ..
+            }
+        )
+    }) || input.request_context.end_user_reference.is_some()
     {
-        bail!("OpenAI Generate does not support the requested semantic capabilities");
+        bail!("OpenAI Responses does not support the requested semantic capabilities");
     }
     let mut body = Map::new();
     body.insert(
@@ -1303,7 +1441,6 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
             Value::String(previous_response_id.to_string()),
         );
     }
-    body.insert("stream".to_string(), Value::Bool(true));
     if let Some(system) = input.system_text() {
         body.insert("instructions".to_string(), Value::String(system));
     }
@@ -1335,6 +1472,73 @@ fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
         }
     }
     Ok(Value::Object(body))
+}
+
+fn compact_result_from_upstream(
+    profile: ProviderCompactProfile,
+    payload: Value,
+) -> Result<ProviderCompactResult> {
+    match profile {
+        ProviderCompactProfile::ResponsesCompact => {
+            let response_items = payload
+                .as_array()
+                .cloned()
+                .ok_or_else(|| anyhow!("Responses Compact must return a response item array"))?;
+            if !response_items.iter().all(Value::is_object) {
+                bail!("Responses Compact response items must be objects");
+            }
+            Ok(ProviderCompactResult::ResponseItems {
+                operation: ProviderWireOperation::Compact,
+                profile,
+                response_items,
+            })
+        }
+        ProviderCompactProfile::ResponsesCompactionV2 => {
+            let response = payload
+                .as_object()
+                .ok_or_else(|| anyhow!("Responses Compaction V2 must return a response object"))?;
+            if response.get("status").and_then(Value::as_str) != Some("completed") {
+                bail!("Responses Compaction V2 requires a completed response");
+            }
+            let output = response
+                .get("output")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    anyhow!("Responses Compaction V2 completed response must contain output")
+                })?;
+            if output.len() != 1 {
+                bail!("Responses Compaction V2 requires exactly one compaction output item");
+            }
+            let compaction = output[0]
+                .as_object()
+                .ok_or_else(|| anyhow!("Responses Compaction V2 output item must be an object"))?;
+            if compaction.get("type").and_then(Value::as_str) != Some("compaction") {
+                bail!("Responses Compaction V2 output item must be a compaction item");
+            }
+            let encrypted_content = compaction
+                .get("encrypted_content")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Responses Compaction V2 compaction item must contain encrypted_content"
+                    )
+                })?
+                .to_string();
+            let compaction_item = output[0].clone();
+            let response_id = match response.get("id") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(value)) => Some(value.clone()),
+                Some(_) => bail!("Responses Compaction V2 response id must be text"),
+            };
+            Ok(ProviderCompactResult::CompletedOpaqueCompactionItem {
+                operation: ProviderWireOperation::Compact,
+                profile,
+                response_id,
+                compaction_item,
+                encrypted_content,
+            })
+        }
+    }
 }
 
 fn responses_body_previous_response_id(body: &Value) -> Option<&str> {
@@ -2904,6 +3108,35 @@ mod tests {
         (base_url, request_rx)
     }
 
+    fn start_compact_json_server(
+        status: &str,
+        response_body: Value,
+    ) -> (String, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("compact listener should bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (request_tx, request_rx) = mpsc::channel();
+        let status = status.to_string();
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("compact request should connect");
+            let request = read_http_request_with_body(&mut stream);
+            request_tx
+                .send(request)
+                .expect("compact request should be captured");
+            let body = response_body.to_string();
+            let response = format!(
+                "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("compact response should be writable");
+        });
+
+        (base_url, request_rx)
+    }
+
     fn start_websocket_connect_proxy() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
         let proxy_url = format!(
@@ -3162,6 +3395,198 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn k2_legacy_compact_uses_the_dedicated_unary_endpoint_and_response_items() {
+        let response_items = json!([
+            {
+                "type": "message",
+                "id": "msg_compact",
+                "role": "assistant",
+                "content": []
+            }
+        ]);
+        let (base_url, request_rx) = start_compact_json_server("200 OK", response_items.clone());
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "operation": "compact",
+            "profile": "responses_compact",
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "api_key": "legacy-compact-secret" },
+            "required_capabilities": ["compact.responses_compact"],
+            "messages": [{ "role": "user", "content": "retain this turn" }]
+        }))
+        .expect("typed legacy Compact input should deserialize");
+
+        let result = OpenAiProviderRuntime::default()
+            .invoke_compact_response(input)
+            .await
+            .expect("legacy Compact should project the upstream response item array");
+        assert!(matches!(
+            result,
+            ProviderCompactResult::ResponseItems {
+                operation: ProviderWireOperation::Compact,
+                profile: ProviderCompactProfile::ResponsesCompact,
+                response_items: items,
+            } if items == response_items
+        ));
+
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture legacy Compact request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).expect("legacy Compact body should be JSON");
+        assert!(headers.starts_with("POST /responses/compact HTTP/1.1"));
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("authorization: bearer legacy-compact-secret"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "gpt-5.4-mini",
+                "input": [{ "role": "user", "content": "retain this turn" }]
+            })
+        );
+        assert!(body.get("stream").is_none());
+    }
+
+    #[tokio::test]
+    async fn k2_v2_compact_preserves_the_opaque_value_and_emits_the_exact_trigger() {
+        const ENCRYPTED_CONTENT: &str = "opaque-byte-canary:AAECAwQFBgc=";
+        let (base_url, request_rx) = start_compact_json_server(
+            "200 OK",
+            json!({
+                "id": "resp_compact_v2",
+                "status": "completed",
+                "output": [{
+                    "type": "compaction",
+                    "encrypted_content": ENCRYPTED_CONTENT
+                }]
+            }),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "operation": "compact",
+            "profile": "responses_compaction_v2",
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "api_key": "v2-compact-secret" },
+            "required_capabilities": ["compact.responses_compaction_v2"],
+            "messages": [{ "role": "user", "content": "retain this turn" }]
+        }))
+        .expect("typed V2 Compact input should deserialize");
+
+        let result = OpenAiProviderRuntime::default()
+            .invoke_compact_response(input)
+            .await
+            .expect("V2 Compact should project the provider-produced opaque item");
+        assert!(matches!(
+            result,
+            ProviderCompactResult::CompletedOpaqueCompactionItem {
+                operation: ProviderWireOperation::Compact,
+                profile: ProviderCompactProfile::ResponsesCompactionV2,
+                response_id: Some(response_id),
+                compaction_item,
+                encrypted_content,
+            } if response_id == "resp_compact_v2"
+                && encrypted_content == ENCRYPTED_CONTENT
+                && compaction_item == json!({
+                    "type": "compaction",
+                    "encrypted_content": ENCRYPTED_CONTENT
+                })
+        ));
+
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture V2 Compact request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).expect("V2 Compact body should be JSON");
+        assert!(headers.starts_with("POST /responses HTTP/1.1"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "gpt-5.4-mini",
+                "input": [
+                    { "role": "user", "content": "retain this turn" },
+                    { "type": "compaction_trigger" }
+                ]
+            })
+        );
+        assert!(body.get("stream").is_none());
+    }
+
+    #[tokio::test]
+    async fn k2_remote_compact_failure_remains_an_upstream_error_without_generate_fallback() {
+        let (base_url, request_rx) = start_compact_json_server(
+            "503 Service Unavailable",
+            json!({ "error": { "message": "remote compact unavailable" } }),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "operation": "compact",
+            "profile": "responses_compaction_v2",
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "api_key": "remote-failure-secret" },
+            "required_capabilities": ["compact.responses_compaction_v2"],
+            "messages": [{ "role": "user", "content": "retain this turn" }]
+        }))
+        .expect("typed V2 Compact input should deserialize");
+
+        let error = OpenAiProviderRuntime::default()
+            .invoke_compact_response(input)
+            .await
+            .expect_err("remote Compact failure must not downgrade to a local Generate result");
+        assert!(error.to_string().contains("503"));
+
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("remote failure fixture should still receive exactly the Compact request");
+        assert!(request.starts_with("POST /responses HTTP/1.1"));
+    }
+
+    #[test]
+    fn k2_v2_compact_rejects_incomplete_or_non_unique_upstream_shapes() {
+        for payload in [
+            json!({ "status": "incomplete", "output": [] }),
+            json!({ "status": "completed", "output": [] }),
+            json!({
+                "status": "completed",
+                "output": [
+                    { "type": "compaction", "encrypted_content": "opaque" },
+                    { "type": "compaction", "encrypted_content": "second" }
+                ]
+            }),
+            json!({
+                "status": "completed",
+                "output": [{ "type": "message", "content": [] }]
+            }),
+            json!({
+                "status": "completed",
+                "output": [{ "type": "compaction" }]
+            }),
+        ] {
+            assert!(
+                compact_result_from_upstream(
+                    ProviderCompactProfile::ResponsesCompactionV2,
+                    payload
+                )
+                .is_err(),
+                "V2 Compact must not produce a local or synthesized fallback result"
+            );
+        }
+    }
+
     #[test]
     fn ac_002_current_generate_input_rejects_missing_legacy_and_unknown_contract_shapes() {
         let error = serde_json::from_value::<ProviderInvocationInput>(json!({
@@ -3199,12 +3624,16 @@ mod tests {
     }
 
     #[test]
-    fn ac_002_package_manifest_declares_only_current_generate_contract() {
+    fn k2_package_manifest_declares_only_the_two_remote_compact_capability_rows() {
         let manifest = include_str!("../manifest.yaml");
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(!manifest.contains("capabilities:"));
+        assert!(manifest.contains(
+            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2"
+        ));
+        assert!(!manifest.contains("count_tokens"));
+        assert!(!manifest.contains("system_prompt_blocks"));
     }
 
     #[test]

@@ -1,8 +1,9 @@
 use std::io::{self, BufRead, Write};
 
 use openai_provider::{
-    OpenAiProviderRuntime, ProviderFinishReason, ProviderInvocationResult, ProviderRuntimeError,
-    ProviderStdioRequest, ProviderStdioResponse, ProviderUsage,
+    OpenAiProviderRuntime, ProviderFinishReason, ProviderInvocationInput, ProviderInvocationResult,
+    ProviderRuntimeError, ProviderStdioRequest, ProviderStdioResponse, ProviderUsage,
+    ProviderWireOperation,
 };
 
 #[tokio::main]
@@ -20,25 +21,41 @@ async fn main() {
                 input: serde_json::Value::Null,
             });
         if request.method == "invoke" {
-            run_streaming_invoke(&mut runtime, request).await;
+            if compact_invoke(&request) {
+                run_unary_request(&mut runtime, request).await;
+            } else {
+                run_streaming_invoke(&mut runtime, request).await;
+            }
             continue;
         }
 
-        let response = runtime
-            .handle_request(request)
-            .await
-            .unwrap_or_else(|error| {
-                error
-                    .downcast_ref::<ProviderRuntimeError>()
-                    .cloned()
-                    .map(ProviderStdioResponse::runtime_error)
-                    .unwrap_or_else(|| {
-                        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
-                    })
-            });
-        println!("{}", serde_json::to_string(&response).unwrap());
-        io::stdout().flush().unwrap();
+        run_unary_request(&mut runtime, request).await;
     }
+}
+
+fn compact_invoke(request: &ProviderStdioRequest) -> bool {
+    // Compact is selected only by the typed provider operation tag; transport
+    // must not infer a remote profile from provider identity or configuration.
+    serde_json::from_value::<ProviderInvocationInput>(request.input.clone())
+        .map(|input| input.operation == ProviderWireOperation::Compact)
+        .unwrap_or(false)
+}
+
+async fn run_unary_request(runtime: &mut OpenAiProviderRuntime, request: ProviderStdioRequest) {
+    let response = runtime
+        .handle_request(request)
+        .await
+        .unwrap_or_else(|error| {
+            error
+                .downcast_ref::<ProviderRuntimeError>()
+                .cloned()
+                .map(ProviderStdioResponse::runtime_error)
+                .unwrap_or_else(|| {
+                    ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+                })
+        });
+    println!("{}", serde_json::to_string(&response).unwrap());
+    io::stdout().flush().unwrap();
 }
 
 async fn run_streaming_invoke(runtime: &mut OpenAiProviderRuntime, request: ProviderStdioRequest) {
