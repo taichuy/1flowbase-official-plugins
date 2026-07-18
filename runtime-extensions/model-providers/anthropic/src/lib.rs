@@ -226,6 +226,7 @@ pub struct NativeModelRequestContext {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderInvocationCapability {
+    CountTokens,
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
@@ -265,6 +266,42 @@ pub struct ProviderInvocationInput {
     pub trace_context: BTreeMap<String, String>,
     #[serde(default)]
     pub run_context: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderWireOperation {
+    Generate,
+    CountTokens,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderCountTokensInput {
+    pub operation: ProviderWireOperation,
+    pub contract_version: ProviderInvocationContractVersion,
+    pub provider_instance_id: String,
+    pub provider_code: String,
+    pub protocol: String,
+    pub model: String,
+    #[serde(default)]
+    pub provider_config: Value,
+    #[serde(default)]
+    pub messages: Vec<ProviderMessage>,
+    #[serde(default)]
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderCountTokensResult {
+    pub operation: ProviderWireOperation,
+    pub input_tokens: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -419,6 +456,13 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
     match request.method.as_str() {
         "validate" => validate_provider_config(&request.input).await,
         "list_models" => list_models(&request.input).await,
+        "invoke"
+            if request.input.get("operation").and_then(Value::as_str) == Some("count_tokens") =>
+        {
+            let input: ProviderCountTokensInput = serde_json::from_value(request.input)?;
+            let output = count_message_tokens(input).await?;
+            Ok(ProviderStdioResponse::ok(serde_json::to_value(output)?))
+        }
         "invoke" => {
             let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
             let output = invoke_message(input).await?;
@@ -867,6 +911,63 @@ async fn invoke_message(input: ProviderInvocationInput) -> Result<RuntimeInvocat
     invoke_message_with_event_sink(input, |_| Ok(())).await
 }
 
+async fn count_message_tokens(
+    input: ProviderCountTokensInput,
+) -> Result<ProviderCountTokensResult> {
+    if input.operation != ProviderWireOperation::CountTokens {
+        return Err(ProviderRuntimeError::normalize(
+            "count_tokens",
+            "CountTokens input must declare operation=count_tokens",
+            None,
+        )
+        .into());
+    }
+
+    let config = normalize_provider_config(&input.provider_config)?;
+    let body = build_count_tokens_body(&input)?;
+    let response = build_http_client(&config)?
+        .request(
+            Method::POST,
+            build_url(&config, "/v1/messages/count_tokens")?,
+        )
+        .headers(build_headers(
+            &config,
+            input.client_protocol_envelope.as_ref(),
+        )?)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, &config))?;
+    if !response.status().is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
+
+    let payload = read_json_response(response).await.map_err(|error| {
+        ProviderRuntimeError::normalize(
+            "count_tokens_response",
+            format!("Anthropic CountTokens response is malformed: {error}"),
+            None,
+        )
+    })?;
+    let input_tokens = payload
+        .get("input_tokens")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            ProviderRuntimeError::normalize(
+                "count_tokens_response",
+                "Anthropic CountTokens response must include input_tokens as an unsigned integer",
+                None,
+            )
+        })?;
+
+    Ok(ProviderCountTokensResult {
+        operation: ProviderWireOperation::CountTokens,
+        input_tokens,
+    })
+}
+
 async fn invoke_message_with_event_sink<F>(
     input: ProviderInvocationInput,
     mut on_event: F,
@@ -910,7 +1011,7 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
     );
     body.insert(
         "messages".to_string(),
-        Value::Array(build_anthropic_messages(input)),
+        Value::Array(build_anthropic_messages(&input.messages)),
     );
     body.insert("stream".to_string(), Value::Bool(true));
     let max_tokens = parameter_u64(input, "max_tokens").unwrap_or(DEFAULT_MAX_TOKENS);
@@ -966,10 +1067,44 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
     Ok(Value::Object(body))
 }
 
-fn build_anthropic_messages(input: &ProviderInvocationInput) -> Vec<Value> {
+fn build_count_tokens_body(input: &ProviderCountTokensInput) -> Result<Value> {
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+    let mut body = Map::new();
+    body.insert(
+        "model".to_string(),
+        Value::String(input.model.trim().to_string()),
+    );
+    body.insert(
+        "messages".to_string(),
+        Value::Array(build_anthropic_messages(&input.messages)),
+    );
+    if !input.system.is_empty() {
+        body.insert(
+            "system".to_string(),
+            serde_json::to_value(&input.system).context("serializing Native system blocks")?,
+        );
+    }
+    if let Some(end_user_reference) = input
+        .request_context
+        .end_user_reference
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        body.insert(
+            "metadata".to_string(),
+            json!({ "user_id": end_user_reference }),
+        );
+    }
+    Ok(Value::Object(body))
+}
+
+fn build_anthropic_messages(input_messages: &[ProviderMessage]) -> Vec<Value> {
     let mut messages = Vec::new();
     let mut consecutive_tool_results = Vec::new();
-    for message in &input.messages {
+    for message in input_messages {
         if message.role == ProviderMessageRole::Tool {
             if let Some(tool_use_id) = message.tool_call_id.as_deref() {
                 let mut tool_result = json!({
@@ -1758,6 +1893,38 @@ mod tests {
         (address, receiver)
     }
 
+    fn count_tokens_invoke_request(base_url: &str) -> ProviderStdioRequest {
+        ProviderStdioRequest {
+            method: "invoke".to_string(),
+            input: json!({
+                "operation": "count_tokens",
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-anthropic",
+                "provider_code": "anthropic",
+                "protocol": "anthropic_messages",
+                "model": "claude-sonnet-4-20250514",
+                "provider_config": {
+                    "base_url": base_url,
+                    "api_key": "wire-secret",
+                    "anthropic_version": "2023-06-01"
+                },
+                "messages": [{ "role": "user", "content": "wire prompt" }],
+                "system": [{ "type": "text", "text": "wire instructions" }],
+                "request_context": { "end_user_reference": "wire-user" },
+                "required_capabilities": [
+                    "count_tokens",
+                    "system_prompt_blocks",
+                    "end_user_reference"
+                ],
+                "client_protocol_envelope": {
+                    "source_protocol": "anthropic_messages",
+                    "policy": "anthropic_messages_v1",
+                    "headers": { "anthropic-beta": "prompt-caching" }
+                }
+            }),
+        }
+    }
+
     #[test]
     fn normalizes_anthropic_models_payload() {
         let models = normalize_model_entries(&json!([
@@ -1939,6 +2106,90 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn c2_fake_upstream_receives_exact_anthropic_count_tokens_wire() {
+        let (base_url, request_rx) = start_json_server(r#"{"input_tokens":37}"#);
+
+        let response = handle_request(count_tokens_invoke_request(&base_url))
+            .await
+            .expect("CountTokens should complete against fake upstream");
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture CountTokens request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).expect("captured CountTokens body is JSON");
+
+        assert!(response.ok);
+        assert_eq!(
+            response.result,
+            json!({ "operation": "count_tokens", "input_tokens": 37 })
+        );
+        assert!(headers.starts_with("POST /v1/messages/count_tokens HTTP/1.1"));
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("x-api-key: wire-secret"));
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("anthropic-beta: prompt-caching"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "claude-sonnet-4-20250514",
+                "messages": [{
+                    "role": "user",
+                    "content": [{ "type": "text", "text": "wire prompt" }]
+                }],
+                "system": [{ "type": "text", "text": "wire instructions" }],
+                "metadata": { "user_id": "wire-user" }
+            })
+        );
+        assert!(body.get("stream").is_none());
+        assert!(body.get("max_tokens").is_none());
+    }
+
+    #[tokio::test]
+    async fn c2_count_tokens_rejects_malformed_or_missing_input_tokens() {
+        for response_body in [r#"{"input_tokens":"37"}"#, r#"{}"#] {
+            let (base_url, request_rx) = start_json_server(response_body);
+            let error = handle_request(count_tokens_invoke_request(&base_url))
+                .await
+                .expect_err("CountTokens response must require an unsigned input_tokens value");
+            let typed = error
+                .downcast_ref::<ProviderRuntimeError>()
+                .expect("malformed CountTokens response must preserve a typed runtime error");
+
+            assert_eq!(
+                typed.kind,
+                ProviderRuntimeErrorKind::ProviderInvalidResponse
+            );
+            assert!(typed.message.contains("CountTokens response"));
+            request_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("fake upstream should receive the malformed-result request");
+        }
+    }
+
+    #[tokio::test]
+    async fn c2_count_tokens_preserves_typed_upstream_errors() {
+        let base_url = start_http_error_server(
+            "HTTP/1.1 429 Too Many Requests",
+            "application/json",
+            r#"{"error":{"message":"CountTokens quota exceeded"}}"#,
+        );
+
+        let error = handle_request(count_tokens_invoke_request(&base_url))
+            .await
+            .expect_err("upstream CountTokens error should surface as a runtime error");
+        let typed = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("upstream CountTokens error must preserve its typed runtime error");
+
+        assert_eq!(typed.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+        assert!(typed.message.contains("CountTokens quota exceeded"));
+    }
+
     #[test]
     fn ac_002_current_generate_input_rejects_missing_legacy_and_unknown_contract_shapes() {
         let error = serde_json::from_value::<ProviderInvocationInput>(json!({
@@ -1982,6 +2233,7 @@ mod tests {
             "system_prompt_blocks",
             "system_prompt_cache_control",
             "end_user_reference",
+            "count_tokens",
         ] {
             assert_eq!(manifest.matches(capability).count(), 1);
         }

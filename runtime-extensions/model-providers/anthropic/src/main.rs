@@ -17,7 +17,13 @@ async fn main() {
             input: serde_json::Value::Null,
         });
 
-    if request.method == "invoke" {
+    if request.method == "invoke"
+        && request
+            .input
+            .get("operation")
+            .and_then(|value| value.as_str())
+            != Some("count_tokens")
+    {
         run_streaming_invoke(request).await;
         return;
     }
