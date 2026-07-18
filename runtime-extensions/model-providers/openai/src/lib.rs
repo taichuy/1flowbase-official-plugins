@@ -3397,15 +3397,14 @@ mod tests {
 
     #[tokio::test]
     async fn k2_legacy_compact_uses_the_dedicated_unary_endpoint_and_response_items() {
-        let response_items = json!([
-            {
-                "type": "message",
-                "id": "msg_compact",
-                "role": "assistant",
-                "content": []
-            }
-        ]);
-        let (base_url, request_rx) = start_compact_json_server("200 OK", response_items.clone());
+        let response_items = vec![json!({
+            "type": "message",
+            "id": "msg_compact",
+            "role": "assistant",
+            "content": []
+        })];
+        let (base_url, request_rx) =
+            start_compact_json_server("200 OK", Value::Array(response_items.clone()));
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "operation": "compact",
             "profile": "responses_compact",
