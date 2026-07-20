@@ -87,7 +87,10 @@ test('provider workflows call the current host plugin CLI path', () => {
   const ciWorkflow = readRepoFile('.github/workflows/provider-ci.yml');
   const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');
 
-  assert.match(ciWorkflow, /node host\/scripts\/node\/plugin\/cli\.js package/);
+  assert.match(
+    ciWorkflow,
+    /node dist\/conformance-host\/scripts\/node\/plugin\/cli\.js package/
+  );
   assert.match(releaseWorkflow, /node host\/scripts\/node\/plugin\/cli\.js package/);
   assert.doesNotMatch(ciWorkflow, /host\/scripts\/node\/plugin\.js/);
   assert.doesNotMatch(releaseWorkflow, /host\/scripts\/node\/plugin\.js/);
@@ -98,14 +101,14 @@ test('provider workflows sync manifest identity fields before packaging', () => 
   const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');
 
   assert.match(ciWorkflow, /- name: Sync provider manifest identity fields/);
-  assert.match(ciWorkflow, /run: node scripts\/sync-provider-manifest-versions\.mjs/);
+  assert.match(ciWorkflow, /node scripts\/sync-provider-manifest-versions\.mjs/);
   assert.ok(
     ciWorkflow.indexOf('- name: Sync provider manifest identity fields') <
       ciWorkflow.indexOf('- name: Build provider binary for dry-run packaging')
   );
 
   assert.match(releaseWorkflow, /- name: Sync provider manifest identity fields/);
-  assert.match(releaseWorkflow, /run: node scripts\/sync-provider-manifest-versions\.mjs/);
+  assert.match(releaseWorkflow, /node scripts\/sync-provider-manifest-versions\.mjs/);
   assert.ok(
     releaseWorkflow.lastIndexOf('- name: Sync provider manifest identity fields') <
       releaseWorkflow.indexOf('- name: Build and package provider artifacts')
