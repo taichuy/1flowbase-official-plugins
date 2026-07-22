@@ -28,7 +28,7 @@ The plugin declares DeepSeek-specific request parameters in the host-visible ord
 - `reasoning_effort`
 - `temperature`
 - `top_p`
-- `max_tokens`
+- `max_output_tokens` (sent upstream as `max_tokens`)
 - `response_format`
 - `stop`
 - `tool_choice`

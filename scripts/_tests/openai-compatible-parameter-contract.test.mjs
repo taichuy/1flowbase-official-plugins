@@ -53,7 +53,7 @@ test('openai compatible parameter field order follows current YAML sequence', ()
     'temperature',
     'top_p',
     'n',
-    'max_tokens',
+    'max_output_tokens',
     'max_completion_tokens',
     'seed',
     'presence_penalty',

@@ -52,7 +52,7 @@ test('gemini provider exposes native generation parameters in order', () => {
     'temperature',
     'top_p',
     'top_k',
-    'max_tokens',
+    'max_output_tokens',
     'stop',
     'response_format',
     'thinking_budget',

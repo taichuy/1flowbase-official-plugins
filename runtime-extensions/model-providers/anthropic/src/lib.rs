@@ -18,8 +18,7 @@ const DEFAULT_ANTHROPIC_VERSION: &str = "2023-06-01";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const DEFAULT_MAX_TOKENS: u64 = 4096;
 const DEFAULT_THINKING_BUDGET_TOKENS: u64 = 1024;
-const PASSTHROUGH_MESSAGES_PARAMETERS: &[&str] =
-    &["temperature", "top_p", "top_k", "max_tokens", "tool_choice"];
+const PASSTHROUGH_MESSAGES_PARAMETERS: &[&str] = &["temperature", "top_p", "top_k", "tool_choice"];
 const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
     "anthropic-version",
     "anthropic-beta",
@@ -1014,8 +1013,8 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
         Value::Array(build_anthropic_messages(&input.messages)),
     );
     body.insert("stream".to_string(), Value::Bool(true));
-    let max_tokens = parameter_u64(input, "max_tokens").unwrap_or(DEFAULT_MAX_TOKENS);
-    body.insert("max_tokens".to_string(), json!(max_tokens));
+    let max_output_tokens = parameter_u64(input, "max_output_tokens").unwrap_or(DEFAULT_MAX_TOKENS);
+    body.insert("max_tokens".to_string(), json!(max_output_tokens));
     if !input.system.is_empty() {
         body.insert(
             "system".to_string(),
@@ -1044,8 +1043,8 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
         if thinking_type.as_str() == Some("enabled") {
             let budget_tokens = parameter_u64(input, "thinking_budget_tokens")
                 .unwrap_or(DEFAULT_THINKING_BUDGET_TOKENS);
-            if budget_tokens >= max_tokens {
-                bail!("thinking_budget_tokens must be lower than max_tokens");
+            if budget_tokens >= max_output_tokens {
+                bail!("thinking_budget_tokens must be lower than max_output_tokens");
             }
             body.insert(
                 "thinking".to_string(),
@@ -1054,9 +1053,6 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
         }
     }
     for key in PASSTHROUGH_MESSAGES_PARAMETERS {
-        if *key == "max_tokens" {
-            continue;
-        }
         if let Some(value) = parameter_value(input, key) {
             body.insert(
                 (*key).to_string(),
@@ -2071,7 +2067,7 @@ mod tests {
             "system": [{ "type": "text", "text": "wire instructions" }],
             "request_context": { "end_user_reference": "wire-user" },
             "required_capabilities": ["system_prompt_blocks", "end_user_reference"],
-            "model_parameters": { "max_tokens": 128 }
+            "model_parameters": { "max_output_tokens": 128 }
         }))
         .unwrap();
 
@@ -2276,7 +2272,7 @@ mod tests {
             })],
             model_parameters: BTreeMap::from([
                 ("tool_choice".to_string(), json!("required")),
-                ("max_tokens".to_string(), json!(2048)),
+                ("max_output_tokens".to_string(), json!(2048)),
                 ("thinking_type".to_string(), json!("enabled")),
                 ("thinking_budget_tokens".to_string(), json!(1024)),
             ]),

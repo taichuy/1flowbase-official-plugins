@@ -33,7 +33,6 @@ const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
 const PASSTHROUGH_CHAT_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
-    "max_tokens",
     "max_completion_tokens",
     "presence_penalty",
     "frequency_penalty",
@@ -60,7 +59,6 @@ const PASSTHROUGH_DASHSCOPE_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
     "top_k",
-    "max_tokens",
     "seed",
     "stop",
     "enable_search",
@@ -775,6 +773,35 @@ async fn invoke_openai_chat<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let body = build_openai_chat_body(input)?;
+    let response = build_http_client(config)?
+        .post(build_url(
+            config,
+            BailianProtocol::OpenAiChat,
+            "/chat/completions",
+        )?)
+        .headers(build_headers(
+            config,
+            BailianProtocol::OpenAiChat,
+            true,
+            true,
+            input.client_protocol_envelope.as_ref(),
+        )?)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
+    read_chat_streaming_response(
+        response,
+        input.model.clone(),
+        BailianProtocol::OpenAiChat,
+        config,
+        on_event,
+    )
+    .await
+}
+
+fn build_openai_chat_body(input: &ProviderInvocationInput) -> Result<Value> {
     let mut body = Map::new();
     body.insert("model".to_string(), Value::String(required_model(input)?));
     body.insert(
@@ -797,36 +824,15 @@ where
     {
         body.insert("response_format".to_string(), response_format);
     }
+    if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
+        body.insert("max_tokens".to_string(), max_output_tokens);
+    }
     for key in PASSTHROUGH_CHAT_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {
             body.insert((*key).to_string(), normalize_jsonish_parameter(value));
         }
     }
-    let response = build_http_client(config)?
-        .post(build_url(
-            config,
-            BailianProtocol::OpenAiChat,
-            "/chat/completions",
-        )?)
-        .headers(build_headers(
-            config,
-            BailianProtocol::OpenAiChat,
-            true,
-            true,
-            input.client_protocol_envelope.as_ref(),
-        )?)
-        .json(&Value::Object(body))
-        .send()
-        .await
-        .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_chat_streaming_response(
-        response,
-        input.model.clone(),
-        BailianProtocol::OpenAiChat,
-        config,
-        on_event,
-    )
-    .await
+    Ok(Value::Object(body))
 }
 
 fn build_chat_messages(input: &ProviderInvocationInput) -> Vec<Value> {
@@ -1204,7 +1210,7 @@ fn build_anthropic_body(input: &ProviderInvocationInput) -> Result<Value> {
     body.insert("stream".to_string(), Value::Bool(true));
     body.insert(
         "max_tokens".to_string(),
-        json!(parameter_u64(input, "max_tokens").unwrap_or(DEFAULT_ANTHROPIC_MAX_TOKENS)),
+        json!(parameter_u64(input, "max_output_tokens").unwrap_or(DEFAULT_ANTHROPIC_MAX_TOKENS)),
     );
     if let Some(system) = input.system_text() {
         body.insert("system".to_string(), Value::String(system));
@@ -1415,6 +1421,9 @@ fn build_dashscope_body(input: &ProviderInvocationInput) -> Result<Value> {
         .map(normalize_response_format)
     {
         parameters.insert("response_format".to_string(), response_format);
+    }
+    if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
+        parameters.insert("max_tokens".to_string(), max_output_tokens);
     }
     for key in PASSTHROUGH_DASHSCOPE_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {

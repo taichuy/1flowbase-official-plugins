@@ -57,7 +57,7 @@ test('deepseek provider exposes only the requested deepseek parameter fields in 
     'reasoning_effort',
     'temperature',
     'top_p',
-    'max_tokens',
+    'max_output_tokens',
     'response_format',
     'stop',
     'tool_choice',

@@ -63,6 +63,25 @@ fn provider_config_defaults_to_openai_chat_protocol() {
 }
 
 #[test]
+fn ac_002_native_max_output_tokens_maps_to_each_bailian_wire_protocol() {
+    let input = ProviderInvocationInput {
+        model: "qwen-plus".to_string(),
+        model_parameters: BTreeMap::from([("max_output_tokens".to_string(), json!(512))]),
+        ..Default::default()
+    };
+
+    let chat = build_openai_chat_body(&input).unwrap();
+    let responses = build_responses_body(&input).unwrap();
+    let anthropic = build_anthropic_body(&input).unwrap();
+    let dashscope = build_dashscope_body(&input).unwrap();
+
+    assert_eq!(chat["max_tokens"], 512);
+    assert_eq!(responses["max_output_tokens"], 512);
+    assert_eq!(anthropic["max_tokens"], 512);
+    assert_eq!(dashscope["parameters"]["max_tokens"], 512);
+}
+
+#[test]
 fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
     let input: ProviderInvocationInput = serde_json::from_value(json!({
         "contract_version": "1flowbase.provider/v2",

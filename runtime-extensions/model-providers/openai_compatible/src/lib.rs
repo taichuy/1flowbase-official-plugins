@@ -25,7 +25,6 @@ const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
     "n",
-    "max_tokens",
     "max_completion_tokens",
     "presence_penalty",
     "frequency_penalty",
@@ -911,6 +910,9 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
         body.insert("tools".to_string(), Value::Array(input.tools.clone()));
     } else if let Some(tools) = parameter_value(&input, "tools") {
         body.insert("tools".to_string(), tools);
+    }
+    if let Some(max_output_tokens) = parameter_value(&input, "max_output_tokens") {
+        body.insert("max_tokens".to_string(), max_output_tokens);
     }
     for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
         if let Some(value) = parameter_value(&input, key) {
@@ -1890,7 +1892,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invoke_chat_completion_forwards_extended_chat_completion_parameters() {
+    async fn ac_002_native_max_output_tokens_maps_to_openai_compatible_wire_field() {
         let (base_url, capture_handle) = capture_single_json_request();
 
         let envelope = invoke_chat_completion(ProviderInvocationInput {
@@ -1939,7 +1941,7 @@ mod tests {
                 ("temperature".to_string(), json!(0.7)),
                 ("top_p".to_string(), json!(0.9)),
                 ("n".to_string(), json!(1)),
-                ("max_tokens".to_string(), json!(512)),
+                ("max_output_tokens".to_string(), json!(512)),
                 ("max_completion_tokens".to_string(), json!(1024)),
                 ("presence_penalty".to_string(), json!(0.4)),
                 ("frequency_penalty".to_string(), json!(-0.2)),

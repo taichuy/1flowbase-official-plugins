@@ -33,7 +33,7 @@ The plugin declares Anthropic Messages request parameters in host-visible order:
 - `temperature`
 - `top_p`
 - `top_k`
-- `max_tokens`
+- `max_output_tokens` (sent upstream as `max_tokens`)
 - `tool_choice`
 
 Native 1flowbase tool calls are converted inside the plugin to Anthropic `tool_use` content blocks, and native tool result messages are converted to `tool_result` content blocks.

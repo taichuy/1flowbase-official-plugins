@@ -37,7 +37,7 @@ The plugin keeps the host boundary stable:
 
 The plugin declares a provider-level parameter schema for direct Chat Completions request tuning fields:
 
-- Sampling and length: `temperature`, `top_p`, `n`, `max_tokens`, `max_completion_tokens`, `presence_penalty`, `frequency_penalty`, `stop`, `seed`
+- Sampling and length: `temperature`, `top_p`, `n`, `max_output_tokens` (sent upstream as `max_tokens`), `max_completion_tokens`, `presence_penalty`, `frequency_penalty`, `stop`, `seed`
 - Probability controls: `logit_bias`, `logprobs`, `top_logprobs`
 - Reasoning controls: `reasoning_effort`
 

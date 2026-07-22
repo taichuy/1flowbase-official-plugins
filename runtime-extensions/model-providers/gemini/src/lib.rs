@@ -1362,9 +1362,7 @@ fn build_generation_config(input: &ProviderInvocationInput) -> Result<Map<String
         parameter_value(input, "candidate_count"),
     );
 
-    if let Some(max_output_tokens) =
-        parameter_value(input, "max_tokens").or_else(|| parameter_value(input, "max_output_tokens"))
-    {
+    if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
         config.insert("maxOutputTokens".to_string(), max_output_tokens);
     }
 
@@ -2169,6 +2167,18 @@ mod tests {
         thread,
         time::Duration,
     };
+
+    #[test]
+    fn ac_002_native_max_output_tokens_maps_to_gemini_wire_field() {
+        let input = ProviderInvocationInput {
+            model: "gemini-2.5-flash".to_string(),
+            model_parameters: BTreeMap::from([("max_output_tokens".to_string(), json!(512))]),
+            ..Default::default()
+        };
+
+        let body = build_generate_content_body(&input).unwrap();
+        assert_eq!(body["generationConfig"]["maxOutputTokens"], 512);
+    }
 
     #[tokio::test]
     async fn ac_005_validate_redacts_configured_proxy_url() {

@@ -79,7 +79,7 @@ test('anthropic provider exposes messages parameters in order', () => {
     'temperature',
     'top_p',
     'top_k',
-    'max_tokens',
+    'max_output_tokens',
     'tool_choice',
   ]);
 
@@ -87,13 +87,13 @@ test('anthropic provider exposes messages parameters in order', () => {
   assert.doesNotMatch(provider, /^  - key: reasoning_effort$/m);
 });
 
-test('AC-001 anthropic max_tokens is optional and disabled by default', () => {
+test('AC-001 anthropic max_output_tokens is optional and disabled by default', () => {
   const provider = read('provider/anthropic.yaml');
-  const maxTokens = extractParameter(provider, 'max_tokens');
+  const maxOutputTokens = extractParameter(provider, 'max_output_tokens');
 
-  assert.match(maxTokens, /^    send_mode: optional$/m);
-  assert.match(maxTokens, /^    enabled_by_default: false$/m);
-  assert.match(maxTokens, /^    default_value: 4096$/m);
+  assert.match(maxOutputTokens, /^    send_mode: optional$/m);
+  assert.match(maxOutputTokens, /^    enabled_by_default: false$/m);
+  assert.match(maxOutputTokens, /^    default_value: 4096$/m);
 });
 
 test('anthropic static models declare api model names', () => {

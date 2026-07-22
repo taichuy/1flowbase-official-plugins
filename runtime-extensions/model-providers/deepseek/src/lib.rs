@@ -25,7 +25,6 @@ const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
 const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
-    "max_tokens",
     "stop",
     "logprobs",
     "top_logprobs",
@@ -698,6 +697,9 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     }
     if let Some(user_id) = parameter_value(input, "user_id") {
         body.insert("user_id".to_string(), user_id);
+    }
+    if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
+        body.insert("max_tokens".to_string(), max_output_tokens);
     }
     for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {
@@ -1544,7 +1546,7 @@ mod tests {
     }
 
     #[test]
-    fn build_chat_completion_body_maps_deepseek_parameters() {
+    fn ac_002_native_max_output_tokens_maps_to_deepseek_wire_field() {
         let input = ProviderInvocationInput {
             model: "deepseek-v4-pro".to_string(),
             provider_config: serde_json::json!({ "api_key": "secret" }),
@@ -1599,7 +1601,7 @@ mod tests {
                 ("user_id".to_string(), serde_json::json!("user-1")),
                 ("temperature".to_string(), serde_json::json!(0.7)),
                 ("top_p".to_string(), serde_json::json!(0.9)),
-                ("max_tokens".to_string(), serde_json::json!(512)),
+                ("max_output_tokens".to_string(), serde_json::json!(512)),
                 ("stop".to_string(), serde_json::json!(["END"])),
                 ("logprobs".to_string(), serde_json::json!(true)),
                 ("top_logprobs".to_string(), serde_json::json!(5)),
