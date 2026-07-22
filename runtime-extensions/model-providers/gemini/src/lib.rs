@@ -2172,6 +2172,15 @@ mod tests {
     fn ac_002_native_max_output_tokens_maps_to_gemini_wire_field() {
         let input = ProviderInvocationInput {
             model: "gemini-2.5-flash".to_string(),
+            messages: vec![ProviderMessage {
+                role: ProviderMessageRole::User,
+                content: "hello".to_string(),
+                content_blocks: None,
+                name: None,
+                tool_call_id: None,
+                is_error: None,
+                tool_calls: None,
+            }],
             model_parameters: BTreeMap::from([("max_output_tokens".to_string(), json!(512))]),
             ..Default::default()
         };
