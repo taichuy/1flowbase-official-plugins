@@ -1,0 +1,173 @@
+{
+  "tool_id": "conversation_get",
+  "name": "Get Application conversations record",
+  "short_description": "根据会话记录 ID 读取一个应用会话。",
+  "full_description": "通过 path.id 读取单个 application_conversations 记录，可用 query.expand 展开关系字段。适合已知会话记录 ID 时查看会话元数据；聊天消息应使用 conversation_messages_list 按 conversation_id 查询。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__00000000-0533-4000-8000-000000000001__get_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "expand": {
+            "type": "string",
+            "description": "Comma-separated relation field codes to expand."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "application_id",
+      "external_conversation_id",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "api_key_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "external_user": {
+        "type": "string"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "external_conversation_id": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.expand",
+        "description": "Comma-separated relation field codes to expand.",
+        "interface_param": "expand"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "expand",
+        "required": false,
+        "field_type": "string",
+        "description": "Comma-separated relation field codes to expand.",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "application_id",
+      "external_conversation_id",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "api_key_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "external_user": {
+        "type": "string"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "external_conversation_id": {
+        "type": "string"
+      }
+    }
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

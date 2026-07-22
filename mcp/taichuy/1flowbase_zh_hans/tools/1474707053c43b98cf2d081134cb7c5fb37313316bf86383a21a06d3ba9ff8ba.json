@@ -1,0 +1,101 @@
+{
+  "tool_id": "mcp_019f72d0_sub_issue_write",
+  "name": "sub_issue_write",
+  "short_description": "Add, remove, or reprioritize a GitHub sub-issue.",
+  "full_description": "Add, remove, or reprioritize a sub-issue relationship in a GitHub repository.",
+  "execution_target": {
+    "kind": "mcp_proxy",
+    "upstream_connection_id": "019f72d0-5f41-7d60-ad1d-05cc2820914b",
+    "remote_tool_name": "sub_issue_write",
+    "source_schema_hash": "6c3de822fb3815f41f819ef06e0b1c34db0d39b376c20ab358a7ffd90ac71c9c"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "method",
+      "owner",
+      "repo",
+      "issue_number",
+      "sub_issue_id"
+    ],
+    "properties": {
+      "repo": {
+        "type": "string",
+        "x-mcp-header": "repo"
+      },
+      "owner": {
+        "type": "string",
+        "x-mcp-header": "owner"
+      },
+      "method": {
+        "type": "string"
+      },
+      "after_id": {
+        "type": "number"
+      },
+      "before_id": {
+        "type": "number"
+      },
+      "issue_number": {
+        "type": "number"
+      },
+      "sub_issue_id": {
+        "type": "number"
+      },
+      "replace_parent": {
+        "type": "boolean"
+      }
+    }
+  },
+  "result_schema_snapshot": {},
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "local_path": "repo",
+        "remote_path": "repo"
+      },
+      {
+        "required": true,
+        "local_path": "owner",
+        "remote_path": "owner"
+      },
+      {
+        "required": true,
+        "local_path": "method",
+        "remote_path": "method"
+      },
+      {
+        "required": false,
+        "local_path": "after_id",
+        "remote_path": "after_id"
+      },
+      {
+        "required": false,
+        "local_path": "before_id",
+        "remote_path": "before_id"
+      },
+      {
+        "required": true,
+        "local_path": "issue_number",
+        "remote_path": "issue_number"
+      },
+      {
+        "required": true,
+        "local_path": "sub_issue_id",
+        "remote_path": "sub_issue_id"
+      },
+      {
+        "required": false,
+        "local_path": "replace_parent",
+        "remote_path": "replace_parent"
+      }
+    ]
+  },
+  "output_mapping": {
+    "mappings": []
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,139 @@
+{
+  "tool_id": "system_mcp_test_upstream_connection",
+  "name": "test_upstream_connection",
+  "short_description": "测试一个已保存的第三方 MCP 连接。",
+  "full_description": "根据 path.connection_id 初始化第三方 MCP 连接并验证协议协商，返回服务名称、版本、协议版本与错误信息。测试可能访问外部网络，但不修改第三方服务内容。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "test_connection"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "connection_id"
+        ],
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "connection_id",
+      "ok",
+      "tested_at"
+    ],
+    "properties": {
+      "ok": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tested_at": {
+        "type": "string"
+      },
+      "server_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "connection_id": {
+        "type": "string"
+      },
+      "server_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "protocol_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.connection_id",
+        "description": "",
+        "interface_param": "connection_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "connection_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "connection_id",
+      "ok",
+      "tested_at"
+    ],
+    "properties": {
+      "ok": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tested_at": {
+        "type": "string"
+      },
+      "server_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "connection_id": {
+        "type": "string"
+      },
+      "server_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "protocol_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

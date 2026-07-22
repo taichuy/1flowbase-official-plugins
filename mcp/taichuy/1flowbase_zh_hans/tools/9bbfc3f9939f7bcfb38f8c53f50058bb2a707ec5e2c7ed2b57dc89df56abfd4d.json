@@ -1,0 +1,170 @@
+{
+  "tool_id": "system_mcp_list_upstream_connections",
+  "name": "list_upstream_connections",
+  "short_description": "列出当前工作区已配置的第三方 MCP 连接。",
+  "full_description": "返回第三方 MCP 连接的名称、Endpoint、认证类型、启用状态、凭据状态和最近连接结果。定位目标连接或执行测试、发现、导入前先调用；不会返回凭据明文。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_connections"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "connection_id",
+        "workspace_id",
+        "name",
+        "endpoint",
+        "transport",
+        "auth_type",
+        "status",
+        "credentials_status",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string"
+        },
+        "auth_type": {
+          "type": "string"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "connection_id": {
+          "type": "string"
+        },
+        "last_connected_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credentials_status": {
+          "type": "string"
+        },
+        "custom_header_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_discovered_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "connection_id",
+        "workspace_id",
+        "name",
+        "endpoint",
+        "transport",
+        "auth_type",
+        "status",
+        "credentials_status",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string"
+        },
+        "auth_type": {
+          "type": "string"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "connection_id": {
+          "type": "string"
+        },
+        "last_connected_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credentials_status": {
+          "type": "string"
+        },
+        "custom_header_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_discovered_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

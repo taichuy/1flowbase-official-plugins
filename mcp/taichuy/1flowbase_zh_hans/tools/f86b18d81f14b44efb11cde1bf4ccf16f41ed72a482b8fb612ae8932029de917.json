@@ -1,0 +1,100 @@
+{
+  "tool_id": "mcp_019f72d0_issue_read",
+  "name": "issue_read",
+  "short_description": "Get information about a specific issue in a GitHub repository.",
+  "full_description": "Get information about a specific issue in a GitHub repository.",
+  "execution_target": {
+    "kind": "mcp_proxy",
+    "upstream_connection_id": "019f72d0-5f41-7d60-ad1d-05cc2820914b",
+    "remote_tool_name": "issue_read",
+    "source_schema_hash": "5d790f6015073bb0f83198798b1928866a7b57e8567d35b5fb4467ee8725fe07"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "method",
+      "owner",
+      "repo",
+      "issue_number"
+    ],
+    "properties": {
+      "page": {
+        "type": "number",
+        "minimum": 1,
+        "description": "Page number for pagination (min 1)"
+      },
+      "repo": {
+        "type": "string",
+        "description": "The name of the repository",
+        "x-mcp-header": "repo"
+      },
+      "owner": {
+        "type": "string",
+        "description": "The owner of the repository",
+        "x-mcp-header": "owner"
+      },
+      "method": {
+        "enum": [
+          "get",
+          "get_comments",
+          "get_sub_issues",
+          "get_parent",
+          "get_labels"
+        ],
+        "type": "string",
+        "description": "The read operation to perform on a single issue.\nOptions are:\n1. get - Get issue details. Also returns best-effort hierarchy flags (`has_parent`, `has_children`); `parent` and `sub_issues_summary` are optional relationship summaries.\n2. get_comments - Get issue comments.\n3. get_sub_issues - Get sub-issues (children) of the issue.\n4. get_parent - Get the parent issue, if this issue is a sub-issue of another.\n5. get_labels - Get labels assigned to the issue.\n"
+      },
+      "perPage": {
+        "type": "number",
+        "maximum": 100,
+        "minimum": 1,
+        "description": "Results per page for pagination (min 1, max 100)"
+      },
+      "issue_number": {
+        "type": "number",
+        "description": "The number of the issue"
+      }
+    }
+  },
+  "result_schema_snapshot": {},
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "local_path": "page",
+        "remote_path": "page"
+      },
+      {
+        "required": true,
+        "local_path": "repo",
+        "remote_path": "repo"
+      },
+      {
+        "required": true,
+        "local_path": "owner",
+        "remote_path": "owner"
+      },
+      {
+        "required": true,
+        "local_path": "method",
+        "remote_path": "method"
+      },
+      {
+        "required": false,
+        "local_path": "perPage",
+        "remote_path": "perPage"
+      },
+      {
+        "required": true,
+        "local_path": "issue_number",
+        "remote_path": "issue_number"
+      }
+    ]
+  },
+  "output_mapping": {
+    "mappings": []
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

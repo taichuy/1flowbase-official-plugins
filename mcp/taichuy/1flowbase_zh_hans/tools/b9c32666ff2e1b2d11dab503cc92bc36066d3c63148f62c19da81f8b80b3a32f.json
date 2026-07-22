@@ -1,0 +1,426 @@
+{
+  "tool_id": "system_mcp_export_mcp_instance_directory",
+  "name": "export_mcp_instance_directory",
+  "short_description": "导出各 MCP 实例的可见目录结构。",
+  "full_description": "导出每个 MCP 实例面向客户端的目录与 Tool 挂载结构，适合检查实例暴露范围和目录迁移结果。本操作只读，不包含客户端凭证。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "export_mcp_instance_directory"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "instances",
+      "groups",
+      "bindings",
+      "discovery_policies"
+    ],
+    "properties": {
+      "groups": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "instance_record_id",
+            "path",
+            "display_name",
+            "enabled",
+            "sort_order"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "sort_order": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "display_name": {
+              "type": "string"
+            },
+            "description_short": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "instance_record_id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "bindings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "instance_record_id",
+            "tool_record_id",
+            "group_path",
+            "tool_id",
+            "visible",
+            "sort_order"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "tool_id": {
+              "type": "string"
+            },
+            "visible": {
+              "type": "boolean"
+            },
+            "group_path": {
+              "type": "string"
+            },
+            "sort_order": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "display_alias": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tool_record_id": {
+              "type": "string"
+            },
+            "instance_record_id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instances": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "workspace_id",
+            "instance_id",
+            "name",
+            "status",
+            "default_entry_path",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "created_by": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "updated_by": {
+              "type": "string"
+            },
+            "instance_id": {
+              "type": "string"
+            },
+            "workspace_id": {
+              "type": "string"
+            },
+            "description_short": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "default_entry_path": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "discovery_policies": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "workspace_id",
+            "instance_record_id",
+            "instance_id",
+            "list_default_limit",
+            "list_max_depth",
+            "list_regex_enabled",
+            "list_regex_max_length",
+            "list_return_fields"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "instance_id": {
+              "type": "string"
+            },
+            "workspace_id": {
+              "type": "string"
+            },
+            "list_max_depth": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "instance_record_id": {
+              "type": "string"
+            },
+            "list_default_limit": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "list_regex_enabled": {
+              "type": "boolean"
+            },
+            "list_return_fields": {
+              "type": "object"
+            },
+            "list_regex_max_length": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "instances",
+      "groups",
+      "bindings",
+      "discovery_policies"
+    ],
+    "properties": {
+      "groups": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "instance_record_id",
+            "path",
+            "display_name",
+            "enabled",
+            "sort_order"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "sort_order": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "display_name": {
+              "type": "string"
+            },
+            "description_short": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "instance_record_id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "bindings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "instance_record_id",
+            "tool_record_id",
+            "group_path",
+            "tool_id",
+            "visible",
+            "sort_order"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "tool_id": {
+              "type": "string"
+            },
+            "visible": {
+              "type": "boolean"
+            },
+            "group_path": {
+              "type": "string"
+            },
+            "sort_order": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "display_alias": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tool_record_id": {
+              "type": "string"
+            },
+            "instance_record_id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instances": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "workspace_id",
+            "instance_id",
+            "name",
+            "status",
+            "default_entry_path",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "created_by": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "updated_by": {
+              "type": "string"
+            },
+            "instance_id": {
+              "type": "string"
+            },
+            "workspace_id": {
+              "type": "string"
+            },
+            "description_short": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "default_entry_path": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "discovery_policies": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "workspace_id",
+            "instance_record_id",
+            "instance_id",
+            "list_default_limit",
+            "list_max_depth",
+            "list_regex_enabled",
+            "list_regex_max_length",
+            "list_return_fields"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "instance_id": {
+              "type": "string"
+            },
+            "workspace_id": {
+              "type": "string"
+            },
+            "list_max_depth": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "instance_record_id": {
+              "type": "string"
+            },
+            "list_default_limit": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "list_regex_enabled": {
+              "type": "boolean"
+            },
+            "list_return_fields": {
+              "type": "object"
+            },
+            "list_regex_max_length": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,254 @@
+{
+  "tool_id": "system_mcp_list_mcp_interface_capabilities",
+  "name": "list_mcp_interface_capabilities",
+  "short_description": "列出可转换为 MCP Tool 的后端接口及输入输出契约。",
+  "full_description": "用于发现 1flowbase 当前可包装为 MCP Tool 的后端接口。可通过 query.bindable_only 只返回允许绑定的接口；结果包含 interface_id、参数描述、输入输出 Schema、权限码和风险等级。创建 Tool 前应先调用本 Tool，并直接复用返回的契约，避免自行猜测 Schema。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_mcp_interface_capabilities"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "bindable_only": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "interface_id",
+        "method",
+        "path",
+        "name",
+        "short_description",
+        "parameter_descriptors",
+        "parameter_schema",
+        "result_schema",
+        "security",
+        "risk_level",
+        "bindable"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "bindable": {
+          "type": "boolean"
+        },
+        "security": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "risk_level": {
+          "type": "string"
+        },
+        "interface_id": {
+          "type": "string"
+        },
+        "result_schema": {
+          "type": "object"
+        },
+        "disabled_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permission_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parameter_schema": {
+          "type": "object"
+        },
+        "short_description": {
+          "type": "string"
+        },
+        "parameter_descriptors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "field_type",
+              "parameter_type",
+              "required",
+              "schema"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "schema": {
+                "type": "object"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "field_type": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "parameter_type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.bindable_only",
+        "description": "",
+        "interface_param": "bindable_only"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "bindable_only",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "interface_id",
+        "method",
+        "path",
+        "name",
+        "short_description",
+        "parameter_descriptors",
+        "parameter_schema",
+        "result_schema",
+        "security",
+        "risk_level",
+        "bindable"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "bindable": {
+          "type": "boolean"
+        },
+        "security": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "risk_level": {
+          "type": "string"
+        },
+        "interface_id": {
+          "type": "string"
+        },
+        "result_schema": {
+          "type": "object"
+        },
+        "disabled_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permission_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parameter_schema": {
+          "type": "object"
+        },
+        "short_description": {
+          "type": "string"
+        },
+        "parameter_descriptors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "field_type",
+              "parameter_type",
+              "required",
+              "schema"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "schema": {
+                "type": "object"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "field_type": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "parameter_type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

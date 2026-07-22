@@ -1,0 +1,201 @@
+{
+  "tool_id": "system_mcp_discover_upstream_tools",
+  "name": "discover_upstream_tools",
+  "short_description": "发现第三方 MCP 当前暴露的远程 Tools。",
+  "full_description": "根据 path.connection_id 调用远程 tools/list，并把发现结果、Schema hash 与导入状态记录到本地管理体系。调用前先确认连接与凭据状态；结果用于选择性导入，不自动导入或覆盖本地 Tool。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "discover_tools"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "connection_id"
+        ],
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "connection_id",
+      "protocol_version",
+      "discovered_at",
+      "items"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "remote_tool_name",
+            "input_schema",
+            "output_schema",
+            "source_status",
+            "schema_hash"
+          ],
+          "properties": {
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "schema_hash": {
+              "type": "string"
+            },
+            "input_schema": {
+              "type": "object"
+            },
+            "output_schema": {
+              "type": "object"
+            },
+            "source_status": {
+              "type": "string"
+            },
+            "imported_tool_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "remote_tool_name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "server_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "connection_id": {
+        "type": "string"
+      },
+      "discovered_at": {
+        "type": "string"
+      },
+      "server_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "protocol_version": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.connection_id",
+        "description": "",
+        "interface_param": "connection_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "connection_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "connection_id",
+      "protocol_version",
+      "discovered_at",
+      "items"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "remote_tool_name",
+            "input_schema",
+            "output_schema",
+            "source_status",
+            "schema_hash"
+          ],
+          "properties": {
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "schema_hash": {
+              "type": "string"
+            },
+            "input_schema": {
+              "type": "object"
+            },
+            "output_schema": {
+              "type": "object"
+            },
+            "source_status": {
+              "type": "string"
+            },
+            "imported_tool_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "remote_tool_name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "server_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "connection_id": {
+        "type": "string"
+      },
+      "discovered_at": {
+        "type": "string"
+      },
+      "server_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "protocol_version": {
+        "type": "string"
+      }
+    }
+  },
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

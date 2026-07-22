@@ -1,0 +1,252 @@
+{
+  "tool_id": "system_mcp_list_mcp_items",
+  "name": "list_mcp_items",
+  "short_description": "按路径渐进浏览 MCP 目录中的分组和 Tool。",
+  "full_description": "按 query.instance_id、path、path_regex、keywords、depth 和 limit 浏览 MCP 目录。返回短摘要而不是完整 Tool 契约；确定目标后再使用 mcp.get 查看完整描述。建议从较浅路径开始逐层展开，避免一次拉取整个目录。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_mcp_items"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "depth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "keywords": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "path_regex": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instance_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item_kind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "risk_level": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "children_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "description_short": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.path",
+        "description": "",
+        "interface_param": "path"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.keywords",
+        "description": "",
+        "interface_param": "keywords"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.depth",
+        "description": "",
+        "interface_param": "depth"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.path_regex",
+        "description": "",
+        "interface_param": "path_regex"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "instance_id",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "path",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "keywords",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "depth",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "path_regex",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item_kind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "risk_level": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "children_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "description_short": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

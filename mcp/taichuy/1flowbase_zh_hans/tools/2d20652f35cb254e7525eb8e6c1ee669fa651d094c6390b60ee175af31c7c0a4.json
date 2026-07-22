@@ -1,0 +1,94 @@
+{
+  "tool_id": "mcp_019f72d0_add_issue_comment",
+  "name": "add_issue_comment",
+  "short_description": "Add a comment or reaction to a GitHub issue.",
+  "full_description": "Add a comment and/or reaction to a specific GitHub issue or issue comment.",
+  "execution_target": {
+    "kind": "mcp_proxy",
+    "upstream_connection_id": "019f72d0-5f41-7d60-ad1d-05cc2820914b",
+    "remote_tool_name": "add_issue_comment",
+    "source_schema_hash": "1d6f8228a6948ec07335730418ce1679dbb18d97f42b5fef38c97d6ed498f4d7"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "owner",
+      "repo",
+      "issue_number"
+    ],
+    "properties": {
+      "body": {
+        "type": "string"
+      },
+      "repo": {
+        "type": "string",
+        "x-mcp-header": "repo"
+      },
+      "owner": {
+        "type": "string",
+        "x-mcp-header": "owner"
+      },
+      "reaction": {
+        "enum": [
+          "+1",
+          "-1",
+          "laugh",
+          "confused",
+          "heart",
+          "hooray",
+          "rocket",
+          "eyes"
+        ],
+        "type": "string"
+      },
+      "comment_id": {
+        "type": "number",
+        "minimum": 1
+      },
+      "issue_number": {
+        "type": "number"
+      }
+    }
+  },
+  "result_schema_snapshot": {},
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "local_path": "body",
+        "remote_path": "body"
+      },
+      {
+        "required": true,
+        "local_path": "repo",
+        "remote_path": "repo"
+      },
+      {
+        "required": true,
+        "local_path": "owner",
+        "remote_path": "owner"
+      },
+      {
+        "required": false,
+        "local_path": "reaction",
+        "remote_path": "reaction"
+      },
+      {
+        "required": false,
+        "local_path": "comment_id",
+        "remote_path": "comment_id"
+      },
+      {
+        "required": true,
+        "local_path": "issue_number",
+        "remote_path": "issue_number"
+      }
+    ]
+  },
+  "output_mapping": {
+    "mappings": []
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

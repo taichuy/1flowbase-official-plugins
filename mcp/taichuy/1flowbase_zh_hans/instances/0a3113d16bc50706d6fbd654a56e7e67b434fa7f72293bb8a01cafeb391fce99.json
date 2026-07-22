@@ -1,0 +1,418 @@
+{
+  "instance_id": "1flowbase",
+  "name": "official",
+  "description_short": "Taichuy maintains the MCP tool for 1flowbase.MCP Gateway,LLM gateway,Database DDL",
+  "status": "enabled",
+  "default_entry_path": "/",
+  "groups": [
+    {
+      "path": "/system_mcp",
+      "display_name": "System MCP Management",
+      "description_short": "A progressive entry point for discovering, configuring, and maintaining 1flowbase MCP capabilities.",
+      "enabled": true,
+      "sort_order": 0
+    },
+    {
+      "path": "/data",
+      "display_name": "system data",
+      "description_short": "Access 1flowbase system data suitable for querying through MCP.",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/data/conversations",
+      "display_name": "会话记录",
+      "description_short": "查询应用会话及其聊天消息。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/data/conversations/messages",
+      "display_name": "聊天消息",
+      "description_short": "按会话或消息标识读取聊天记录。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/system_mcp/configure/directory/groups",
+      "display_name": "分组管理",
+      "description_short": "创建、更新或删除 MCP 目录分组。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/system_mcp/configure/instances",
+      "display_name": "实例管理",
+      "description_short": "管理 MCP 服务实例及其启用状态和入口。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/system_mcp/discover",
+      "display_name": "Discovery ability",
+      "description_short": "First, search for convertible interfaces, existing directories, and export information.",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/system_mcp/discover/interfaces",
+      "display_name": "接口能力",
+      "description_short": "发现可转换为 MCP Tool 的后端接口及契约。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/system_mcp/policies/discovery",
+      "display_name": "发现策略",
+      "description_short": "控制 MCP 目录查询深度、数量和返回字段。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/system_mcp/configure",
+      "display_name": "Configure MCP",
+      "description_short": "Create and maintain instances Tool、 Directory grouping and mounting relationship.",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/system_mcp/configure/directory/bindings",
+      "display_name": "挂载管理",
+      "description_short": "将 Tool 挂载到实例目录，或调整和解除挂载。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/system_mcp/configure/tools",
+      "display_name": "Tool 管理",
+      "description_short": "管理后端接口转换得到的 MCP Tool 定义。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/system_mcp/discover/catalog",
+      "display_name": "MCP 目录",
+      "description_short": "查看或导出当前 MCP 实例、目录、Tool 与挂载关系。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/system_mcp/configure/directory",
+      "display_name": "目录管理",
+      "description_short": "管理实例中的目录分组和 Tool 挂载位置。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/system_mcp/policies",
+      "display_name": "Strategy settings",
+      "description_short": "View and adjust MCP's discovery and directory browsing strategies.",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/applications/workflows",
+      "display_name": "Workflow 管理",
+      "description_short": "通过 MCP 创建、保存和发布 Workflow 应用。",
+      "enabled": true,
+      "sort_order": 40
+    },
+    {
+      "path": "/system_mcp/configure/upstreams",
+      "display_name": "第三方 MCP",
+      "description_short": "通过 MCP 管理第三方 MCP 连接、发现并导入远程 Tool。",
+      "enabled": true,
+      "sort_order": 50
+    }
+  ],
+  "bindings": [
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_create_application",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_get_orchestration",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_save_draft",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_get_api_mapping",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_publish_api",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 50
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_get_api_docs_catalog",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 60
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_ops_list_api_operations",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 70
+    },
+    {
+      "group_path": "/applications/workflows",
+      "tool_id": "workflow_mcp_test_echo",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 100
+    },
+    {
+      "group_path": "/data/conversations",
+      "tool_id": "conversation_list",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/data/conversations",
+      "tool_id": "conversation_get",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/data/conversations/messages",
+      "tool_id": "conversation_messages_list",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/data/conversations/messages",
+      "tool_id": "conversation_message_get",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/system_mcp/configure/directory/bindings",
+      "tool_id": "system_mcp_create_mcp_tool_binding",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/configure/directory/bindings",
+      "tool_id": "system_mcp_update_mcp_tool_binding",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/system_mcp/configure/directory/bindings",
+      "tool_id": "system_mcp_delete_mcp_tool_binding",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 90
+    },
+    {
+      "group_path": "/system_mcp/configure/directory/groups",
+      "tool_id": "system_mcp_upsert_mcp_group",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/configure/directory/groups",
+      "tool_id": "system_mcp_delete_mcp_group",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 90
+    },
+    {
+      "group_path": "/system_mcp/configure/instances",
+      "tool_id": "system_mcp_list_mcp_instances",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/configure/instances",
+      "tool_id": "system_mcp_create_mcp_instance",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/system_mcp/configure/instances",
+      "tool_id": "system_mcp_update_mcp_instance",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/system_mcp/configure/instances",
+      "tool_id": "system_mcp_delete_mcp_instance",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 90
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_list_mcp_tools",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_get_mcp_tool",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_create_mcp_tool",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_update_mcp_tool",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_refresh_mcp_tool_description",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 50
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_check_mcp_tool_description",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 60
+    },
+    {
+      "group_path": "/system_mcp/configure/tools",
+      "tool_id": "system_mcp_delete_mcp_tool",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 90
+    },
+    {
+      "group_path": "/system_mcp/configure/upstreams",
+      "tool_id": "system_mcp_list_upstream_connections",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/configure/upstreams",
+      "tool_id": "system_mcp_test_upstream_connection",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/system_mcp/configure/upstreams",
+      "tool_id": "system_mcp_discover_upstream_tools",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/system_mcp/configure/upstreams",
+      "tool_id": "system_mcp_import_upstream_tools",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/system_mcp/discover/catalog",
+      "tool_id": "system_mcp_get_mcp_catalog",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/discover/catalog",
+      "tool_id": "system_mcp_list_mcp_items",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/system_mcp/discover/catalog",
+      "tool_id": "system_mcp_export_mcp_catalog",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/system_mcp/discover/catalog",
+      "tool_id": "system_mcp_export_mcp_instance_directory",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/system_mcp/discover/interfaces",
+      "tool_id": "system_mcp_list_mcp_interface_capabilities",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/policies/discovery",
+      "tool_id": "system_mcp_get_mcp_instance_discovery_policy",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/system_mcp/policies/discovery",
+      "tool_id": "system_mcp_update_mcp_instance_discovery_policy",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    }
+  ],
+  "discovery_policy": {
+    "list_default_limit": 50,
+    "list_max_depth": 9,
+    "list_regex_enabled": false,
+    "list_regex_max_length": 128,
+    "list_return_fields": [
+      "id",
+      "type",
+      "path",
+      "name",
+      "description_short",
+      "children_count",
+      "risk_level"
+    ]
+  }
+}

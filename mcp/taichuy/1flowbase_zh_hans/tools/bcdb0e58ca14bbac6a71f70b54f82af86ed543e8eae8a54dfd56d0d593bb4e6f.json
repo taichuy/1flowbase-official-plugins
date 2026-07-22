@@ -1,0 +1,225 @@
+{
+  "tool_id": "system_mcp_upsert_mcp_group",
+  "name": "upsert_mcp_group",
+  "short_description": "创建或更新 MCP 实例中的目录分组。",
+  "full_description": "在 path.instance_id 指定的实例中创建或更新 body.path 对应目录。display_name 和 description_short 用于 mcp.list 的渐进式导航，enabled 控制目录是否可见，sort_order 控制同层顺序。建议先建立父目录再建立子目录，并保持每层围绕单一任务领域。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "upsert_mcp_group"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "path",
+          "display_name",
+          "enabled",
+          "sort_order"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description_short": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "properties": {
+          "instance_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "instance_record_id",
+      "path",
+      "display_name",
+      "enabled",
+      "sort_order"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "sort_order": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "display_name": {
+        "type": "string"
+      },
+      "description_short": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "instance_record_id": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.description_short",
+        "description": "",
+        "interface_param": "description_short"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.display_name",
+        "description": "",
+        "interface_param": "display_name"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.enabled",
+        "description": "",
+        "interface_param": "enabled"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.path",
+        "description": "",
+        "interface_param": "path"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.sort_order",
+        "description": "",
+        "interface_param": "sort_order"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "instance_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "description_short",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "display_name",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "enabled",
+        "required": true,
+        "field_type": "boolean",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "sort_order",
+        "required": true,
+        "field_type": "integer",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "instance_record_id",
+      "path",
+      "display_name",
+      "enabled",
+      "sort_order"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "sort_order": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "display_name": {
+        "type": "string"
+      },
+      "description_short": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "instance_record_id": {
+        "type": "string"
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,1377 @@
+{
+  "tool_id": "workflow_ops_publish_api",
+  "name": "publish_workflow_api",
+  "short_description": "冻结当前 Workflow 草稿并发布 API。",
+  "full_description": "根据 application id、mapping 和 api_enabled 冻结当前草稿、编译 Workflow 并创建活动 publication。发布成功后通过 interface capability 发现动态 extension operation。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "publish_application_api"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "mapping",
+          "api_enabled"
+        ],
+        "properties": {
+          "mapping": {
+            "type": "object",
+            "required": [
+              "input",
+              "output"
+            ],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": [
+                  "query_target"
+                ],
+                "properties": {
+                  "model_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "query_target": {
+                    "type": "string"
+                  },
+                  "inputs_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "history_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "attachments_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "output": {
+                "type": "object",
+                "properties": {
+                  "error_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "files_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "usage_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "answer_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "extension": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "slug",
+                      "method",
+                      "response_mode"
+                    ],
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE",
+                          "HEAD",
+                          "OPTIONS"
+                        ],
+                        "type": "string"
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "source",
+                            "target"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "enum": [
+                                "path",
+                                "query",
+                                "form",
+                                "body"
+                              ],
+                              "type": "string"
+                            },
+                            "target": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "response_mode": {
+                        "enum": [
+                          "sync",
+                          "async"
+                        ],
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "operation_bindings": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "compact": {
+                        "type": "object",
+                        "properties": {
+                          "responses_compact": {
+                            "oneOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "target_node_id"
+                                ],
+                                "properties": {
+                                  "target_node_id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "responses_compaction_v2": {
+                            "oneOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "target_node_id"
+                                ],
+                                "properties": {
+                                  "target_node_id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "generate": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "target_node_id"
+                            ],
+                            "properties": {
+                              "target_node_id": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "count_tokens": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "target_node_id"
+                            ],
+                            "properties": {
+                              "target_node_id": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "api_enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_id",
+      "flow_id",
+      "flow_version_id",
+      "compiled_plan_id",
+      "version_sequence",
+      "active",
+      "api_enabled",
+      "mapping_snapshot",
+      "operation_bindings",
+      "dependency_snapshot",
+      "public_url",
+      "created_by",
+      "created_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "flow_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "public_url": {
+        "type": "string"
+      },
+      "api_enabled": {
+        "type": "boolean"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "flow_version_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "compiled_plan_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "mapping_snapshot": {
+        "type": "object",
+        "required": [
+          "input",
+          "output"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "query_target"
+            ],
+            "properties": {
+              "model_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "query_target": {
+                "type": "string"
+              },
+              "inputs_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "history_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "attachments_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "error_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "files_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "usage_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "answer_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "extension": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "slug",
+                  "method",
+                  "response_mode"
+                ],
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "HEAD",
+                      "OPTIONS"
+                    ],
+                    "type": "string"
+                  },
+                  "parameters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "source",
+                        "target"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "enum": [
+                            "path",
+                            "query",
+                            "form",
+                            "body"
+                          ],
+                          "type": "string"
+                        },
+                        "target": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "response_mode": {
+                    "enum": [
+                      "sync",
+                      "async"
+                    ],
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "operation_bindings": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "compact": {
+                    "type": "object",
+                    "properties": {
+                      "responses_compact": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "target_node_id"
+                            ],
+                            "properties": {
+                              "target_node_id": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "responses_compaction_v2": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "target_node_id"
+                            ],
+                            "properties": {
+                              "target_node_id": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "generate": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "target_node_id"
+                        ],
+                        "properties": {
+                          "target_node_id": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "count_tokens": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "target_node_id"
+                        ],
+                        "properties": {
+                          "target_node_id": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "version_sequence": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "operation_bindings": {
+        "type": "object",
+        "properties": {
+          "compact": {
+            "type": "object",
+            "properties": {
+              "responses_compact": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "target_node_id"
+                    ],
+                    "properties": {
+                      "target_node_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "responses_compaction_v2": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "target_node_id"
+                    ],
+                    "properties": {
+                      "target_node_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "generate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "target_node_id"
+                ],
+                "properties": {
+                  "target_node_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "count_tokens": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "target_node_id"
+                ],
+                "properties": {
+                  "target_node_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "dependency_snapshot": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "installation_id",
+            "provider_code",
+            "plugin_id",
+            "plugin_version",
+            "alias",
+            "package",
+            "version",
+            "target",
+            "artifact_path",
+            "artifact_hash",
+            "integrity",
+            "permissions"
+          ],
+          "properties": {
+            "alias": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "package": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "integrity": {
+              "type": "string"
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "permissions": {
+              "type": "object",
+              "required": [
+                "network",
+                "filesystem",
+                "env"
+              ],
+              "properties": {
+                "env": {
+                  "type": "string"
+                },
+                "network": {
+                  "type": "string"
+                },
+                "filesystem": {
+                  "type": "string"
+                }
+              }
+            },
+            "artifact_hash": {
+              "type": "string"
+            },
+            "artifact_path": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "plugin_version": {
+              "type": "string"
+            },
+            "installation_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Application id",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.api_enabled",
+        "description": "",
+        "interface_param": "api_enabled"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.extension",
+        "description": "",
+        "interface_param": "mapping.extension"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.attachments_target",
+        "description": "",
+        "interface_param": "mapping.input.attachments_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.history_target",
+        "description": "",
+        "interface_param": "mapping.input.history_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.inputs_target",
+        "description": "",
+        "interface_param": "mapping.input.inputs_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.model_target",
+        "description": "",
+        "interface_param": "mapping.input.model_target"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.mapping.input.query_target",
+        "description": "",
+        "interface_param": "mapping.input.query_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.operation_bindings",
+        "description": "",
+        "interface_param": "mapping.operation_bindings"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.answer_selector",
+        "description": "",
+        "interface_param": "mapping.output.answer_selector"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.error_selector",
+        "description": "",
+        "interface_param": "mapping.output.error_selector"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.files_selector",
+        "description": "",
+        "interface_param": "mapping.output.files_selector"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.usage_selector",
+        "description": "",
+        "interface_param": "mapping.output.usage_selector"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "api_enabled",
+        "required": true,
+        "field_type": "boolean",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.extension",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.attachments_target",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.history_target",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.inputs_target",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.model_target",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.query_target",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.operation_bindings",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.answer_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.error_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.files_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.usage_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_id",
+      "flow_id",
+      "flow_version_id",
+      "compiled_plan_id",
+      "version_sequence",
+      "active",
+      "api_enabled",
+      "mapping_snapshot",
+      "operation_bindings",
+      "dependency_snapshot",
+      "public_url",
+      "created_by",
+      "created_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "flow_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "public_url": {
+        "type": "string"
+      },
+      "api_enabled": {
+        "type": "boolean"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "flow_version_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "compiled_plan_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "mapping_snapshot": {
+        "type": "object",
+        "required": [
+          "input",
+          "output"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "query_target"
+            ],
+            "properties": {
+              "model_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "query_target": {
+                "type": "string"
+              },
+              "inputs_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "history_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "attachments_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "error_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "files_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "usage_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "answer_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "extension": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "slug",
+                  "method",
+                  "response_mode"
+                ],
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "HEAD",
+                      "OPTIONS"
+                    ],
+                    "type": "string"
+                  },
+                  "parameters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "source",
+                        "target"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "enum": [
+                            "path",
+                            "query",
+                            "form",
+                            "body"
+                          ],
+                          "type": "string"
+                        },
+                        "target": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "response_mode": {
+                    "enum": [
+                      "sync",
+                      "async"
+                    ],
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "operation_bindings": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "compact": {
+                    "type": "object",
+                    "properties": {
+                      "responses_compact": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "target_node_id"
+                            ],
+                            "properties": {
+                              "target_node_id": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "responses_compaction_v2": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "target_node_id"
+                            ],
+                            "properties": {
+                              "target_node_id": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "generate": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "target_node_id"
+                        ],
+                        "properties": {
+                          "target_node_id": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "count_tokens": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "target_node_id"
+                        ],
+                        "properties": {
+                          "target_node_id": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "version_sequence": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "operation_bindings": {
+        "type": "object",
+        "properties": {
+          "compact": {
+            "type": "object",
+            "properties": {
+              "responses_compact": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "target_node_id"
+                    ],
+                    "properties": {
+                      "target_node_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "responses_compaction_v2": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "target_node_id"
+                    ],
+                    "properties": {
+                      "target_node_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "generate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "target_node_id"
+                ],
+                "properties": {
+                  "target_node_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "count_tokens": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "target_node_id"
+                ],
+                "properties": {
+                  "target_node_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "dependency_snapshot": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "installation_id",
+            "provider_code",
+            "plugin_id",
+            "plugin_version",
+            "alias",
+            "package",
+            "version",
+            "target",
+            "artifact_path",
+            "artifact_hash",
+            "integrity",
+            "permissions"
+          ],
+          "properties": {
+            "alias": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "package": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "integrity": {
+              "type": "string"
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "permissions": {
+              "type": "object",
+              "required": [
+                "network",
+                "filesystem",
+                "env"
+              ],
+              "properties": {
+                "env": {
+                  "type": "string"
+                },
+                "network": {
+                  "type": "string"
+                },
+                "filesystem": {
+                  "type": "string"
+                }
+              }
+            },
+            "artifact_hash": {
+              "type": "string"
+            },
+            "artifact_path": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "plugin_version": {
+              "type": "string"
+            },
+            "installation_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    }
+  },
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

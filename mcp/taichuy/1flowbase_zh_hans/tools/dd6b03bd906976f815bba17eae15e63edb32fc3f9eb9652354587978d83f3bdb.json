@@ -1,0 +1,233 @@
+{
+  "tool_id": "system_mcp_create_mcp_tool_binding",
+  "name": "create_mcp_tool_binding",
+  "short_description": "将一个 MCP Tool 挂载到实例目录。",
+  "full_description": "把 body.tool_id 挂载到 path.instance_id 的 body.group_path。visible 控制客户端是否可见，display_alias 可提供目录内显示别名，sort_order 控制同层顺序。调用前确认目标分组和 Tool 已存在；调用后使用 list_mcp_items 检查目录，再用 mcp.get 和 mcp.call 验证最终能力。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_mcp_tool_binding"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "group_path",
+          "tool_id",
+          "visible",
+          "sort_order"
+        ],
+        "properties": {
+          "tool_id": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "group_path": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "display_alias": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "properties": {
+          "instance_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "instance_record_id",
+      "tool_record_id",
+      "group_path",
+      "tool_id",
+      "visible",
+      "sort_order"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "tool_id": {
+        "type": "string"
+      },
+      "visible": {
+        "type": "boolean"
+      },
+      "group_path": {
+        "type": "string"
+      },
+      "sort_order": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "display_alias": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tool_record_id": {
+        "type": "string"
+      },
+      "instance_record_id": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.display_alias",
+        "description": "",
+        "interface_param": "display_alias"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.group_path",
+        "description": "",
+        "interface_param": "group_path"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.sort_order",
+        "description": "",
+        "interface_param": "sort_order"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.tool_id",
+        "description": "",
+        "interface_param": "tool_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.visible",
+        "description": "",
+        "interface_param": "visible"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "instance_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "display_alias",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "group_path",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "sort_order",
+        "required": true,
+        "field_type": "integer",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "tool_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "visible",
+        "required": true,
+        "field_type": "boolean",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "instance_record_id",
+      "tool_record_id",
+      "group_path",
+      "tool_id",
+      "visible",
+      "sort_order"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "tool_id": {
+        "type": "string"
+      },
+      "visible": {
+        "type": "boolean"
+      },
+      "group_path": {
+        "type": "string"
+      },
+      "sort_order": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "display_alias": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tool_record_id": {
+        "type": "string"
+      },
+      "instance_record_id": {
+        "type": "string"
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,610 @@
+{
+  "tool_id": "workflow_ops_create_application",
+  "name": "create_workflow_application",
+  "short_description": "创建一个 Workflow 应用。",
+  "full_description": "创建 Workflow 类型应用并配置 extension 或 schedule 触发方式。本任务使用 extension；创建后先读取默认编排，再保存草稿和发布 API。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_application"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "application_type",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon_background": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "application_type": {
+            "type": "string"
+          },
+          "workflow_trigger_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflow_trigger_config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "cron": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "subpath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "timezone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "http_method": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "input_payload": {},
+                  "response_mode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_type",
+      "name",
+      "description",
+      "created_by",
+      "updated_at",
+      "tags",
+      "sections"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "sections": {
+        "type": "object",
+        "required": [
+          "orchestration",
+          "api",
+          "logs",
+          "monitoring"
+        ],
+        "properties": {
+          "api": {
+            "type": "object",
+            "required": [
+              "status",
+              "credential_kind",
+              "invoke_routing_mode",
+              "api_capability_status",
+              "credentials_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "credential_kind": {
+                "type": "string"
+              },
+              "credentials_status": {
+                "type": "string"
+              },
+              "invoke_routing_mode": {
+                "type": "string"
+              },
+              "invoke_path_template": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "api_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "logs": {
+            "type": "object",
+            "required": [
+              "status",
+              "runs_capability_status",
+              "run_object_kind",
+              "log_retention_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "run_object_kind": {
+                "type": "string"
+              },
+              "log_retention_status": {
+                "type": "string"
+              },
+              "runs_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "monitoring": {
+            "type": "object",
+            "required": [
+              "status",
+              "metrics_capability_status",
+              "metrics_object_kind",
+              "tracing_config_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "metrics_object_kind": {
+                "type": "string"
+              },
+              "tracing_config_status": {
+                "type": "string"
+              },
+              "metrics_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "orchestration": {
+            "type": "object",
+            "required": [
+              "status",
+              "subject_kind",
+              "subject_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "subject_kind": {
+                "type": "string"
+              },
+              "subject_status": {
+                "type": "string"
+              },
+              "current_draft_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current_subject_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "icon_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_by": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "icon_background": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "application_type": {
+        "type": "string"
+      },
+      "workflow_trigger_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.application_type",
+        "description": "",
+        "interface_param": "application_type"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.description",
+        "description": "",
+        "interface_param": "description"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.icon",
+        "description": "",
+        "interface_param": "icon"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.icon_background",
+        "description": "",
+        "interface_param": "icon_background"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.icon_type",
+        "description": "",
+        "interface_param": "icon_type"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "",
+        "interface_param": "name"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.workflow_trigger_config",
+        "description": "",
+        "interface_param": "workflow_trigger_config"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.workflow_trigger_type",
+        "description": "",
+        "interface_param": "workflow_trigger_type"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_type",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon_background",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon_type",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "workflow_trigger_config",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "workflow_trigger_type",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_type",
+      "name",
+      "description",
+      "created_by",
+      "updated_at",
+      "tags",
+      "sections"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "sections": {
+        "type": "object",
+        "required": [
+          "orchestration",
+          "api",
+          "logs",
+          "monitoring"
+        ],
+        "properties": {
+          "api": {
+            "type": "object",
+            "required": [
+              "status",
+              "credential_kind",
+              "invoke_routing_mode",
+              "api_capability_status",
+              "credentials_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "credential_kind": {
+                "type": "string"
+              },
+              "credentials_status": {
+                "type": "string"
+              },
+              "invoke_routing_mode": {
+                "type": "string"
+              },
+              "invoke_path_template": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "api_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "logs": {
+            "type": "object",
+            "required": [
+              "status",
+              "runs_capability_status",
+              "run_object_kind",
+              "log_retention_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "run_object_kind": {
+                "type": "string"
+              },
+              "log_retention_status": {
+                "type": "string"
+              },
+              "runs_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "monitoring": {
+            "type": "object",
+            "required": [
+              "status",
+              "metrics_capability_status",
+              "metrics_object_kind",
+              "tracing_config_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "metrics_object_kind": {
+                "type": "string"
+              },
+              "tracing_config_status": {
+                "type": "string"
+              },
+              "metrics_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "orchestration": {
+            "type": "object",
+            "required": [
+              "status",
+              "subject_kind",
+              "subject_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "subject_kind": {
+                "type": "string"
+              },
+              "subject_status": {
+                "type": "string"
+              },
+              "current_draft_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current_subject_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "icon_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_by": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "icon_background": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "application_type": {
+        "type": "string"
+      },
+      "workflow_trigger_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "permission_code_snapshot": "application.create.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

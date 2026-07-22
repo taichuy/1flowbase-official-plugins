@@ -1,0 +1,223 @@
+{
+  "tool_id": "conversation_message_get",
+  "name": "Get Application conversation messages record",
+  "short_description": "根据消息记录 ID 读取一条聊天消息。",
+  "full_description": "通过 path.id 读取单个 application_conversation_messages 记录，可用 query.expand 展开关系字段。适合已知消息记录 ID 时查看完整内容和状态；按会话获取消息序列时使用 conversation_messages_list。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__00000000-0533-4000-8000-000000000002__get_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "expand": {
+            "type": "string",
+            "description": "Comma-separated relation field codes to expand."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "conversation_id",
+      "application_id",
+      "role",
+      "content",
+      "sequence",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "content": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "sequence": {
+        "type": "number"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "finished_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "flow_run_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "node_run_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "conversation_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.expand",
+        "description": "Comma-separated relation field codes to expand.",
+        "interface_param": "expand"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "expand",
+        "required": false,
+        "field_type": "string",
+        "description": "Comma-separated relation field codes to expand.",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "conversation_id",
+      "application_id",
+      "role",
+      "content",
+      "sequence",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "content": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "sequence": {
+        "type": "number"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "finished_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "flow_run_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "node_run_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      },
+      "conversation_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Relation record id or relation expansion target."
+      }
+    }
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

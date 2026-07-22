@@ -76,7 +76,9 @@ jobs:
           mkdir -p dist
           (
             cd "${BUNDLE_DIR}"
-            zip -q -r "${GITHUB_WORKSPACE}/dist/${ASSET_NAME}" manifest.json tools instances
+            bundle_entries=(manifest.json tools instances)
+            if [ -d connections ]; then bundle_entries+=(connections); fi
+            zip -q -r "${GITHUB_WORKSPACE}/dist/${ASSET_NAME}" "${bundle_entries[@]}"
           )
           checksum="sha256:$(sha256sum "dist/${ASSET_NAME}" | awk '{print $1}')"
           node -e 'const fs = require("fs"); fs.writeFileSync(process.argv[1], JSON.stringify({ release_tag: process.argv[2], checksum: process.argv[3] }) + "\n")' \

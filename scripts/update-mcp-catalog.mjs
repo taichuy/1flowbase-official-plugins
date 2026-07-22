@@ -9,7 +9,10 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SCHEMA_VERSION = '1flowbase.mcp.bundle/v1';
+const SCHEMA_VERSIONS = new Set([
+  '1flowbase.mcp.bundle/v1',
+  '1flowbase.mcp.bundle/v2'
+]);
 const REPOSITORY = 'taichuy/1flowbase-official-plugins';
 const LOCALES = new Set(['zh_Hans', 'en_US']);
 
@@ -42,7 +45,7 @@ function jsonFiles(root, relativeRoot) {
 export function buildMcpBundleSource(bundleRoot) {
   const manifestPath = path.join(bundleRoot, 'manifest.json');
   const manifest = readJson(manifestPath);
-  if (manifest.schema_version !== SCHEMA_VERSION) {
+  if (!SCHEMA_VERSIONS.has(manifest.schema_version)) {
     throw new Error(`unsupported MCP bundle schema in ${manifestPath}`);
   }
   const expectedOrganization = path.basename(path.dirname(bundleRoot));
@@ -59,13 +62,24 @@ export function buildMcpBundleSource(bundleRoot) {
 
   const toolPaths = jsonFiles(path.join(bundleRoot, 'tools'), bundleRoot);
   const instancePaths = jsonFiles(path.join(bundleRoot, 'instances'), bundleRoot);
+  const connectionPaths = jsonFiles(path.join(bundleRoot, 'connections'), bundleRoot);
   const toolIds = new Set();
+  const upstreamConnectionIds = new Set();
   for (const relativePath of toolPaths) {
     const tool = readJson(path.join(bundleRoot, relativePath));
-    if (!tool.tool_id || !tool.interface_id || toolIds.has(tool.tool_id)) {
+    const isV1Target = manifest.schema_version === '1flowbase.mcp.bundle/v1' && tool.interface_id;
+    const isInterfaceTarget =
+      tool.execution_target?.kind === 'interface_wrapper' && tool.execution_target.interface_id;
+    const isProxyTarget =
+      tool.execution_target?.kind === 'mcp_proxy' &&
+      tool.execution_target.upstream_connection_id &&
+      tool.execution_target.remote_tool_name &&
+      tool.execution_target.source_schema_hash;
+    if (!tool.tool_id || (!isV1Target && !isInterfaceTarget && !isProxyTarget) || toolIds.has(tool.tool_id)) {
       throw new Error(`invalid or duplicate MCP tool identity in ${relativePath}`);
     }
     toolIds.add(tool.tool_id);
+    if (isProxyTarget) upstreamConnectionIds.add(tool.execution_target.upstream_connection_id);
   }
   const instanceIds = new Set();
   for (const relativePath of instancePaths) {
@@ -80,10 +94,24 @@ export function buildMcpBundleSource(bundleRoot) {
       }
     }
   }
+  const connectionIds = new Set();
+  for (const relativePath of connectionPaths) {
+    const connection = readJson(path.join(bundleRoot, relativePath));
+    if (!connection.connection_id || connectionIds.has(connection.connection_id)) {
+      throw new Error(`invalid or duplicate MCP connection identity in ${relativePath}`);
+    }
+    connectionIds.add(connection.connection_id);
+  }
+  for (const connectionId of upstreamConnectionIds) {
+    if (!connectionIds.has(connectionId)) {
+      throw new Error(`MCP proxy references undeclared connection ${connectionId}`);
+    }
+  }
 
   const files = [
     ...toolPaths.map((relativePath) => ({ path: relativePath, kind: 'tool' })),
-    ...instancePaths.map((relativePath) => ({ path: relativePath, kind: 'instance' }))
+    ...instancePaths.map((relativePath) => ({ path: relativePath, kind: 'instance' })),
+    ...connectionPaths.map((relativePath) => ({ path: relativePath, kind: 'connection' }))
   ].map((entry) => ({
     ...entry,
     sha256: sha256(readFileSync(path.join(bundleRoot, entry.path)))

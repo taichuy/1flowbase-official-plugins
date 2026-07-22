@@ -1,0 +1,63 @@
+{
+  "tool_id": "system_mcp_delete_mcp_tool_binding",
+  "name": "delete_mcp_tool_binding",
+  "short_description": "解除 Tool 与 MCP 实例目录的挂载关系。",
+  "full_description": "根据 path.binding_id 删除一条 Tool 挂载关系，不删除 Tool 定义。该操作为 critical，会让 Tool 从对应实例目录消失；操作前用 get_mcp_catalog 确认绑定和其他实例中的挂载，操作后用 list_mcp_items 验证。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "delete_mcp_tool_binding"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "binding_id"
+        ],
+        "properties": {
+          "binding_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.binding_id",
+        "description": "",
+        "interface_param": "binding_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "binding_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "critical",
+  "status": "enabled"
+}

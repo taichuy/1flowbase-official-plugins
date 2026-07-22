@@ -1,0 +1,288 @@
+{
+  "tool_id": "conversation_messages_list",
+  "name": "List Application conversation messages records",
+  "short_description": "按会话 ID 分页查询聊天消息并控制排序。",
+  "full_description": "查询 application_conversation_messages 数据模型。按会话查询时，将 query.filter 设置为 JSON 字符串，例如 {\"conversation_id\":{\"$eq\":\"<conversation_id>\"}}；通常配合 query.sort=sequence:asc，并使用 page、page_size 分页。建议先用 conversation_list 获取会话 ID；需要单条完整消息时使用 conversation_message_get。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__00000000-0533-4000-8000-000000000002__list_records"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "description": "Page number."
+          },
+          "sort": {
+            "type": "string",
+            "description": "Single sort expression using field:asc or field:desc."
+          },
+          "expand": {
+            "type": "string",
+            "description": "Comma-separated relation field codes to expand."
+          },
+          "filter": {
+            "type": "string",
+            "description": "JSON filter expression. Supports field operators such as $eq, $ne, $gt, $gte, $lt, $lte, $includes, $notIncludes and $in."
+          },
+          "page_size": {
+            "type": "integer",
+            "default": 20,
+            "minimum": 1,
+            "description": "Page size."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "scope_id",
+            "conversation_id",
+            "application_id",
+            "role",
+            "content",
+            "sequence",
+            "status",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "scope_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "sequence": {
+              "type": "number"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "started_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "finished_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "flow_run_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "node_run_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "application_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "conversation_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            }
+          }
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.filter",
+        "description": "JSON filter expression. Supports field operators such as $eq, $ne, $gt, $gte, $lt, $lte, $includes, $notIncludes and $in.",
+        "interface_param": "filter"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.sort",
+        "description": "Single sort expression using field:asc or field:desc.",
+        "interface_param": "sort"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page",
+        "description": "Page number.",
+        "interface_param": "page"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page_size",
+        "description": "Page size.",
+        "interface_param": "page_size"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.expand",
+        "description": "Comma-separated relation field codes to expand.",
+        "interface_param": "expand"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "filter",
+        "required": false,
+        "field_type": "string",
+        "description": "JSON filter expression. Supports field operators such as $eq, $ne, $gt, $gte, $lt, $lte, $includes, $notIncludes and $in.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "sort",
+        "required": false,
+        "field_type": "string",
+        "description": "Single sort expression using field:asc or field:desc.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page",
+        "required": false,
+        "field_type": "integer",
+        "description": "Page number.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "field_type": "integer",
+        "description": "Page size.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "expand",
+        "required": false,
+        "field_type": "string",
+        "description": "Comma-separated relation field codes to expand.",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "scope_id",
+            "conversation_id",
+            "application_id",
+            "role",
+            "content",
+            "sequence",
+            "status",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "scope_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "sequence": {
+              "type": "number"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "started_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "finished_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "flow_run_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "node_run_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "application_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "conversation_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            }
+          }
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

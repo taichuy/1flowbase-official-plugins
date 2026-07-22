@@ -56,6 +56,34 @@ test('buildMcpBundleSource generates file hashes and validates stable bindings',
   assert.ok(source.manifest.files.every((entry) => /^sha256:[a-f0-9]{64}$/.test(entry.sha256)));
 });
 
+test('buildMcpBundleSource preserves v2 connection resources', () => {
+  // AC-003: exported MCP v2 bundles retain every connection in their release manifest.
+  const { bundleRoot } = fixtureRepository();
+  const manifestPath = path.join(bundleRoot, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(manifestPath));
+  manifest.schema_version = '1flowbase.mcp.bundle/v2';
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  writeFileSync(
+    path.join(bundleRoot, 'tools', 'runtime-profile.json'),
+    JSON.stringify({
+      tool_id: 'runtime_profile',
+      execution_target: { kind: 'interface_wrapper', interface_id: 'get_runtime_profile' }
+    })
+  );
+  mkdirSync(path.join(bundleRoot, 'connections'), { recursive: true });
+  writeFileSync(
+    path.join(bundleRoot, 'connections', 'system.json'),
+    JSON.stringify({ connection_id: 'system', instance_id: 'system' })
+  );
+
+  const source = buildMcpBundleSource(bundleRoot);
+
+  assert.deepEqual(
+    source.manifest.files.map((entry) => entry.kind).sort(),
+    ['connection', 'instance', 'tool']
+  );
+});
+
 test('buildMcpCatalog exposes the release artifact identity for each bundle', () => {
   // AC-001 and AC-002.
   const { root } = fixtureRepository();

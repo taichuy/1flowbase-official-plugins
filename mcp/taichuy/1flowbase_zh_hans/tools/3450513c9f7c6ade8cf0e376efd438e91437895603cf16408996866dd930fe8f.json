@@ -1,0 +1,63 @@
+{
+  "tool_id": "system_mcp_delete_mcp_instance",
+  "name": "delete_mcp_instance",
+  "short_description": "永久删除一个 MCP 实例及其目录配置。",
+  "full_description": "根据 path.instance_id 删除 MCP 实例。该操作为 critical 且不可逆，会移除实例目录和挂载关系；不会因为同一 Tool 挂载在此实例而删除 Tool 定义。操作前必须先用 get_mcp_catalog 核对影响范围，并优先考虑将实例设为 disabled。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "delete_mcp_instance"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "properties": {
+          "instance_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "instance_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "critical",
+  "status": "enabled"
+}

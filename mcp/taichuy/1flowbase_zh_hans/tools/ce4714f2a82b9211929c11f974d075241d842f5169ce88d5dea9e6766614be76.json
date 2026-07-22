@@ -1,0 +1,241 @@
+{
+  "tool_id": "system_mcp_update_mcp_instance_discovery_policy",
+  "name": "update_mcp_instance_discovery_policy",
+  "short_description": "更新 MCP 实例的目录发现限制和返回字段。",
+  "full_description": "根据 path.instance_id 更新 mcp.list 的默认数量、最大展开深度、正则限制和返回字段。较小深度有助于渐进披露，过大则可能重新造成目录平铺；修改前使用 get_mcp_instance_discovery_policy 读取当前值，修改后从根路径逐层调用 mcp.list 验证。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "update_mcp_instance_discovery_policy"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "list_default_limit",
+          "list_max_depth",
+          "list_regex_enabled",
+          "list_regex_max_length",
+          "list_return_fields"
+        ],
+        "properties": {
+          "list_max_depth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "list_default_limit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "list_regex_enabled": {
+            "type": "boolean"
+          },
+          "list_return_fields": {
+            "type": "object"
+          },
+          "list_regex_max_length": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "properties": {
+          "instance_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "workspace_id",
+      "instance_record_id",
+      "instance_id",
+      "list_default_limit",
+      "list_max_depth",
+      "list_regex_enabled",
+      "list_regex_max_length",
+      "list_return_fields"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "instance_id": {
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "list_max_depth": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "instance_record_id": {
+        "type": "string"
+      },
+      "list_default_limit": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "list_regex_enabled": {
+        "type": "boolean"
+      },
+      "list_return_fields": {
+        "type": "object"
+      },
+      "list_regex_max_length": {
+        "type": "integer",
+        "format": "int32"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.list_default_limit",
+        "description": "",
+        "interface_param": "list_default_limit"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.list_max_depth",
+        "description": "",
+        "interface_param": "list_max_depth"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.list_regex_enabled",
+        "description": "",
+        "interface_param": "list_regex_enabled"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.list_regex_max_length",
+        "description": "",
+        "interface_param": "list_regex_max_length"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.list_return_fields",
+        "description": "",
+        "interface_param": "list_return_fields"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "instance_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "list_default_limit",
+        "required": true,
+        "field_type": "integer",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "list_max_depth",
+        "required": true,
+        "field_type": "integer",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "list_regex_enabled",
+        "required": true,
+        "field_type": "boolean",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "list_regex_max_length",
+        "required": true,
+        "field_type": "integer",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "list_return_fields",
+        "required": true,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "workspace_id",
+      "instance_record_id",
+      "instance_id",
+      "list_default_limit",
+      "list_max_depth",
+      "list_regex_enabled",
+      "list_regex_max_length",
+      "list_return_fields"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "instance_id": {
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "list_max_depth": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "instance_record_id": {
+        "type": "string"
+      },
+      "list_default_limit": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "list_regex_enabled": {
+        "type": "boolean"
+      },
+      "list_return_fields": {
+        "type": "object"
+      },
+      "list_regex_max_length": {
+        "type": "integer",
+        "format": "int32"
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

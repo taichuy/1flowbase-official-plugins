@@ -1,0 +1,65 @@
+{
+  "tool_id": "workflow_mcp_test_echo",
+  "name": "workflow_mcp_test_echo",
+  "short_description": "Call the MCP workflow test extension.",
+  "full_description": "Invokes the published mcp-workflow-test Workflow extension. Provide body.query and receive result.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "published_workflow_operation:019f83e7-60a3-70d0-9b84-bc71b027d2a6"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "result"
+    ],
+    "properties": {
+      "result": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.query",
+        "description": "Workflow query",
+        "interface_param": "query"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "result"
+    ],
+    "properties": {
+      "result": {
+        "type": "string"
+      }
+    }
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

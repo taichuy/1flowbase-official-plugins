@@ -1,0 +1,295 @@
+{
+  "tool_id": "workflow_ops_save_draft",
+  "name": "save_workflow_draft",
+  "short_description": "保存 Workflow 编排草稿。",
+  "full_description": "根据应用 id 保存完整 Workflow authoring document，产生新版本。必须保留 workflow_start 与 workflow_end 边界，并在发布前验证节点、边和 binding。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "save_draft"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "document",
+          "change_kind",
+          "summary"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "document": {},
+          "change_kind": {
+            "type": "string"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "flow_id",
+      "draft",
+      "versions",
+      "autosave_interval_seconds",
+      "user_protection_limit"
+    ],
+    "properties": {
+      "draft": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_id",
+          "document",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "document": {},
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "flow_id": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "sequence",
+            "trigger",
+            "change_kind",
+            "summary",
+            "summary_is_custom",
+            "is_user_protected",
+            "is_current_publication",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "trigger": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "change_kind": {
+              "type": "string"
+            },
+            "is_user_protected": {
+              "type": "boolean"
+            },
+            "summary_is_custom": {
+              "type": "boolean"
+            },
+            "is_current_publication": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "user_protection_limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "autosave_interval_seconds": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "Application id",
+        "interface_param": "id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.change_kind",
+        "description": "",
+        "interface_param": "change_kind"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.document",
+        "description": "",
+        "interface_param": "document"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.summary",
+        "description": "",
+        "interface_param": "summary"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "change_kind",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "document",
+        "required": true,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "summary",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "flow_id",
+      "draft",
+      "versions",
+      "autosave_interval_seconds",
+      "user_protection_limit"
+    ],
+    "properties": {
+      "draft": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_id",
+          "document",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "document": {},
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "flow_id": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "sequence",
+            "trigger",
+            "change_kind",
+            "summary",
+            "summary_is_custom",
+            "is_user_protected",
+            "is_current_publication",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "trigger": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "change_kind": {
+              "type": "string"
+            },
+            "is_user_protected": {
+              "type": "boolean"
+            },
+            "summary_is_custom": {
+              "type": "boolean"
+            },
+            "is_current_publication": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "user_protection_limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "autosave_interval_seconds": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      }
+    }
+  },
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

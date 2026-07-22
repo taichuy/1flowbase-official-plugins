@@ -1,0 +1,60 @@
+{
+  "tool_id": "mcp_019f72d0_get_label",
+  "name": "get_label",
+  "short_description": "Get a specific label from a GitHub repository.",
+  "full_description": "Get a specific label from a GitHub repository.",
+  "execution_target": {
+    "kind": "mcp_proxy",
+    "upstream_connection_id": "019f72d0-5f41-7d60-ad1d-05cc2820914b",
+    "remote_tool_name": "get_label",
+    "source_schema_hash": "2d7ac743db494daa26bf1bf8664e9905fcaeea440841c161fbcb3a9b994a2fd2"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "owner",
+      "repo",
+      "name"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Label name."
+      },
+      "repo": {
+        "type": "string",
+        "x-mcp-header": "repo"
+      },
+      "owner": {
+        "type": "string",
+        "x-mcp-header": "owner"
+      }
+    }
+  },
+  "result_schema_snapshot": {},
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "local_path": "name",
+        "remote_path": "name"
+      },
+      {
+        "required": true,
+        "local_path": "repo",
+        "remote_path": "repo"
+      },
+      {
+        "required": true,
+        "local_path": "owner",
+        "remote_path": "owner"
+      }
+    ]
+  },
+  "output_mapping": {
+    "mappings": []
+  },
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

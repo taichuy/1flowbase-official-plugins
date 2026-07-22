@@ -1,0 +1,228 @@
+{
+  "tool_id": "system_mcp_create_mcp_instance",
+  "name": "create_mcp_instance",
+  "short_description": "创建一个新的 MCP 服务实例。",
+  "full_description": "创建可供 MCP 客户端连接的服务实例。body.instance_id 是稳定唯一标识，name 是显示名称，status 控制是否可连接，default_entry_path 指定默认目录入口。创建后通常使用 upsert_mcp_group 建立目录，再用 create_mcp_tool_binding 挂载 Tool；最后使用 list_mcp_items 验证可见性。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_mcp_instance"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "instance_id",
+          "name",
+          "status",
+          "default_entry_path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "instance_id": {
+            "type": "string"
+          },
+          "description_short": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_entry_path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "workspace_id",
+      "instance_id",
+      "name",
+      "status",
+      "default_entry_path",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "updated_by": {
+        "type": "string"
+      },
+      "instance_id": {
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "description_short": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "default_entry_path": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.default_entry_path",
+        "description": "",
+        "interface_param": "default_entry_path"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.description_short",
+        "description": "",
+        "interface_param": "description_short"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "",
+        "interface_param": "name"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.status",
+        "description": "",
+        "interface_param": "status"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "default_entry_path",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description_short",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "instance_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "status",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "workspace_id",
+      "instance_id",
+      "name",
+      "status",
+      "default_entry_path",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "updated_by": {
+        "type": "string"
+      },
+      "instance_id": {
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "description_short": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "default_entry_path": {
+        "type": "string"
+      }
+    }
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

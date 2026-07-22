@@ -1,0 +1,331 @@
+{
+  "tool_id": "workflow_ops_list_api_operations",
+  "name": "list_workflow_api_operations",
+  "short_description": "列出应用 API 文档分类中的 operations。",
+  "full_description": "根据 application id 和 category id 分页列出发布后的 API operations，用于核对 method、path、operation id 与 schema 可见性。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_api_docs_category_operations"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id",
+          "category_id"
+        ],
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "description": "Application public API docs category id"
+          },
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Operation search query"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Operations page size, max 20"
+          },
+          "locale": {
+            "type": "string",
+            "description": "Requested docs locale"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Operations page offset"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "label",
+      "operations",
+      "total",
+      "offset",
+      "limit",
+      "has_more"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "has_more": {
+        "type": "boolean"
+      },
+      "operations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "method",
+            "path",
+            "tags",
+            "group",
+            "deprecated"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "group": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string"
+            },
+            "summary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "deprecated": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "next_offset": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Application id",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.category_id",
+        "description": "Application public API docs category id",
+        "interface_param": "category_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "path.locale",
+        "description": "Requested docs locale",
+        "interface_param": "locale"
+      },
+      {
+        "required": false,
+        "mcp_param": "path.offset",
+        "description": "Operations page offset",
+        "interface_param": "offset"
+      },
+      {
+        "required": false,
+        "mcp_param": "path.limit",
+        "description": "Operations page size, max 20",
+        "interface_param": "limit"
+      },
+      {
+        "required": false,
+        "mcp_param": "path.q",
+        "description": "Operation search query",
+        "interface_param": "q"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "category_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application public API docs category id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "locale",
+        "required": false,
+        "field_type": "string",
+        "description": "Requested docs locale",
+        "parameter_type": "url"
+      },
+      {
+        "name": "offset",
+        "required": false,
+        "field_type": "integer",
+        "description": "Operations page offset",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "integer",
+        "description": "Operations page size, max 20",
+        "parameter_type": "url"
+      },
+      {
+        "name": "q",
+        "required": false,
+        "field_type": "string",
+        "description": "Operation search query",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "id",
+      "label",
+      "operations",
+      "total",
+      "offset",
+      "limit",
+      "has_more"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "has_more": {
+        "type": "boolean"
+      },
+      "operations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "method",
+            "path",
+            "tags",
+            "group",
+            "deprecated"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "group": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string"
+            },
+            "summary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "deprecated": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "next_offset": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0
+      }
+    }
+  },
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,318 @@
+{
+  "tool_id": "system_mcp_list_mcp_tools",
+  "name": "list_mcp_tools",
+  "short_description": "列出工作区中的全部 MCP Tool 定义。",
+  "full_description": "返回所有 MCP Tool 的接口绑定、Schema、映射、权限、风险、状态和 revision，适合查重或批量核对。需要读取单个 Tool 的稳定完整配置时使用 get_mcp_tool。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_mcp_tools"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "id",
+        "workspace_id",
+        "tool_id",
+        "name",
+        "short_description",
+        "full_description",
+        "execution_target",
+        "operation",
+        "parameter_schema",
+        "result_schema",
+        "input_mapping",
+        "output_mapping",
+        "risk_level",
+        "des_id",
+        "des_id_required",
+        "status",
+        "availability_status",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "des_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "tool_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "risk_level": {
+          "type": "string"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "input_mapping": {
+          "type": "object"
+        },
+        "result_schema": {
+          "type": "object"
+        },
+        "output_mapping": {
+          "type": "object"
+        },
+        "des_id_required": {
+          "type": "boolean"
+        },
+        "permission_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "execution_target": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "interface_id",
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "interface_wrapper"
+                  ],
+                  "type": "string"
+                },
+                "interface_id": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "upstream_connection_id",
+                "remote_tool_name",
+                "source_schema_hash",
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "mcp_proxy"
+                  ],
+                  "type": "string"
+                },
+                "remote_tool_name": {
+                  "type": "string"
+                },
+                "source_schema_hash": {
+                  "type": "string"
+                },
+                "upstream_connection_id": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "full_description": {
+          "type": "string"
+        },
+        "parameter_schema": {
+          "type": "object"
+        },
+        "short_description": {
+          "type": "string"
+        },
+        "availability_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "availability_status": {
+          "enum": [
+            "available",
+            "interface_missing",
+            "upstream_disabled",
+            "credentials_missing",
+            "upstream_tool_missing",
+            "mapping_invalid"
+          ],
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "id",
+        "workspace_id",
+        "tool_id",
+        "name",
+        "short_description",
+        "full_description",
+        "execution_target",
+        "operation",
+        "parameter_schema",
+        "result_schema",
+        "input_mapping",
+        "output_mapping",
+        "risk_level",
+        "des_id",
+        "des_id_required",
+        "status",
+        "availability_status",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "des_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "tool_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "risk_level": {
+          "type": "string"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "input_mapping": {
+          "type": "object"
+        },
+        "result_schema": {
+          "type": "object"
+        },
+        "output_mapping": {
+          "type": "object"
+        },
+        "des_id_required": {
+          "type": "boolean"
+        },
+        "permission_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "execution_target": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "interface_id",
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "interface_wrapper"
+                  ],
+                  "type": "string"
+                },
+                "interface_id": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "upstream_connection_id",
+                "remote_tool_name",
+                "source_schema_hash",
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "mcp_proxy"
+                  ],
+                  "type": "string"
+                },
+                "remote_tool_name": {
+                  "type": "string"
+                },
+                "source_schema_hash": {
+                  "type": "string"
+                },
+                "upstream_connection_id": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "full_description": {
+          "type": "string"
+        },
+        "parameter_schema": {
+          "type": "object"
+        },
+        "short_description": {
+          "type": "string"
+        },
+        "availability_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "availability_status": {
+          "enum": [
+            "available",
+            "interface_missing",
+            "upstream_disabled",
+            "credentials_missing",
+            "upstream_tool_missing",
+            "mapping_invalid"
+          ],
+          "type": "string"
+        }
+      }
+    }
+  },
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

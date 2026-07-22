@@ -57,6 +57,15 @@ test('provider workflows pin Node 24 compatible GitHub Action majors', () => {
   assert.match(releaseWorkflow, /softprops\/action-gh-release@v3/);
 });
 
+test('mcp-bundle-release packages v2 connection resources', () => {
+  // AC-004: published MCP v2 ZIPs contain the exported connection definitions.
+  const workflow = readRepoFile('.github/workflows/mcp-bundle-release.yml');
+
+  assert.match(workflow, /bundle_entries=\(manifest\.json tools instances\)/);
+  assert.match(workflow, /if \[ -d connections \]; then bundle_entries\+=\(connections\); fi/);
+  assert.match(workflow, /"\$\{bundle_entries\[@\]\}"/);
+});
+
 test('provider workflows resolve runtime binary names from manifest metadata', () => {
   const ciWorkflow = readRepoFile('.github/workflows/provider-ci.yml');
   const releaseWorkflow = readRepoFile('.github/workflows/provider-release.yml');

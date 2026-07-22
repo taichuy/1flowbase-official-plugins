@@ -1,0 +1,238 @@
+{
+  "tool_id": "workflow_ops_get_orchestration",
+  "name": "get_workflow_orchestration",
+  "short_description": "读取 Workflow 当前编排状态。",
+  "full_description": "根据应用 id 返回 flow、draft、versions 和完整 authoring document。修改编排前先读取，用返回的 flow id 和当前文档作为唯一真值。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_orchestration"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "flow_id",
+      "draft",
+      "versions",
+      "autosave_interval_seconds",
+      "user_protection_limit"
+    ],
+    "properties": {
+      "draft": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_id",
+          "document",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "document": {},
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "flow_id": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "sequence",
+            "trigger",
+            "change_kind",
+            "summary",
+            "summary_is_custom",
+            "is_user_protected",
+            "is_current_publication",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "trigger": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "change_kind": {
+              "type": "string"
+            },
+            "is_user_protected": {
+              "type": "boolean"
+            },
+            "summary_is_custom": {
+              "type": "boolean"
+            },
+            "is_current_publication": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "user_protection_limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "autosave_interval_seconds": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "Application id",
+        "interface_param": "id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "required": [
+      "flow_id",
+      "draft",
+      "versions",
+      "autosave_interval_seconds",
+      "user_protection_limit"
+    ],
+    "properties": {
+      "draft": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_id",
+          "document",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "document": {},
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "flow_id": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "sequence",
+            "trigger",
+            "change_kind",
+            "summary",
+            "summary_is_custom",
+            "is_user_protected",
+            "is_current_publication",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "trigger": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "change_kind": {
+              "type": "string"
+            },
+            "is_user_protected": {
+              "type": "boolean"
+            },
+            "summary_is_custom": {
+              "type": "boolean"
+            },
+            "is_current_publication": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "user_protection_limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "autosave_interval_seconds": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      }
+    }
+  },
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

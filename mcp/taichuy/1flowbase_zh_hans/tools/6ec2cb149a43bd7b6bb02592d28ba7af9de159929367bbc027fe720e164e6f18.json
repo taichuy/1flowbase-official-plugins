@@ -1,0 +1,89 @@
+{
+  "tool_id": "system_mcp_delete_mcp_group",
+  "name": "delete_mcp_group",
+  "short_description": "删除 MCP 实例中的一个目录分组。",
+  "full_description": "删除 path.instance_id 中 query.path 指定的目录分组。该操作为 critical；目录下仍有子分组或 Tool 挂载时应先迁移或解除绑定。操作前使用 list_mcp_items 检查该路径及其子项，避免破坏渐进式导航。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "delete_mcp_group"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "query"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "properties": {
+          "instance_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.instance_id",
+        "description": "",
+        "interface_param": "instance_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "query.path",
+        "description": "",
+        "interface_param": "path"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "instance_id",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "field_type": "string",
+        "description": "",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "permission_code_snapshot": "mcp_management.manage.all",
+  "risk_level_snapshot": "critical",
+  "status": "enabled"
+}
