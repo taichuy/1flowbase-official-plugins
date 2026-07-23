@@ -775,11 +775,57 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
             );
         }
         if let Some(tool_calls) = message.tool_calls.as_ref().filter(|value| !value.is_null()) {
-            item.insert("tool_calls".to_string(), tool_calls.clone());
+            item.insert("tool_calls".to_string(), openai_chat_tool_calls(tool_calls));
         }
         messages.push(Value::Object(item));
     }
     messages
+}
+
+fn openai_chat_tool_calls(tool_calls: &Value) -> Value {
+    let Some(tool_calls) = tool_calls.as_array() else {
+        return tool_calls.clone();
+    };
+    Value::Array(
+        tool_calls
+            .iter()
+            .enumerate()
+            .map(|(index, call)| {
+                if call.get("function").is_some() {
+                    return call.clone();
+                }
+                let id = call
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("tool_call_{}", index + 1));
+                let name = call
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown_tool");
+                let arguments = call
+                    .get("arguments")
+                    .map(response_tool_arguments)
+                    .unwrap_or_else(|| "{}".to_string());
+                json!({
+                    "id": id,
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "arguments": arguments,
+                    }
+                })
+            })
+            .collect(),
+    )
+}
+
+fn response_tool_arguments(arguments: &Value) -> String {
+    match arguments {
+        Value::String(arguments) => arguments.clone(),
+        arguments => serde_json::to_string(arguments).unwrap_or_else(|_| "{}".to_string()),
+    }
 }
 
 fn normalize_message_content(content: &Value) -> String {
@@ -1910,11 +1956,8 @@ mod tests {
                     is_error: None,
                     tool_calls: Some(json!([{
                         "id": "call_1",
-                        "type": "function",
-                        "function": {
-                            "name": "lookup",
-                            "arguments": "{\"query\":\"refund\"}"
-                        }
+                        "name": "lookup",
+                        "arguments": { "query": "refund" }
                     }])),
                     content_blocks: None,
                 },
@@ -1992,6 +2035,10 @@ mod tests {
         assert_eq!(
             captured_body["messages"][0]["tool_calls"][0]["function"]["name"],
             "lookup"
+        );
+        assert_eq!(
+            captured_body["messages"][0]["tool_calls"][0]["function"]["arguments"],
+            r#"{"query":"refund"}"#
         );
         assert_eq!(captured_body["messages"][1]["role"], "tool");
         assert_eq!(captured_body["messages"][1]["tool_call_id"], "call_1");

@@ -1183,6 +1183,8 @@ fn content_block_from_part(part: &Value) -> Option<Value> {
                 "text" | "input_text" => text_block_from_object(object),
                 "image" | "image_url" | "input_image" => image_block_from_object(object),
                 "document" | "input_document" => document_block_from_object(object),
+                "reasoning" => reasoning_block_from_object(object),
+                "reasoning_redacted" => redacted_reasoning_block_from_object(object),
                 "tool_use" | "tool_result" => Some(Value::Object(object.clone())),
                 _ => object
                     .get("text")
@@ -1195,6 +1197,23 @@ fn content_block_from_part(part: &Value) -> Option<Value> {
         Value::Null => None,
         other => text_content_block(other),
     }
+}
+
+fn reasoning_block_from_object(object: &Map<String, Value>) -> Option<Value> {
+    let thinking = object.get("text").and_then(Value::as_str)?;
+    let mut block = Map::new();
+    block.insert("type".to_string(), Value::String("thinking".to_string()));
+    block.insert("thinking".to_string(), Value::String(thinking.to_string()));
+    copy_optional_field(object, &mut block, "signature");
+    Some(Value::Object(block))
+}
+
+fn redacted_reasoning_block_from_object(object: &Map<String, Value>) -> Option<Value> {
+    let data = object.get("data").and_then(Value::as_str)?;
+    Some(json!({
+        "type": "redacted_thinking",
+        "data": data,
+    }))
 }
 
 fn text_block_from_object(object: &Map<String, Value>) -> Option<Value> {
@@ -2635,6 +2654,38 @@ mod tests {
         assert_eq!(
             body["messages"][1]["content"][2]["input"]["query"],
             "native"
+        );
+    }
+
+    #[test]
+    fn messages_body_maps_native_reasoning_history_to_anthropic_thinking() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
+            "model": "claude-sonnet-4-20250514",
+            "messages": [{
+                "role": "assistant",
+                "content": "",
+                "content_blocks": [{
+                    "type": "reasoning",
+                    "text": "private reasoning",
+                    "signature": "signed-reasoning"
+                }]
+            }]
+        }))
+        .unwrap();
+
+        let body = build_messages_body(&input).unwrap();
+
+        assert_eq!(
+            body["messages"][0]["content"][0],
+            json!({
+                "type": "thinking",
+                "thinking": "private reasoning",
+                "signature": "signed-reasoning"
+            })
         );
     }
 
