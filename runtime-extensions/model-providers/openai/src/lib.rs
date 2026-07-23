@@ -2180,10 +2180,6 @@ where
                 }
             };
         let Some(message) = next_message else {
-            if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
-                session_reusable = false;
-                break;
-            }
             let error = anyhow!("websocket closed before response.completed");
             return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
@@ -2247,10 +2243,6 @@ where
             }
             Message::Pong(_) => {}
             Message::Close(frame) => {
-                if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
-                    session_reusable = false;
-                    break;
-                }
                 let error = websocket_closed_before_completed_error(frame);
                 return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                     error,
@@ -2261,21 +2253,16 @@ where
         }
     }
 
-    if response_id.is_null() && !can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+    if response_id.is_null() {
         return Err(WebsocketInvocationError::from_stream_state(
             anyhow!("websocket closed before response.completed"),
             visible_output_started || semantic_terminal_failure_seen,
         ));
     }
-    if response_id.is_null() && can_finalize_response_on_close(&response_id, &text, &tool_calls) {
+    if matches!(finish_reason, ProviderFinishReason::Unknown) {
         return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
             "websocket closed before response.completed"
         )));
-    }
-    if matches!(finish_reason, ProviderFinishReason::Unknown)
-        && can_finalize_response_on_close(&response_id, &text, &tool_calls)
-    {
-        finish_reason = close_finalized_finish_reason(&tool_calls);
     }
 
     let output = finalize_response_stream(
@@ -2385,22 +2372,6 @@ fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
     !matches!(finish_reason, ProviderFinishReason::Unknown)
 }
 
-fn can_finalize_response_on_close(
-    response_id: &Value,
-    text: &str,
-    tool_calls: &[ProviderToolCall],
-) -> bool {
-    !response_id.is_null() && (!text.is_empty() || !tool_calls.is_empty())
-}
-
-fn close_finalized_finish_reason(tool_calls: &[ProviderToolCall]) -> ProviderFinishReason {
-    if tool_calls.is_empty() {
-        ProviderFinishReason::Stop
-    } else {
-        ProviderFinishReason::ToolCall
-    }
-}
-
 async fn read_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
@@ -2433,7 +2404,12 @@ where
         .await
         .context("idle timeout waiting for Responses SSE")?
     {
-        buffer.push_str(&String::from_utf8_lossy(&chunk?));
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(_) if response_stream_finished(&finish_reason) => break,
+            Err(error) => return Err(error.into()),
+        };
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
         while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
             let block = buffer[..index].to_string();
             buffer = buffer[index + delimiter_len..].to_string();
@@ -2464,11 +2440,7 @@ where
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
-        if can_finalize_response_on_close(&response_id, &text, &tool_calls) {
-            finish_reason = close_finalized_finish_reason(&tool_calls);
-        } else {
-            bail!("stream closed before response.completed");
-        }
+        bail!("stream closed before response.completed");
     }
     if usage.has_any_value() {
         events.push(ProviderStreamEvent::UsageSnapshot {
@@ -3081,9 +3053,19 @@ mod tests {
     }
 
     fn start_generate_sse_server() -> (String, mpsc::Receiver<String>) {
+        start_generate_sse_server_with_body(concat!(
+            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_generate\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
+        ))
+    }
+
+    fn start_generate_sse_server_with_body(
+        body: impl Into<String>,
+    ) -> (String, mpsc::Receiver<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("generate listener should bind");
         let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
         let (request_tx, request_rx) = mpsc::channel();
+        let body = body.into();
 
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("generate request should connect");
@@ -3091,10 +3073,6 @@ mod tests {
             request_tx
                 .send(request)
                 .expect("generate request should be captured");
-            let body = concat!(
-                "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n\n",
-                "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_generate\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
-            );
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
                 body.len(),
@@ -3392,6 +3370,88 @@ mod tests {
                 "instructions": "wire instructions",
                 "max_output_tokens": 128
             })
+        );
+    }
+
+    #[tokio::test]
+    async fn responses_http_stream_eof_before_completed_is_an_error() {
+        let (base_url, _) = start_generate_sse_server_with_body(concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_truncated\"}}\n\n",
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_truncated\",\"delta\":\"partial\"}\n\n"
+        ));
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "wire-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "wire prompt" }]
+        }))
+        .unwrap();
+
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("EOF before response.completed must fail");
+
+        assert!(error.to_string().contains("before response.completed"));
+    }
+
+    #[tokio::test]
+    async fn responses_http_stream_rejects_malformed_sse_without_finish() {
+        let (base_url, _) = start_generate_sse_server_with_body(concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_bad\"}}\n\n",
+            "data: {not-json}\n\n"
+        ));
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "api_key": "wire-secret", "transport_mode": "http_sse" },
+            "messages": [{ "role": "user", "content": "wire prompt" }]
+        }))
+        .unwrap();
+
+        OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("malformed Responses SSE must fail");
+    }
+
+    #[tokio::test]
+    async fn duplicate_responses_completed_emits_one_finish() {
+        let completed = "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_duplicate\",\"status\":\"completed\",\"output\":[]}}\n\n";
+        let body = format!("{completed}{completed}");
+        let (base_url, _) = start_generate_sse_server_with_body(body);
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "api_key": "wire-secret", "transport_mode": "http_sse" },
+            "messages": [{ "role": "user", "content": "wire prompt" }]
+        }))
+        .unwrap();
+
+        let envelope = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .unwrap();
+        assert_eq!(
+            envelope
+                .events
+                .iter()
+                .filter(|event| matches!(event, ProviderStreamEvent::Finish { .. }))
+                .count(),
+            1
         );
     }
 
@@ -4000,7 +4060,7 @@ mod tests {
     }
 
     #[test]
-    fn response_created_and_text_delta_can_finalize_on_transport_close_without_terminal_event() {
+    fn response_created_and_text_delta_remains_unfinished_without_terminal_event() {
         let mut events = Vec::new();
         let mut text = String::new();
         let mut tool_calls = ResponseToolCalls::default();
@@ -4031,13 +4091,7 @@ mod tests {
 
         assert_eq!(response_id, json!("resp_ws"));
         assert!(!response_stream_finished(&finish_reason));
-        assert!(can_finalize_response_on_close(
-            &response_id,
-            &text,
-            &tool_calls
-        ));
-        finish_reason = close_finalized_finish_reason(&tool_calls);
-        assert_eq!(finish_reason, ProviderFinishReason::Stop);
+        assert_eq!(text, "OK");
     }
 
     #[test]
@@ -4062,11 +4116,7 @@ mod tests {
 
         assert_eq!(response_id, json!("resp_delta"));
         assert_eq!(text, "OK");
-        assert!(can_finalize_response_on_close(
-            &response_id,
-            &text,
-            &tool_calls
-        ));
+        assert!(!response_stream_finished(&finish_reason));
     }
 
     #[test]
@@ -4091,11 +4141,6 @@ mod tests {
 
         assert_eq!(response_id, json!("resp_ws"));
         assert!(!response_stream_finished(&finish_reason));
-        assert!(!can_finalize_response_on_close(
-            &response_id,
-            &text,
-            &tool_calls
-        ));
     }
 
     #[test]

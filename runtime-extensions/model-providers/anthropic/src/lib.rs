@@ -1467,6 +1467,7 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut message_id = Value::Null;
+    let mut saw_message_stop = false;
     let mut buffer = String::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
@@ -1482,15 +1483,33 @@ where
                 &mut usage,
                 &mut finish_reason,
                 &mut message_id,
+                &mut saw_message_stop,
             )?;
             emit_new_events(&events, on_event)?;
             all_events.append(&mut events);
         }
     }
+    if !buffer.trim().is_empty() {
+        process_anthropic_sse_line(
+            &buffer,
+            &mut events,
+            &mut text,
+            &mut tool_builders,
+            &mut usage,
+            &mut finish_reason,
+            &mut message_id,
+            &mut saw_message_stop,
+        )?;
+        emit_new_events(&events, on_event)?;
+        all_events.append(&mut events);
+    }
+    if !saw_message_stop || matches!(finish_reason, ProviderFinishReason::Unknown) {
+        bail!("Anthropic stream closed before message_stop");
+    }
     let tool_calls = tool_builders
         .into_values()
         .map(ToolUseBuilder::into_tool_call)
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>>>()?;
     if usage.has_any_value() {
         events.push(ProviderStreamEvent::UsageSnapshot {
             usage: usage.clone(),
@@ -1530,12 +1549,18 @@ struct ToolUseBuilder {
 }
 
 impl ToolUseBuilder {
-    fn into_tool_call(self) -> ProviderToolCall {
-        ProviderToolCall {
+    fn into_tool_call(self) -> Result<ProviderToolCall> {
+        let arguments = if self.input_json.trim().is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&self.input_json)
+                .context("Anthropic tool input JSON was incomplete")?
+        };
+        Ok(ProviderToolCall {
             id: self.id,
             name: self.name,
-            arguments: serde_json::from_str(&self.input_json).unwrap_or_else(|_| json!({})),
-        }
+            arguments,
+        })
     }
 }
 
@@ -1547,6 +1572,7 @@ fn process_anthropic_sse_line(
     usage: &mut ProviderUsage,
     finish_reason: &mut ProviderFinishReason,
     message_id: &mut Value,
+    saw_message_stop: &mut bool,
 ) -> Result<()> {
     let line = line.trim();
     if !line.starts_with("data:") {
@@ -1635,6 +1661,15 @@ fn process_anthropic_sse_line(
             if let Some(snapshot) = payload.get("usage") {
                 merge_usage(usage, normalize_usage(snapshot));
             }
+        }
+        "message_stop" => *saw_message_stop = true,
+        "error" => {
+            let message = payload
+                .get("error")
+                .and_then(|error| error.get("message"))
+                .and_then(Value::as_str)
+                .unwrap_or("Anthropic stream error event received");
+            bail!("{message}");
         }
         _ => {}
     }
@@ -1777,7 +1812,7 @@ mod tests {
                 "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_generate\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n",
                 "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\n",
                 "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\n",
-                "data: [DONE]\n\n"
+                "data: {\"type\":\"message_stop\"}\n\n"
             );
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
@@ -2721,6 +2756,7 @@ mod tests {
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut message_id = Value::Null;
+        let mut saw_message_stop = false;
 
         for line in [
             r#"data: {"type":"message_start","message":{"id":"msg_1","usage":{"input_tokens":2,"output_tokens":1}}}"#,
@@ -2736,11 +2772,12 @@ mod tests {
                 &mut usage,
                 &mut finish_reason,
                 &mut message_id,
+                &mut saw_message_stop,
             )
             .unwrap();
         }
 
-        let call = builders.remove(&0).unwrap().into_tool_call();
+        let call = builders.remove(&0).unwrap().into_tool_call().unwrap();
         assert_eq!(message_id, json!("msg_1"));
         assert_eq!(call.id, "toolu_1");
         assert_eq!(call.name, "lookup");
@@ -2757,7 +2794,7 @@ mod tests {
             "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1}}}\n\n",
             "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\n",
             "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":3}}\n\n",
-            "data: [DONE]\n\n"
+            "data: {\"type\":\"message_stop\"}\n\n"
         )))
         .await
         .unwrap();
@@ -2788,6 +2825,130 @@ mod tests {
         assert!(events.contains(&ProviderStreamEvent::Finish {
             reason: ProviderFinishReason::Stop
         }));
+    }
+
+    #[tokio::test]
+    async fn anthropic_stream_eof_before_message_stop_is_an_error() {
+        let response = reqwest::get(start_sse_server(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_truncated\"}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"partial\"}}\n\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n\n"
+        )))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_streaming_message(
+            response,
+            "claude-sonnet-4-20250514".to_string(),
+            DEFAULT_MAX_TOKENS,
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .expect_err("EOF before message_stop must fail");
+
+        assert!(error.to_string().contains("before message_stop"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "partial".to_string()
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
+    #[tokio::test]
+    async fn anthropic_stream_rejects_truncated_tool_input_before_finish() {
+        let response = reqwest::get(start_sse_server(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_tool\"}}\n\n",
+            "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"lookup\",\"input\":{}}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\"}}\n\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"}}\n\n",
+            "data: {\"type\":\"message_stop\"}\n\n"
+        )))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_streaming_message(
+            response,
+            "claude-sonnet-4-20250514".to_string(),
+            DEFAULT_MAX_TOKENS,
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .expect_err("partial tool JSON must not commit a tool call");
+
+        assert!(error.to_string().contains("tool input JSON was incomplete"));
+        assert!(!events.iter().any(|event| matches!(
+            event,
+            ProviderStreamEvent::ToolCallCommit { .. } | ProviderStreamEvent::Finish { .. }
+        )));
+    }
+
+    #[tokio::test]
+    async fn anthropic_stream_rejects_malformed_sse_without_finish() {
+        let response = reqwest::get(start_sse_server(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_bad\"}}\n\n",
+            "data: {not-json}\n\n"
+        )))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        read_streaming_message(
+            response,
+            "claude-sonnet-4-20250514".to_string(),
+            DEFAULT_MAX_TOKENS,
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .expect_err("malformed Anthropic SSE must fail");
+
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
+    #[tokio::test]
+    async fn duplicate_anthropic_message_stop_emits_one_finish() {
+        let response = reqwest::get(start_sse_server(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_duplicate\"}}\n\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n\n",
+            "data: {\"type\":\"message_stop\"}\n\n",
+            "data: {\"type\":\"message_stop\"}\n\n"
+        )))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        read_streaming_message(
+            response,
+            "claude-sonnet-4-20250514".to_string(),
+            DEFAULT_MAX_TOKENS,
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(event, ProviderStreamEvent::Finish { .. }))
+                .count(),
+            1
+        );
     }
 
     #[tokio::test]
