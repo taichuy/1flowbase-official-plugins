@@ -974,7 +974,7 @@ fn parse_json_response_text(text: &str) -> Result<Value> {
     if text.trim().is_empty() {
         return Ok(json!({}));
     }
-    serde_json::from_str(&text).with_context(|| "provider returned invalid JSON")
+    serde_json::from_str(text).with_context(|| "provider returned invalid JSON")
 }
 
 async fn provider_upstream_error_from_response(
@@ -3070,9 +3070,7 @@ mod tests {
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("generate request should connect");
             let request = read_http_request_with_body(&mut stream);
-            request_tx
-                .send(request)
-                .expect("generate request should be captured");
+            let _ = request_tx.send(request);
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
                 body.len(),
@@ -3115,6 +3113,7 @@ mod tests {
         (base_url, request_rx)
     }
 
+    #[allow(clippy::result_large_err)]
     fn start_websocket_connect_proxy() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
         let proxy_url = format!(

@@ -1478,12 +1478,14 @@ where
             process_anthropic_sse_line(
                 &line,
                 &mut events,
-                &mut text,
-                &mut tool_builders,
-                &mut usage,
-                &mut finish_reason,
-                &mut message_id,
-                &mut saw_message_stop,
+                AnthropicStreamParseState {
+                    text: &mut text,
+                    tool_builders: &mut tool_builders,
+                    usage: &mut usage,
+                    finish_reason: &mut finish_reason,
+                    message_id: &mut message_id,
+                    saw_message_stop: &mut saw_message_stop,
+                },
             )?;
             emit_new_events(&events, on_event)?;
             all_events.append(&mut events);
@@ -1493,12 +1495,14 @@ where
         process_anthropic_sse_line(
             &buffer,
             &mut events,
-            &mut text,
-            &mut tool_builders,
-            &mut usage,
-            &mut finish_reason,
-            &mut message_id,
-            &mut saw_message_stop,
+            AnthropicStreamParseState {
+                text: &mut text,
+                tool_builders: &mut tool_builders,
+                usage: &mut usage,
+                finish_reason: &mut finish_reason,
+                message_id: &mut message_id,
+                saw_message_stop: &mut saw_message_stop,
+            },
         )?;
         emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
@@ -1564,16 +1568,28 @@ impl ToolUseBuilder {
     }
 }
 
+struct AnthropicStreamParseState<'a> {
+    text: &'a mut String,
+    tool_builders: &'a mut BTreeMap<usize, ToolUseBuilder>,
+    usage: &'a mut ProviderUsage,
+    finish_reason: &'a mut ProviderFinishReason,
+    message_id: &'a mut Value,
+    saw_message_stop: &'a mut bool,
+}
+
 fn process_anthropic_sse_line(
     line: &str,
     events: &mut Vec<ProviderStreamEvent>,
-    text: &mut String,
-    tool_builders: &mut BTreeMap<usize, ToolUseBuilder>,
-    usage: &mut ProviderUsage,
-    finish_reason: &mut ProviderFinishReason,
-    message_id: &mut Value,
-    saw_message_stop: &mut bool,
+    state: AnthropicStreamParseState<'_>,
 ) -> Result<()> {
+    let AnthropicStreamParseState {
+        text,
+        tool_builders,
+        usage,
+        finish_reason,
+        message_id,
+        saw_message_stop,
+    } = state;
     let line = line.trim();
     if !line.starts_with("data:") {
         return Ok(());
@@ -2767,12 +2783,14 @@ mod tests {
             process_anthropic_sse_line(
                 line,
                 &mut events,
-                &mut text,
-                &mut builders,
-                &mut usage,
-                &mut finish_reason,
-                &mut message_id,
-                &mut saw_message_stop,
+                AnthropicStreamParseState {
+                    text: &mut text,
+                    tool_builders: &mut builders,
+                    usage: &mut usage,
+                    finish_reason: &mut finish_reason,
+                    message_id: &mut message_id,
+                    saw_message_stop: &mut saw_message_stop,
+                },
             )
             .unwrap();
         }
