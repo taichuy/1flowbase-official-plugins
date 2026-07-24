@@ -1004,20 +1004,40 @@ fn parse_json_response_text(text: &str) -> Result<Value> {
 async fn provider_upstream_error_from_response(
     response: reqwest::Response,
 ) -> Result<ProviderRuntimeError> {
+    provider_upstream_error_from_response_with_redactions(response, &[]).await
+}
+
+async fn provider_upstream_error_from_response_with_redactions(
+    response: reqwest::Response,
+    redactions: &[String],
+) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
     let raw_body = response.text().await?;
-    Ok(provider_upstream_error_from_parts(
-        status, &headers, raw_body,
+    Ok(provider_upstream_error_from_parts_with_redactions(
+        status, &headers, raw_body, redactions,
     ))
 }
 
+#[cfg(test)]
 fn provider_upstream_error_from_parts(
     status: reqwest::StatusCode,
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    let upstream_message = upstream_error_message(&raw_body);
+    provider_upstream_error_from_parts_with_redactions(status, headers, raw_body, &[])
+}
+
+fn provider_upstream_error_from_parts_with_redactions(
+    status: reqwest::StatusCode,
+    headers: &HeaderMap,
+    raw_body: String,
+    redactions: &[String],
+) -> ProviderRuntimeError {
+    let mut upstream_message = upstream_error_message(&raw_body);
+    for secret in redactions.iter().filter(|secret| !secret.is_empty()) {
+        upstream_message = upstream_message.replace(secret, "***");
+    }
     let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
     let mut provider_details = Map::new();
     provider_details.insert("status".to_string(), json!(status.as_u16()));
@@ -1396,6 +1416,9 @@ async fn invoke_response_http_sse<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let credential_redactions = native_passthrough
+        .then(|| native_transport_credential_values(&body))
+        .unwrap_or_default();
     let response = build_http_client(config)?
         .request(Method::POST, build_url(config, "/responses")?)
         .headers(build_stream_headers(config, client_protocol_envelope)?)
@@ -1403,7 +1426,14 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_streaming_response(response, request_model, on_event, native_passthrough).await
+    read_streaming_response(
+        response,
+        request_model,
+        on_event,
+        native_passthrough,
+        &credential_redactions,
+    )
+    .await
 }
 
 fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1444,6 +1474,53 @@ fn build_native_responses_request_body(
         Value::String(input.model.trim().to_string()),
     );
     Ok(Value::Object(body))
+}
+
+fn native_transport_credential_values(body: &Value) -> Vec<String> {
+    fn collect_strings(value: &Value, output: &mut BTreeSet<String>) {
+        match value {
+            Value::String(value) if !value.is_empty() => {
+                output.insert(value.clone());
+            }
+            Value::Array(values) => {
+                for value in values {
+                    collect_strings(value, output);
+                }
+            }
+            Value::Object(values) => {
+                for value in values.values() {
+                    collect_strings(value, output);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn visit(value: &Value, output: &mut BTreeSet<String>) {
+        match value {
+            Value::Array(values) => {
+                for value in values {
+                    visit(value, output);
+                }
+            }
+            Value::Object(values) => {
+                for (key, value) in values {
+                    if key.eq_ignore_ascii_case("authorization")
+                        || key.eq_ignore_ascii_case("headers")
+                    {
+                        collect_strings(value, output);
+                    } else {
+                        visit(value, output);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut values = BTreeSet::new();
+    visit(body, &mut values);
+    values.into_iter().collect()
 }
 
 fn build_compact_body(
@@ -2442,15 +2519,19 @@ async fn read_streaming_response<F>(
     request_model: String,
     on_event: &mut F,
     native_passthrough: bool,
+    credential_redactions: &[String],
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let status = response.status();
     if !status.is_success() {
-        return Err(provider_upstream_error_from_response(response)
-            .await?
-            .into());
+        return Err(provider_upstream_error_from_response_with_redactions(
+            response,
+            credential_redactions,
+        )
+        .await?
+        .into());
     }
     let headers = response.headers().clone();
     let upstream_request_id = header_text(&headers, "x-request-id");
@@ -3319,6 +3400,40 @@ mod tests {
     }
 
     #[test]
+    fn d6_ac_005_native_mcp_credentials_are_redacted_from_upstream_errors() {
+        const AUTHORIZATION: &str = "Bearer mcp-authorization-canary";
+        const HEADER_SECRET: &str = "mcp-header-canary";
+        let body = json!({
+            "tools": [{
+                "type": "mcp",
+                "server_url": "https://127.0.0.1.invalid/mcp",
+                "authorization": AUTHORIZATION,
+                "headers": {"X-Provider-Token": HEADER_SECRET}
+            }]
+        });
+        let redactions = native_transport_credential_values(&body);
+        assert!(redactions.contains(&AUTHORIZATION.to_string()));
+        assert!(redactions.contains(&HEADER_SECRET.to_string()));
+
+        let error = provider_upstream_error_from_parts_with_redactions(
+            reqwest::StatusCode::BAD_REQUEST,
+            &HeaderMap::new(),
+            json!({
+                "error": {
+                    "message": format!("invalid credentials {AUTHORIZATION} {HEADER_SECRET}")
+                }
+            })
+            .to_string(),
+            &redactions,
+        );
+        let encoded = serde_json::to_string(&error).unwrap();
+
+        assert!(!encoded.contains(AUTHORIZATION));
+        assert!(!encoded.contains(HEADER_SECRET));
+        assert!(encoded.contains("***"));
+    }
+
+    #[test]
     fn responses_body_maps_native_tool_calls_and_tool_results() {
         let input = ProviderInvocationInput {
             contract_version: ProviderInvocationContractVersion::Current,
@@ -3470,6 +3585,66 @@ mod tests {
     }
 
     #[test]
+    fn d6_ac_001_mcp_definition_choice_and_approval_response_remain_opaque() {
+        const AUTHORIZATION: &str = "Bearer mcp-wire-canary";
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.4".to_string(),
+            previous_response_id: Some("resp_provider_owned".to_string()),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body: json!({
+                    "model": "1flowbase",
+                    "previous_response_id": "resp_provider_owned",
+                    "input": [{
+                        "type": "mcp_approval_response",
+                        "approval_request_id": "approval_provider_owned",
+                        "approve": true,
+                        "future_extension": {"opaque": true}
+                    }],
+                    "tools": [{
+                        "type": "mcp",
+                        "server_label": "orders",
+                        "server_url": "https://127.0.0.1.invalid/mcp",
+                        "connector_id": "connector_provider_owned",
+                        "authorization": AUTHORIZATION,
+                        "headers": {"X-MCP-Key": "mcp-header-canary"},
+                        "allowed_tools": ["lookup"],
+                        "allowed_callers": ["code_interpreter"],
+                        "require_approval": "always",
+                        "defer_loading": true,
+                        "future_extension": {"opaque": true}
+                    }],
+                    "tool_choice": {"type": "mcp", "server_label": "orders"}
+                }),
+                digest: "sha256:mcp".to_string(),
+                size_bytes: 1024,
+            }),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).expect("MCP request should remain opaque");
+        assert_eq!(body["previous_response_id"], "resp_provider_owned");
+        assert_eq!(
+            body["input"][0]["approval_request_id"],
+            "approval_provider_owned"
+        );
+        assert_eq!(body["tools"][0]["authorization"], AUTHORIZATION);
+        assert_eq!(
+            body["tools"][0]["headers"]["X-MCP-Key"],
+            "mcp-header-canary"
+        );
+        assert_eq!(body["tools"][0]["allowed_callers"][0], "code_interpreter");
+        assert_eq!(body["tools"][0]["defer_loading"], true);
+        assert_eq!(body["tools"][0]["future_extension"]["opaque"], true);
+        assert_eq!(body["tool_choice"]["type"], "mcp");
+        assert!(!format!("{input:?}").contains(AUTHORIZATION));
+    }
+
+    #[test]
     fn d5_ac_002_hosted_output_actions_and_citations_emit_as_one_native_event() {
         let provider_event = json!({
             "type": "response.web_search_call.completed",
@@ -3497,6 +3672,52 @@ mod tests {
                 event: provider_event,
             }]
         );
+    }
+
+    #[test]
+    fn d6_ac_002_mcp_list_call_and_approval_events_stream_without_projection() {
+        let provider_events = [
+            json!({
+                "type": "response.mcp_list_tools.completed",
+                "item_id": "list_provider_owned",
+                "tools": [{"name": "lookup", "future_extension": {"opaque": true}}]
+            }),
+            json!({
+                "type": "response.mcp_call.arguments.delta",
+                "item_id": "call_provider_owned",
+                "delta": "{\"order_id\":\"A-1\"}"
+            }),
+            json!({
+                "type": "response.output_item.added",
+                "output_index": 0,
+                "item": {
+                    "type": "mcp_approval_request",
+                    "id": "approval_provider_owned",
+                    "server_label": "orders",
+                    "name": "lookup",
+                    "arguments": "{\"order_id\":\"A-1\"}"
+                }
+            }),
+        ];
+        let mut captured = Vec::new();
+        for event in &provider_events {
+            emit_native_response_sse_block(&format!("data: {event}"), &mut |event| {
+                captured.push(event.clone());
+                Ok(())
+            })
+            .expect("MCP event should parse");
+        }
+
+        assert_eq!(captured.len(), provider_events.len());
+        for (captured, expected) in captured.iter().zip(provider_events) {
+            assert_eq!(
+                captured,
+                &ProviderStreamEvent::NativeEvent {
+                    protocol: "openai_responses".to_string(),
+                    event: expected,
+                }
+            );
+        }
     }
 
     #[test]
