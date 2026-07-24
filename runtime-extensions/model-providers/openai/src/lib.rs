@@ -273,9 +273,30 @@ pub enum ProviderInvocationCapability {
     CompactResponsesCompact,
     #[serde(rename = "compact.responses_compaction_v2")]
     CompactResponsesCompactionV2,
+    #[serde(rename = "responses.native_passthrough")]
+    ResponsesNativePassthrough,
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct ProviderNativeTransport {
+    pub protocol: String,
+    pub wire_body: Value,
+    pub digest: String,
+    pub size_bytes: u64,
+}
+
+impl std::fmt::Debug for ProviderNativeTransport {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProviderNativeTransport")
+            .field("protocol", &self.protocol)
+            .field("digest", &self.digest)
+            .field("size_bytes", &self.size_bytes)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -331,6 +352,8 @@ pub struct ProviderInvocationInput {
     pub run_context: BTreeMap<String, Value>,
     #[serde(default)]
     pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+    #[serde(default)]
+    pub native_transport: Option<ProviderNativeTransport>,
 }
 
 impl ProviderInvocationInput {
@@ -419,6 +442,7 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
+    NativeEvent { protocol: String, event: Value },
     TextDelta { delta: String },
     ReasoningDelta { delta: String },
     ToolCallDelta { call_id: String, delta: Value },
@@ -1088,13 +1112,20 @@ impl OpenAiProviderRuntime {
         input.ensure_generate_operation()?;
         let config = normalize_provider_config(&input.provider_config)?;
         let body = build_responses_body(&input)?;
-        match config.transport_mode {
+        let native_passthrough = input.native_transport.is_some();
+        let transport_mode = if native_passthrough {
+            OpenAiTransportMode::HttpSse
+        } else {
+            config.transport_mode
+        };
+        match transport_mode {
             OpenAiTransportMode::HttpSse => {
                 invoke_response_http_sse(
                     &config,
                     body,
                     input.model.clone(),
                     &mut on_event,
+                    native_passthrough,
                     input.client_protocol_envelope.as_ref(),
                 )
                 .await
@@ -1122,6 +1153,7 @@ impl OpenAiProviderRuntime {
                             body,
                             input.model.clone(),
                             &mut on_event,
+                            native_passthrough,
                             input.client_protocol_envelope.as_ref(),
                         )
                         .await
@@ -1152,6 +1184,7 @@ impl OpenAiProviderRuntime {
                             body,
                             input.model.clone(),
                             &mut on_event,
+                            native_passthrough,
                             input.client_protocol_envelope.as_ref(),
                         )
                         .await
@@ -1357,6 +1390,7 @@ async fn invoke_response_http_sse<F>(
     body: Value,
     request_model: String,
     on_event: &mut F,
+    native_passthrough: bool,
     client_protocol_envelope: Option<&ClientProtocolEnvelope>,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -1369,16 +1403,47 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_streaming_response(response, request_model, on_event).await
+    read_streaming_response(response, request_model, on_event, native_passthrough).await
 }
 
 fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
     input.ensure_generate_operation()?;
-    let mut body = build_responses_request_body(input)?;
+    let mut body = match input.native_transport.as_ref() {
+        Some(transport) => build_native_responses_request_body(input, transport)?,
+        None => build_responses_request_body(input)?,
+    };
     body.as_object_mut()
         .expect("Responses request body must be an object")
         .insert("stream".to_string(), Value::Bool(true));
     Ok(body)
+}
+
+fn build_native_responses_request_body(
+    input: &ProviderInvocationInput,
+    transport: &ProviderNativeTransport,
+) -> Result<Value> {
+    if transport.protocol != "openai_responses" {
+        bail!("native transport protocol must be openai_responses");
+    }
+    if !input
+        .required_capabilities
+        .contains(&ProviderInvocationCapability::ResponsesNativePassthrough)
+    {
+        bail!("native Responses transport requires responses.native_passthrough");
+    }
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+    let mut body = transport
+        .wire_body
+        .as_object()
+        .cloned()
+        .ok_or_else(|| anyhow!("native Responses transport body must be an object"))?;
+    body.insert(
+        "model".to_string(),
+        Value::String(input.model.trim().to_string()),
+    );
+    Ok(Value::Object(body))
 }
 
 fn build_compact_body(
@@ -2376,6 +2441,7 @@ async fn read_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
     on_event: &mut F,
+    native_passthrough: bool,
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
@@ -2413,6 +2479,9 @@ where
         while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
             let block = buffer[..index].to_string();
             buffer = buffer[index + delimiter_len..].to_string();
+            if native_passthrough {
+                emit_native_response_sse_block(&block, on_event)?;
+            }
             process_response_sse_block(
                 &block,
                 &mut events,
@@ -2422,11 +2491,16 @@ where
                 &mut finish_reason,
                 &mut response_id,
             )?;
-            emit_new_events(&events, on_event)?;
+            if !native_passthrough {
+                emit_new_events(&events, on_event)?;
+            }
             all_events.append(&mut events);
         }
     }
     if !buffer.trim().is_empty() {
+        if native_passthrough {
+            emit_native_response_sse_block(&buffer, on_event)?;
+        }
         process_response_sse_block(
             &buffer,
             &mut events,
@@ -2436,7 +2510,9 @@ where
             &mut finish_reason,
             &mut response_id,
         )?;
-        emit_new_events(&events, on_event)?;
+        if !native_passthrough {
+            emit_new_events(&events, on_event)?;
+        }
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
@@ -2453,7 +2529,9 @@ where
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
-    emit_new_events(&events, on_event)?;
+    if !native_passthrough {
+        emit_new_events(&events, on_event)?;
+    }
     all_events.extend(events);
     let native_response_id = response_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
@@ -2555,6 +2633,21 @@ fn process_response_sse_block(
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
 ) -> Result<()> {
+    let Some(data) = response_sse_block_data(block) else {
+        return Ok(());
+    };
+    process_response_sse_payload(
+        data.trim(),
+        events,
+        text,
+        tool_calls,
+        usage,
+        finish_reason,
+        response_id,
+    )
+}
+
+fn response_sse_block_data(block: &str) -> Option<String> {
     let mut data = Vec::new();
     for line in block.lines() {
         let line = line.trim_end_matches('\r');
@@ -2563,17 +2656,27 @@ fn process_response_sse_block(
         }
     }
     if data.is_empty() {
+        return None;
+    }
+    Some(data.join("\n"))
+}
+
+fn emit_native_response_sse_block<F>(block: &str, on_event: &mut F) -> Result<()>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let Some(data) = response_sse_block_data(block) else {
+        return Ok(());
+    };
+    let data = data.trim();
+    if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
-    process_response_sse_payload(
-        data.join("\n").trim(),
-        events,
-        text,
-        tool_calls,
-        usage,
-        finish_reason,
-        response_id,
-    )
+    let event = ProviderStreamEvent::NativeEvent {
+        protocol: "openai_responses".to_string(),
+        event: serde_json::from_str(data)?,
+    };
+    on_event(&event)
 }
 
 #[cfg(test)]
@@ -3285,6 +3388,63 @@ mod tests {
     }
 
     #[test]
+    fn d4_ac_016_native_responses_body_preserves_opaque_fields_and_overrides_route_model() {
+        const SECRET: &str = "Bearer provider-native-secret";
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.4".to_string(),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body: json!({
+                    "model": "1flowbase",
+                    "input": [{"type": "item_reference", "id": "item_1"}],
+                    "tools": [{"type": "mcp", "authorization": SECRET}],
+                    "future_extension": {"opaque": true},
+                    "stream": false
+                }),
+                digest: "sha256:test".to_string(),
+                size_bytes: 256,
+            }),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).expect("native body should render");
+        assert_eq!(body["model"], "gpt-5.4");
+        assert_eq!(body["input"][0]["id"], "item_1");
+        assert_eq!(body["tools"][0]["authorization"], SECRET);
+        assert_eq!(body["future_extension"]["opaque"], true);
+        assert_eq!(body["stream"], true);
+        assert!(!format!("{input:?}").contains(SECRET));
+    }
+
+    #[test]
+    fn d4_ac_026_native_responses_sse_block_emits_exact_provider_event() {
+        let mut captured = Vec::new();
+        emit_native_response_sse_block(
+            r#"data: {"type":"response.future.delta","future":{"opaque":true}}"#,
+            &mut |event| {
+                captured.push(event.clone());
+                Ok(())
+            },
+        )
+        .expect("native event should parse");
+
+        assert_eq!(
+            captured,
+            vec![ProviderStreamEvent::NativeEvent {
+                protocol: "openai_responses".to_string(),
+                event: json!({
+                    "type": "response.future.delta",
+                    "future": {"opaque": true}
+                })
+            }]
+        );
+    }
+
+    #[test]
     fn ac_002_current_generate_input_reaches_responses_renderer_without_projection() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
@@ -3682,13 +3842,13 @@ mod tests {
     }
 
     #[test]
-    fn k2_package_manifest_declares_only_the_two_remote_compact_capability_rows() {
+    fn d4_package_manifest_declares_remote_compact_and_native_responses_capabilities() {
         let manifest = include_str!("../manifest.yaml");
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
         assert!(manifest.contains(
-            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2"
+            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2\n    - responses.native_passthrough"
         ));
         assert!(!manifest.contains("count_tokens"));
         assert!(!manifest.contains("system_prompt_blocks"));
