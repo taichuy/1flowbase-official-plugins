@@ -3421,6 +3421,85 @@ mod tests {
     }
 
     #[test]
+    fn d5_ac_001_003_hosted_tool_requests_remain_opaque_in_native_responses_body() {
+        let hosted_tools = json!([
+            {"type": "web_search", "external_web_access": false, "search_context_size": "high"},
+            {"type": "file_search", "vector_store_ids": ["vs_provider_owned"]},
+            {"type": "code_interpreter", "container": {"type": "auto", "file_ids": ["file_provider_owned"]}},
+            {"type": "image_generation", "quality": "high", "output_format": "png"},
+            {"type": "tool_search", "execution": "server", "description": "discover tools"},
+            {"type": "shell", "environment": {"type": "container_auto"}},
+            {"type": "future_hosted_tool", "future": {"opaque": true}}
+        ]);
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.4".to_string(),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body: json!({
+                    "model": "1flowbase",
+                    "input": [{"type": "item_reference", "id": "item_provider_owned"}],
+                    "tools": hosted_tools.clone(),
+                    "tool_choice": {"type": "allowed_tools", "mode": "auto", "tools": hosted_tools},
+                    "parallel_tool_calls": true
+                }),
+                digest: "sha256:hosted".to_string(),
+                size_bytes: 1024,
+            }),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).expect("hosted request should remain opaque");
+        assert_eq!(body["model"], "gpt-5.4");
+        assert_eq!(body["tools"][0]["external_web_access"], false);
+        assert_eq!(body["tools"][1]["vector_store_ids"][0], "vs_provider_owned");
+        assert_eq!(
+            body["tools"][2]["container"]["file_ids"][0],
+            "file_provider_owned"
+        );
+        assert_eq!(body["tools"][3]["output_format"], "png");
+        assert_eq!(body["tools"][4]["execution"], "server");
+        assert_eq!(body["tools"][5]["environment"]["type"], "container_auto");
+        assert_eq!(body["tools"][6]["future"]["opaque"], true);
+        assert_eq!(body["tool_choice"]["type"], "allowed_tools");
+        assert_eq!(body["parallel_tool_calls"], true);
+        assert_eq!(body["stream"], true);
+    }
+
+    #[test]
+    fn d5_ac_002_hosted_output_actions_and_citations_emit_as_one_native_event() {
+        let provider_event = json!({
+            "type": "response.web_search_call.completed",
+            "output_index": 0,
+            "item_id": "ws_provider_owned",
+            "action": {"type": "open_page", "url": "https://example.test/source"},
+            "annotations": [{
+                "type": "url_citation",
+                "url": "https://example.test/source",
+                "title": "Provider citation"
+            }],
+            "future_extension": {"opaque": true}
+        });
+        let mut captured = Vec::new();
+        emit_native_response_sse_block(&format!("data: {provider_event}"), &mut |event| {
+            captured.push(event.clone());
+            Ok(())
+        })
+        .expect("hosted event should parse");
+
+        assert_eq!(
+            captured,
+            vec![ProviderStreamEvent::NativeEvent {
+                protocol: "openai_responses".to_string(),
+                event: provider_event,
+            }]
+        );
+    }
+
+    #[test]
     fn d4_ac_026_native_responses_sse_block_emits_exact_provider_event() {
         let mut captured = Vec::new();
         emit_native_response_sse_block(
