@@ -2,8 +2,7 @@ use std::io::{self, BufRead, Write};
 
 use openai_provider::{
     OpenAiProviderRuntime, ProviderFinishReason, ProviderInvocationInput, ProviderInvocationResult,
-    ProviderRuntimeError, ProviderStdioRequest, ProviderStdioResponse, ProviderUsage,
-    ProviderWireOperation,
+    ProviderStdioRequest, ProviderStdioResponse, ProviderUsage, ProviderWireOperation,
 };
 
 #[tokio::main]
@@ -82,23 +81,7 @@ async fn run_streaming_invoke(runtime: &mut OpenAiProviderRuntime, request: Prov
             .unwrap();
             stdout.flush().unwrap();
         }
-        Err(error) => {
-            let runtime_error = error
-                .downcast_ref::<ProviderRuntimeError>()
-                .cloned()
-                .unwrap_or_else(|| {
-                    ProviderRuntimeError::normalize("invoke", error.to_string(), None)
-                });
-            writeln!(
-                stdout,
-                "{}",
-                serde_json::to_string(&serde_json::json!({
-                    "type": "error",
-                    "error": runtime_error,
-                }))
-                .unwrap()
-            )
-            .unwrap();
+        Err(_) => {
             writeln!(
                 stdout,
                 "{}",

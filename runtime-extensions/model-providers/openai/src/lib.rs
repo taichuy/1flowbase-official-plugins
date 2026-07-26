@@ -27,6 +27,8 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+mod chat_completions;
+
 const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_VALIDATE_MODEL: bool = true;
@@ -139,6 +141,24 @@ enum OpenAiTransportMode {
     Auto,
     HttpSse,
     ResponsesWebsocket,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OpenAiProtocol {
+    Responses,
+    ChatCompletions,
+}
+
+impl OpenAiProtocol {
+    fn parse(value: &str) -> Result<Self> {
+        match value.trim() {
+            "openai_responses" | "responses" => Ok(Self::Responses),
+            "openai_chat" | "openai_chat_completions" | "chat_completions" => {
+                Ok(Self::ChatCompletions)
+            }
+            value => bail!("unsupported OpenAI protocol: {value}"),
+        }
+    }
 }
 
 impl OpenAiTransportMode {
@@ -714,17 +734,35 @@ impl OpenAiProviderRuntime {
     pub async fn handle_invoke_request_streaming<F>(
         &mut self,
         input: Value,
-        on_event: F,
+        mut on_event: F,
     ) -> Result<ProviderInvocationResult>
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
-        let input: ProviderInvocationInput = serde_json::from_value(input)?;
-        input.ensure_generate_operation()?;
-        let output = self
-            .invoke_response_with_event_sink(input, on_event)
-            .await?;
-        Ok(output.result)
+        let result = async {
+            let input: ProviderInvocationInput = serde_json::from_value(input)?;
+            input.ensure_generate_operation()?;
+            let output = self
+                .invoke_response_with_event_sink(input, &mut on_event)
+                .await?;
+            Ok::<_, anyhow::Error>(output.result)
+        }
+        .await;
+        match result {
+            Ok(result) => Ok(result),
+            Err(error) => {
+                let runtime_error = error
+                    .downcast_ref::<ProviderRuntimeError>()
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        ProviderRuntimeError::normalize("invoke", error.to_string(), None)
+                    });
+                on_event(&ProviderStreamEvent::Error {
+                    error: runtime_error.clone(),
+                })?;
+                Err(anyhow::Error::new(runtime_error))
+            }
+        }
     }
 
     async fn invoke_response(
@@ -1131,6 +1169,12 @@ impl OpenAiProviderRuntime {
     {
         input.ensure_generate_operation()?;
         let config = normalize_provider_config(&input.provider_config)?;
+        match OpenAiProtocol::parse(&input.protocol)? {
+            OpenAiProtocol::ChatCompletions => {
+                return chat_completions::invoke(&config, &input, &mut on_event).await;
+            }
+            OpenAiProtocol::Responses => {}
+        }
         let body = build_responses_body(&input)?;
         let native_passthrough = input.native_transport.is_some();
         let transport_mode = if native_passthrough {
@@ -2572,9 +2616,7 @@ where
                 &mut finish_reason,
                 &mut response_id,
             )?;
-            if !native_passthrough {
-                emit_new_events(&events, on_event)?;
-            }
+            emit_new_events(&events, on_event)?;
             all_events.append(&mut events);
         }
     }
@@ -2591,9 +2633,7 @@ where
             &mut finish_reason,
             &mut response_id,
         )?;
-        if !native_passthrough {
-            emit_new_events(&events, on_event)?;
-        }
+        emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
@@ -2610,9 +2650,7 @@ where
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
-    if !native_passthrough {
-        emit_new_events(&events, on_event)?;
-    }
+    emit_new_events(&events, on_event)?;
     all_events.extend(events);
     let native_response_id = response_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
@@ -2753,11 +2791,45 @@ where
     if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
+    let payload: Value = serde_json::from_str(data)?;
+    if native_response_event_is_public_semantic(&payload) {
+        return Ok(());
+    }
     let event = ProviderStreamEvent::NativeEvent {
         protocol: "openai_responses".to_string(),
-        event: serde_json::from_str(data)?,
+        event: payload,
     };
     on_event(&event)
+}
+
+fn native_response_event_is_public_semantic(payload: &Value) -> bool {
+    match payload.get("type").and_then(Value::as_str) {
+        Some(
+            "response.output_text.delta"
+            | "response.refusal.delta"
+            | "response.reasoning_summary_text.delta"
+            | "response.reasoning_text.delta"
+            | "response.function_call_arguments.delta"
+            | "response.function_call_arguments.done"
+            | "response.custom_tool_call_input.delta"
+            | "response.custom_tool_call_input.done"
+            | "response.completed"
+            | "response.done"
+            | "response.failed"
+            | "response.incomplete"
+            | "response.cancelled"
+            | "response.error"
+            | "error",
+        ) => true,
+        Some("response.output_item.added" | "response.output_item.done") => payload
+            .get("item")
+            .and_then(|item| item.get("type"))
+            .and_then(Value::as_str)
+            .is_some_and(|item_type| {
+                matches!(item_type, "message" | "function_call" | "custom_tool_call")
+            }),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -2803,18 +2875,36 @@ fn process_response_sse_payload(
     let event_type = payload
         .get("type")
         .and_then(Value::as_str)
-        .unwrap_or_default();
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| anyhow!("Responses semantic frame is missing type"))?;
     match event_type {
         "response.created" => {
-            if let Some(id) = payload
+            let id = payload
                 .get("response")
                 .and_then(|response| response.get("id"))
-            {
-                *response_id = id.clone();
-            }
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| anyhow!("response.created is missing response.id"))?;
+            *response_id = Value::String(id.to_string());
         }
         "response.output_text.delta" => {
-            if let Some(delta) = payload.get("delta").and_then(Value::as_str) {
+            let delta = payload
+                .get("delta")
+                .and_then(Value::as_str)
+                .ok_or_else(|| anyhow!("response.output_text.delta is missing text delta"))?;
+            if !delta.is_empty() {
+                text.push_str(delta);
+                events.push(ProviderStreamEvent::TextDelta {
+                    delta: delta.to_string(),
+                });
+            }
+        }
+        "response.refusal.delta" => {
+            let delta = payload
+                .get("delta")
+                .and_then(Value::as_str)
+                .ok_or_else(|| anyhow!("response.refusal.delta is missing text delta"))?;
+            if !delta.is_empty() {
                 text.push_str(delta);
                 events.push(ProviderStreamEvent::TextDelta {
                     delta: delta.to_string(),
@@ -2822,7 +2912,11 @@ fn process_response_sse_payload(
             }
         }
         "response.reasoning_summary_text.delta" | "response.reasoning_text.delta" => {
-            if let Some(delta) = payload.get("delta").and_then(Value::as_str) {
+            let delta = payload
+                .get("delta")
+                .and_then(Value::as_str)
+                .ok_or_else(|| anyhow!("{event_type} is missing reasoning delta"))?;
+            if !delta.is_empty() {
                 events.push(ProviderStreamEvent::ReasoningDelta {
                     delta: delta.to_string(),
                 });
@@ -2834,34 +2928,43 @@ fn process_response_sse_payload(
                 .or_else(|| payload.get("call_id"))
                 .map(value_to_string)
                 .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| "tool_call_1".to_string());
-            events.push(ProviderStreamEvent::ToolCallDelta {
-                call_id,
-                delta: payload.get("delta").cloned().unwrap_or(Value::Null),
-            });
+                .ok_or_else(|| anyhow!("{event_type} is missing item_id or call_id"))?;
+            let delta = payload
+                .get("delta")
+                .cloned()
+                .filter(|value| !value.is_null())
+                .ok_or_else(|| anyhow!("{event_type} is missing delta"))?;
+            events.push(ProviderStreamEvent::ToolCallDelta { call_id, delta });
         }
         "response.output_item.added" => {
+            if !payload.get("item").is_some_and(Value::is_object) {
+                bail!("response.output_item.added is missing item");
+            }
             tool_calls.upsert_from_added_item(payload.get("item"));
         }
         "response.function_call_arguments.done" => {
-            if let Some(call) = provider_tool_call_from_function_call_arguments_done(
+            let call = provider_tool_call_from_function_call_arguments_done(
                 &payload,
                 tool_calls,
                 ResponseToolCallKind::Function,
-            ) {
-                tool_calls.upsert(call, response_item_id_from_payload(&payload));
-            }
+            )?
+            .ok_or_else(|| anyhow!("response.function_call_arguments.done is incomplete"))?;
+            tool_calls.upsert(call, response_item_id_from_payload(&payload));
         }
         "response.custom_tool_call_input.done" => {
-            if let Some(call) = provider_tool_call_from_function_call_arguments_done(
+            let call = provider_tool_call_from_function_call_arguments_done(
                 &payload,
                 tool_calls,
                 ResponseToolCallKind::Custom,
-            ) {
-                tool_calls.upsert(call, response_item_id_from_payload(&payload));
-            }
+            )?
+            .ok_or_else(|| anyhow!("response.custom_tool_call_input.done is incomplete"))?;
+            tool_calls.upsert(call, response_item_id_from_payload(&payload));
         }
         "response.output_item.done" => {
+            if !payload.get("item").is_some_and(Value::is_object) {
+                bail!("response.output_item.done is missing item");
+            }
+            validate_completed_response_item(payload.get("item"))?;
             tool_calls.upsert_from_item(payload.get("item"));
             if text.is_empty() {
                 if let Some(item_text) = response_item_text(payload.get("item")) {
@@ -2875,6 +2978,16 @@ fn process_response_sse_payload(
         "response.incomplete" => {
             bail!("{}", response_incomplete_message(payload.get("response")));
         }
+        "response.cancelled" => bail!("response.cancelled"),
+        "error" | "response.error" => {
+            let message = payload
+                .get("error")
+                .and_then(|error| error.get("message"))
+                .or_else(|| payload.get("message"))
+                .and_then(Value::as_str)
+                .unwrap_or("Responses stream returned an error");
+            bail!("{message}");
+        }
         "response.completed" | "response.done" => {
             process_terminal_response_event(
                 &payload,
@@ -2885,7 +2998,23 @@ fn process_response_sse_payload(
                 response_id,
             )?;
         }
-        _ => {}
+        "response.in_progress"
+        | "response.content_part.added"
+        | "response.content_part.done"
+        | "response.output_text.done"
+        | "response.refusal.done"
+        | "response.reasoning_summary_part.added"
+        | "response.reasoning_summary_part.done"
+        | "response.reasoning_summary_text.done"
+        | "response.reasoning_text.done"
+        | "response.output_text.annotation.added" => {}
+        event_type
+            if event_type.starts_with("response.web_search_call.")
+                || event_type.starts_with("response.file_search_call.")
+                || event_type.starts_with("response.code_interpreter_call.")
+                || event_type.starts_with("response.image_generation_call.")
+                || event_type.starts_with("response.mcp_") => {}
+        _ => bail!("unknown Responses semantic frame type: {event_type}"),
     }
     Ok(())
 }
@@ -2915,9 +3044,10 @@ fn process_terminal_response_event(
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
 ) -> Result<()> {
-    let Some(response) = payload.get("response") else {
-        return Ok(());
-    };
+    let response = payload
+        .get("response")
+        .filter(|value| value.is_object())
+        .ok_or_else(|| anyhow!("terminal Responses frame is missing response"))?;
     if let Some(status) = response.get("status").and_then(Value::as_str) {
         match status {
             "failed" => bail!("{}", response_failed_message(Some(response))),
@@ -2926,12 +3056,16 @@ fn process_terminal_response_event(
             _ => {}
         }
     }
-    if let Some(id) = response.get("id") {
-        *response_id = id.clone();
-    }
+    let id = response
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| anyhow!("terminal Responses frame is missing response.id"))?;
+    *response_id = Value::String(id.to_string());
     *usage = normalize_usage(response.get("usage").unwrap_or(&Value::Null));
     if let Some(items) = response.get("output").and_then(Value::as_array) {
         for item in items {
+            validate_completed_response_item(Some(item))?;
             tool_calls.upsert_from_item(Some(item));
         }
     }
@@ -3052,7 +3186,7 @@ fn provider_tool_call_from_function_call_arguments_done(
     payload: &Value,
     tool_calls: &ResponseToolCalls,
     kind: ResponseToolCallKind,
-) -> Option<ProviderToolCall> {
+) -> Result<Option<ProviderToolCall>> {
     let call_id = payload
         .get("call_id")
         .map(value_to_string)
@@ -3066,7 +3200,10 @@ fn provider_tool_call_from_function_call_arguments_done(
                 .and_then(|id| tool_calls.call_id_for_item_id(id))
                 .map(ToOwned::to_owned)
         })
-        .or_else(|| item_id.clone())?;
+        .or_else(|| item_id.clone());
+    let Some(id) = id else {
+        return Ok(None);
+    };
     let existing = tool_calls.find_by_id_or_item_id(&id);
     let name = payload
         .get("name")
@@ -3079,11 +3216,14 @@ fn provider_tool_call_from_function_call_arguments_done(
                 .filter(|call| call.name != "unknown_tool")
                 .map(|call| call.name.clone())
         });
-    let name = name?;
+    let Some(name) = name else {
+        return Ok(None);
+    };
     let arguments = match kind {
         ResponseToolCallKind::Function => payload
             .get("arguments")
             .map(function_call_arguments_value)
+            .transpose()?
             .or_else(|| existing.map(|call| call.arguments.clone()))
             .unwrap_or_else(|| json!({})),
         ResponseToolCallKind::Custom => payload
@@ -3094,19 +3234,55 @@ fn provider_tool_call_from_function_call_arguments_done(
             .unwrap_or_else(|| json!({})),
     };
 
-    Some(ProviderToolCall {
+    Ok(Some(ProviderToolCall {
         id,
         name,
         arguments,
-    })
+    }))
 }
 
-fn function_call_arguments_value(value: &Value) -> Value {
+fn function_call_arguments_value(value: &Value) -> Result<Value> {
     match value {
-        Value::String(text) => serde_json::from_str::<Value>(text).unwrap_or_else(|_| json!({})),
-        Value::Null => json!({}),
-        other => other.clone(),
+        Value::String(text) => serde_json::from_str::<Value>(text)
+            .with_context(|| "Responses function call returned invalid JSON arguments"),
+        Value::Null => Ok(json!({})),
+        other => Ok(other.clone()),
     }
+}
+
+fn validate_completed_response_item(item: Option<&Value>) -> Result<()> {
+    let Some(item) = item else {
+        return Ok(());
+    };
+    match item.get("type").and_then(Value::as_str) {
+        Some("function_call") => {
+            item.get("call_id")
+                .or_else(|| item.get("id"))
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| anyhow!("completed Responses function call is missing id"))?;
+            item.get("name")
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| anyhow!("completed Responses function call is missing name"))?;
+            if let Some(arguments) = item.get("arguments").filter(|value| !value.is_null()) {
+                function_call_arguments_value(arguments)?;
+            }
+        }
+        Some("custom_tool_call") => {
+            item.get("call_id")
+                .or_else(|| item.get("id"))
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| anyhow!("completed Responses custom tool call is missing id"))?;
+            item.get("name")
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| anyhow!("completed Responses custom tool call is missing name"))?;
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn normalize_custom_tool_input(input: Value) -> Value {
@@ -3859,6 +4035,58 @@ mod tests {
             .expect_err("EOF before response.completed must fail");
 
         assert!(error.to_string().contains("before response.completed"));
+    }
+
+    #[tokio::test]
+    async fn openai_chat_protocol_posts_chat_completions_and_returns_typed_stream() {
+        let (base_url, request_rx) = start_generate_sse_server_with_body(concat!(
+            "data: {\"id\":\"chatcmpl_typed\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-5.4-mini\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think\",\"content\":\"answer\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"chatcmpl_typed\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-5.4-mini\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+            "data: {\"id\":\"chatcmpl_typed\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-5.4-mini\",\"choices\":[],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}\n\n",
+            "data: [DONE]\n\n"
+        ));
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_chat",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "wire-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{"role": "user", "content": "wire prompt"}]
+        }))
+        .unwrap();
+
+        let envelope = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .unwrap();
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture Chat Completions request");
+        let (headers, body) = request.split_once("\r\n\r\n").unwrap();
+        let body: Value = serde_json::from_str(body).unwrap();
+
+        assert!(headers.starts_with("POST /chat/completions HTTP/1.1"));
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["stream_options"]["include_usage"], true);
+        assert_eq!(envelope.result.final_content.as_deref(), Some("answer"));
+        assert_eq!(
+            envelope.result.response_id.as_deref(),
+            Some("chatcmpl_typed")
+        );
+        assert_eq!(envelope.result.usage.total_tokens, Some(5));
+        assert!(envelope
+            .events
+            .contains(&ProviderStreamEvent::ReasoningDelta {
+                delta: "think".to_string()
+            }));
+        assert!(envelope.events.contains(&ProviderStreamEvent::Finish {
+            reason: ProviderFinishReason::Stop
+        }));
     }
 
     #[tokio::test]
@@ -4667,6 +4895,132 @@ mod tests {
                 }
             ]
         );
+    }
+
+    #[test]
+    fn repeated_identical_responses_text_chunks_remain_distinct_typed_events() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+        let line = r#"data: {"type":"response.output_text.delta","response_id":"resp_repeat","delta":"same"}"#;
+
+        for _ in 0..2 {
+            process_response_sse_line(
+                line,
+                &mut events,
+                &mut text,
+                &mut tool_calls,
+                &mut usage,
+                &mut finish_reason,
+                &mut response_id,
+            )
+            .unwrap();
+        }
+
+        assert_eq!(text, "samesame");
+        assert_eq!(
+            events,
+            vec![
+                ProviderStreamEvent::TextDelta {
+                    delta: "same".to_string()
+                },
+                ProviderStreamEvent::TextDelta {
+                    delta: "same".to_string()
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn native_responses_raw_event_does_not_replace_typed_text() {
+        let block = r#"data: {"type":"response.output_text.delta","response_id":"resp_native_typed","delta":"visible"}"#;
+        let mut emitted = Vec::new();
+        emit_native_response_sse_block(block, &mut |event| {
+            emitted.push(event.clone());
+            Ok(())
+        })
+        .unwrap();
+
+        let mut typed = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+        process_response_sse_block(
+            block,
+            &mut typed,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        emitted.extend(typed);
+
+        assert_eq!(
+            emitted,
+            vec![ProviderStreamEvent::TextDelta {
+                delta: "visible".to_string()
+            }]
+        );
+    }
+
+    #[test]
+    fn unknown_responses_semantic_frame_fails_explicitly() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        let error = process_response_sse_line(
+            r#"data: {"type":"response.future.delta","delta":"opaque"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("unknown Responses semantic frame type"));
+    }
+
+    #[tokio::test]
+    async fn streaming_entry_emits_typed_error_for_invalid_protocol() {
+        let input = json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "future_openai_protocol",
+            "model": "gpt-5.4-mini",
+            "provider_config": {"api_key": "wire-secret"},
+            "messages": [{"role": "user", "content": "hello"}]
+        });
+        let mut emitted = Vec::new();
+
+        OpenAiProviderRuntime::default()
+            .handle_invoke_request_streaming(input, |event| {
+                emitted.push(event.clone());
+                Ok(())
+            })
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            emitted.as_slice(),
+            [ProviderStreamEvent::Error { error }]
+                if error.kind == ProviderRuntimeErrorKind::ProviderInvalidResponse
+        ));
     }
 
     #[test]
