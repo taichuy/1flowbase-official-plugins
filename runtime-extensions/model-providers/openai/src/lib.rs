@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::Engine;
+use eventsource_stream::Eventsource;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
@@ -28,6 +29,9 @@ use tokio_tungstenite::{
 };
 
 mod chat_completions;
+mod sse_codec;
+
+use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
@@ -2589,43 +2593,27 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
-    while let Some(chunk) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
         .context("idle timeout waiting for Responses SSE")?
     {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
+        let event = match event {
+            Ok(event) => event,
             Err(_) if response_stream_finished(&finish_reason) => break,
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(anyhow!("invalid Responses SSE stream: {error}")),
         };
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
-            let block = buffer[..index].to_string();
-            buffer = buffer[index + delimiter_len..].to_string();
-            if native_passthrough {
-                emit_native_response_sse_block(&block, on_event)?;
-            }
-            process_response_sse_block(
-                &block,
-                &mut events,
-                &mut text,
-                &mut tool_calls,
-                &mut usage,
-                &mut finish_reason,
-                &mut response_id,
-            )?;
-            emit_new_events(&events, on_event)?;
-            all_events.append(&mut events);
-        }
-    }
-    if !buffer.trim().is_empty() {
         if native_passthrough {
-            emit_native_response_sse_block(&buffer, on_event)?;
+            emit_native_response_sse_data(&event.data, on_event)?;
         }
-        process_response_sse_block(
-            &buffer,
+        process_response_sse_payload(
+            &event.data,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -2733,61 +2721,10 @@ fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-fn find_sse_event_boundary(buffer: &str) -> Option<(usize, usize)> {
-    match (buffer.find("\n\n"), buffer.find("\r\n\r\n")) {
-        (Some(left), Some(right)) if left < right => Some((left, 2)),
-        (Some(_), Some(right)) => Some((right, 4)),
-        (Some(left), None) => Some((left, 2)),
-        (None, Some(right)) => Some((right, 4)),
-        (None, None) => None,
-    }
-}
-
-fn process_response_sse_block(
-    block: &str,
-    events: &mut Vec<ProviderStreamEvent>,
-    text: &mut String,
-    tool_calls: &mut ResponseToolCalls,
-    usage: &mut ProviderUsage,
-    finish_reason: &mut ProviderFinishReason,
-    response_id: &mut Value,
-) -> Result<()> {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    process_response_sse_payload(
-        data.trim(),
-        events,
-        text,
-        tool_calls,
-        usage,
-        finish_reason,
-        response_id,
-    )
-}
-
-fn response_sse_block_data(block: &str) -> Option<String> {
-    let mut data = Vec::new();
-    for line in block.lines() {
-        let line = line.trim_end_matches('\r');
-        if let Some(value) = line.strip_prefix("data:") {
-            data.push(value.trim_start());
-        }
-    }
-    if data.is_empty() {
-        return None;
-    }
-    Some(data.join("\n"))
-}
-
-fn emit_native_response_sse_block<F>(block: &str, on_event: &mut F) -> Result<()>
+fn emit_native_response_sse_data<F>(data: &str, on_event: &mut F) -> Result<()>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    let data = data.trim();
     if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
@@ -3835,7 +3772,7 @@ mod tests {
             "future_extension": {"opaque": true}
         });
         let mut captured = Vec::new();
-        emit_native_response_sse_block(&format!("data: {provider_event}"), &mut |event| {
+        emit_native_response_sse_data(&provider_event.to_string(), &mut |event| {
             captured.push(event.clone());
             Ok(())
         })
@@ -3877,7 +3814,7 @@ mod tests {
         ];
         let mut captured = Vec::new();
         for event in &provider_events {
-            emit_native_response_sse_block(&format!("data: {event}"), &mut |event| {
+            emit_native_response_sse_data(&event.to_string(), &mut |event| {
                 captured.push(event.clone());
                 Ok(())
             })
@@ -3899,8 +3836,8 @@ mod tests {
     #[test]
     fn d4_ac_026_native_responses_sse_block_emits_exact_provider_event() {
         let mut captured = Vec::new();
-        emit_native_response_sse_block(
-            r#"data: {"type":"response.future.delta","future":{"opaque":true}}"#,
+        emit_native_response_sse_data(
+            r#"{"type":"response.future.delta","future":{"opaque":true}}"#,
             &mut |event| {
                 captured.push(event.clone());
                 Ok(())
@@ -4936,9 +4873,9 @@ mod tests {
 
     #[test]
     fn native_responses_raw_event_does_not_replace_typed_text() {
-        let block = r#"data: {"type":"response.output_text.delta","response_id":"resp_native_typed","delta":"visible"}"#;
+        let data = r#"{"type":"response.output_text.delta","response_id":"resp_native_typed","delta":"visible"}"#;
         let mut emitted = Vec::new();
-        emit_native_response_sse_block(block, &mut |event| {
+        emit_native_response_sse_data(data, &mut |event| {
             emitted.push(event.clone());
             Ok(())
         })
@@ -4950,8 +4887,8 @@ mod tests {
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
-        process_response_sse_block(
-            block,
+        process_response_sse_payload(
+            data,
             &mut typed,
             &mut text,
             &mut tool_calls,

@@ -2,7 +2,8 @@ use std::io::{self, BufRead, Write};
 
 use openai_provider::{
     OpenAiProviderRuntime, ProviderFinishReason, ProviderInvocationInput, ProviderInvocationResult,
-    ProviderStdioRequest, ProviderStdioResponse, ProviderUsage, ProviderWireOperation,
+    ProviderRuntimeError, ProviderStdioRequest, ProviderStdioResponse, ProviderUsage,
+    ProviderWireOperation,
 };
 
 #[tokio::main]
