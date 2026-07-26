@@ -260,7 +260,7 @@ where
     }
     let headers = response.headers().clone();
     let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
+    let mut buffer = Vec::new();
     let mut state = ChatStreamState::default();
 
     while let Some(chunk) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
@@ -268,18 +268,35 @@ where
         .context("idle timeout waiting for Chat Completions SSE")?
     {
         let chunk = chunk?;
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
-            let block = buffer[..index].to_string();
-            buffer = buffer[index + delimiter_len..].to_string();
+        buffer.extend_from_slice(&chunk);
+        while let Some((index, delimiter_len)) = find_sse_event_boundary_bytes(&buffer) {
+            let block = String::from_utf8(buffer[..index].to_vec())
+                .context("OpenAI returned non-UTF-8 Chat Completions SSE data")?;
+            buffer.drain(..index + delimiter_len);
             process_sse_block(&block, &mut state, on_event)?;
         }
     }
-    if !buffer.trim().is_empty() {
-        process_sse_block(&buffer, &mut state, on_event)?;
+    if !buffer.is_empty() {
+        let remaining = String::from_utf8(buffer)
+            .context("OpenAI returned non-UTF-8 trailing Chat Completions SSE data")?;
+        if !remaining.trim().is_empty() {
+            process_sse_block(&remaining, &mut state, on_event)?;
+        }
     }
 
     finalize_stream(state, request_model, &headers, on_event)
+}
+
+fn find_sse_event_boundary_bytes(buffer: &[u8]) -> Option<(usize, usize)> {
+    let lf = buffer.windows(2).position(|window| window == b"\n\n");
+    let crlf = buffer.windows(4).position(|window| window == b"\r\n\r\n");
+    match (lf, crlf) {
+        (Some(lf), Some(crlf)) if lf < crlf => Some((lf, 2)),
+        (Some(_), Some(crlf)) => Some((crlf, 4)),
+        (Some(lf), None) => Some((lf, 2)),
+        (None, Some(crlf)) => Some((crlf, 4)),
+        (None, None) => None,
+    }
 }
 
 fn finalize_stream<F>(
@@ -702,6 +719,23 @@ mod tests {
 
     fn push(payload: Value, state: &mut ChatStreamState) -> Result<()> {
         process_payload(&payload, state)
+    }
+
+    #[test]
+    fn sse_boundary_detection_keeps_split_utf8_bytes_buffered() {
+        let payload = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"中文🙂\"},\"finish_reason\":null}]}\n\n";
+        let bytes = payload.as_bytes();
+        let emoji_start = payload.find('🙂').unwrap();
+        let mut buffer = bytes[..emoji_start + 1].to_vec();
+        assert_eq!(find_sse_event_boundary_bytes(&buffer), None);
+
+        buffer.extend_from_slice(&bytes[emoji_start + 1..]);
+        let (boundary, delimiter_len) = find_sse_event_boundary_bytes(&buffer).unwrap();
+        assert_eq!(delimiter_len, 2);
+        assert_eq!(
+            std::str::from_utf8(&buffer[..boundary]).unwrap(),
+            payload.trim_end()
+        );
     }
 
     #[test]
