@@ -465,7 +465,7 @@ pub struct ProviderInvocationResult {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ProviderMcpOutputItemPhase {
+pub enum ProviderOutputItemPhase {
     Added,
     Done,
 }
@@ -490,8 +490,8 @@ pub enum ProviderStreamEvent {
     ToolCallCommit {
         call: ProviderToolCall,
     },
-    McpOutputItem {
-        phase: ProviderMcpOutputItemPhase,
+    OutputItem {
+        phase: ProviderOutputItemPhase,
         output_index: usize,
         item: Value,
     },
@@ -2788,21 +2788,14 @@ fn native_response_event_is_public_semantic(payload: &Value) -> bool {
             | "response.error"
             | "error",
         ) => true,
-        Some("response.output_item.added" | "response.output_item.done") => payload
-            .get("item")
-            .and_then(|item| item.get("type"))
-            .and_then(Value::as_str)
-            .is_some_and(|item_type| {
+        Some("response.output_item.added" | "response.output_item.done") => {
+            payload.get("item").is_some_and(|item| {
                 matches!(
-                    item_type,
-                    "message"
-                        | "function_call"
-                        | "custom_tool_call"
-                        | "mcp_list_tools"
-                        | "mcp_call"
-                        | "mcp_approval_request"
-                )
-            }),
+                    item.get("type").and_then(Value::as_str),
+                    Some("message" | "function_call" | "custom_tool_call")
+                ) || is_projectable_response_item(item)
+            })
+        }
         _ => false,
     }
 }
@@ -2915,10 +2908,10 @@ fn process_response_sse_payload(
             let Some(item) = payload.get("item").filter(|item| item.is_object()) else {
                 bail!("response.output_item.added is missing item");
             };
-            if is_mcp_response_item(item) {
-                validate_mcp_response_item(item)?;
-                events.push(ProviderStreamEvent::McpOutputItem {
-                    phase: ProviderMcpOutputItemPhase::Added,
+            if is_projectable_response_item(item) {
+                validate_projectable_response_item(item)?;
+                events.push(ProviderStreamEvent::OutputItem {
+                    phase: ProviderOutputItemPhase::Added,
                     output_index: response_output_index(&payload)?,
                     item: item.clone(),
                 });
@@ -2948,10 +2941,10 @@ fn process_response_sse_payload(
             let Some(item) = payload.get("item").filter(|item| item.is_object()) else {
                 bail!("response.output_item.done is missing item");
             };
-            if is_mcp_response_item(item) {
-                validate_mcp_response_item(item)?;
-                events.push(ProviderStreamEvent::McpOutputItem {
-                    phase: ProviderMcpOutputItemPhase::Done,
+            if is_projectable_response_item(item) {
+                validate_projectable_response_item(item)?;
+                events.push(ProviderStreamEvent::OutputItem {
+                    phase: ProviderOutputItemPhase::Done,
                     output_index: response_output_index(&payload)?,
                     item: item.clone(),
                 });
@@ -3278,18 +3271,28 @@ fn validate_completed_response_item(item: Option<&Value>) -> Result<()> {
     Ok(())
 }
 
-fn is_mcp_response_item(item: &Value) -> bool {
+fn is_projectable_response_item(item: &Value) -> bool {
     matches!(
         item.get("type").and_then(Value::as_str),
-        Some("mcp_list_tools" | "mcp_call" | "mcp_approval_request")
+        Some(
+            "tool_search_call"
+                | "tool_search_output"
+                | "additional_tools"
+                | "file_search_call"
+                | "program"
+                | "shell_call"
+                | "mcp_list_tools"
+                | "mcp_call"
+                | "mcp_approval_request"
+        )
     )
 }
 
-fn validate_mcp_response_item(item: &Value) -> Result<()> {
+fn validate_projectable_response_item(item: &Value) -> Result<()> {
     item.get("id")
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| anyhow!("Responses MCP output item is missing id"))?;
+        .ok_or_else(|| anyhow!("Responses provider output item is missing id"))?;
     Ok(())
 }
 
@@ -3867,8 +3870,13 @@ mod tests {
     }
 
     #[test]
-    fn d6_ac_002_known_mcp_output_items_use_typed_provider_events() {
+    fn d6_ac_002_known_provider_output_items_use_typed_provider_events() {
         let items = [
+            json!({
+                "type": "tool_search_call",
+                "id": "tool_search_provider_owned",
+                "arguments": "{}"
+            }),
             json!({
                 "type": "mcp_list_tools",
                 "id": "list_provider_owned",
@@ -3900,14 +3908,8 @@ mod tests {
 
         for (output_index, item) in items.iter().enumerate() {
             for (event_type, phase) in [
-                (
-                    "response.output_item.added",
-                    ProviderMcpOutputItemPhase::Added,
-                ),
-                (
-                    "response.output_item.done",
-                    ProviderMcpOutputItemPhase::Done,
-                ),
+                ("response.output_item.added", ProviderOutputItemPhase::Added),
+                ("response.output_item.done", ProviderOutputItemPhase::Done),
             ] {
                 process_response_sse_payload(
                     &json!({
@@ -3923,10 +3925,10 @@ mod tests {
                     &mut finish_reason,
                     &mut response_id,
                 )
-                .expect("known MCP output item should parse");
+                .expect("known provider output item should parse");
                 assert_eq!(
                     events.last(),
-                    Some(&ProviderStreamEvent::McpOutputItem {
+                    Some(&ProviderStreamEvent::OutputItem {
                         phase,
                         output_index,
                         item: item.clone(),
