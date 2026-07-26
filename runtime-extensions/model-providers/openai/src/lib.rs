@@ -464,16 +464,46 @@ pub struct ProviderInvocationResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMcpOutputItemPhase {
+    Added,
+    Done,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
-    NativeEvent { protocol: String, event: Value },
-    TextDelta { delta: String },
-    ReasoningDelta { delta: String },
-    ToolCallDelta { call_id: String, delta: Value },
-    ToolCallCommit { call: ProviderToolCall },
-    UsageSnapshot { usage: ProviderUsage },
-    Finish { reason: ProviderFinishReason },
-    Error { error: ProviderRuntimeError },
+    NativeEvent {
+        protocol: String,
+        event: Value,
+    },
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
+    McpOutputItem {
+        phase: ProviderMcpOutputItemPhase,
+        output_index: usize,
+        item: Value,
+    },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    Error {
+        error: ProviderRuntimeError,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -2763,7 +2793,15 @@ fn native_response_event_is_public_semantic(payload: &Value) -> bool {
             .and_then(|item| item.get("type"))
             .and_then(Value::as_str)
             .is_some_and(|item_type| {
-                matches!(item_type, "message" | "function_call" | "custom_tool_call")
+                matches!(
+                    item_type,
+                    "message"
+                        | "function_call"
+                        | "custom_tool_call"
+                        | "mcp_list_tools"
+                        | "mcp_call"
+                        | "mcp_approval_request"
+                )
             }),
         _ => false,
     }
@@ -2874,10 +2912,19 @@ fn process_response_sse_payload(
             events.push(ProviderStreamEvent::ToolCallDelta { call_id, delta });
         }
         "response.output_item.added" => {
-            if !payload.get("item").is_some_and(Value::is_object) {
+            let Some(item) = payload.get("item").filter(|item| item.is_object()) else {
                 bail!("response.output_item.added is missing item");
+            };
+            if is_mcp_response_item(item) {
+                validate_mcp_response_item(item)?;
+                events.push(ProviderStreamEvent::McpOutputItem {
+                    phase: ProviderMcpOutputItemPhase::Added,
+                    output_index: response_output_index(&payload)?,
+                    item: item.clone(),
+                });
+            } else {
+                tool_calls.upsert_from_added_item(Some(item));
             }
-            tool_calls.upsert_from_added_item(payload.get("item"));
         }
         "response.function_call_arguments.done" => {
             let call = provider_tool_call_from_function_call_arguments_done(
@@ -2898,14 +2945,23 @@ fn process_response_sse_payload(
             tool_calls.upsert(call, response_item_id_from_payload(&payload));
         }
         "response.output_item.done" => {
-            if !payload.get("item").is_some_and(Value::is_object) {
+            let Some(item) = payload.get("item").filter(|item| item.is_object()) else {
                 bail!("response.output_item.done is missing item");
-            }
-            validate_completed_response_item(payload.get("item"))?;
-            tool_calls.upsert_from_item(payload.get("item"));
-            if text.is_empty() {
-                if let Some(item_text) = response_item_text(payload.get("item")) {
-                    text.push_str(&item_text);
+            };
+            if is_mcp_response_item(item) {
+                validate_mcp_response_item(item)?;
+                events.push(ProviderStreamEvent::McpOutputItem {
+                    phase: ProviderMcpOutputItemPhase::Done,
+                    output_index: response_output_index(&payload)?,
+                    item: item.clone(),
+                });
+            } else {
+                validate_completed_response_item(Some(item))?;
+                tool_calls.upsert_from_item(Some(item));
+                if text.is_empty() {
+                    if let Some(item_text) = response_item_text(Some(item)) {
+                        text.push_str(&item_text);
+                    }
                 }
             }
         }
@@ -3220,6 +3276,29 @@ fn validate_completed_response_item(item: Option<&Value>) -> Result<()> {
         _ => {}
     }
     Ok(())
+}
+
+fn is_mcp_response_item(item: &Value) -> bool {
+    matches!(
+        item.get("type").and_then(Value::as_str),
+        Some("mcp_list_tools" | "mcp_call" | "mcp_approval_request")
+    )
+}
+
+fn validate_mcp_response_item(item: &Value) -> Result<()> {
+    item.get("id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| anyhow!("Responses MCP output item is missing id"))?;
+    Ok(())
+}
+
+fn response_output_index(payload: &Value) -> Result<usize> {
+    payload
+        .get("output_index")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| anyhow!("Responses output item event is missing output_index"))
 }
 
 fn normalize_custom_tool_input(input: Value) -> Value {
@@ -3788,49 +3867,74 @@ mod tests {
     }
 
     #[test]
-    fn d6_ac_002_mcp_list_call_and_approval_events_stream_without_projection() {
-        let provider_events = [
+    fn d6_ac_002_known_mcp_output_items_use_typed_provider_events() {
+        let items = [
             json!({
-                "type": "response.mcp_list_tools.completed",
-                "item_id": "list_provider_owned",
+                "type": "mcp_list_tools",
+                "id": "list_provider_owned",
+                "server_label": "orders",
                 "tools": [{"name": "lookup", "future_extension": {"opaque": true}}]
             }),
             json!({
-                "type": "response.mcp_call.arguments.delta",
-                "item_id": "call_provider_owned",
-                "delta": "{\"order_id\":\"A-1\"}"
+                "type": "mcp_call",
+                "id": "call_provider_owned",
+                "server_label": "orders",
+                "name": "lookup",
+                "arguments": "{\"order_id\":\"A-1\"}",
+                "status": "completed"
             }),
             json!({
-                "type": "response.output_item.added",
-                "output_index": 0,
-                "item": {
-                    "type": "mcp_approval_request",
-                    "id": "approval_provider_owned",
-                    "server_label": "orders",
-                    "name": "lookup",
-                    "arguments": "{\"order_id\":\"A-1\"}"
-                }
+                "type": "mcp_approval_request",
+                "id": "approval_provider_owned",
+                "server_label": "orders",
+                "name": "lookup",
+                "arguments": "{\"order_id\":\"A-1\"}"
             }),
         ];
-        let mut captured = Vec::new();
-        for event in &provider_events {
-            emit_native_response_sse_data(&event.to_string(), &mut |event| {
-                captured.push(event.clone());
-                Ok(())
-            })
-            .expect("MCP event should parse");
-        }
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
 
-        assert_eq!(captured.len(), provider_events.len());
-        for (captured, expected) in captured.iter().zip(provider_events) {
-            assert_eq!(
-                captured,
-                &ProviderStreamEvent::NativeEvent {
-                    protocol: "openai_responses".to_string(),
-                    event: expected,
-                }
-            );
+        for (output_index, item) in items.iter().enumerate() {
+            for (event_type, phase) in [
+                (
+                    "response.output_item.added",
+                    ProviderMcpOutputItemPhase::Added,
+                ),
+                (
+                    "response.output_item.done",
+                    ProviderMcpOutputItemPhase::Done,
+                ),
+            ] {
+                process_response_sse_payload(
+                    &json!({
+                        "type": event_type,
+                        "output_index": output_index,
+                        "item": item
+                    })
+                    .to_string(),
+                    &mut events,
+                    &mut text,
+                    &mut tool_calls,
+                    &mut usage,
+                    &mut finish_reason,
+                    &mut response_id,
+                )
+                .expect("known MCP output item should parse");
+                assert_eq!(
+                    events.last(),
+                    Some(&ProviderStreamEvent::McpOutputItem {
+                        phase,
+                        output_index,
+                        item: item.clone(),
+                    })
+                );
+            }
         }
+        assert!(tool_calls.is_empty());
     }
 
     #[test]
