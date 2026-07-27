@@ -11,16 +11,7 @@ use serde_json::{json, Map, Value};
 
 const PROVIDER_CODE: &str = "openai_compatible";
 const DEFAULT_VALIDATE_MODEL: bool = true;
-const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
-    "anthropic-version",
-    "anthropic-beta",
-    "x-claude-code-session-id",
-    "anthropic-client-name",
-    "anthropic-client-version",
-    "x-client-name",
-    "x-client-version",
-    "user-agent",
-];
+const OPENAI_CHAT_PROTOCOL: &str = "openai_chat";
 const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
@@ -233,6 +224,7 @@ pub enum ProviderInvocationCapability {
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    ProtocolContext,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -264,7 +256,7 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
-    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+    pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
     #[serde(default)]
     pub trace_context: BTreeMap<String, String>,
     #[serde(default)]
@@ -284,12 +276,92 @@ impl ProviderInvocationInput {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct ClientProtocolEnvelope {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ProtocolContextEnvelope {
     pub source_protocol: String,
-    pub policy: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub query: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub headers: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub body: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+enum NativeReasoningMode {
+    Adaptive,
+    #[default]
+    Enabled,
+    Disabled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum NativeReasoningEffort {
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+
+impl NativeReasoningEffort {
+    fn as_chat_value(self) -> Result<&'static str> {
+        match self {
+            Self::Minimal => Ok("minimal"),
+            Self::Low => Ok("low"),
+            Self::Medium => Ok("medium"),
+            Self::High => Ok("high"),
+            Self::Xhigh => Ok("xhigh"),
+            Self::Max => bail!("reasoning.effort=max is not supported by the Chat-compatible wire"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NativeReasoningParameters {
     #[serde(default)]
-    pub headers: BTreeMap<String, String>,
+    mode: NativeReasoningMode,
+    #[serde(default)]
+    effort: Option<NativeReasoningEffort>,
+    #[serde(default)]
+    budget_tokens: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct TypedModelParameters {
+    max_output_tokens: Option<u64>,
+    requested_context_window: Option<u64>,
+    reasoning: Option<NativeReasoningParameters>,
+}
+
+impl TypedModelParameters {
+    fn from_input(input: &ProviderInvocationInput) -> Result<Self> {
+        let reasoning = input
+            .model_parameters
+            .get("reasoning")
+            .map(|value| {
+                serde_json::from_value::<NativeReasoningParameters>(value.clone())
+                    .context("reasoning must contain only typed mode, effort, and budget_tokens")
+            })
+            .transpose()?;
+        if reasoning
+            .as_ref()
+            .and_then(|reasoning| reasoning.budget_tokens)
+            == Some(0)
+        {
+            bail!("reasoning.budget_tokens must be a positive integer");
+        }
+        Ok(Self {
+            max_output_tokens: positive_model_parameter(input, "max_output_tokens")?,
+            requested_context_window: positive_model_parameter(input, "requested_context_window")?,
+            reasoning,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -507,13 +579,17 @@ fn parse_default_headers(value: Option<&Value>) -> Result<BTreeMap<String, Strin
 fn build_headers(
     config: &ProviderConfig,
     include_json_body: bool,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    client_protocol_envelope: Option<&ProtocolContextEnvelope>,
 ) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     if include_json_body {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     }
+    apply_client_protocol_headers(&mut headers, client_protocol_envelope)?;
+
+    // Provider-instance configuration is authoritative and is injected only
+    // after every client-protocol residual has been validated and restored.
     for (key, value) in &config.default_headers {
         let header_name = HeaderName::from_bytes(key.as_bytes())
             .with_context(|| format!("invalid default header name: {key}"))?;
@@ -521,14 +597,6 @@ fn build_headers(
             .with_context(|| format!("invalid default header value for {key}"))?;
         headers.insert(header_name, header_value);
     }
-    let authorization_header = config
-        .authorization_header
-        .clone()
-        .unwrap_or_else(|| format!("Bearer {}", config.api_key));
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(&authorization_header).context("invalid authorization header")?,
-    );
     if let Some(organization) = &config.organization {
         headers.insert(
             HeaderName::from_static("openai-organization"),
@@ -541,34 +609,145 @@ fn build_headers(
             HeaderValue::from_str(project).context("invalid project header")?,
         );
     }
-    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope)?;
+    let authorization_header = config
+        .authorization_header
+        .clone()
+        .unwrap_or_else(|| format!("Bearer {}", config.api_key));
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&authorization_header).context("invalid authorization header")?,
+    );
     Ok(headers)
 }
 
-fn apply_default_client_protocol_policy(
+fn apply_client_protocol_headers(
     headers: &mut HeaderMap,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    envelope: Option<&ProtocolContextEnvelope>,
 ) -> Result<()> {
-    let Some(envelope) = client_protocol_envelope else {
+    let Some(envelope) = matching_protocol_context(envelope)? else {
         return Ok(());
     };
-    if envelope.source_protocol != "anthropic_messages"
-        || envelope.policy != "anthropic_messages_v1"
-    {
-        return Ok(());
-    }
-    for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
-        let name = *name;
-        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
-            continue;
-        };
-        headers.insert(
-            HeaderName::from_static(name),
-            HeaderValue::from_str(value)
-                .with_context(|| format!("invalid client protocol header: {name}"))?,
-        );
+    for (raw_name, values) in &envelope.headers {
+        let normalized_name = raw_name.trim().to_ascii_lowercase();
+        if !protocol_context_header_is_safe(&normalized_name) {
+            bail!("protocol context contains a reserved or typed header");
+        }
+        if values.is_empty() {
+            bail!("protocol context header values must not be empty");
+        }
+        let name = HeaderName::from_bytes(normalized_name.as_bytes())
+            .context("protocol context contains an invalid header name")?;
+        for value in values {
+            if value.trim().is_empty() {
+                bail!("protocol context header values must not be empty");
+            }
+            headers.append(
+                name.clone(),
+                HeaderValue::from_str(value)
+                    .context("protocol context contains an invalid header value")?,
+            );
+        }
     }
     Ok(())
+}
+
+fn matching_protocol_context(
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<Option<&ProtocolContextEnvelope>> {
+    let Some(envelope) = envelope else {
+        return Ok(None);
+    };
+    if envelope.source_protocol != OPENAI_CHAT_PROTOCOL {
+        bail!("unconsumed foreign protocol context");
+    }
+    Ok(Some(envelope))
+}
+
+fn protocol_context_header_is_safe(name: &str) -> bool {
+    let normalized = name.trim().to_ascii_lowercase().replace('_', "-");
+    protocol_context_field_is_safe(&normalized)
+        && !matches!(
+            normalized.as_str(),
+            "content-type" | "accept" | "accept-encoding" | "accept-language" | "origin"
+        )
+}
+
+fn protocol_context_field_is_safe(name: &str) -> bool {
+    let lower = name.trim().to_ascii_lowercase();
+    if lower.is_empty() || lower.starts_with("__") {
+        return false;
+    }
+    let normalized = lower.replace('_', "-");
+    !matches!(
+        normalized.as_str(),
+        "auth"
+            | "authentication"
+            | "authentication-info"
+            | "authorization"
+            | "x-authorization"
+            | "proxy-authorization"
+            | "proxy-authenticate"
+            | "proxy-authentication-info"
+            | "www-authenticate"
+            | "x-api-key"
+            | "api-key"
+            | "x-auth-token"
+            | "auth-token"
+            | "bearer-token"
+            | "x-access-token"
+            | "access-token"
+            | "refresh-token"
+            | "id-token"
+            | "client-secret"
+            | "api-secret"
+            | "password"
+            | "passwd"
+            | "x-csrf-token"
+            | "x-xsrf-token"
+            | "csrf-token"
+            | "cookie"
+            | "set-cookie"
+            | "host"
+            | "connection"
+            | "proxy-connection"
+            | "keep-alive"
+            | "te"
+            | "trailer"
+            | "transfer-encoding"
+            | "upgrade"
+            | "content-length"
+            | "client-protocol-envelope"
+            | "native-model-prompt-context"
+            | "native-model-request-context"
+            | "native-transport"
+            | "provider-transport"
+            | "request-context"
+            | "run-context"
+            | "trace-context"
+            | "compatibility-mode"
+            | "sys"
+            | "env"
+            | "trigger"
+            | "forwarded"
+            | "via"
+            | "x-real-ip"
+            | "true-client-ip"
+            | "cf-connecting-ip"
+            | "cf-ray"
+            | "traceparent"
+            | "tracestate"
+            | "baggage"
+            | "x-request-id"
+            | "internal"
+            | "x-internal"
+            | "1flowbase"
+            | "x-1flowbase"
+    ) && !normalized.starts_with("x-1flowbase-")
+        && !normalized.starts_with("x-internal-")
+        && !normalized.starts_with("internal-")
+        && !normalized.starts_with("x-forwarded-")
+        && !normalized.starts_with("x-envoy-")
+        && !normalized.starts_with("x-amzn-")
 }
 
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
@@ -580,6 +759,109 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
             .append_pair("api-version", api_version);
     }
     Ok(url.to_string())
+}
+
+fn build_url_with_protocol_context(
+    config: &ProviderConfig,
+    pathname: &str,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<String> {
+    let mut url = Url::parse(&build_url(config, pathname)?)
+        .context("building OpenAI-compatible protocol-context URL")?;
+    let Some(envelope) = matching_protocol_context(envelope)? else {
+        return Ok(url.to_string());
+    };
+    for (name, values) in &envelope.query {
+        if !protocol_context_field_is_safe(name) {
+            bail!("protocol context contains a reserved query field");
+        }
+        if config.api_version.is_some()
+            && (name.trim().eq_ignore_ascii_case("api-version")
+                || name.trim().eq_ignore_ascii_case("api_version"))
+        {
+            bail!("protocol context collides with the typed api-version query field");
+        }
+        if values.is_empty() {
+            bail!("protocol context query values must not be empty");
+        }
+        for value in values {
+            url.query_pairs_mut().append_pair(name, value);
+        }
+    }
+    Ok(url.to_string())
+}
+
+fn restore_protocol_context_body(
+    mut typed_body: Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<Value> {
+    let Some(envelope) = matching_protocol_context(envelope)? else {
+        return Ok(typed_body);
+    };
+    let body = typed_body
+        .as_object_mut()
+        .context("typed OpenAI-compatible request body must be an object")?;
+    for (name, value) in &envelope.body {
+        if !protocol_context_field_is_safe(name) {
+            bail!("protocol context contains a reserved body field");
+        }
+        if typed_chat_body_field(name) || body.contains_key(name) {
+            bail!("protocol context collides with a typed Chat-compatible body field");
+        }
+        validate_protocol_context_value(value)?;
+        body.insert(name.clone(), value.clone());
+    }
+    Ok(typed_body)
+}
+
+fn typed_chat_body_field(name: &str) -> bool {
+    // This is the Host's typed OpenAI Chat root set. Provider-specific Chat
+    // fields outside it remain residual unless the typed body actually owns them.
+    matches!(
+        name,
+        "model"
+            | "messages"
+            | "stream"
+            | "user"
+            | "metadata"
+            | "max_completion_tokens"
+            | "max_tokens"
+            | "audio"
+            | "modalities"
+            | "tools"
+            | "tool_choice"
+            | "function_call"
+            | "parallel_tool_calls"
+            | "response_format"
+            | "reasoning_effort"
+            | "temperature"
+            | "top_p"
+            | "presence_penalty"
+            | "frequency_penalty"
+            | "seed"
+            | "stop"
+            | "stream_options"
+    )
+}
+
+fn validate_protocol_context_value(value: &Value) -> Result<()> {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                validate_protocol_context_value(value)?;
+            }
+        }
+        Value::Object(object) => {
+            for (name, value) in object {
+                if !protocol_context_field_is_safe(name) {
+                    bail!("protocol context contains a nested reserved body field");
+                }
+                validate_protocol_context_value(value)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
@@ -626,16 +908,22 @@ async fn send_provider_request(
     pathname: &str,
     method: Method,
     body: Option<Value>,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    client_protocol_envelope: Option<&ProtocolContextEnvelope>,
 ) -> Result<reqwest::Response> {
+    let include_json_body = body.is_some();
+    if !include_json_body
+        && matching_protocol_context(client_protocol_envelope)?
+            .is_some_and(|envelope| !envelope.body.is_empty())
+    {
+        bail!("unconsumed protocol context body");
+    }
+    let body = body
+        .map(|typed_body| restore_protocol_context_body(typed_body, client_protocol_envelope))
+        .transpose()?;
+    let url = build_url_with_protocol_context(config, pathname, client_protocol_envelope)?;
+    let headers = build_headers(config, include_json_body, client_protocol_envelope)?;
     let client = build_http_client(config)?;
-    let mut request = client
-        .request(method.clone(), build_url(config, pathname)?)
-        .headers(build_headers(
-            config,
-            body.is_some(),
-            client_protocol_envelope,
-        )?);
+    let mut request = client.request(method.clone(), url).headers(headers);
     if let Some(body) = body {
         request = request.json(&body);
     }
@@ -850,6 +1138,17 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .and_then(|value| normalize_parameter_value(key, value))
 }
 
+fn positive_model_parameter(input: &ProviderInvocationInput, key: &str) -> Result<Option<u64>> {
+    let Some(value) = input.model_parameters.get(key) else {
+        return Ok(None);
+    };
+    let value = value
+        .as_u64()
+        .filter(|value| *value > 0)
+        .with_context(|| format!("{key} must be a positive integer"))?;
+    Ok(Some(value))
+}
+
 fn normalize_parameter_value(key: &str, value: Value) -> Option<Value> {
     match key {
         "stop" => normalize_stop_parameter(value),
@@ -902,7 +1201,7 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let config = normalize_provider_config(&input.provider_config)?;
-    let body = build_chat_completion_body(&input)?;
+    let body = build_typed_chat_completion_body(&input)?;
 
     let response = send_provider_request(
         &config,
@@ -915,8 +1214,11 @@ where
     read_streaming_chat_completion(response, input.model, &config, &mut on_event).await
 }
 
-fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
-    if !input.required_capabilities.is_empty()
+fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
+    if input
+        .required_capabilities
+        .iter()
+        .any(|capability| *capability != ProviderInvocationCapability::ProtocolContext)
         || input.system.iter().any(|block| {
             matches!(
                 block,
@@ -933,6 +1235,10 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     let model = input.model.trim();
     if model.is_empty() {
         bail!("model is required");
+    }
+    let typed_parameters = TypedModelParameters::from_input(input)?;
+    if typed_parameters.requested_context_window.is_some() {
+        bail!("requested_context_window is not supported by the Chat-compatible wire");
     }
     let mut body = Map::new();
     body.insert("model".to_string(), Value::String(model.to_string()));
@@ -957,16 +1263,49 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     } else if let Some(tools) = parameter_value(&input, "tools") {
         body.insert("tools".to_string(), tools);
     }
-    if let Some(max_output_tokens) = parameter_value(&input, "max_output_tokens") {
-        body.insert("max_tokens".to_string(), max_output_tokens);
+    if let Some(max_output_tokens) = typed_parameters.max_output_tokens {
+        body.insert("max_tokens".to_string(), json!(max_output_tokens));
+    }
+    if let Some(reasoning) = typed_parameters.reasoning.as_ref() {
+        if input.model_parameters.contains_key("reasoning_effort") {
+            bail!("reasoning collides with legacy reasoning_effort");
+        }
+        body.insert(
+            "reasoning_effort".to_string(),
+            Value::String(chat_reasoning_effort(reasoning)?.to_string()),
+        );
     }
     for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
+        if *key == "reasoning_effort" && typed_parameters.reasoning.is_some() {
+            continue;
+        }
         if let Some(value) = parameter_value(&input, key) {
             body.insert((*key).to_string(), value);
         }
     }
 
     Ok(Value::Object(body))
+}
+
+fn chat_reasoning_effort(reasoning: &NativeReasoningParameters) -> Result<&'static str> {
+    if reasoning.budget_tokens.is_some() {
+        bail!("reasoning.budget_tokens is not supported by the Chat-compatible wire");
+    }
+    match reasoning.mode {
+        NativeReasoningMode::Adaptive => {
+            bail!("reasoning.mode=adaptive is not supported by the Chat-compatible wire")
+        }
+        NativeReasoningMode::Disabled => {
+            if reasoning.effort.is_some() {
+                bail!("disabled reasoning must not declare reasoning.effort");
+            }
+            Ok("none")
+        }
+        NativeReasoningMode::Enabled => reasoning
+            .effort
+            .context("enabled reasoning requires effort on the Chat-compatible wire")?
+            .as_chat_value(),
+    }
 }
 
 async fn read_streaming_chat_completion<F>(
@@ -1637,114 +1976,326 @@ mod tests {
     }
 
     #[test]
-    fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
+    fn wp_d2d_protocol_context_mirrors_the_frozen_host_abi() {
+        let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_chat",
+            "query": {"preview": ["one", "two"]},
+            "headers": {
+                "openai-organization": ["org-client"],
+                "x-client-name": ["ChatClient", "ChatClient/2"]
+            },
+            "body": {"future_chat_option": {"shape": "opaque"}}
+        }))
+        .expect("the provider must deserialize the current Host envelope without projection");
+
+        assert_eq!(
+            envelope.query["preview"],
+            vec!["one".to_string(), "two".to_string()]
+        );
+        assert_eq!(
+            envelope.headers["x-client-name"],
+            vec!["ChatClient".to_string(), "ChatClient/2".to_string()]
+        );
+        assert_eq!(
+            serde_json::to_value(&envelope).unwrap(),
+            json!({
+                "source_protocol": "openai_chat",
+                "query": {"preview": ["one", "two"]},
+                "headers": {
+                    "openai-organization": ["org-client"],
+                    "x-client-name": ["ChatClient", "ChatClient/2"]
+                },
+                "body": {"future_chat_option": {"shape": "opaque"}}
+            })
+        );
+        serde_json::from_value::<ProtocolContextEnvelope>(json!({
+            "source_protocol": "openai_chat",
+            "policy": "default_deny"
+        }))
+        .expect_err("legacy envelope policy must not create a second ABI shape");
+    }
+
+    #[test]
+    fn wp_d2d_typed_chat_request_preserves_only_supported_native_intent() {
+        let enabled: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "required_capabilities": ["protocol_context"],
+            "model_parameters": {
+                "max_output_tokens": 512,
+                "reasoning": {"mode": "enabled", "effort": "high"}
+            }
+        }))
+        .unwrap();
+        let enabled_body = build_typed_chat_completion_body(&enabled).unwrap();
+        assert_eq!(enabled_body["max_tokens"], 512);
+        assert_eq!(enabled_body["reasoning_effort"], "high");
+        assert!(enabled_body.get("reasoning").is_none());
+
+        let disabled: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "model_parameters": {
+                "reasoning": {"mode": "disabled"}
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            build_typed_chat_completion_body(&disabled).unwrap()["reasoning_effort"],
+            "none"
+        );
+
+        for (model_parameters, reason) in [
+            (
+                json!({"requested_context_window": 128000}),
+                "a context-window request has no Chat-compatible wire field",
+            ),
+            (
+                json!({"reasoning": {"mode": "adaptive", "effort": "high"}}),
+                "adaptive reasoning has no Chat-compatible representation",
+            ),
+            (
+                json!({"reasoning": {"mode": "enabled", "effort": "high", "budget_tokens": 1024}}),
+                "Chat-compatible reasoning has no token-budget field",
+            ),
+            (
+                json!({"reasoning": {"mode": "enabled", "effort": "max"}}),
+                "Chat-compatible reasoning does not support max effort",
+            ),
+            (
+                json!({"reasoning": {"mode": "enabled"}}),
+                "enabled reasoning without effort cannot be represented exactly",
+            ),
+            (
+                json!({
+                    "reasoning": {"mode": "enabled", "effort": "high"},
+                    "reasoning_effort": "low"
+                }),
+                "typed reasoning and legacy reasoning effort must not compete",
+            ),
+        ] {
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-test",
+                "provider_code": "openai_compatible",
+                "protocol": "openai_compatible",
+                "model": "gpt-compatible",
+                "model_parameters": model_parameters
+            }))
+            .unwrap();
+            build_typed_chat_completion_body(&input).expect_err(reason);
+        }
+    }
+
+    #[test]
+    fn wp_d2d_restores_safe_chat_residuals_before_configured_header_authority() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-test",
             "provider_code": "openai_compatible",
             "protocol": "openai_compatible",
             "model": "gpt-compatible",
+            "required_capabilities": ["protocol_context"],
+            "model_parameters": {
+                "max_output_tokens": 512,
+                "reasoning": {"mode": "enabled", "effort": "high"}
+            },
             "client_protocol_envelope": {
                 "source_protocol": "openai_chat",
-                "policy": "default_deny",
+                "query": {"preview": ["one", "two"]},
                 "headers": {
-                    "authorization": "Bearer client-secret",
-                    "x-api-key": "client-api-key",
-                    "x-client-name": "ClaudeCode",
-                    "connection": "keep-alive"
+                    "x-client-name": ["ChatClient", "ChatClient/2"],
+                    "x-shared": ["client-value"]
+                },
+                "body": {
+                    "future_chat_option": {"shape": "opaque"},
+                    "logit_bias": {"50256": -100},
+                    "n": 2,
+                    "service_tier": "priority"
                 }
             }
         }))
         .unwrap();
-
-        assert!(input.client_protocol_envelope.is_some());
-
         let config = normalize_provider_config(&json!({
             "base_url": "https://compatible.example/v1",
             "api_key": "provider-secret",
+            "authorization_header": "Configured provider auth",
+            "organization": "structured-org",
+            "project": "structured-project",
+            "api_version": "2026-07-28",
             "default_headers": {
-                "x-provider-default": "kept"
+                "authorization": "default auth must lose",
+                "openai-organization": "default org must lose",
+                "x-provider-default": "kept",
+                "x-shared": "configured-value"
             }
         }))
+        .unwrap();
+        let typed_body = build_typed_chat_completion_body(&input).unwrap();
+        assert!(typed_body.get("future_chat_option").is_none());
+        let body =
+            restore_protocol_context_body(typed_body, input.client_protocol_envelope.as_ref())
+                .unwrap();
+        let url = build_url_with_protocol_context(
+            &config,
+            "/chat/completions",
+            input.client_protocol_envelope.as_ref(),
+        )
         .unwrap();
         let headers =
             build_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
 
+        assert_eq!(body["model"], "gpt-compatible");
+        assert_eq!(body["max_tokens"], 512);
+        assert_eq!(body["reasoning_effort"], "high");
+        assert_eq!(body["future_chat_option"]["shape"], "opaque");
+        assert_eq!(body["logit_bias"], json!({"50256": -100}));
+        assert_eq!(body["n"], 2);
+        assert_eq!(body["service_tier"], "priority");
+        assert_eq!(
+            Url::parse(&url)
+                .unwrap()
+                .query_pairs()
+                .map(|(name, value)| (name.into_owned(), value.into_owned()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("api-version".to_string(), "2026-07-28".to_string()),
+                ("preview".to_string(), "one".to_string()),
+                ("preview".to_string(), "two".to_string())
+            ]
+        );
+        let mut no_api_version_config = config.clone();
+        no_api_version_config.api_version = None;
+        let residual_api_version = ProtocolContextEnvelope {
+            source_protocol: OPENAI_CHAT_PROTOCOL.to_string(),
+            query: BTreeMap::from([(
+                "api-version".to_string(),
+                vec!["client-version".to_string()],
+            )]),
+            ..ProtocolContextEnvelope::default()
+        };
+        assert_eq!(
+            Url::parse(
+                &build_url_with_protocol_context(
+                    &no_api_version_config,
+                    "/chat/completions",
+                    Some(&residual_api_version)
+                )
+                .unwrap()
+            )
+            .unwrap()
+            .query_pairs()
+            .map(|(name, value)| (name.into_owned(), value.into_owned()))
+            .collect::<Vec<_>>(),
+            vec![("api-version".to_string(), "client-version".to_string())]
+        );
         assert_eq!(
             headers.get(AUTHORIZATION).unwrap(),
-            "Bearer provider-secret"
+            "Configured provider auth"
         );
         assert_eq!(headers.get("x-provider-default").unwrap(), "kept");
-        assert!(headers.get("x-api-key").is_none());
-        assert!(headers.get("x-client-name").is_none());
-        assert!(headers.get("connection").is_none());
+        assert_eq!(headers.get("x-shared").unwrap(), "configured-value");
+        assert_eq!(
+            headers.get("openai-organization").unwrap(),
+            "structured-org"
+        );
+        assert_eq!(headers.get("openai-project").unwrap(), "structured-project");
+        assert_eq!(
+            headers
+                .get_all("x-client-name")
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["ChatClient", "ChatClient/2"]
+        );
+
+        let mut bearer_config = config.clone();
+        bearer_config.authorization_header = None;
+        assert_eq!(
+            build_headers(
+                &bearer_config,
+                true,
+                input.client_protocol_envelope.as_ref()
+            )
+            .unwrap()
+            .get(AUTHORIZATION)
+            .unwrap(),
+            "Bearer provider-secret"
+        );
     }
 
     #[test]
-    fn headers_use_configured_authorization_header_without_bearer_prefix() {
+    fn wp_d2d_rejects_foreign_reserved_colliding_or_unconsumed_context() {
         let config = normalize_provider_config(&json!({
             "base_url": "https://compatible.example/v1",
             "api_key": "provider-secret",
-            "authorization_header": "123123123"
+            "api_version": "2026-07-28"
         }))
         .unwrap();
-
-        let headers = build_headers(&config, true, None).unwrap();
-
-        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "123123123");
-    }
-
-    #[test]
-    fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
-        let input: ProviderInvocationInput = serde_json::from_value(json!({
-            "contract_version": "1flowbase.provider/v2",
-            "provider_instance_id": "provider-test",
-            "provider_code": "openai_compatible",
-            "protocol": "openai_compatible",
+        let typed_body = json!({
             "model": "gpt-compatible",
-            "client_protocol_envelope": {
-                "source_protocol": "anthropic_messages",
-                "policy": "anthropic_messages_v1",
-                "headers": {
-                    "anthropic-version": "2023-06-01",
-                    "anthropic-beta": "ccr-byoc-2025-07-29",
-                    "x-claude-code-session-id": "session-123",
-                    "x-client-name": "ClaudeCode",
-                    "user-agent": "ClaudeCode/1.0",
-                    "authorization": "Bearer client-secret",
-                    "x-api-key": "client-auth-must-not-win"
-                }
-            }
-        }))
-        .unwrap();
-        let config = normalize_provider_config(&json!({
-            "base_url": "https://compatible.example/v1",
-            "api_key": "provider-secret",
-            "default_headers": {
-                "x-provider-default": "kept"
-            }
-        }))
-        .unwrap();
-        let headers =
-            build_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+            "messages": [],
+            "stream": true,
+            "stream_options": {"include_usage": true}
+        });
 
-        assert_eq!(
-            headers.get(AUTHORIZATION).unwrap(),
-            "Bearer provider-secret"
-        );
-        assert_eq!(headers.get("x-provider-default").unwrap(), "kept");
-        assert!(headers.get("x-api-key").is_none());
-        assert_eq!(headers.get("anthropic-version").unwrap(), "2023-06-01");
-        assert_eq!(
-            headers.get("anthropic-beta").unwrap(),
-            "ccr-byoc-2025-07-29"
-        );
-        assert_eq!(
-            headers.get("x-claude-code-session-id").unwrap(),
-            "session-123"
-        );
-        assert_eq!(headers.get("x-client-name").unwrap(), "ClaudeCode");
-        assert_eq!(headers.get("user-agent").unwrap(), "ClaudeCode/1.0");
+        let foreign: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_responses",
+            "body": {"future_option": true}
+        }))
+        .unwrap();
+        restore_protocol_context_body(typed_body.clone(), Some(&foreign))
+            .expect_err("foreign context must never be silently discarded");
+
+        let reserved_query: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_chat",
+            "query": {"authorization": ["query-secret"]}
+        }))
+        .unwrap();
+        build_url_with_protocol_context(&config, "/chat/completions", Some(&reserved_query))
+            .expect_err("reserved query auth must be rejected");
+
+        let typed_query: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_chat",
+            "query": {"api-version": ["client-version"]}
+        }))
+        .unwrap();
+        build_url_with_protocol_context(&config, "/chat/completions", Some(&typed_query))
+            .expect_err("the residual must not collide with typed query configuration");
+
+        for header in ["authorization", "connection", "content-type"] {
+            let reserved_header = ProtocolContextEnvelope {
+                source_protocol: OPENAI_CHAT_PROTOCOL.to_string(),
+                headers: BTreeMap::from([(header.to_string(), vec!["must-not-cross".to_string()])]),
+                ..ProtocolContextEnvelope::default()
+            };
+            build_headers(&config, true, Some(&reserved_header))
+                .expect_err("reserved, hop-by-hop, or typed headers must be rejected");
+        }
+
+        for field in ["model", "reasoning_effort"] {
+            let typed_collision = ProtocolContextEnvelope {
+                source_protocol: OPENAI_CHAT_PROTOCOL.to_string(),
+                body: BTreeMap::from([(field.to_string(), json!("context-must-not-win"))]),
+                ..ProtocolContextEnvelope::default()
+            };
+            restore_protocol_context_body(typed_body.clone(), Some(&typed_collision))
+                .expect_err("typed Chat body collisions must be rejected");
+        }
+
+        let nested_auth: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_chat",
+            "body": {"future_option": {"authorization": "nested-secret"}}
+        }))
+        .unwrap();
+        restore_protocol_context_body(typed_body, Some(&nested_auth))
+            .expect_err("nested reserved auth must be rejected");
     }
 
     #[test]
@@ -2190,12 +2741,13 @@ mod tests {
     }
 
     #[test]
-    fn ac_002_package_manifest_declares_only_current_generate_contract() {
+    fn ac_002_package_manifest_declares_current_generate_contract_and_protocol_context() {
         let manifest = include_str!("../manifest.yaml");
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(!manifest.contains("capabilities:"));
+        assert!(manifest.contains("capabilities:\n    - protocol_context"));
+        assert_eq!(manifest.matches("protocol_context").count(), 1);
     }
 
     #[test]
@@ -2210,7 +2762,7 @@ mod tests {
         }))
         .unwrap();
 
-        let error = build_chat_completion_body(&input)
+        let error = build_typed_chat_completion_body(&input)
             .expect_err("undeclared semantic capabilities must not be projected away");
         assert!(error.to_string().contains("semantic capabilities"));
     }
