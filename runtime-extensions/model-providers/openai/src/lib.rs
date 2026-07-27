@@ -1073,41 +1073,20 @@ fn parse_json_response_text(text: &str) -> Result<Value> {
 async fn provider_upstream_error_from_response(
     response: reqwest::Response,
 ) -> Result<ProviderRuntimeError> {
-    provider_upstream_error_from_response_with_redactions(response, &[]).await
-}
-
-async fn provider_upstream_error_from_response_with_redactions(
-    response: reqwest::Response,
-    redactions: &[String],
-) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
     let raw_body = response.text().await?;
-    Ok(provider_upstream_error_from_parts_with_redactions(
-        status, &headers, raw_body, redactions,
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
     ))
 }
 
-#[cfg(test)]
 fn provider_upstream_error_from_parts(
     status: reqwest::StatusCode,
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    provider_upstream_error_from_parts_with_redactions(status, headers, raw_body, &[])
-}
-
-fn provider_upstream_error_from_parts_with_redactions(
-    status: reqwest::StatusCode,
-    headers: &HeaderMap,
-    raw_body: String,
-    redactions: &[String],
-) -> ProviderRuntimeError {
-    let mut upstream_message = upstream_error_message(&raw_body);
-    for secret in redactions.iter().filter(|secret| !secret.is_empty()) {
-        upstream_message = upstream_message.replace(secret, "***");
-    }
-    let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    let message = upstream_error_body_message(status, &raw_body);
     let mut provider_details = Map::new();
     provider_details.insert("status".to_string(), json!(status.as_u16()));
     if let Some(request_id) = response_request_id(headers) {
@@ -1121,34 +1100,12 @@ fn provider_upstream_error_from_parts_with_redactions(
     }
 }
 
-fn upstream_error_message(raw_body: &str) -> String {
-    extract_upstream_error_message(raw_body)
-        .unwrap_or_else(|| "provider upstream request failed".to_string())
-}
-
-fn extract_upstream_error_message(raw_body: &str) -> Option<String> {
-    if let Ok(payload) = serde_json::from_str::<Value>(raw_body.trim()) {
-        if let Some(message) = upstream_error_message_from_json(&payload) {
-            return Some(message.to_string());
-        }
+fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
+    if raw_body.is_empty() {
+        format!("HTTP {status}")
+    } else {
+        raw_body.to_string()
     }
-
-    raw_body.lines().find_map(|line| {
-        let trimmed = line.trim();
-        if !trimmed.starts_with('{') {
-            return None;
-        }
-        let payload = serde_json::from_str::<Value>(trimmed).ok()?;
-        upstream_error_message_from_json(&payload).map(ToOwned::to_owned)
-    })
-}
-
-fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
-    payload
-        .get("error")
-        .and_then(|value| value.get("message").or(Some(value)))
-        .and_then(Value::as_str)
-        .or_else(|| payload.get("message").and_then(Value::as_str))
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -1502,9 +1459,6 @@ async fn invoke_openai_http_sse<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let credential_redactions = native_passthrough
-        .then(|| native_transport_credential_values(&body))
-        .unwrap_or_default();
     let response = build_http_client(config)?
         .request(
             Method::POST,
@@ -1520,14 +1474,7 @@ where
             read_chat_streaming_response(response, request_model, on_event).await
         }
         OpenAiWireProtocol::Responses => {
-            read_streaming_response(
-                response,
-                request_model,
-                on_event,
-                native_passthrough,
-                &credential_redactions,
-            )
-            .await
+            read_streaming_response(response, request_model, on_event, native_passthrough).await
         }
     }
 }
@@ -1756,53 +1703,6 @@ fn build_native_responses_request_body(
         Value::String(input.model.trim().to_string()),
     );
     Ok(Value::Object(body))
-}
-
-fn native_transport_credential_values(body: &Value) -> Vec<String> {
-    fn collect_strings(value: &Value, output: &mut BTreeSet<String>) {
-        match value {
-            Value::String(value) if !value.is_empty() => {
-                output.insert(value.clone());
-            }
-            Value::Array(values) => {
-                for value in values {
-                    collect_strings(value, output);
-                }
-            }
-            Value::Object(values) => {
-                for value in values.values() {
-                    collect_strings(value, output);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn visit(value: &Value, output: &mut BTreeSet<String>) {
-        match value {
-            Value::Array(values) => {
-                for value in values {
-                    visit(value, output);
-                }
-            }
-            Value::Object(values) => {
-                for (key, value) in values {
-                    if key.eq_ignore_ascii_case("authorization")
-                        || key.eq_ignore_ascii_case("headers")
-                    {
-                        collect_strings(value, output);
-                    } else {
-                        visit(value, output);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let mut values = BTreeSet::new();
-    visit(body, &mut values);
-    values.into_iter().collect()
 }
 
 fn build_compact_body(
@@ -3178,19 +3078,15 @@ async fn read_streaming_response<F>(
     request_model: String,
     on_event: &mut F,
     native_passthrough: bool,
-    credential_redactions: &[String],
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let status = response.status();
     if !status.is_success() {
-        return Err(provider_upstream_error_from_response_with_redactions(
-            response,
-            credential_redactions,
-        )
-        .await?
-        .into());
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
     let headers = response.headers().clone();
     let upstream_request_id = header_text(&headers, "x-request-id");
@@ -3905,18 +3801,29 @@ mod tests {
     fn start_generate_sse_server_with_body(
         body: impl Into<String>,
     ) -> (String, mpsc::Receiver<String>) {
+        start_generate_http_server("200 OK", "text/event-stream", body, None)
+    }
+
+    fn start_generate_http_server(
+        status: &str,
+        content_type: &str,
+        body: impl Into<String>,
+        declared_content_length: Option<usize>,
+    ) -> (String, mpsc::Receiver<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("generate listener should bind");
         let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
         let (request_tx, request_rx) = mpsc::channel();
+        let status = status.to_string();
+        let content_type = content_type.to_string();
         let body = body.into();
 
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("generate request should connect");
             let request = read_http_request_with_body(&mut stream);
             let _ = request_tx.send(request);
+            let content_length = declared_content_length.unwrap_or(body.len());
             let response = format!(
-                "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
-                body.len(),
+                "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {content_length}\r\nconnection: close\r\n\r\n{}",
                 body
             );
             stream
@@ -4013,7 +3920,7 @@ mod tests {
     }
 
     #[test]
-    fn ac_005_upstream_raw_body_and_secrets_stay_out_of_error_contract() {
+    fn wp_d3a_unknown_json_plain_html_and_whitespace_error_bodies_remain_exact() {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -4028,68 +3935,146 @@ mod tests {
             HeaderName::from_static("set-cookie"),
             HeaderValue::from_static("session=secret"),
         );
-        let raw_body = "plain upstream failure body with request payload".to_string();
+        for raw_body in [
+            r#"{"future_error":{"shape":"unknown"}}"#,
+            "plain upstream failure\nwith a trailing newline\n",
+            "<html><body>future provider failure</body></html>",
+            " \r\n\t leading and trailing whitespace \n ",
+            " \r\n\t ",
+        ] {
+            let error = provider_upstream_error_from_parts(
+                reqwest::StatusCode::BAD_REQUEST,
+                &headers,
+                raw_body.to_string(),
+            );
 
-        let error = provider_upstream_error_from_parts(
-            reqwest::StatusCode::BAD_REQUEST,
+            assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+            assert_eq!(error.message, raw_body);
+            assert_eq!(error.provider_summary.as_deref(), Some(raw_body));
+            assert_eq!(
+                error.provider_details,
+                Some(json!({ "status": 400, "request_id": "req_plain" }))
+            );
+            let encoded = serde_json::to_string(&error).unwrap();
+            assert!(!encoded.contains("sk-secret"));
+            assert!(!encoded.contains("session=secret"));
+        }
+
+        let empty = provider_upstream_error_from_parts(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
             &headers,
-            raw_body.clone(),
+            String::new(),
         );
-
-        assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert!(error.message.contains("provider upstream request failed"));
-        assert!(!error.message.contains(&raw_body));
-        assert!(!error
-            .provider_summary
-            .as_deref()
-            .expect("provider_summary should exist")
-            .contains(&raw_body));
-        let details = error
-            .provider_details
-            .as_ref()
-            .expect("upstream error should carry details");
+        assert_eq!(empty.message, "HTTP 503 Service Unavailable");
         assert_eq!(
-            details,
-            &json!({ "status": 400, "request_id": "req_plain" })
+            empty.provider_summary.as_deref(),
+            Some("HTTP 503 Service Unavailable")
         );
-        let encoded = serde_json::to_string(&error).unwrap();
-        assert!(!encoded.contains(&raw_body));
-        assert!(!encoded.contains("sk-secret"));
-        assert!(!encoded.contains("session=secret"));
     }
 
-    #[test]
-    fn d6_ac_005_native_mcp_credentials_are_redacted_from_upstream_errors() {
-        const AUTHORIZATION: &str = "Bearer mcp-authorization-canary";
-        const HEADER_SECRET: &str = "mcp-header-canary";
-        let body = json!({
-            "tools": [{
-                "type": "mcp",
-                "server_url": "https://127.0.0.1.invalid/mcp",
-                "authorization": AUTHORIZATION,
-                "headers": {"X-Provider-Token": HEADER_SECRET}
-            }]
-        });
-        let redactions = native_transport_credential_values(&body);
-        assert!(redactions.contains(&AUTHORIZATION.to_string()));
-        assert!(redactions.contains(&HEADER_SECRET.to_string()));
-
-        let error = provider_upstream_error_from_parts_with_redactions(
-            reqwest::StatusCode::BAD_REQUEST,
-            &HeaderMap::new(),
-            json!({
-                "error": {
-                    "message": format!("invalid credentials {AUTHORIZATION} {HEADER_SECRET}")
+    #[tokio::test]
+    async fn wp_d3a_chat_and_responses_errors_enter_runtime_error_unchanged() {
+        for (protocol, pathname, content_type, raw_body) in [
+            (
+                "openai_responses",
+                "/responses",
+                "application/problem+json",
+                " \r\n{\"future_error\":{\"shape\":\"unknown\"}}\n ",
+            ),
+            (
+                "openai_chat",
+                "/chat/completions",
+                "text/html",
+                "<html><body>chat upstream failure</body></html>\n",
+            ),
+        ] {
+            let (base_url, request_rx) =
+                start_generate_http_server("400 Bad Request", content_type, raw_body, None);
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-openai",
+                "provider_code": "openai",
+                "protocol": protocol,
+                "model": "gpt-5.4-mini",
+                "provider_config": {
+                    "base_url": base_url,
+                    "api_key": "error-fixture-secret",
+                    "transport_mode": "http_sse"
+                },
+                "messages": [{ "role": "user", "content": "fixture" }],
+                "required_capabilities": ["protocol_context"],
+                "client_protocol_envelope": {
+                    "source_protocol": protocol,
+                    "query": {"fixture": ["one", "two"]},
+                    "headers": {"x-client-name": ["wp-d3a"]},
+                    "body": {"future_option": {"mode": "exact"}}
                 }
-            })
-            .to_string(),
-            &redactions,
-        );
-        let encoded = serde_json::to_string(&error).unwrap();
+            }))
+            .expect("error fixture input should deserialize");
 
-        assert!(!encoded.contains(AUTHORIZATION));
-        assert!(!encoded.contains(HEADER_SECRET));
-        assert!(encoded.contains("***"));
+            let error = OpenAiProviderRuntime::default()
+                .invoke_response(input)
+                .await
+                .expect_err("non-success upstream response should fail");
+            let runtime_error = error
+                .downcast_ref::<ProviderRuntimeError>()
+                .expect("upstream response should remain a typed ProviderRuntimeError");
+
+            assert_eq!(
+                runtime_error.kind,
+                ProviderRuntimeErrorKind::ProviderUpstreamError
+            );
+            assert_eq!(runtime_error.message, raw_body);
+            assert_eq!(runtime_error.provider_summary.as_deref(), Some(raw_body));
+
+            let request = request_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("error fixture should capture the request");
+            let (request_head, request_body) = request
+                .split_once("\r\n\r\n")
+                .expect("captured request should contain headers and body");
+            assert!(request_head
+                .starts_with(&format!("POST {pathname}?fixture=one&fixture=two HTTP/1.1")));
+            assert!(request_head
+                .to_ascii_lowercase()
+                .contains("x-client-name: wp-d3a"));
+            let request_body: Value = serde_json::from_str(request_body)
+                .expect("captured request body should remain JSON");
+            assert_eq!(request_body["future_option"]["mode"], "exact");
+        }
+    }
+
+    #[tokio::test]
+    async fn wp_d3a_error_body_transport_failure_is_not_a_provider_runtime_error() {
+        let raw_body = "truncated";
+        let (base_url, _) = start_generate_http_server(
+            "502 Bad Gateway",
+            "text/plain",
+            raw_body,
+            Some(raw_body.len() + 64),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "transport-fixture-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "fixture" }]
+        }))
+        .expect("transport failure fixture input should deserialize");
+
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("truncated upstream body should remain a transport failure");
+
+        assert!(error.downcast_ref::<ProviderRuntimeError>().is_none());
+        assert!(error.downcast_ref::<reqwest::Error>().is_some());
     }
 
     #[test]
@@ -4724,7 +4709,13 @@ mod tests {
             .invoke_compact_response(input)
             .await
             .expect_err("remote Compact failure must not downgrade to a local Generate result");
-        assert!(error.to_string().contains("503"));
+        let runtime_error = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("remote Compact failure should retain the typed Provider error");
+        assert_eq!(
+            runtime_error.message,
+            r#"{"error":{"message":"remote compact unavailable"}}"#
+        );
 
         let request = request_rx
             .recv_timeout(Duration::from_secs(5))
