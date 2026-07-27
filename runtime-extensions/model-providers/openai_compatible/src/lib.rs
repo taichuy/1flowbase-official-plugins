@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
@@ -56,6 +59,8 @@ pub struct ProviderStdioError {
     pub message: String,
     #[serde(default)]
     pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,8 +89,33 @@ impl ProviderStdioResponse {
                 kind: kind.to_string(),
                 message: message.into(),
                 provider_summary: None,
+                provider_details: None,
             }),
         }
+    }
+
+    pub fn runtime_error(error: ProviderRuntimeError) -> Self {
+        Self {
+            ok: false,
+            result: Value::Null,
+            error: Some(ProviderStdioError {
+                kind: provider_runtime_error_kind(&error.kind).to_string(),
+                message: error.message,
+                provider_summary: error.provider_summary,
+                provider_details: error.provider_details,
+            }),
+        }
+    }
+}
+
+fn provider_runtime_error_kind(kind: &ProviderRuntimeErrorKind) -> &'static str {
+    match kind {
+        ProviderRuntimeErrorKind::AuthFailed => "auth_failed",
+        ProviderRuntimeErrorKind::EndpointUnreachable => "endpoint_unreachable",
+        ProviderRuntimeErrorKind::ModelNotFound => "model_not_found",
+        ProviderRuntimeErrorKind::RateLimited => "rate_limited",
+        ProviderRuntimeErrorKind::ProviderUpstreamError => "provider_upstream_error",
+        ProviderRuntimeErrorKind::ProviderInvalidResponse => "provider_invalid_response",
     }
 }
 
@@ -388,6 +418,7 @@ pub enum ProviderFinishReason {
     Length,
     ToolCall,
     ContentFilter,
+    Error,
     Unknown,
 }
 
@@ -416,6 +447,7 @@ pub enum ProviderStreamEvent {
     ToolCallCommit { call: ProviderToolCall },
     UsageSnapshot { usage: ProviderUsage },
     Finish { reason: ProviderFinishReason },
+    Error { error: ProviderRuntimeError },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -423,6 +455,84 @@ pub struct RuntimeInvocationEnvelope {
     pub events: Vec<ProviderStreamEvent>,
     pub result: ProviderInvocationResult,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeErrorKind {
+    AuthFailed,
+    EndpointUnreachable,
+    ModelNotFound,
+    RateLimited,
+    ProviderUpstreamError,
+    ProviderInvalidResponse,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderRuntimeError {
+    pub kind: ProviderRuntimeErrorKind,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
+}
+
+impl ProviderRuntimeError {
+    pub fn normalize<M>(code: &str, message: M, provider_summary: Option<&str>) -> Self
+    where
+        M: Into<String>,
+    {
+        let message = message.into();
+        let haystack = format!("{code} {message}").to_ascii_lowercase();
+        let kind = if haystack.contains("auth")
+            || haystack.contains("api_key")
+            || haystack.contains("unauthorized")
+            || haystack.contains("forbidden")
+            || haystack.contains("401")
+        {
+            ProviderRuntimeErrorKind::AuthFailed
+        } else if haystack.contains("rate")
+            || haystack.contains("quota")
+            || haystack.contains("too_many")
+            || haystack.contains("429")
+        {
+            ProviderRuntimeErrorKind::RateLimited
+        } else if (haystack.contains("model") && haystack.contains("not found"))
+            || haystack.contains("unknown_model")
+            || haystack.contains("model_not_found")
+        {
+            ProviderRuntimeErrorKind::ModelNotFound
+        } else if haystack.contains("timeout")
+            || haystack.contains("connect")
+            || haystack.contains("unreachable")
+            || haystack.contains("refused")
+            || haystack.contains("dns")
+            || haystack.contains("503")
+        {
+            ProviderRuntimeErrorKind::EndpointUnreachable
+        } else {
+            ProviderRuntimeErrorKind::ProviderInvalidResponse
+        };
+
+        Self {
+            kind,
+            message,
+            provider_summary: provider_summary.map(ToOwned::to_owned),
+            provider_details: None,
+        }
+    }
+}
+
+impl fmt::Display for ProviderRuntimeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.provider_summary {
+            Some(summary) => write!(formatter, "{:?}: {} ({summary})", self.kind, self.message),
+            None => write!(formatter, "{:?}: {}", self.kind, self.message),
+        }
+    }
+}
+
+impl std::error::Error for ProviderRuntimeError {}
 
 pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStdioResponse> {
     match request.method.as_str() {
@@ -897,8 +1007,12 @@ async fn request_json(
 ) -> Result<Value> {
     let response = send_provider_request(config, pathname, method, body, None).await?;
     let status = response.status();
+    if !status.is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
     let payload = read_json_response(response).await?;
-    ensure_success_status(status, &payload, config)?;
 
     Ok(payload)
 }
@@ -934,40 +1048,59 @@ async fn send_provider_request(
         .map_err(|error| sanitize_error(error, config))
 }
 
-fn ensure_success_status(
-    status: reqwest::StatusCode,
-    payload: &Value,
-    config: &ProviderConfig,
-) -> Result<()> {
-    if !status.is_success() {
-        let message = payload
-            .get("error")
-            .and_then(|value| value.get("message"))
-            .and_then(Value::as_str)
-            .map(ToOwned::to_owned)
-            .or_else(|| {
-                payload
-                    .get("message")
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .unwrap_or_else(|| "provider upstream request failed".to_string());
-        bail!(
-            "{} {}: {}",
-            status.as_u16(),
-            status,
-            sanitize_text(message, config)
-        );
-    }
-    Ok(())
-}
-
 async fn read_json_response(response: reqwest::Response) -> Result<Value> {
     let text = response.text().await?;
     if text.trim().is_empty() {
         return Ok(json!({}));
     }
     serde_json::from_str(&text).with_context(|| "provider returned invalid JSON")
+}
+
+async fn provider_upstream_error_from_response(
+    response: reqwest::Response,
+) -> Result<ProviderRuntimeError> {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let raw_body = response.text().await?;
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
+    ))
+}
+
+fn provider_upstream_error_from_parts(
+    status: reqwest::StatusCode,
+    headers: &HeaderMap,
+    raw_body: String,
+) -> ProviderRuntimeError {
+    let message = if raw_body.is_empty() {
+        format!("HTTP {status}")
+    } else {
+        raw_body
+    };
+    let mut provider_details = Map::new();
+    provider_details.insert("status".to_string(), json!(status.as_u16()));
+    if let Some(request_id) = response_request_id(headers) {
+        provider_details.insert("request_id".to_string(), json!(request_id));
+    }
+
+    ProviderRuntimeError {
+        kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
+        message: message.clone(),
+        provider_summary: Some(message),
+        provider_details: Some(Value::Object(provider_details)),
+    }
+}
+
+fn response_request_id(headers: &HeaderMap) -> Option<String> {
+    ["x-request-id", "request-id", "openai-request-id", "cf-ray"]
+        .iter()
+        .find_map(|name| {
+            headers
+                .get(*name)
+                .and_then(|value| value.to_str().ok())
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| value.chars().take(128).collect())
+        })
 }
 
 fn normalize_model_entries(data: &Value) -> Result<Vec<ProviderModelDescriptor>> {
@@ -1211,7 +1344,7 @@ where
         input.client_protocol_envelope.as_ref(),
     )
     .await?;
-    read_streaming_chat_completion(response, input.model, &config, &mut on_event).await
+    read_streaming_chat_completion(response, input.model, &mut on_event).await
 }
 
 fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1311,7 +1444,6 @@ fn chat_reasoning_effort(reasoning: &NativeReasoningParameters) -> Result<&'stat
 async fn read_streaming_chat_completion<F>(
     response: reqwest::Response,
     request_model: String,
-    config: &ProviderConfig,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -1319,9 +1451,9 @@ where
 {
     let status = response.status();
     if !status.is_success() {
-        let payload = read_json_response(response).await?;
-        ensure_success_status(status, &payload, config)?;
-        unreachable!("ensure_success_status returns error for non-success response");
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
 
     let mut stream = response.bytes_stream();
@@ -2768,22 +2900,38 @@ mod tests {
     }
 
     #[test]
-    fn ac_005_raw_sensitive_upstream_body_is_not_retained() {
-        let canary = "raw-prompt-canary provider-secret";
-        let config = normalize_provider_config(&json!({
-            "base_url": "https://compatible.example/v1",
-            "api_key": "provider-secret"
-        }))
-        .unwrap();
-        let error = ensure_success_status(
-            reqwest::StatusCode::BAD_REQUEST,
-            &Value::String(canary.to_string()),
-            &config,
-        )
-        .expect_err("upstream failure should remain an error");
-        let message = error.to_string();
+    fn ac_008_upstream_error_body_is_the_typed_runtime_message_without_parsing() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("openai-request-id"),
+            HeaderValue::from_static("req_chat_fidelity"),
+        );
+        for raw_body in [
+            " \n{\"future_error\":{\"shape\":\"unknown\"},\"message\":\"keep complete body\"}\n ",
+            "plain upstream text\nwith trailing newline \n",
+            "<html><body>future provider failure</body></html>",
+            " \r\n\t ",
+        ] {
+            let error = provider_upstream_error_from_parts(
+                reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                &headers,
+                raw_body.to_string(),
+            );
 
-        assert!(message.contains("provider upstream request failed"));
-        assert!(!message.contains(canary));
+            assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+            assert_eq!(error.message, raw_body);
+            assert_eq!(error.provider_summary.as_deref(), Some(raw_body));
+            assert_eq!(
+                error.provider_details,
+                Some(json!({ "status": 500, "request_id": "req_chat_fidelity" }))
+            );
+        }
+
+        let empty = provider_upstream_error_from_parts(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            &headers,
+            String::new(),
+        );
+        assert_eq!(empty.message, "HTTP 503 Service Unavailable");
     }
 }
