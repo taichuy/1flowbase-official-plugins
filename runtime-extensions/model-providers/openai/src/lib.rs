@@ -4224,7 +4224,10 @@ mod tests {
             .invoke_compact_response(input)
             .await
             .expect_err("remote Compact failure must not downgrade to a local Generate result");
-        assert!(error.to_string().contains("503"));
+        assert_eq!(
+            error.to_string(),
+            r#"{"error":{"message":"remote compact unavailable"}}"#
+        );
 
         let request = request_rx
             .recv_timeout(Duration::from_secs(5))
