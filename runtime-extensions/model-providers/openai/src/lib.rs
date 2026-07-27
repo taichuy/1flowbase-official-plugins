@@ -1076,41 +1076,20 @@ fn parse_json_response_text(text: &str) -> Result<Value> {
 async fn provider_upstream_error_from_response(
     response: reqwest::Response,
 ) -> Result<ProviderRuntimeError> {
-    provider_upstream_error_from_response_with_redactions(response, &[]).await
-}
-
-async fn provider_upstream_error_from_response_with_redactions(
-    response: reqwest::Response,
-    redactions: &[String],
-) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
     let raw_body = response.text().await?;
-    Ok(provider_upstream_error_from_parts_with_redactions(
-        status, &headers, raw_body, redactions,
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
     ))
 }
 
-#[cfg(test)]
 fn provider_upstream_error_from_parts(
     status: reqwest::StatusCode,
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    provider_upstream_error_from_parts_with_redactions(status, headers, raw_body, &[])
-}
-
-fn provider_upstream_error_from_parts_with_redactions(
-    status: reqwest::StatusCode,
-    headers: &HeaderMap,
-    raw_body: String,
-    redactions: &[String],
-) -> ProviderRuntimeError {
-    let mut upstream_message = upstream_error_message(&raw_body);
-    for secret in redactions.iter().filter(|secret| !secret.is_empty()) {
-        upstream_message = upstream_message.replace(secret, "***");
-    }
-    let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    let message = upstream_error_body_message(status, &raw_body);
     let mut provider_details = Map::new();
     provider_details.insert("status".to_string(), json!(status.as_u16()));
     if let Some(request_id) = response_request_id(headers) {
@@ -1124,34 +1103,12 @@ fn provider_upstream_error_from_parts_with_redactions(
     }
 }
 
-fn upstream_error_message(raw_body: &str) -> String {
-    extract_upstream_error_message(raw_body)
-        .unwrap_or_else(|| "provider upstream request failed".to_string())
-}
-
-fn extract_upstream_error_message(raw_body: &str) -> Option<String> {
-    if let Ok(payload) = serde_json::from_str::<Value>(raw_body.trim()) {
-        if let Some(message) = upstream_error_message_from_json(&payload) {
-            return Some(message.to_string());
-        }
+fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
+    if raw_body.is_empty() {
+        format!("HTTP {status}")
+    } else {
+        raw_body.to_string()
     }
-
-    raw_body.lines().find_map(|line| {
-        let trimmed = line.trim();
-        if !trimmed.starts_with('{') {
-            return None;
-        }
-        let payload = serde_json::from_str::<Value>(trimmed).ok()?;
-        upstream_error_message_from_json(&payload).map(ToOwned::to_owned)
-    })
-}
-
-fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
-    payload
-        .get("error")
-        .and_then(|value| value.get("message").or(Some(value)))
-        .and_then(Value::as_str)
-        .or_else(|| payload.get("message").and_then(Value::as_str))
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -1494,9 +1451,6 @@ async fn invoke_response_http_sse<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let credential_redactions = native_passthrough
-        .then(|| native_transport_credential_values(&body))
-        .unwrap_or_default();
     let response = build_http_client(config)?
         .request(Method::POST, build_url(config, "/responses")?)
         .headers(build_stream_headers(config, client_protocol_envelope)?)
@@ -1504,14 +1458,7 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_streaming_response(
-        response,
-        request_model,
-        on_event,
-        native_passthrough,
-        &credential_redactions,
-    )
-    .await
+    read_streaming_response(response, request_model, on_event, native_passthrough).await
 }
 
 fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1552,53 +1499,6 @@ fn build_native_responses_request_body(
         Value::String(input.model.trim().to_string()),
     );
     Ok(Value::Object(body))
-}
-
-fn native_transport_credential_values(body: &Value) -> Vec<String> {
-    fn collect_strings(value: &Value, output: &mut BTreeSet<String>) {
-        match value {
-            Value::String(value) if !value.is_empty() => {
-                output.insert(value.clone());
-            }
-            Value::Array(values) => {
-                for value in values {
-                    collect_strings(value, output);
-                }
-            }
-            Value::Object(values) => {
-                for value in values.values() {
-                    collect_strings(value, output);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn visit(value: &Value, output: &mut BTreeSet<String>) {
-        match value {
-            Value::Array(values) => {
-                for value in values {
-                    visit(value, output);
-                }
-            }
-            Value::Object(values) => {
-                for (key, value) in values {
-                    if key.eq_ignore_ascii_case("authorization")
-                        || key.eq_ignore_ascii_case("headers")
-                    {
-                        collect_strings(value, output);
-                    } else {
-                        visit(value, output);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let mut values = BTreeSet::new();
-    visit(body, &mut values);
-    values.into_iter().collect()
 }
 
 fn build_compact_body(
@@ -2597,19 +2497,15 @@ async fn read_streaming_response<F>(
     request_model: String,
     on_event: &mut F,
     native_passthrough: bool,
-    credential_redactions: &[String],
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let status = response.status();
     if !status.is_success() {
-        return Err(provider_upstream_error_from_response_with_redactions(
-            response,
-            credential_redactions,
-        )
-        .await?
-        .into());
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
     let headers = response.headers().clone();
     let upstream_request_id = header_text(&headers, "x-request-id");
@@ -3549,7 +3445,7 @@ mod tests {
     }
 
     #[test]
-    fn ac_005_upstream_raw_body_and_secrets_stay_out_of_error_contract() {
+    fn upstream_response_body_is_the_error_message_without_response_header_leakage() {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -3573,13 +3469,8 @@ mod tests {
         );
 
         assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert!(error.message.contains("provider upstream request failed"));
-        assert!(!error.message.contains(&raw_body));
-        assert!(!error
-            .provider_summary
-            .as_deref()
-            .expect("provider_summary should exist")
-            .contains(&raw_body));
+        assert_eq!(error.message, raw_body);
+        assert_eq!(error.provider_summary.as_deref(), Some(raw_body.as_str()));
         let details = error
             .provider_details
             .as_ref()
@@ -3589,43 +3480,40 @@ mod tests {
             &json!({ "status": 400, "request_id": "req_plain" })
         );
         let encoded = serde_json::to_string(&error).unwrap();
-        assert!(!encoded.contains(&raw_body));
+        assert!(encoded.contains(&raw_body));
         assert!(!encoded.contains("sk-secret"));
         assert!(!encoded.contains("session=secret"));
     }
 
     #[test]
-    fn d6_ac_005_native_mcp_credentials_are_redacted_from_upstream_errors() {
+    fn unknown_json_plain_html_whitespace_and_empty_bodies_are_preserved_or_fallback() {
         const AUTHORIZATION: &str = "Bearer mcp-authorization-canary";
         const HEADER_SECRET: &str = "mcp-header-canary";
-        let body = json!({
-            "tools": [{
-                "type": "mcp",
-                "server_url": "https://127.0.0.1.invalid/mcp",
-                "authorization": AUTHORIZATION,
-                "headers": {"X-Provider-Token": HEADER_SECRET}
-            }]
-        });
-        let redactions = native_transport_credential_values(&body);
-        assert!(redactions.contains(&AUTHORIZATION.to_string()));
-        assert!(redactions.contains(&HEADER_SECRET.to_string()));
-
-        let error = provider_upstream_error_from_parts_with_redactions(
-            reqwest::StatusCode::BAD_REQUEST,
-            &HeaderMap::new(),
+        for raw_body in [
             json!({
-                "error": {
-                    "message": format!("invalid credentials {AUTHORIZATION} {HEADER_SECRET}")
-                }
+                "future_error": {"shape": "unknown"},
+                "message": format!("keep response text {AUTHORIZATION} {HEADER_SECRET}")
             })
             .to_string(),
-            &redactions,
-        );
-        let encoded = serde_json::to_string(&error).unwrap();
+            " plain upstream text\nwith trailing newline \n".to_string(),
+            "<html><body>future provider failure</body></html>".to_string(),
+            " \r\n\t ".to_string(),
+        ] {
+            let error = provider_upstream_error_from_parts(
+                reqwest::StatusCode::BAD_REQUEST,
+                &HeaderMap::new(),
+                raw_body.clone(),
+            );
+            assert_eq!(error.message, raw_body);
+            assert_eq!(error.provider_summary.as_deref(), Some(raw_body.as_str()));
+        }
 
-        assert!(!encoded.contains(AUTHORIZATION));
-        assert!(!encoded.contains(HEADER_SECRET));
-        assert!(encoded.contains("***"));
+        let empty = provider_upstream_error_from_parts(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            &HeaderMap::new(),
+            String::new(),
+        );
+        assert_eq!(empty.message, "HTTP 503 Service Unavailable");
     }
 
     #[test]
