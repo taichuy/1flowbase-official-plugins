@@ -508,9 +508,21 @@ pub enum ProviderStreamEvent {
     ReasoningDelta { delta: String },
     ToolCallDelta { call_id: String, delta: Value },
     ToolCallCommit { call: ProviderToolCall },
+    OutputItem {
+        phase: ProviderOutputItemPhase,
+        output_index: usize,
+        item: Value,
+    },
     UsageSnapshot { usage: ProviderUsage },
     Finish { reason: ProviderFinishReason },
     Error { error: ProviderRuntimeError },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderOutputItemPhase {
+    Added,
+    Done,
 }
 
 #[derive(Debug, Default)]
@@ -3127,9 +3139,7 @@ where
                 &mut finish_reason,
                 &mut response_id,
             )?;
-            if !native_passthrough {
-                emit_new_events(&events, on_event)?;
-            }
+            emit_new_events(&events, on_event)?;
             all_events.append(&mut events);
         }
     }
@@ -3146,9 +3156,7 @@ where
             &mut finish_reason,
             &mut response_id,
         )?;
-        if !native_passthrough {
-            emit_new_events(&events, on_event)?;
-        }
+        emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
@@ -3165,9 +3173,7 @@ where
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
-    if !native_passthrough {
-        emit_new_events(&events, on_event)?;
-    }
+    emit_new_events(&events, on_event)?;
     all_events.extend(events);
     let native_response_id = response_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
@@ -3397,6 +3403,11 @@ fn process_response_sse_payload(
         }
         "response.output_item.added" => {
             tool_calls.upsert_from_added_item(payload.get("item"));
+            if let Some(event) =
+                typed_response_output_item(&payload, ProviderOutputItemPhase::Added)?
+            {
+                events.push(event);
+            }
         }
         "response.function_call_arguments.done" => {
             if let Some(call) = provider_tool_call_from_function_call_arguments_done(
@@ -3418,6 +3429,11 @@ fn process_response_sse_payload(
         }
         "response.output_item.done" => {
             tool_calls.upsert_from_item(payload.get("item"));
+            if let Some(event) =
+                typed_response_output_item(&payload, ProviderOutputItemPhase::Done)?
+            {
+                events.push(event);
+            }
             if text.is_empty() {
                 if let Some(item_text) = response_item_text(payload.get("item")) {
                     text.push_str(&item_text);
@@ -3443,6 +3459,41 @@ fn process_response_sse_payload(
         _ => {}
     }
     Ok(())
+}
+
+fn typed_response_output_item(
+    payload: &Value,
+    phase: ProviderOutputItemPhase,
+) -> Result<Option<ProviderStreamEvent>> {
+    let Some(item) = payload.get("item") else {
+        return Ok(None);
+    };
+    if !matches!(
+        item.get("type").and_then(Value::as_str),
+        Some(
+            "tool_search_call"
+                | "tool_search_output"
+                | "additional_tools"
+                | "file_search_call"
+                | "program"
+                | "shell_call"
+                | "mcp_list_tools"
+                | "mcp_call"
+                | "mcp_approval_request"
+        )
+    ) {
+        return Ok(None);
+    }
+    let output_index = payload
+        .get("output_index")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| anyhow!("typed Responses output item omitted output_index"))?;
+    Ok(Some(ProviderStreamEvent::OutputItem {
+        phase,
+        output_index,
+        item: item.clone(),
+    }))
 }
 
 fn capture_response_id(payload: &Value, response_id: &mut Value) {
@@ -5158,6 +5209,42 @@ mod tests {
         assert_eq!(text, "OK");
         assert_eq!(usage.total_tokens, Some(2));
         assert_eq!(finish_reason, ProviderFinishReason::Stop);
+    }
+
+    #[test]
+    fn responses_mcp_approval_is_emitted_as_typed_output_item() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.output_item.added","output_index":2,"item":{"id":"approval_1","type":"mcp_approval_request","server_label":"fixture_mcp","name":"lookup","arguments":"{}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(
+            events,
+            vec![ProviderStreamEvent::OutputItem {
+                phase: ProviderOutputItemPhase::Added,
+                output_index: 2,
+                item: json!({
+                    "id": "approval_1",
+                    "type": "mcp_approval_request",
+                    "server_label": "fixture_mcp",
+                    "name": "lookup",
+                    "arguments": "{}"
+                }),
+            }]
+        );
     }
 
     #[test]
