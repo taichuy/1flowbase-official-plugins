@@ -4224,8 +4224,11 @@ mod tests {
             .invoke_compact_response(input)
             .await
             .expect_err("remote Compact failure must not downgrade to a local Generate result");
+        let runtime_error = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("remote Compact failure should retain the typed Provider error");
         assert_eq!(
-            error.to_string(),
+            runtime_error.message,
             r#"{"error":{"message":"remote compact unavailable"}}"#
         );
 
