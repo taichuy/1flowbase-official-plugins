@@ -94,12 +94,12 @@ fn count_tokens_invoke_line(base_url: &str) -> String {
             "required_capabilities": [
                 "count_tokens",
                 "system_prompt_blocks",
-                "end_user_reference"
+                "end_user_reference",
+                "protocol_context"
             ],
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
-                "policy": "anthropic_messages_v1",
-                "headers": { "anthropic-beta": "prompt-caching" }
+                "headers": { "anthropic-beta": ["prompt-caching"] }
             }
         }
     })

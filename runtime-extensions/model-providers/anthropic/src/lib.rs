@@ -18,16 +18,31 @@ const DEFAULT_ANTHROPIC_VERSION: &str = "2023-06-01";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const DEFAULT_MAX_TOKENS: u64 = 4096;
 const DEFAULT_THINKING_BUDGET_TOKENS: u64 = 1024;
+const ANTHROPIC_MESSAGES_PROTOCOL: &str = "anthropic_messages";
+const ANTHROPIC_BETA_HEADER: &str = "anthropic-beta";
+const ANTHROPIC_VERSION_HEADER: &str = "anthropic-version";
+const ANTHROPIC_CONTEXT_1M_BETA: &str = "context-1m-2025-08-07";
+const ANTHROPIC_CONTEXT_1M_TOKENS: u64 = 1_000_000;
 const PASSTHROUGH_MESSAGES_PARAMETERS: &[&str] = &["temperature", "top_p", "top_k", "tool_choice"];
-const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
-    "anthropic-version",
-    "anthropic-beta",
-    "x-claude-code-session-id",
-    "anthropic-client-name",
-    "anthropic-client-version",
-    "x-client-name",
-    "x-client-version",
-    "user-agent",
+const ANTHROPIC_TYPED_BODY_FIELDS: &[&str] = &[
+    "model",
+    "messages",
+    "max_tokens",
+    "system",
+    "stream",
+    "metadata",
+    "tools",
+    "tool_choice",
+    "container",
+    "mcp_servers",
+    "thinking",
+    "output_config",
+    "service_tier",
+    "temperature",
+    "top_k",
+    "top_p",
+    "stop_sequences",
+    "stream_options",
 ];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -229,6 +244,7 @@ pub enum ProviderInvocationCapability {
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    ProtocolContext,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -260,7 +276,7 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
-    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+    pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
     #[serde(default)]
     pub trace_context: BTreeMap<String, String>,
     #[serde(default)]
@@ -294,7 +310,7 @@ pub struct ProviderCountTokensInput {
     #[serde(default)]
     pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
-    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+    pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -303,12 +319,102 @@ pub struct ProviderCountTokensResult {
     pub input_tokens: u64,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct ClientProtocolEnvelope {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ProtocolContextEnvelope {
     pub source_protocol: String,
-    pub policy: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub query: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub headers: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub body: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+enum NativeReasoningMode {
+    Adaptive,
+    #[default]
+    Enabled,
+    Disabled,
+}
+
+impl NativeReasoningMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Adaptive => "adaptive",
+            Self::Enabled => "enabled",
+            Self::Disabled => "disabled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum NativeReasoningEffort {
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+
+impl NativeReasoningEffort {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Minimal => "minimal",
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Xhigh => "xhigh",
+            Self::Max => "max",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NativeReasoningParameters {
     #[serde(default)]
-    pub headers: BTreeMap<String, String>,
+    mode: NativeReasoningMode,
+    #[serde(default)]
+    effort: Option<NativeReasoningEffort>,
+    #[serde(default)]
+    budget_tokens: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct TypedModelParameters {
+    max_output_tokens: Option<u64>,
+    requested_context_window: Option<u64>,
+    reasoning: Option<NativeReasoningParameters>,
+}
+
+impl TypedModelParameters {
+    fn from_input(input: &ProviderInvocationInput) -> Result<Self> {
+        let reasoning = input
+            .model_parameters
+            .get("reasoning")
+            .map(|value| {
+                serde_json::from_value::<NativeReasoningParameters>(value.clone())
+                    .context("reasoning must contain only typed mode, effort, and budget_tokens")
+            })
+            .transpose()?;
+        if reasoning
+            .as_ref()
+            .and_then(|reasoning| reasoning.budget_tokens)
+            == Some(0)
+        {
+            bail!("reasoning.budget_tokens must be a positive integer");
+        }
+        Ok(Self {
+            max_output_tokens: positive_model_parameter(input, "max_output_tokens")?,
+            requested_context_window: positive_model_parameter(input, "requested_context_window")?,
+            reasoning,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -645,52 +751,259 @@ fn value_to_string(value: &Value) -> String {
 
 fn build_headers(
     config: &ProviderConfig,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    client_protocol_envelope: Option<&ProtocolContextEnvelope>,
+    requests_one_million_context: bool,
 ) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(
-        HeaderName::from_static("x-api-key"),
-        HeaderValue::from_str(&config.api_key).context("invalid api_key header")?,
-    );
-    headers.insert(
-        HeaderName::from_static("anthropic-version"),
+        HeaderName::from_static(ANTHROPIC_VERSION_HEADER),
         HeaderValue::from_str(&config.anthropic_version)
             .context("invalid anthropic_version header")?,
     );
+    if requests_one_million_context {
+        headers.append(
+            HeaderName::from_static(ANTHROPIC_BETA_HEADER),
+            HeaderValue::from_static(ANTHROPIC_CONTEXT_1M_BETA),
+        );
+    }
     apply_client_protocol_headers(&mut headers, client_protocol_envelope)?;
+
+    // Provider credentials are injected only after every client-protocol
+    // residual has been validated and restored.
+    headers.insert(
+        HeaderName::from_static("x-api-key"),
+        HeaderValue::from_str(&config.api_key).context("invalid api_key header")?,
+    );
     Ok(headers)
 }
 
 fn apply_client_protocol_headers(
     headers: &mut HeaderMap,
-    envelope: Option<&ClientProtocolEnvelope>,
+    envelope: Option<&ProtocolContextEnvelope>,
 ) -> Result<()> {
-    let Some(envelope) = envelope else {
+    let Some(envelope) = matching_protocol_context(envelope)? else {
         return Ok(());
     };
-    if envelope.source_protocol != "anthropic_messages"
-        || envelope.policy != "anthropic_messages_v1"
-    {
-        return Ok(());
-    }
-    for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
-        let name = *name;
-        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
-            continue;
-        };
-        headers.insert(
-            HeaderName::from_static(name),
-            HeaderValue::from_str(value)
-                .with_context(|| format!("invalid client protocol header: {name}"))?,
-        );
+    let mut restored_anthropic_version = false;
+    for (raw_name, values) in &envelope.headers {
+        let normalized_name = raw_name.trim().to_ascii_lowercase();
+        if !protocol_context_header_is_safe(&normalized_name) {
+            bail!("protocol context contains a reserved header");
+        }
+        if values.is_empty() {
+            bail!("protocol context header values must not be empty");
+        }
+        let name = HeaderName::from_bytes(normalized_name.as_bytes())
+            .context("protocol context contains an invalid header name")?;
+
+        if normalized_name == ANTHROPIC_VERSION_HEADER && !restored_anthropic_version {
+            headers.remove(ANTHROPIC_VERSION_HEADER);
+            restored_anthropic_version = true;
+        }
+        for value in values {
+            if value.trim().is_empty() {
+                bail!("protocol context header values must not be empty");
+            }
+            if normalized_name == ANTHROPIC_BETA_HEADER
+                && anthropic_beta_tokens(value)
+                    .any(|token| token.eq_ignore_ascii_case(ANTHROPIC_CONTEXT_1M_BETA))
+            {
+                bail!("protocol context collides with typed requested_context_window");
+            }
+            headers.append(
+                name.clone(),
+                HeaderValue::from_str(value)
+                    .context("protocol context contains an invalid header")?,
+            );
+        }
     }
     Ok(())
 }
 
+fn matching_protocol_context(
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<Option<&ProtocolContextEnvelope>> {
+    let Some(envelope) = envelope else {
+        return Ok(None);
+    };
+    if envelope.source_protocol != ANTHROPIC_MESSAGES_PROTOCOL {
+        bail!("unconsumed foreign protocol context");
+    }
+    Ok(Some(envelope))
+}
+
+fn anthropic_beta_tokens(value: &str) -> impl Iterator<Item = &str> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+}
+
+fn protocol_context_header_is_safe(name: &str) -> bool {
+    protocol_context_field_is_safe(name)
+        && !matches!(
+            name,
+            "content-type"
+                | "accept"
+                | "accept-encoding"
+                | "accept-language"
+                | "origin"
+                | "x-claude-code-session-id"
+        )
+}
+
+fn protocol_context_field_is_safe(name: &str) -> bool {
+    let lower = name.trim().to_ascii_lowercase();
+    if lower.is_empty() || lower.starts_with("__") {
+        return false;
+    }
+    let normalized = lower.replace('_', "-");
+    !matches!(
+        normalized.as_str(),
+        "auth"
+            | "authentication"
+            | "authentication-info"
+            | "authorization"
+            | "x-authorization"
+            | "proxy-authorization"
+            | "proxy-authenticate"
+            | "proxy-authentication-info"
+            | "www-authenticate"
+            | "x-api-key"
+            | "api-key"
+            | "x-auth-token"
+            | "auth-token"
+            | "bearer-token"
+            | "x-access-token"
+            | "access-token"
+            | "refresh-token"
+            | "id-token"
+            | "client-secret"
+            | "api-secret"
+            | "password"
+            | "passwd"
+            | "x-csrf-token"
+            | "x-xsrf-token"
+            | "csrf-token"
+            | "cookie"
+            | "set-cookie"
+            | "host"
+            | "connection"
+            | "proxy-connection"
+            | "keep-alive"
+            | "te"
+            | "trailer"
+            | "transfer-encoding"
+            | "upgrade"
+            | "content-length"
+            | "client-protocol-envelope"
+            | "native-model-prompt-context"
+            | "native-model-request-context"
+            | "native-transport"
+            | "provider-transport"
+            | "request-context"
+            | "run-context"
+            | "trace-context"
+            | "compatibility-mode"
+            | "sys"
+            | "env"
+            | "trigger"
+            | "forwarded"
+            | "via"
+            | "x-real-ip"
+            | "true-client-ip"
+            | "cf-connecting-ip"
+            | "cf-ray"
+            | "traceparent"
+            | "tracestate"
+            | "baggage"
+            | "x-request-id"
+            | "internal"
+            | "x-internal"
+            | "1flowbase"
+            | "x-1flowbase"
+    ) && !normalized.starts_with("x-1flowbase-")
+        && !normalized.starts_with("x-internal-")
+        && !normalized.starts_with("internal-")
+        && !normalized.starts_with("x-forwarded-")
+        && !normalized.starts_with("x-envoy-")
+        && !normalized.starts_with("x-amzn-")
+}
+
 fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     build_url_with_query(config, pathname, &[])
+}
+
+fn build_url_with_protocol_context(
+    config: &ProviderConfig,
+    pathname: &str,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<String> {
+    let mut url = Url::parse(&build_url(config, pathname)?)
+        .context("building Anthropic protocol-context URL")?;
+    let Some(envelope) = matching_protocol_context(envelope)? else {
+        return Ok(url.to_string());
+    };
+    for (name, values) in &envelope.query {
+        if !protocol_context_field_is_safe(name) {
+            bail!("protocol context contains a reserved query field");
+        }
+        if values.is_empty() {
+            bail!("protocol context query values must not be empty");
+        }
+        for value in values {
+            url.query_pairs_mut().append_pair(name, value);
+        }
+    }
+    Ok(url.to_string())
+}
+
+fn restore_protocol_context_body(
+    mut typed_body: Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<Value> {
+    let Some(envelope) = matching_protocol_context(envelope)? else {
+        return Ok(typed_body);
+    };
+    let body = typed_body
+        .as_object_mut()
+        .context("typed Anthropic request body must be an object")?;
+    for (name, value) in &envelope.body {
+        if !protocol_context_field_is_safe(name) {
+            bail!("protocol context contains a reserved body field");
+        }
+        if ANTHROPIC_TYPED_BODY_FIELDS.contains(&name.as_str()) || body.contains_key(name) {
+            bail!("protocol context collides with a typed Anthropic body field");
+        }
+        validate_protocol_context_value(value)?;
+        if name == "context_management" && !value.is_object() {
+            bail!("protocol context context_management must be an object");
+        }
+        body.insert(name.clone(), value.clone());
+    }
+    Ok(typed_body)
+}
+
+fn validate_protocol_context_value(value: &Value) -> Result<()> {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                validate_protocol_context_value(value)?;
+            }
+        }
+        Value::Object(object) => {
+            for (name, value) in object {
+                if !protocol_context_field_is_safe(name) {
+                    bail!("protocol context contains a nested reserved body field");
+                }
+                validate_protocol_context_value(value)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
@@ -766,7 +1079,7 @@ async fn request_json_with_query(
 ) -> Result<Value> {
     let response = build_http_client(config)?
         .request(method, build_url_with_query(config, pathname, query)?)
-        .headers(build_headers(config, None)?)
+        .headers(build_headers(config, None, false)?)
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
@@ -923,16 +1236,17 @@ async fn count_message_tokens(
     }
 
     let config = normalize_provider_config(&input.provider_config)?;
-    let body = build_count_tokens_body(&input)?;
+    let typed_body = build_count_tokens_body(&input)?;
+    let body = restore_protocol_context_body(typed_body, input.client_protocol_envelope.as_ref())?;
+    let url = build_url_with_protocol_context(
+        &config,
+        "/v1/messages/count_tokens",
+        input.client_protocol_envelope.as_ref(),
+    )?;
+    let headers = build_headers(&config, input.client_protocol_envelope.as_ref(), false)?;
     let response = build_http_client(&config)?
-        .request(
-            Method::POST,
-            build_url(&config, "/v1/messages/count_tokens")?,
-        )
-        .headers(build_headers(
-            &config,
-            input.client_protocol_envelope.as_ref(),
-        )?)
+        .request(Method::POST, url)
+        .headers(headers)
         .json(&body)
         .send()
         .await
@@ -975,17 +1289,29 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let config = normalize_provider_config(&input.provider_config)?;
-    let body = build_messages_body(&input)?;
-    let effective_max_output_tokens = body
+    let typed_request = build_typed_messages_body(&input)?;
+    let effective_max_output_tokens = typed_request
+        .body
         .get("max_tokens")
         .and_then(Value::as_u64)
         .context("Anthropic request max_tokens must be an unsigned integer")?;
+    let requests_one_million_context =
+        typed_request.requested_context_window == Some(ANTHROPIC_CONTEXT_1M_TOKENS);
+    let body =
+        restore_protocol_context_body(typed_request.body, input.client_protocol_envelope.as_ref())?;
+    let url = build_url_with_protocol_context(
+        &config,
+        "/v1/messages",
+        input.client_protocol_envelope.as_ref(),
+    )?;
+    let headers = build_headers(
+        &config,
+        input.client_protocol_envelope.as_ref(),
+        requests_one_million_context,
+    )?;
     let response = build_http_client(&config)?
-        .request(Method::POST, build_url(&config, "/v1/messages")?)
-        .headers(build_headers(
-            &config,
-            input.client_protocol_envelope.as_ref(),
-        )?)
+        .request(Method::POST, url)
+        .headers(headers)
         .json(&body)
         .send()
         .await
@@ -1000,9 +1326,19 @@ where
 }
 
 fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
+    Ok(build_typed_messages_body(input)?.body)
+}
+
+struct TypedMessagesBody {
+    body: Value,
+    requested_context_window: Option<u64>,
+}
+
+fn build_typed_messages_body(input: &ProviderInvocationInput) -> Result<TypedMessagesBody> {
     if input.model.trim().is_empty() {
         bail!("model is required");
     }
+    let typed_parameters = TypedModelParameters::from_input(input)?;
     let mut body = Map::new();
     body.insert(
         "model".to_string(),
@@ -1013,7 +1349,9 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
         Value::Array(build_anthropic_messages(&input.messages)),
     );
     body.insert("stream".to_string(), Value::Bool(true));
-    let max_output_tokens = parameter_u64(input, "max_output_tokens").unwrap_or(DEFAULT_MAX_TOKENS);
+    let max_output_tokens = typed_parameters
+        .max_output_tokens
+        .unwrap_or(DEFAULT_MAX_TOKENS);
     body.insert("max_tokens".to_string(), json!(max_output_tokens));
     if !input.system.is_empty() {
         body.insert(
@@ -1039,18 +1377,10 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
             Value::Array(build_anthropic_tools(&input.tools)),
         );
     }
-    if let Some(thinking_type) = parameter_value(input, "thinking_type") {
-        if thinking_type.as_str() == Some("enabled") {
-            let budget_tokens = parameter_u64(input, "thinking_budget_tokens")
-                .unwrap_or(DEFAULT_THINKING_BUDGET_TOKENS);
-            if budget_tokens >= max_output_tokens {
-                bail!("thinking_budget_tokens must be lower than max_output_tokens");
-            }
-            body.insert(
-                "thinking".to_string(),
-                json!({ "type": "enabled", "budget_tokens": budget_tokens }),
-            );
-        }
+    if let Some(reasoning) = typed_parameters.reasoning.as_ref() {
+        apply_native_reasoning(&mut body, reasoning, max_output_tokens)?;
+    } else if let Some(thinking_type) = parameter_value(input, "thinking_type") {
+        apply_legacy_thinking(&mut body, input, thinking_type, max_output_tokens)?;
     }
     for key in PASSTHROUGH_MESSAGES_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {
@@ -1060,7 +1390,72 @@ fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
             );
         }
     }
-    Ok(Value::Object(body))
+    Ok(TypedMessagesBody {
+        body: Value::Object(body),
+        requested_context_window: typed_parameters.requested_context_window,
+    })
+}
+
+fn apply_native_reasoning(
+    body: &mut Map<String, Value>,
+    reasoning: &NativeReasoningParameters,
+    max_output_tokens: u64,
+) -> Result<()> {
+    let budget_tokens = reasoning.budget_tokens.or_else(|| {
+        (reasoning.mode == NativeReasoningMode::Enabled).then_some(DEFAULT_THINKING_BUDGET_TOKENS)
+    });
+    if reasoning.mode == NativeReasoningMode::Enabled
+        && matches!(budget_tokens, Some(budget) if budget >= max_output_tokens)
+    {
+        bail!("reasoning.budget_tokens must be lower than max_output_tokens");
+    }
+
+    let mut thinking = Map::new();
+    thinking.insert(
+        "type".to_string(),
+        Value::String(reasoning.mode.as_str().to_string()),
+    );
+    if let Some(budget_tokens) = budget_tokens {
+        thinking.insert("budget_tokens".to_string(), json!(budget_tokens));
+    }
+    body.insert("thinking".to_string(), Value::Object(thinking));
+
+    if let Some(effort) = reasoning.effort {
+        body.insert(
+            "output_config".to_string(),
+            json!({ "effort": effort.as_str() }),
+        );
+    }
+    Ok(())
+}
+
+fn apply_legacy_thinking(
+    body: &mut Map<String, Value>,
+    input: &ProviderInvocationInput,
+    thinking_type: Value,
+    max_output_tokens: u64,
+) -> Result<()> {
+    match thinking_type.as_str() {
+        Some("enabled") => {
+            let budget_tokens = parameter_u64(input, "thinking_budget_tokens")
+                .unwrap_or(DEFAULT_THINKING_BUDGET_TOKENS);
+            if budget_tokens == 0 || budget_tokens >= max_output_tokens {
+                bail!("thinking_budget_tokens must be positive and lower than max_output_tokens");
+            }
+            body.insert(
+                "thinking".to_string(),
+                json!({ "type": "enabled", "budget_tokens": budget_tokens }),
+            );
+        }
+        Some("adaptive") => {
+            body.insert("thinking".to_string(), json!({ "type": "adaptive" }));
+        }
+        Some("disabled") => {
+            body.insert("thinking".to_string(), json!({ "type": "disabled" }));
+        }
+        _ => bail!("thinking_type must be adaptive, enabled, or disabled"),
+    }
+    Ok(())
 }
 
 fn build_count_tokens_body(input: &ProviderCountTokensInput) -> Result<Value> {
@@ -1419,6 +1814,17 @@ fn parameter_u64(input: &ProviderInvocationInput, key: &str) -> Option<u64> {
         Value::String(text) => text.parse::<u64>().ok(),
         _ => None,
     })
+}
+
+fn positive_model_parameter(input: &ProviderInvocationInput, key: &str) -> Result<Option<u64>> {
+    let Some(value) = input.model_parameters.get(key) else {
+        return Ok(None);
+    };
+    let value = value
+        .as_u64()
+        .filter(|value| *value > 0)
+        .with_context(|| format!("{key} must be a positive integer"))?;
+    Ok(Some(value))
 }
 
 fn normalize_scalar_parameter(value: Value) -> Option<Value> {
@@ -1980,12 +2386,12 @@ mod tests {
                 "required_capabilities": [
                     "count_tokens",
                     "system_prompt_blocks",
-                    "end_user_reference"
+                    "end_user_reference",
+                    "protocol_context"
                 ],
                 "client_protocol_envelope": {
                     "source_protocol": "anthropic_messages",
-                    "policy": "anthropic_messages_v1",
-                    "headers": { "anthropic-beta": "prompt-caching" }
+                    "headers": { "anthropic-beta": ["prompt-caching"] }
                 }
             }),
         }
@@ -2300,6 +2706,7 @@ mod tests {
             "system_prompt_cache_control",
             "end_user_reference",
             "count_tokens",
+            "protocol_context",
         ] {
             assert_eq!(manifest.matches(capability).count(), 1);
         }
@@ -2482,41 +2889,251 @@ mod tests {
     }
 
     #[test]
-    fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
+    fn wp_d2b_protocol_context_mirrors_the_frozen_host_abi() {
+        let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "anthropic_messages",
+            "query": {"preview": ["one", "two"]},
+            "headers": {
+                "anthropic-version": ["2023-06-01"],
+                "anthropic-beta": ["prompt-caching", "private-beta"]
+            },
+            "body": {"context_management": {"edits": []}}
+        }))
+        .expect("the provider must deserialize the current Host envelope without projection");
+
+        assert_eq!(
+            envelope.query["preview"],
+            vec!["one".to_string(), "two".to_string()]
+        );
+        assert_eq!(
+            envelope.headers["anthropic-beta"],
+            vec!["prompt-caching".to_string(), "private-beta".to_string()]
+        );
+        assert_eq!(
+            serde_json::to_value(&envelope).unwrap(),
+            json!({
+                "source_protocol": "anthropic_messages",
+                "query": {"preview": ["one", "two"]},
+                "headers": {
+                    "anthropic-version": ["2023-06-01"],
+                    "anthropic-beta": ["prompt-caching", "private-beta"]
+                },
+                "body": {"context_management": {"edits": []}}
+            })
+        );
+        serde_json::from_value::<ProtocolContextEnvelope>(json!({
+            "source_protocol": "anthropic_messages",
+            "policy": "anthropic_messages_v1"
+        }))
+        .expect_err("legacy envelope policy must not create a second ABI shape");
+    }
+
+    #[test]
+    fn wp_d2b_typed_context_window_and_reasoning_render_exact_anthropic_wire() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "provider-config-secret".to_string(),
+            anthropic_version: "2023-06-01".to_string(),
+            validate_model: true,
+            proxy_url: None,
+        };
+
+        for (mode, budget_tokens) in [
+            ("adaptive", None),
+            ("enabled", Some(2048_u64)),
+            ("disabled", None),
+        ] {
+            let mut reasoning = json!({"mode": mode, "effort": "max"});
+            if let Some(budget_tokens) = budget_tokens {
+                reasoning["budget_tokens"] = json!(budget_tokens);
+            }
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-anthropic",
+                "provider_code": "anthropic",
+                "protocol": "anthropic_messages",
+                "model": "claude-sonnet-4-20250514",
+                "model_parameters": {
+                    "max_output_tokens": 4096,
+                    "requested_context_window": 1000000,
+                    "reasoning": reasoning
+                }
+            }))
+            .unwrap();
+
+            let typed = build_typed_messages_body(&input).unwrap();
+
+            assert_eq!(typed.requested_context_window, Some(1_000_000));
+            assert_eq!(typed.body["thinking"]["type"], mode);
+            assert_eq!(typed.body["output_config"]["effort"], "max");
+            assert!(typed.body.get("requested_context_window").is_none());
+            match budget_tokens {
+                Some(value) => assert_eq!(typed.body["thinking"]["budget_tokens"], value),
+                None => assert!(typed.body["thinking"].get("budget_tokens").is_none()),
+            }
+
+            let headers = build_headers(&config, None, true).unwrap();
+            let beta_values = headers
+                .get_all(ANTHROPIC_BETA_HEADER)
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(beta_values, vec![ANTHROPIC_CONTEXT_1M_BETA]);
+            assert_eq!(headers["x-api-key"], "provider-config-secret");
+        }
+    }
+
+    #[test]
+    fn wp_d2b_restores_every_safe_anthropic_residual_after_typed_body() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-anthropic",
             "provider_code": "anthropic",
             "protocol": "anthropic_messages",
             "model": "claude-sonnet-4-20250514",
+            "model_parameters": {
+                "max_output_tokens": 4096,
+                "requested_context_window": 1000000,
+                "reasoning": {"mode": "adaptive", "effort": "max"}
+            },
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
-                "policy": "anthropic_messages_v1",
+                "query": {"preview": ["one", "two"]},
                 "headers": {
-                    "anthropic-version": "2023-06-01",
-                    "anthropic-beta": "prompt-caching",
-                    "x-claude-code-session-id": "session-123",
-                    "user-agent": "ClaudeCode/1.0",
-                    "x-api-key": "client-auth-must-not-win"
+                    "anthropic-version": ["2023-06-01"],
+                    "anthropic-beta": ["prompt-caching", "private-beta"],
+                    "user-agent": ["ClaudeCode/1.0"]
+                },
+                "body": {
+                    "context_management": {
+                        "edits": [{"type": "clear_thinking_20251015"}]
+                    },
+                    "future_anthropic_option": {"shape": "opaque"}
                 }
             }
         }))
         .unwrap();
         let config = ProviderConfig {
-            base_url: DEFAULT_BASE_URL.to_string(),
+            base_url: "https://api.anthropic.test".to_string(),
             api_key: "provider-config-secret".to_string(),
             anthropic_version: "config-version".to_string(),
             validate_model: true,
             proxy_url: None,
         };
 
-        let headers = build_headers(&config, input.client_protocol_envelope.as_ref()).unwrap();
+        let typed = build_typed_messages_body(&input).unwrap();
+        assert!(typed.body.get("context_management").is_none());
+        let body =
+            restore_protocol_context_body(typed.body, input.client_protocol_envelope.as_ref())
+                .unwrap();
+        let url = build_url_with_protocol_context(
+            &config,
+            "/v1/messages",
+            input.client_protocol_envelope.as_ref(),
+        )
+        .unwrap();
+        let headers =
+            build_headers(&config, input.client_protocol_envelope.as_ref(), true).unwrap();
 
-        assert_eq!(headers["x-api-key"], "provider-config-secret");
-        assert_eq!(headers["anthropic-version"], "2023-06-01");
-        assert_eq!(headers["anthropic-beta"], "prompt-caching");
-        assert_eq!(headers["x-claude-code-session-id"], "session-123");
+        assert_eq!(
+            body["context_management"]["edits"][0]["type"],
+            "clear_thinking_20251015"
+        );
+        assert_eq!(body["future_anthropic_option"]["shape"], "opaque");
+        assert_eq!(body["model"], "claude-sonnet-4-20250514");
+        assert_eq!(body["thinking"]["type"], "adaptive");
+        assert_eq!(body["output_config"]["effort"], "max");
+        let query = Url::parse(&url)
+            .unwrap()
+            .query_pairs()
+            .map(|(name, value)| (name.into_owned(), value.into_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            query,
+            vec![
+                ("preview".to_string(), "one".to_string()),
+                ("preview".to_string(), "two".to_string())
+            ]
+        );
+        assert_eq!(headers[ANTHROPIC_VERSION_HEADER], "2023-06-01");
         assert_eq!(headers["user-agent"], "ClaudeCode/1.0");
+        assert_eq!(headers["x-api-key"], "provider-config-secret");
+        let beta_values = headers
+            .get_all(ANTHROPIC_BETA_HEADER)
+            .iter()
+            .map(|value| value.to_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            beta_values,
+            vec![ANTHROPIC_CONTEXT_1M_BETA, "prompt-caching", "private-beta"]
+        );
+    }
+
+    #[test]
+    fn wp_d2b_rejects_unconsumed_foreign_reserved_or_colliding_context() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "provider-config-secret".to_string(),
+            anthropic_version: "2023-06-01".to_string(),
+            validate_model: true,
+            proxy_url: None,
+        };
+        let typed_body = json!({
+            "model": "claude-sonnet-4-20250514",
+            "messages": [],
+            "stream": true,
+            "max_tokens": 4096
+        });
+
+        let foreign: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_responses",
+            "query": {"preview": ["one"]}
+        }))
+        .unwrap();
+        restore_protocol_context_body(typed_body.clone(), Some(&foreign))
+            .expect_err("foreign context must never be silently discarded");
+
+        let reserved_query: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "anthropic_messages",
+            "query": {"authorization": ["query-secret"]}
+        }))
+        .unwrap();
+        build_url_with_protocol_context(&config, "/v1/messages", Some(&reserved_query))
+            .expect_err("reserved query auth must be rejected");
+
+        for header in ["x-api-key", "connection", "content-type"] {
+            let reserved_header = ProtocolContextEnvelope {
+                source_protocol: ANTHROPIC_MESSAGES_PROTOCOL.to_string(),
+                headers: BTreeMap::from([(header.to_string(), vec!["must-not-cross".to_string()])]),
+                ..ProtocolContextEnvelope::default()
+            };
+            build_headers(&config, Some(&reserved_header), false)
+                .expect_err("reserved or typed transport headers must be rejected");
+        }
+
+        let typed_collision: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "anthropic_messages",
+            "body": {"model": "context-must-not-win"}
+        }))
+        .unwrap();
+        restore_protocol_context_body(typed_body.clone(), Some(&typed_collision))
+            .expect_err("typed body collisions must be rejected");
+
+        let nested_auth: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "anthropic_messages",
+            "body": {"context_management": {"authorization": "nested-secret"}}
+        }))
+        .unwrap();
+        restore_protocol_context_body(typed_body, Some(&nested_auth))
+            .expect_err("nested reserved auth must be rejected");
+
+        let typed_beta_collision: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "anthropic_messages",
+            "headers": {"anthropic-beta": ["context-1m-2025-08-07"]}
+        }))
+        .unwrap();
+        build_headers(&config, Some(&typed_beta_collision), true)
+            .expect_err("the residual must not own the typed 1M beta token");
     }
 
     #[test]
