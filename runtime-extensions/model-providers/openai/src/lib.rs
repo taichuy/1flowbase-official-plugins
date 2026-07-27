@@ -4081,7 +4081,15 @@ mod tests {
     fn responses_body_maps_native_tool_calls_and_tool_results() {
         let input = ProviderInvocationInput {
             contract_version: ProviderInvocationContractVersion::Current,
+            protocol: "openai_responses".to_string(),
             model: "gpt-5.1".to_string(),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ProtocolContext,
+            ]),
+            client_protocol_envelope: Some(ProtocolContextEnvelope {
+                source_protocol: "openai_responses".to_string(),
+                ..Default::default()
+            }),
             previous_response_id: Some("resp_previous".to_string()),
             messages: vec![
                 ProviderMessage {
@@ -4436,6 +4444,8 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": {
                 "base_url": base_url,
@@ -4575,9 +4585,10 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": { "base_url": base_url, "api_key": "legacy-compact-secret" },
-            "required_capabilities": ["compact.responses_compact"],
+            "required_capabilities": ["compact.responses_compact", "protocol_context"],
             "messages": [{ "role": "user", "content": "retain this turn" }]
         }))
         .expect("typed legacy Compact input should deserialize");
@@ -4637,9 +4648,10 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": { "base_url": base_url, "api_key": "v2-compact-secret" },
-            "required_capabilities": ["compact.responses_compaction_v2"],
+            "required_capabilities": ["compact.responses_compaction_v2", "protocol_context"],
             "messages": [{ "role": "user", "content": "retain this turn" }]
         }))
         .expect("typed V2 Compact input should deserialize");
@@ -4698,9 +4710,10 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": { "base_url": base_url, "api_key": "remote-failure-secret" },
-            "required_capabilities": ["compact.responses_compaction_v2"],
+            "required_capabilities": ["compact.responses_compaction_v2", "protocol_context"],
             "messages": [{ "role": "user", "content": "retain this turn" }]
         }))
         .expect("typed V2 Compact input should deserialize");

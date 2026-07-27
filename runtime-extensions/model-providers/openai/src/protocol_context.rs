@@ -145,6 +145,9 @@ pub(crate) fn append_protocol_query(
     url: &mut Url,
     context: &RestoredProtocolContext,
 ) -> Result<()> {
+    if context.query.is_empty() {
+        return Ok(());
+    }
     let owned = url
         .query_pairs()
         .map(|(name, _)| name.into_owned())
