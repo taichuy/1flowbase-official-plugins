@@ -1117,8 +1117,7 @@ fn provider_upstream_error_from_parts(
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    let upstream_message = upstream_error_message(&raw_body);
-    let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    let message = upstream_error_body_message(status, &raw_body);
     let mut provider_details = Map::new();
     provider_details.insert("status".to_string(), json!(status.as_u16()));
     if let Some(request_id) = response_request_id(headers) {
@@ -1133,34 +1132,12 @@ fn provider_upstream_error_from_parts(
     }
 }
 
-fn upstream_error_message(raw_body: &str) -> String {
-    extract_upstream_error_message(raw_body)
-        .unwrap_or_else(|| "provider upstream request failed".to_string())
-}
-
-fn extract_upstream_error_message(raw_body: &str) -> Option<String> {
-    if let Ok(payload) = serde_json::from_str::<Value>(raw_body.trim()) {
-        if let Some(message) = upstream_error_message_from_json(&payload) {
-            return Some(message.to_string());
-        }
+fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
+    if raw_body.is_empty() {
+        format!("HTTP {status}")
+    } else {
+        raw_body.to_string()
     }
-
-    raw_body.lines().find_map(|line| {
-        let trimmed = line.trim();
-        if !trimmed.starts_with('{') {
-            return None;
-        }
-        let payload = serde_json::from_str::<Value>(trimmed).ok()?;
-        upstream_error_message_from_json(&payload).map(ToOwned::to_owned)
-    })
-}
-
-fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
-    payload
-        .get("error")
-        .and_then(|value| value.get("message").or(Some(value)))
-        .and_then(Value::as_str)
-        .or_else(|| payload.get("message").and_then(Value::as_str))
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -2645,10 +2622,11 @@ mod tests {
 
     #[tokio::test]
     async fn c2_count_tokens_preserves_typed_upstream_errors() {
+        let raw_body = r#"{"error":{"message":"CountTokens quota exceeded"}}"#;
         let base_url = start_http_error_server(
             "HTTP/1.1 429 Too Many Requests",
             "application/json",
-            r#"{"error":{"message":"CountTokens quota exceeded"}}"#,
+            raw_body,
         );
 
         let error = handle_request(count_tokens_invoke_request(&base_url))
@@ -2659,7 +2637,8 @@ mod tests {
             .expect("upstream CountTokens error must preserve its typed runtime error");
 
         assert_eq!(typed.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert!(typed.message.contains("CountTokens quota exceeded"));
+        assert_eq!(typed.message, raw_body);
+        assert_eq!(typed.provider_summary.as_deref(), Some(raw_body));
     }
 
     #[test]
@@ -3137,7 +3116,7 @@ mod tests {
     }
 
     #[test]
-    fn ac_005_upstream_raw_body_and_secrets_stay_out_of_error_contract() {
+    fn upstream_response_body_is_the_error_message_without_response_header_leakage() {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -3176,13 +3155,8 @@ mod tests {
         );
 
         assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert!(error.message.contains("provider upstream request failed"));
-        assert!(!error.message.contains(&raw_body));
-        assert!(!error
-            .provider_summary
-            .as_deref()
-            .expect("provider_summary should exist")
-            .contains(&raw_body));
+        assert_eq!(error.message, raw_body);
+        assert_eq!(error.provider_summary.as_deref(), Some(raw_body.as_str()));
         let details = error
             .provider_details
             .as_ref()
@@ -3192,43 +3166,52 @@ mod tests {
             &json!({ "status": 403, "request_id": "req_plain" })
         );
         let encoded = serde_json::to_string(&error).unwrap();
-        assert!(!encoded.contains(&raw_body));
+        assert!(encoded.contains(&raw_body));
         assert!(!encoded.contains("provider-secret"));
         assert!(!encoded.contains("session=secret"));
         assert!(!encoded.contains("response-secret"));
     }
 
     #[test]
-    fn upstream_json_body_uses_error_message_as_public_summary() {
+    fn upstream_json_plain_html_and_whitespace_bodies_are_preserved_without_parsing() {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert(
             HeaderName::from_static("request-id"),
             HeaderValue::from_static("req_json"),
         );
-        let raw_body =
-            r#"{"error":{"type":"permission_error","message":"Workspace access denied"}}"#
-                .to_string();
+        for raw_body in [
+            r#"{"future_error":{"shape":"unknown"},"message":"keep the whole object"}"#,
+            " plain upstream text\nwith trailing newline \n",
+            "<html><body>future provider failure</body></html>",
+            " \r\n\t ",
+        ] {
+            let error = provider_upstream_error_from_parts(
+                reqwest::StatusCode::FORBIDDEN,
+                &headers,
+                raw_body.to_string(),
+            );
 
-        let error = provider_upstream_error_from_parts(
-            reqwest::StatusCode::FORBIDDEN,
+            assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+            assert_eq!(error.message, raw_body);
+            assert_eq!(error.provider_summary.as_deref(), Some(raw_body));
+            let details = error
+                .provider_details
+                .expect("upstream error should carry details");
+            assert_eq!(details["status"], 403);
+            assert_eq!(details["request_id"], "req_json");
+        }
+
+        let empty = provider_upstream_error_from_parts(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
             &headers,
-            raw_body.clone(),
+            String::new(),
         );
-
-        assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert!(error.message.contains("Workspace access denied"));
+        assert_eq!(empty.message, "HTTP 503 Service Unavailable");
         assert_eq!(
-            error.provider_summary.as_deref(),
-            Some(error.message.as_str())
+            empty.provider_summary.as_deref(),
+            Some("HTTP 503 Service Unavailable")
         );
-        let details = error
-            .provider_details
-            .expect("upstream error should carry details");
-        assert_eq!(details["status"], 403);
-        assert_eq!(details["request_id"], "req_json");
-        assert!(details.get("raw_body").is_none());
-        assert!(details.get("headers").is_none());
     }
 
     #[test]
@@ -3617,13 +3600,14 @@ mod tests {
             runtime_error.kind,
             ProviderRuntimeErrorKind::ProviderUpstreamError
         );
-        assert!(!runtime_error.message.contains(raw_body));
+        assert_eq!(runtime_error.message, raw_body);
+        assert_eq!(runtime_error.provider_summary.as_deref(), Some(raw_body));
         assert_eq!(
             details,
             &json!({ "status": 403, "request_id": "req_stream" })
         );
         let encoded = serde_json::to_string(runtime_error).unwrap();
-        assert!(!encoded.contains(raw_body));
+        assert!(encoded.contains(raw_body));
         assert!(!encoded.contains("response-secret"));
     }
 }
