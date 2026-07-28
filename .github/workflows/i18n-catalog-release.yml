@@ -1,0 +1,84 @@
+name: i18n-catalog-release
+
+on:
+  pull_request:
+    paths:
+      - 'i18n/**'
+      - 'scripts/i18n-catalog*.mjs'
+      - 'scripts/_tests/i18n-catalog*.test.mjs'
+      - '.github/workflows/i18n-catalog-release.yml'
+  push:
+    branches: [main]
+    tags: ['i18n-catalog-v*.*.*']
+    paths:
+      - 'i18n/**'
+      - 'scripts/i18n-catalog*.mjs'
+      - 'scripts/_tests/i18n-catalog*.test.mjs'
+      - '.github/workflows/i18n-catalog-release.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: i18n-catalog-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify source contract and canonical Seed
+        run: |
+          node --test scripts/_tests/i18n-catalog*.test.mjs
+          node scripts/i18n-catalog-publisher.mjs --check
+
+  immutable-release:
+    if: startsWith(github.ref, 'refs/tags/i18n-catalog-v')
+    needs: source-contract
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Bind tag, catalog version, and digest
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p 'JSON.parse(require("fs").readFileSync("i18n/catalog.json", "utf8")).catalog_version')"
+          expected_tag="i18n-catalog-v${version}"
+          if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match catalog version ${version}." >&2
+            exit 1
+          fi
+          node scripts/i18n-catalog-publisher.mjs --check
+          asset="i18n-catalog-seed-v${version}.json"
+          cp i18n/dist/catalog-seed.json "${asset}"
+          digest="$(sha256sum "${asset}" | awk '{print $1}')"
+          printf '%s  %s\n' "${digest}" "${asset}" > "${asset}.sha256"
+          echo "asset=${asset}" >> "${GITHUB_OUTPUT}"
+          echo "digest=sha256:${digest}" >> "${GITHUB_OUTPUT}"
+      - name: Publish immutable source release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.release.outputs.asset }}
+          DIGEST: ${{ steps.release.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Immutable i18n catalog release already exists: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          gh release create "${GITHUB_REF_NAME}" \
+            "${ASSET}" "${ASSET}.sha256" \
+            --target "${GITHUB_SHA}" \
+            --title "Official i18n catalog ${GITHUB_REF_NAME}" \
+            --notes "Canonical Seed digest: ${DIGEST}"
