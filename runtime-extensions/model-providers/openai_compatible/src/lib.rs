@@ -773,7 +773,7 @@ fn matching_protocol_context(
         return Ok(None);
     };
     if envelope.source_protocol != OPENAI_CHAT_PROTOCOL {
-        bail!("unconsumed foreign protocol context");
+        return Ok(None);
     }
     Ok(Some(envelope))
 }
@@ -2398,7 +2398,7 @@ mod tests {
     }
 
     #[test]
-    fn wp_d2d_rejects_foreign_reserved_colliding_or_unconsumed_context() {
+    fn wp_r5_ignores_foreign_context_and_rejects_same_protocol_reserved_or_colliding_context() {
         let config = normalize_provider_config(&json!({
             "base_url": "https://compatible.example/v1",
             "api_key": "provider-secret",
@@ -2417,8 +2417,11 @@ mod tests {
             "body": {"future_option": true}
         }))
         .unwrap();
-        restore_protocol_context_body(typed_body.clone(), Some(&foreign))
-            .expect_err("foreign context must never be silently discarded");
+        assert_eq!(
+            restore_protocol_context_body(typed_body.clone(), Some(&foreign))
+                .expect("foreign context must not block typed compatible rendering"),
+            typed_body
+        );
 
         let reserved_query: ProtocolContextEnvelope = serde_json::from_value(json!({
             "source_protocol": "openai_chat",
