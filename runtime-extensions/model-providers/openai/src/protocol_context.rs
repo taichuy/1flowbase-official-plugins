@@ -105,11 +105,7 @@ pub(crate) fn restore_protocol_context(
         return Ok((typed_body, RestoredProtocolContext::default()));
     };
     if envelope.source_protocol != protocol.source_protocol() {
-        bail!(
-            "unconsumed foreign protocol context: expected {}, got {}",
-            protocol.source_protocol(),
-            envelope.source_protocol
-        );
+        return Ok((typed_body, RestoredProtocolContext::default()));
     }
 
     validate_multi_value_fields("query", &envelope.query, false)?;
@@ -214,11 +210,7 @@ fn validate_protocol_header_name(name: &str) -> Result<()> {
     let normalized = name.trim().to_ascii_lowercase().replace('_', "-");
     if matches!(
         normalized.as_str(),
-        "content-type"
-            | "accept"
-            | "accept-encoding"
-            | "origin"
-            | "x-codex-turn-metadata"
+        "content-type" | "accept" | "accept-encoding" | "origin" | "x-codex-turn-metadata"
     ) || normalized.starts_with("sec-websocket-")
     {
         bail!("reserved protocol context field at headers: {name}");
@@ -451,18 +443,18 @@ mod tests {
     }
 
     #[test]
-    fn wp_d2c_current_abi_rejects_reserved_fields_and_foreign_context() {
+    fn wp_r3_foreign_context_is_not_injected_while_same_protocol_fields_stay_fail_closed() {
         let foreign = ProtocolContextEnvelope {
             source_protocol: "anthropic_messages".to_string(),
             body: BTreeMap::from([("future_option".to_string(), json!(true))]),
             ..ProtocolContextEnvelope::default()
         };
-        assert!(
+        let (body, restored) =
             restore_protocol_context(OpenAiWireProtocol::Responses, json!({}), Some(&foreign))
-                .unwrap_err()
-                .to_string()
-                .contains("unconsumed foreign protocol context")
-        );
+                .expect("foreign protocol context must not block typed OpenAI rendering");
+        assert_eq!(body, json!({}));
+        assert!(restored.query.is_empty());
+        assert!(restored.headers.is_empty());
 
         for envelope in [
             ProtocolContextEnvelope {
@@ -508,21 +500,16 @@ mod tests {
         ] {
             let envelope = ProtocolContextEnvelope {
                 source_protocol: "openai_chat".to_string(),
-                headers: BTreeMap::from([(
-                    header.to_string(),
-                    vec!["must-not-cross".to_string()],
-                )]),
+                headers: BTreeMap::from([(header.to_string(), vec!["must-not-cross".to_string()])]),
                 ..ProtocolContextEnvelope::default()
             };
 
-            assert!(restore_protocol_context(
-                OpenAiWireProtocol::Chat,
-                json!({}),
-                Some(&envelope)
-            )
-            .unwrap_err()
-            .to_string()
-            .contains("reserved protocol context field"));
+            assert!(
+                restore_protocol_context(OpenAiWireProtocol::Chat, json!({}), Some(&envelope))
+                    .unwrap_err()
+                    .to_string()
+                    .contains("reserved protocol context field")
+            );
         }
     }
 

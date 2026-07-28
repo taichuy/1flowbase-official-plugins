@@ -1576,13 +1576,11 @@ fn openai_wire_protocol(input: &ProviderInvocationInput) -> Result<OpenAiWirePro
         return Ok(OpenAiWireProtocol::Responses);
     }
     if let Some(envelope) = input.client_protocol_envelope.as_ref() {
-        return match envelope.source_protocol.as_str() {
-            "openai_chat" => Ok(OpenAiWireProtocol::Chat),
-            "openai_responses" => Ok(OpenAiWireProtocol::Responses),
-            foreign => bail!(
-                "unconsumed foreign protocol context: expected OpenAI Chat or Responses, got {foreign}"
-            ),
-        };
+        match envelope.source_protocol.as_str() {
+            "openai_chat" => return Ok(OpenAiWireProtocol::Chat),
+            "openai_responses" => return Ok(OpenAiWireProtocol::Responses),
+            _ => {}
+        }
     }
     match input.protocol.as_str() {
         "openai_chat" => Ok(OpenAiWireProtocol::Chat),
@@ -4594,7 +4592,10 @@ mod tests {
             "provider_code": "openai",
             "protocol": "openai_responses",
             "required_capabilities": ["protocol_context"],
-            "client_protocol_envelope": { "source_protocol": "openai_responses" },
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "body": { "foreign_raw_canary": "must-not-reach-openai" }
+            },
             "model": "gpt-5.4-mini",
             "provider_config": {
                 "base_url": base_url,
@@ -4620,6 +4621,7 @@ mod tests {
         let body: Value = serde_json::from_str(body).unwrap();
 
         assert!(headers.starts_with("POST /responses HTTP/1.1"));
+        assert!(body.get("foreign_raw_canary").is_none());
         assert!(headers
             .to_ascii_lowercase()
             .contains("authorization: bearer wire-secret"));
