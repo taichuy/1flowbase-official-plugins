@@ -834,7 +834,7 @@ fn matching_protocol_context(
         return Ok(None);
     };
     if envelope.source_protocol != ANTHROPIC_MESSAGES_PROTOCOL {
-        bail!("unconsumed foreign protocol context");
+        return Ok(None);
     }
     Ok(Some(envelope))
 }
@@ -850,11 +850,7 @@ fn protocol_context_header_is_safe(name: &str) -> bool {
     protocol_context_field_is_safe(name)
         && !matches!(
             name,
-            "content-type"
-                | "accept"
-                | "accept-encoding"
-                | "origin"
-                | "x-claude-code-session-id"
+            "content-type" | "accept" | "accept-encoding" | "origin" | "x-claude-code-session-id"
         )
 }
 
@@ -3090,7 +3086,7 @@ mod tests {
     }
 
     #[test]
-    fn wp_d2b_rejects_unconsumed_foreign_reserved_or_colliding_context() {
+    fn wp_r4_ignores_foreign_context_and_rejects_same_protocol_reserved_or_colliding_context() {
         let config = ProviderConfig {
             base_url: DEFAULT_BASE_URL.to_string(),
             api_key: "provider-config-secret".to_string(),
@@ -3110,8 +3106,11 @@ mod tests {
             "query": {"preview": ["one"]}
         }))
         .unwrap();
-        restore_protocol_context_body(typed_body.clone(), Some(&foreign))
-            .expect_err("foreign context must never be silently discarded");
+        assert_eq!(
+            restore_protocol_context_body(typed_body.clone(), Some(&foreign))
+                .expect("foreign context must not block typed Anthropic rendering"),
+            typed_body
+        );
 
         let reserved_query: ProtocolContextEnvelope = serde_json::from_value(json!({
             "source_protocol": "anthropic_messages",
