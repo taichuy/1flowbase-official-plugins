@@ -778,6 +778,29 @@ fn matching_protocol_context(
     Ok(Some(envelope))
 }
 
+fn attach_foreign_protocol_context_decision(
+    provider_metadata: &mut Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = envelope else {
+        return Ok(());
+    };
+    if envelope.source_protocol == OPENAI_CHAT_PROTOCOL {
+        return Ok(());
+    }
+    let metadata = provider_metadata
+        .as_object_mut()
+        .context("OpenAI Compatible provider metadata must be an object")?;
+    if metadata.contains_key("provider_request_translation") {
+        bail!("OpenAI Compatible provider metadata contains reserved request translation receipt");
+    }
+    metadata.insert(
+        "provider_request_translation".to_string(),
+        json!({ "decisions": ["omitted_foreign_protocol_context"] }),
+    );
+    Ok(())
+}
+
 fn protocol_context_header_is_safe(name: &str) -> bool {
     let normalized = name.trim().to_ascii_lowercase().replace('_', "-");
     protocol_context_field_is_safe(&normalized)
@@ -1349,7 +1372,13 @@ where
         input.client_protocol_envelope.as_ref(),
     )
     .await?;
-    read_streaming_chat_completion(response, input.model, &mut on_event).await
+    let mut output =
+        read_streaming_chat_completion(response, input.model.clone(), &mut on_event).await?;
+    attach_foreign_protocol_context_decision(
+        &mut output.result.provider_metadata,
+        input.client_protocol_envelope.as_ref(),
+    )?;
+    Ok(output)
 }
 
 fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -2422,6 +2451,14 @@ mod tests {
                 .expect("foreign context must not block typed compatible rendering"),
             typed_body
         );
+        let mut metadata = json!({ "provider": "openai_compatible" });
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&foreign)).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_foreign_protocol_context"])
+        );
+        assert!(!metadata.to_string().contains("future_option"));
+        assert!(metadata.to_string().len() <= 512);
 
         let reserved_query: ProtocolContextEnvelope = serde_json::from_value(json!({
             "source_protocol": "openai_chat",

@@ -1282,6 +1282,10 @@ impl OpenAiProviderRuntime {
             }
         }?;
         attach_openai_model_intent(&mut output, &request.model_intent);
+        attach_foreign_protocol_context_decision(
+            &mut output.result.provider_metadata,
+            input.client_protocol_envelope.as_ref(),
+        )?;
         Ok(output)
     }
 
@@ -2284,6 +2288,32 @@ fn attach_openai_model_intent(
             Value::Object(intent.clone()),
         );
     }
+}
+
+fn attach_foreign_protocol_context_decision(
+    provider_metadata: &mut Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = envelope else {
+        return Ok(());
+    };
+    if matches!(
+        envelope.source_protocol.as_str(),
+        "openai_chat" | "openai_responses"
+    ) {
+        return Ok(());
+    }
+    let metadata = provider_metadata
+        .as_object_mut()
+        .context("OpenAI provider metadata must be an object")?;
+    if metadata.contains_key("provider_request_translation") {
+        bail!("OpenAI provider metadata contains reserved request translation receipt");
+    }
+    metadata.insert(
+        "provider_request_translation".to_string(),
+        json!({ "decisions": ["omitted_foreign_protocol_context"] }),
+    );
+    Ok(())
 }
 
 fn normalize_scalar_parameter(value: Value) -> Option<Value> {
@@ -3717,6 +3747,24 @@ mod tests {
             Request as ServerHandshakeRequest, Response as ServerHandshakeResponse,
         },
     };
+
+    #[test]
+    fn wp_r3_foreign_context_receipt_is_bounded_and_contains_no_raw_values() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "anthropic_messages".to_string(),
+            body: BTreeMap::from([("raw-canary".to_string(), json!("must-not-leak"))]),
+            ..ProtocolContextEnvelope::default()
+        };
+        let mut metadata = json!({ "provider": "openai" });
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&envelope)).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_foreign_protocol_context"])
+        );
+        assert!(!metadata.to_string().contains("raw-canary"));
+        assert!(!metadata.to_string().contains("must-not-leak"));
+        assert!(metadata.to_string().len() <= 512);
+    }
 
     #[tokio::test]
     async fn ac_005_validate_redacts_configured_proxy_url() {

@@ -839,6 +839,29 @@ fn matching_protocol_context(
     Ok(Some(envelope))
 }
 
+fn attach_foreign_protocol_context_decision(
+    provider_metadata: &mut Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = envelope else {
+        return Ok(());
+    };
+    if envelope.source_protocol == ANTHROPIC_MESSAGES_PROTOCOL {
+        return Ok(());
+    }
+    let metadata = provider_metadata
+        .as_object_mut()
+        .context("Anthropic provider metadata must be an object")?;
+    if metadata.contains_key("provider_request_translation") {
+        bail!("Anthropic provider metadata contains reserved request translation receipt");
+    }
+    metadata.insert(
+        "provider_request_translation".to_string(),
+        json!({ "decisions": ["omitted_foreign_protocol_context"] }),
+    );
+    Ok(())
+}
+
 fn anthropic_beta_tokens(value: &str) -> impl Iterator<Item = &str> {
     value
         .split(',')
@@ -1293,13 +1316,18 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, &config))?;
-    read_streaming_message(
+    let mut output = read_streaming_message(
         response,
-        input.model,
+        input.model.clone(),
         effective_max_output_tokens,
         &mut on_event,
     )
-    .await
+    .await?;
+    attach_foreign_protocol_context_decision(
+        &mut output.result.provider_metadata,
+        input.client_protocol_envelope.as_ref(),
+    )?;
+    Ok(output)
 }
 
 fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -3111,6 +3139,14 @@ mod tests {
                 .expect("foreign context must not block typed Anthropic rendering"),
             typed_body
         );
+        let mut metadata = json!({ "provider": "anthropic" });
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&foreign)).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_foreign_protocol_context"])
+        );
+        assert!(!metadata.to_string().contains("preview"));
+        assert!(metadata.to_string().len() <= 512);
 
         let reserved_query: ProtocolContextEnvelope = serde_json::from_value(json!({
             "source_protocol": "anthropic_messages",
