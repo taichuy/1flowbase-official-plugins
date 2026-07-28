@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use eventsource_stream::Eventsource;
 use futures_util::StreamExt;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
@@ -11,6 +12,10 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+
+mod sse_codec;
+
+use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "openai_compatible";
 const DEFAULT_VALIDATE_MODEL: bool = true;
@@ -1456,8 +1461,13 @@ where
             .into());
     }
 
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
     let mut events = Vec::new();
     let mut text = String::new();
     let mut tool_call_builders: Vec<ToolCallBuilder> = Vec::new();
@@ -1468,38 +1478,12 @@ where
     let mut created = Value::Null;
     let mut system_fingerprint = Value::Null;
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        let chunk_text = String::from_utf8_lossy(&chunk);
-        buffer.push_str(&chunk_text);
-        while let Some(line_end) = buffer.find('\n') {
-            let mut line = buffer[..line_end].to_string();
-            if line.ends_with('\r') {
-                line.pop();
-            }
-            buffer.drain(..=line_end);
-            let event_start = events.len();
-            process_sse_line(
-                &line,
-                &mut events,
-                &mut text,
-                &mut tool_call_builders,
-                &mut usage,
-                &mut finish_reason,
-                &mut response_model,
-                &mut response_id,
-                &mut created,
-                &mut system_fingerprint,
-            )?;
-            emit_new_events(&events, event_start, on_event)?;
-        }
-    }
-
-    if !buffer.trim().is_empty() {
-        let line = std::mem::take(&mut buffer);
+    while let Some(event) = stream.next().await {
+        let event =
+            event.map_err(|error| anyhow!("invalid OpenAI-compatible SSE stream: {error}"))?;
         let event_start = events.len();
-        process_sse_line(
-            &line,
+        process_sse_data(
+            &event.data,
             &mut events,
             &mut text,
             &mut tool_call_builders,
@@ -1563,8 +1547,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn process_sse_line(
-    line: &str,
+fn process_sse_data(
+    data: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
     tool_call_builders: &mut Vec<ToolCallBuilder>,
@@ -1575,11 +1559,6 @@ fn process_sse_line(
     created: &mut Value,
     system_fingerprint: &mut Value,
 ) -> Result<()> {
-    let line = line.trim();
-    if line.is_empty() || line.starts_with(':') || !line.starts_with("data:") {
-        return Ok(());
-    }
-    let data = line.trim_start_matches("data:").trim();
     if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
@@ -2107,6 +2086,53 @@ mod tests {
             .expect("chunk trailer should be writable");
     }
 
+    fn start_chunked_sse_server(chunks: Vec<Vec<u8>>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("SSE listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("SSE request should connect");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read timeout");
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request);
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n",
+                )
+                .expect("SSE response headers should be writable");
+            for chunk in chunks {
+                write!(stream, "{:x}\r\n", chunk.len()).expect("chunk size should be writable");
+                stream
+                    .write_all(&chunk)
+                    .expect("chunk payload should be writable");
+                stream
+                    .write_all(b"\r\n")
+                    .expect("chunk trailer should be writable");
+                stream.flush().expect("chunk should flush");
+            }
+            stream
+                .write_all(b"0\r\n\r\n")
+                .expect("terminating chunk should be writable");
+        });
+
+        address
+    }
+
+    fn split_chinese_and_emoji_tcp_chunks(body: &str) -> Vec<Vec<u8>> {
+        let bytes = body.as_bytes();
+        let chinese = body
+            .find('中')
+            .expect("fixture should contain Chinese text");
+        let emoji = body.find('🙂').expect("fixture should contain emoji");
+        vec![
+            bytes[..chinese + 1].to_vec(),
+            bytes[chinese + 1..emoji + 2].to_vec(),
+            bytes[emoji + 2..].to_vec(),
+        ]
+    }
+
     #[test]
     fn wp_d2d_protocol_context_mirrors_the_frozen_host_abi() {
         let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
@@ -2618,6 +2644,65 @@ mod tests {
             serde_json::from_str(&capture_handle.join().expect("capture thread should finish"))
                 .expect("captured body should parse");
         assert_eq!(captured_body["stream"], json!(true));
+    }
+
+    #[tokio::test]
+    async fn compatible_chat_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: message\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"model\":\"gpt-compatible\",\"choices\":[{\"delta\":{\"content\":\"中文🙂\"},\"finish_reason\":null}]}\r\n\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"model\":\"gpt-compatible\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\r\n\r\n",
+            "data: [DONE]\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope =
+            read_streaming_chat_completion(response, "gpt-compatible".to_string(), &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn compatible_chat_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"id\":\"chatcmpl_utf8\",\"choices\":[{\"delta\":{\"content\":\"before\"},\"finish_reason\":null}]}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error =
+            read_streaming_chat_completion(response, "gpt-compatible".to_string(), &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            })
+            .await
+            .expect_err("invalid UTF-8 must fail the OpenAI-compatible SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
     }
 
     #[tokio::test]

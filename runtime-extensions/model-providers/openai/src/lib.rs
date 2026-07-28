@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::Engine;
+use eventsource_stream::Eventsource;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
@@ -28,12 +29,14 @@ use tokio_tungstenite::{
 };
 
 mod protocol_context;
+mod sse_codec;
 
 pub use protocol_context::ProtocolContextEnvelope;
 use protocol_context::{
     append_protocol_headers, append_protocol_query, restore_protocol_context, OpenAiWireProtocol,
     RestoredProtocolContext,
 };
+use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
@@ -503,19 +506,37 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
-    NativeEvent { protocol: String, event: Value },
-    TextDelta { delta: String },
-    ReasoningDelta { delta: String },
-    ToolCallDelta { call_id: String, delta: Value },
-    ToolCallCommit { call: ProviderToolCall },
+    NativeEvent {
+        protocol: String,
+        event: Value,
+    },
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
     OutputItem {
         phase: ProviderOutputItemPhase,
         output_index: usize,
         item: Value,
     },
-    UsageSnapshot { usage: ProviderUsage },
-    Finish { reason: ProviderFinishReason },
-    Error { error: ProviderRuntimeError },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    Error {
+        error: ProviderRuntimeError,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -2885,37 +2906,24 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
-    while let Some(chunk) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
         .context("idle timeout waiting for Chat Completions SSE")?
     {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
+        let event = match event {
+            Ok(event) => event,
             Err(_) if response_stream_finished(&finish_reason) => break,
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(anyhow!("invalid Chat Completions SSE stream: {error}")),
         };
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
-            let block = buffer[..index].to_string();
-            buffer = buffer[index + delimiter_len..].to_string();
-            process_chat_sse_block(
-                &block,
-                &mut events,
-                &mut text,
-                &mut tool_calls,
-                &mut usage,
-                &mut finish_reason,
-                &mut response_id,
-            )?;
-            emit_new_events(&events, on_event)?;
-            all_events.append(&mut events);
-        }
-    }
-    if !buffer.trim().is_empty() {
-        process_chat_sse_block(
-            &buffer,
+        process_chat_sse_data(
+            &event.data,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -2970,8 +2978,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn process_chat_sse_block(
-    block: &str,
+fn process_chat_sse_data(
+    data: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
     tool_calls: &mut BTreeMap<usize, ChatToolCallState>,
@@ -2979,10 +2987,6 @@ fn process_chat_sse_block(
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
 ) -> Result<()> {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    let data = data.trim();
     if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
@@ -3112,43 +3116,27 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
-    while let Some(chunk) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
         .context("idle timeout waiting for Responses SSE")?
     {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
+        let event = match event {
+            Ok(event) => event,
             Err(_) if response_stream_finished(&finish_reason) => break,
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(anyhow!("invalid Responses SSE stream: {error}")),
         };
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
-            let block = buffer[..index].to_string();
-            buffer = buffer[index + delimiter_len..].to_string();
-            if native_passthrough {
-                emit_native_response_sse_block(&block, on_event)?;
-            }
-            process_response_sse_block(
-                &block,
-                &mut events,
-                &mut text,
-                &mut tool_calls,
-                &mut usage,
-                &mut finish_reason,
-                &mut response_id,
-            )?;
-            emit_new_events(&events, on_event)?;
-            all_events.append(&mut events);
-        }
-    }
-    if !buffer.trim().is_empty() {
         if native_passthrough {
-            emit_native_response_sse_block(&buffer, on_event)?;
+            emit_native_response_sse_data(&event.data, on_event)?;
         }
-        process_response_sse_block(
-            &buffer,
+        process_response_sse_payload(
+            &event.data,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -3256,61 +3244,10 @@ fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-fn find_sse_event_boundary(buffer: &str) -> Option<(usize, usize)> {
-    match (buffer.find("\n\n"), buffer.find("\r\n\r\n")) {
-        (Some(left), Some(right)) if left < right => Some((left, 2)),
-        (Some(_), Some(right)) => Some((right, 4)),
-        (Some(left), None) => Some((left, 2)),
-        (None, Some(right)) => Some((right, 4)),
-        (None, None) => None,
-    }
-}
-
-fn process_response_sse_block(
-    block: &str,
-    events: &mut Vec<ProviderStreamEvent>,
-    text: &mut String,
-    tool_calls: &mut ResponseToolCalls,
-    usage: &mut ProviderUsage,
-    finish_reason: &mut ProviderFinishReason,
-    response_id: &mut Value,
-) -> Result<()> {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    process_response_sse_payload(
-        data.trim(),
-        events,
-        text,
-        tool_calls,
-        usage,
-        finish_reason,
-        response_id,
-    )
-}
-
-fn response_sse_block_data(block: &str) -> Option<String> {
-    let mut data = Vec::new();
-    for line in block.lines() {
-        let line = line.trim_end_matches('\r');
-        if let Some(value) = line.strip_prefix("data:") {
-            data.push(value.trim_start());
-        }
-    }
-    if data.is_empty() {
-        return None;
-    }
-    Some(data.join("\n"))
-}
-
-fn emit_native_response_sse_block<F>(block: &str, on_event: &mut F) -> Result<()>
+fn emit_native_response_sse_data<F>(data: &str, on_event: &mut F) -> Result<()>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    let data = data.trim();
     if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
@@ -3322,8 +3259,8 @@ where
 }
 
 #[cfg(test)]
-fn process_response_sse_line(
-    line: &str,
+fn process_response_sse_data(
+    data: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
     tool_calls: &mut ResponseToolCalls,
@@ -3331,11 +3268,6 @@ fn process_response_sse_line(
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
 ) -> Result<()> {
-    let line = line.trim();
-    if !line.starts_with("data:") {
-        return Ok(());
-    }
-    let data = line.trim_start_matches("data:").trim();
     process_response_sse_payload(
         data,
         events,
@@ -3885,6 +3817,49 @@ mod tests {
         (base_url, request_rx)
     }
 
+    fn start_chunked_sse_server(chunks: Vec<Vec<u8>>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("SSE listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("SSE request should connect");
+            let _ = read_http_request_with_body(&mut stream);
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n",
+                )
+                .expect("SSE response headers should be writable");
+            for chunk in chunks {
+                write!(stream, "{:x}\r\n", chunk.len()).expect("chunk size should be writable");
+                stream
+                    .write_all(&chunk)
+                    .expect("chunk payload should be writable");
+                stream
+                    .write_all(b"\r\n")
+                    .expect("chunk trailer should be writable");
+                stream.flush().expect("chunk should flush");
+            }
+            stream
+                .write_all(b"0\r\n\r\n")
+                .expect("terminating chunk should be writable");
+        });
+
+        address
+    }
+
+    fn split_chinese_and_emoji_tcp_chunks(body: &str) -> Vec<Vec<u8>> {
+        let bytes = body.as_bytes();
+        let chinese = body
+            .find('中')
+            .expect("fixture should contain Chinese text");
+        let emoji = body.find('🙂').expect("fixture should contain emoji");
+        vec![
+            bytes[..chinese + 1].to_vec(),
+            bytes[chinese + 1..emoji + 2].to_vec(),
+            bytes[emoji + 2..].to_vec(),
+        ]
+    }
+
     fn start_compact_json_server(
         status: &str,
         response_body: Value,
@@ -3968,6 +3943,131 @@ mod tests {
         });
 
         (proxy_url, request_rx, handle)
+    }
+
+    #[tokio::test]
+    async fn openai_chat_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: message\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"choices\":[{\"delta\":{\"content\":\"中文🙂\"},\"finish_reason\":null}]}\r\n\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\r\n\r\n",
+            "data: [DONE]\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope =
+            read_chat_streaming_response(response, "gpt-5.4".to_string(), &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: response.output_text.delta\r\n",
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_split\",\"delta\":\"中文🙂\"}\r\n\r\n",
+            "event: response.completed\r\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_split\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope = read_streaming_response(
+            response,
+            "gpt-5.4".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn openai_chat_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"id\":\"chatcmpl_utf8\",\"choices\":[{\"delta\":{\"content\":\"before\"},\"finish_reason\":null}]}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_chat_streaming_response(response, "gpt-5.4".to_string(), &mut |event| {
+            events.push(event.clone());
+            Ok(())
+        })
+        .await
+        .expect_err("invalid UTF-8 must fail the Chat Completions SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_utf8\",\"delta\":\"before\"}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_streaming_response(
+            response,
+            "gpt-5.4".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            false,
+        )
+        .await
+        .expect_err("invalid UTF-8 must fail the Responses SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
     }
 
     #[test]
@@ -4134,9 +4234,7 @@ mod tests {
             contract_version: ProviderInvocationContractVersion::Current,
             protocol: "openai_responses".to_string(),
             model: "gpt-5.1".to_string(),
-            required_capabilities: BTreeSet::from([
-                ProviderInvocationCapability::ProtocolContext,
-            ]),
+            required_capabilities: BTreeSet::from([ProviderInvocationCapability::ProtocolContext]),
             client_protocol_envelope: Some(ProtocolContextEnvelope {
                 source_protocol: "openai_responses".to_string(),
                 ..Default::default()
@@ -4362,7 +4460,7 @@ mod tests {
             "future_extension": {"opaque": true}
         });
         let mut captured = Vec::new();
-        emit_native_response_sse_block(&format!("data: {provider_event}"), &mut |event| {
+        emit_native_response_sse_data(&provider_event.to_string(), &mut |event| {
             captured.push(event.clone());
             Ok(())
         })
@@ -4404,7 +4502,7 @@ mod tests {
         ];
         let mut captured = Vec::new();
         for event in &provider_events {
-            emit_native_response_sse_block(&format!("data: {event}"), &mut |event| {
+            emit_native_response_sse_data(&event.to_string(), &mut |event| {
                 captured.push(event.clone());
                 Ok(())
             })
@@ -4424,10 +4522,10 @@ mod tests {
     }
 
     #[test]
-    fn d4_ac_026_native_responses_sse_block_emits_exact_provider_event() {
+    fn d4_ac_026_native_responses_sse_data_emits_exact_provider_event() {
         let mut captured = Vec::new();
-        emit_native_response_sse_block(
-            r#"data: {"type":"response.future.delta","future":{"opaque":true}}"#,
+        emit_native_response_sse_data(
+            r#"{"type":"response.future.delta","future":{"opaque":true}}"#,
             &mut |event| {
                 captured.push(event.clone());
                 Ok(())
@@ -5033,8 +5131,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5043,8 +5141,8 @@ mod tests {
             &mut response_id,
         )
         .unwrap();
-        process_response_sse_line(
-            r#"data: {"type":"response.completed","response":{"id":"resp_1","output":[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.completed","response":{"id":"resp_1","output":[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5072,8 +5170,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5082,8 +5180,8 @@ mod tests {
             &mut response_id,
         )
         .unwrap();
-        process_response_sse_line(
-            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5108,8 +5206,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5120,8 +5218,8 @@ mod tests {
         .unwrap();
         assert!(tool_calls.is_empty());
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5146,8 +5244,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5158,8 +5256,8 @@ mod tests {
         .unwrap();
         assert!(tool_calls.is_empty());
 
-        process_response_sse_line(
-            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","call_id":"call_1","arguments":"{\"command\":\"pwd\"}" }"#,
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","call_id":"call_1","arguments":"{\"command\":\"pwd\"}" }"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5170,8 +5268,8 @@ mod tests {
         .unwrap();
         assert!(tool_calls.is_empty());
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5363,8 +5461,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        let error = process_response_sse_line(
-            r#"data: {"type":"response.failed","response":{"error":{"code":"insufficient_quota","message":"quota exceeded"}}}"#,
+        let error = process_response_sse_data(
+            r#"{"type":"response.failed","response":{"error":{"code":"insufficient_quota","message":"quota exceeded"}}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5386,8 +5484,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.reasoning_text.delta","content_index":0,"delta":"thinking"}"#,
+        process_response_sse_data(
+            r#"{"type":"response.reasoning_text.delta","content_index":0,"delta":"thinking"}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5396,8 +5494,8 @@ mod tests {
             &mut response_id,
         )
         .unwrap();
-        process_response_sse_line(
-            r#"data: {"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","delta":"{\"cmd\":\"pwd\"}"}"#,
+        process_response_sse_data(
+            r#"{"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","delta":"{\"cmd\":\"pwd\"}"}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5430,8 +5528,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        let error = process_response_sse_line(
-            r#"data: {"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}"#,
+        let error = process_response_sse_data(
+            r#"{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5453,8 +5551,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
