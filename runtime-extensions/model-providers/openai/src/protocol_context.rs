@@ -217,7 +217,6 @@ fn validate_protocol_header_name(name: &str) -> Result<()> {
         "content-type"
             | "accept"
             | "accept-encoding"
-            | "accept-language"
             | "origin"
             | "x-codex-turn-metadata"
     ) || normalized.starts_with("sec-websocket-")
@@ -376,6 +375,34 @@ mod tests {
     }
 
     #[test]
+    fn same_protocol_accept_language_is_preserved_for_chat_and_responses() {
+        for (protocol, source_protocol) in [
+            (OpenAiWireProtocol::Chat, "openai_chat"),
+            (OpenAiWireProtocol::Responses, "openai_responses"),
+        ] {
+            let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+                "source_protocol": source_protocol,
+                "headers": {"Accept-Language": ["en-US", "zh-CN"]}
+            }))
+            .unwrap();
+            let (_, context) =
+                restore_protocol_context(protocol, json!({}), Some(&envelope)).unwrap();
+            let mut headers = HeaderMap::new();
+
+            append_protocol_headers(&mut headers, &context).unwrap();
+
+            assert_eq!(
+                headers
+                    .get_all("accept-language")
+                    .iter()
+                    .map(|value| value.to_str().unwrap())
+                    .collect::<Vec<_>>(),
+                vec!["en-US", "zh-CN"]
+            );
+        }
+    }
+
+    #[test]
     fn wp_d2c_current_abi_rejects_typed_body_collisions_for_chat_and_responses() {
         for (protocol, source_protocol, collision) in [
             (OpenAiWireProtocol::Chat, "openai_chat", "messages"),
@@ -462,6 +489,34 @@ mod tests {
         ] {
             assert!(restore_protocol_context(
                 OpenAiWireProtocol::Responses,
+                json!({}),
+                Some(&envelope)
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("reserved protocol context field"));
+        }
+
+        for header in [
+            "content-type",
+            "accept",
+            "accept-encoding",
+            "origin",
+            "authorization",
+            "cookie",
+            "connection",
+        ] {
+            let envelope = ProtocolContextEnvelope {
+                source_protocol: "openai_chat".to_string(),
+                headers: BTreeMap::from([(
+                    header.to_string(),
+                    vec!["must-not-cross".to_string()],
+                )]),
+                ..ProtocolContextEnvelope::default()
+            };
+
+            assert!(restore_protocol_context(
+                OpenAiWireProtocol::Chat,
                 json!({}),
                 Some(&envelope)
             )

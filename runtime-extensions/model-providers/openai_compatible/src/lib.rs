@@ -783,7 +783,7 @@ fn protocol_context_header_is_safe(name: &str) -> bool {
     protocol_context_field_is_safe(&normalized)
         && !matches!(
             normalized.as_str(),
-            "content-type" | "accept" | "accept-encoding" | "accept-language" | "origin"
+            "content-type" | "accept" | "accept-encoding" | "origin"
         )
 }
 
@@ -2268,6 +2268,7 @@ mod tests {
                 "source_protocol": "openai_chat",
                 "query": {"preview": ["one", "two"]},
                 "headers": {
+                    "Accept-Language": ["en-US", "zh-CN"],
                     "x-client-name": ["ChatClient", "ChatClient/2"],
                     "x-shared": ["client-value"]
                 },
@@ -2366,6 +2367,14 @@ mod tests {
         assert_eq!(headers.get("openai-project").unwrap(), "structured-project");
         assert_eq!(
             headers
+                .get_all("accept-language")
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["en-US", "zh-CN"]
+        );
+        assert_eq!(
+            headers
                 .get_all("x-client-name")
                 .iter()
                 .map(|value| value.to_str().unwrap())
@@ -2427,7 +2436,15 @@ mod tests {
         build_url_with_protocol_context(&config, "/chat/completions", Some(&typed_query))
             .expect_err("the residual must not collide with typed query configuration");
 
-        for header in ["authorization", "connection", "content-type"] {
+        for header in [
+            "content-type",
+            "accept",
+            "accept-encoding",
+            "origin",
+            "authorization",
+            "cookie",
+            "connection",
+        ] {
             let reserved_header = ProtocolContextEnvelope {
                 source_protocol: OPENAI_CHAT_PROTOCOL.to_string(),
                 headers: BTreeMap::from([(header.to_string(), vec!["must-not-cross".to_string()])]),

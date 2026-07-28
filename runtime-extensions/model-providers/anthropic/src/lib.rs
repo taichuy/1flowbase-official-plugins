@@ -853,7 +853,6 @@ fn protocol_context_header_is_safe(name: &str) -> bool {
             "content-type"
                 | "accept"
                 | "accept-encoding"
-                | "accept-language"
                 | "origin"
                 | "x-claude-code-session-id"
         )
@@ -2954,7 +2953,8 @@ mod tests {
             ("enabled", Some(2048_u64)),
             ("disabled", None),
         ] {
-            let mut reasoning = json!({"mode": mode, "effort": "max"});
+            let effort = if mode == "adaptive" { "high" } else { "max" };
+            let mut reasoning = json!({"mode": mode, "effort": effort});
             if let Some(budget_tokens) = budget_tokens {
                 reasoning["budget_tokens"] = json!(budget_tokens);
             }
@@ -2976,7 +2976,7 @@ mod tests {
 
             assert_eq!(typed.requested_context_window, Some(1_000_000));
             assert_eq!(typed.body["thinking"]["type"], mode);
-            assert_eq!(typed.body["output_config"]["effort"], "max");
+            assert_eq!(typed.body["output_config"]["effort"], effort);
             assert!(typed.body.get("requested_context_window").is_none());
             match budget_tokens {
                 Some(value) => assert_eq!(typed.body["thinking"]["budget_tokens"], value),
@@ -3013,6 +3013,7 @@ mod tests {
                 "headers": {
                     "anthropic-version": ["2023-06-01"],
                     "anthropic-beta": ["prompt-caching", "private-beta"],
+                    "Accept-Language": ["en-US", "zh-CN"],
                     "user-agent": ["ClaudeCode/1.0"]
                 },
                 "body": {
@@ -3067,6 +3068,14 @@ mod tests {
             ]
         );
         assert_eq!(headers[ANTHROPIC_VERSION_HEADER], "2023-06-01");
+        assert_eq!(
+            headers
+                .get_all("accept-language")
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["en-US", "zh-CN"]
+        );
         assert_eq!(headers["user-agent"], "ClaudeCode/1.0");
         assert_eq!(headers["x-api-key"], "provider-config-secret");
         let beta_values = headers
@@ -3112,7 +3121,15 @@ mod tests {
         build_url_with_protocol_context(&config, "/v1/messages", Some(&reserved_query))
             .expect_err("reserved query auth must be rejected");
 
-        for header in ["x-api-key", "connection", "content-type"] {
+        for header in [
+            "content-type",
+            "accept",
+            "accept-encoding",
+            "origin",
+            "authorization",
+            "cookie",
+            "connection",
+        ] {
             let reserved_header = ProtocolContextEnvelope {
                 source_protocol: ANTHROPIC_MESSAGES_PROTOCOL.to_string(),
                 headers: BTreeMap::from([(header.to_string(), vec!["must-not-cross".to_string()])]),
