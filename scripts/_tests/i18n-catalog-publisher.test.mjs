@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import {
   buildCatalogSeed,
+  isCanonicalModuleId,
   publishCatalogSeed,
   stableJson,
   verifyCatalogSeed,
@@ -15,6 +16,32 @@ import {
 const MODULE_ID = '@taichuy/platform/common';
 const SOURCE_PATH = `i18n/${MODULE_ID}/en_US.json`;
 const TARGET_PATH = `i18n/${MODULE_ID}/zh_Hans.json`;
+
+test('canonical module identity uses lowercase scoped multi-level segments with dot underscore and hyphen punctuation', () => {
+  for (const moduleId of [
+    '@taichuy/platform/common',
+    '@taichuy/platform/console/settings',
+    '@org/group/module.v2',
+    '@org/group/module_name',
+    '@org/group/module-name',
+  ]) {
+    assert.equal(isCanonicalModuleId(moduleId), true, moduleId);
+  }
+
+  for (const moduleId of [
+    '@org/messages',
+    '@Org/group/module',
+    '@org/Group/module',
+    '@org/group/Module',
+    '@org//group/module',
+    '@org/group//module',
+    '@org/group/module/',
+    '@org/group/.module',
+    '@org/group/module+variant',
+  ]) {
+    assert.equal(isCanonicalModuleId(moduleId), false, moduleId);
+  }
+});
 
 function sha256(value) {
   return `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;

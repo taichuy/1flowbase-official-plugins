@@ -12,6 +12,10 @@ const CHECKSUM_PATTERN = /^sha256:[a-f0-9]{64}$/;
 const NAMED_PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_.-]*)\}/g;
 const FORBIDDEN_CONTENT = /<\/?[A-Za-z][^>]*>|javascript\s*:|\$\{|=>|\bfunction\s*\(|\bon[A-Za-z]+\s*=|!?\[[^\]]*\]\([^)]+\)/i;
 
+export function isCanonicalModuleId(moduleId) {
+  return typeof moduleId === 'string' && MODULE_PATTERN.test(moduleId);
+}
+
 function fail(message) {
   throw new Error(`Invalid official i18n catalog: ${message}`);
 }
@@ -89,7 +93,7 @@ function validateManifest(source) {
   if (!Array.isArray(source.modules) || source.modules.length === 0 || new Set(source.modules).size !== source.modules.length) {
     fail('modules must be a non-empty unique array');
   }
-  if (source.modules.some((moduleId) => typeof moduleId !== 'string' || !MODULE_PATTERN.test(moduleId))) {
+  if (source.modules.some((moduleId) => !isCanonicalModuleId(moduleId))) {
     fail('module identity must be normalized as @org/multi-level/module');
   }
   if (!Array.isArray(source.files)) fail('files must be an array');
