@@ -1554,13 +1554,6 @@ fn prepare_openai_request(
     pathname: &'static str,
     typed_body: Value,
 ) -> Result<PreparedOpenAiRequest> {
-    if input.client_protocol_envelope.is_some()
-        && !input
-            .required_capabilities
-            .contains(&ProviderInvocationCapability::ProtocolContext)
-    {
-        bail!("client protocol envelope requires protocol_context capability");
-    }
     let (body, protocol_context) = restore_protocol_context(
         protocol,
         typed_body,
@@ -5011,8 +5004,13 @@ mod tests {
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
         assert!(manifest.contains(
-            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2\n    - responses.native_passthrough\n    - protocol_context"
+            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2\n    - responses.native_passthrough\n    - protocol_context.restore.openai_chat.v1\n    - protocol_context.restore.openai_responses.v1"
         ));
+        assert!(!manifest
+            .lines()
+            .any(|line| line.trim() == "- protocol_context"));
+        assert_eq!(manifest.matches("protocol_context.restore.").count(), 2);
+        assert!(!manifest.contains("protocol_context.consume."));
         assert!(!manifest.contains("count_tokens"));
         assert!(!manifest.contains("system_prompt_blocks"));
         assert!(gpt_5_4.contains("context_window: 1000000"));

@@ -3015,13 +3015,17 @@ mod tests {
     }
 
     #[test]
-    fn ac_002_package_manifest_declares_current_generate_contract_and_protocol_context() {
+    fn ac_002_package_manifest_declares_exact_chat_protocol_context_profile() {
         let manifest = include_str!("../manifest.yaml");
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(manifest.contains("capabilities:\n    - protocol_context"));
-        assert_eq!(manifest.matches("protocol_context").count(), 1);
+        assert!(manifest.contains("capabilities:\n    - protocol_context.restore.openai_chat.v1"));
+        assert!(!manifest
+            .lines()
+            .any(|line| line.trim() == "- protocol_context"));
+        assert_eq!(manifest.matches("protocol_context.restore.").count(), 1);
+        assert!(!manifest.contains("protocol_context.consume."));
     }
 
     #[test]

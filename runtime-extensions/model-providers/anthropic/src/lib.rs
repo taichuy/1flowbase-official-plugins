@@ -2740,10 +2740,14 @@ mod tests {
             "system_prompt_cache_control",
             "end_user_reference",
             "count_tokens",
-            "protocol_context",
+            "protocol_context.restore.anthropic_messages.v1",
         ] {
             assert_eq!(manifest.matches(capability).count(), 1);
         }
+        assert!(!manifest
+            .lines()
+            .any(|line| line.trim() == "- protocol_context"));
+        assert!(!manifest.contains("protocol_context.consume."));
     }
 
     #[test]
