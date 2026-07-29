@@ -116,6 +116,10 @@ pub(crate) fn restore_protocol_context(
     for (name, value) in &envelope.body {
         validate_protocol_field_name("body", name)?;
         validate_protocol_body_value(value, &format!("body.{name}"))?;
+        if protocol == OpenAiWireProtocol::Responses && name == "responses_optional_tools" {
+            append_responses_optional_tools(body, value)?;
+            continue;
+        }
         if protocol.typed_body_fields().contains(&name.as_str()) {
             bail!("protocol context body collides with typed field: {name}");
         }
@@ -135,6 +139,40 @@ pub(crate) fn restore_protocol_context(
             headers: envelope.headers.clone(),
         },
     ))
+}
+
+fn append_responses_optional_tools(
+    body: &mut serde_json::Map<String, Value>,
+    value: &Value,
+) -> Result<()> {
+    let optional_tools = value.as_array().ok_or_else(|| {
+        anyhow::anyhow!("protocol context body.responses_optional_tools must be an array")
+    })?;
+    for (index, tool) in optional_tools.iter().enumerate() {
+        let tool = tool.as_object().ok_or_else(|| {
+            anyhow::anyhow!(
+                "protocol context body.responses_optional_tools[{index}] must be an object"
+            )
+        })?;
+        let tool_type = tool.get("type").and_then(Value::as_str).ok_or_else(|| {
+            anyhow::anyhow!(
+                "protocol context body.responses_optional_tools[{index}].type must be namespace or web_search"
+            )
+        })?;
+        if !matches!(tool_type, "namespace" | "web_search") {
+            bail!(
+                "protocol context body.responses_optional_tools[{index}].type is not allowlisted: {tool_type}"
+            );
+        }
+    }
+
+    let typed_tools = body
+        .entry("tools".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()))
+        .as_array_mut()
+        .ok_or_else(|| anyhow::anyhow!("typed OpenAI Responses tools must be an array"))?;
+    typed_tools.extend(optional_tools.iter().cloned());
+    Ok(())
 }
 
 pub(crate) fn append_protocol_query(
@@ -416,6 +454,93 @@ mod tests {
     }
 
     #[test]
+    fn wp_r15b_responses_appends_allowlisted_optional_tools_after_typed_function_tools() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "openai_responses".to_string(),
+            body: BTreeMap::from([(
+                "responses_optional_tools".to_string(),
+                json!([
+                    {
+                        "type": "namespace",
+                        "name": "browser",
+                        "description": "Browser tools"
+                    },
+                    {
+                        "type": "web_search",
+                        "external_web_access": false,
+                        "search_context_size": "high"
+                    }
+                ]),
+            )]),
+            ..ProtocolContextEnvelope::default()
+        };
+
+        let (body, _) = restore_protocol_context(
+            OpenAiWireProtocol::Responses,
+            json!({
+                "tools": [{
+                    "type": "function",
+                    "name": "lookup",
+                    "parameters": {"type": "object"}
+                }]
+            }),
+            Some(&envelope),
+        )
+        .expect("Responses should merge allowlisted optional tools");
+
+        assert_eq!(body["tools"][0]["type"], "function");
+        assert_eq!(body["tools"][1]["type"], "namespace");
+        assert_eq!(body["tools"][2]["type"], "web_search");
+        assert!(body.get("responses_optional_tools").is_none());
+    }
+
+    #[test]
+    fn wp_r15b_responses_rejects_non_allowlisted_or_malformed_optional_tools() {
+        for tools in [
+            json!([{"type": "mcp", "server_url": "https://example.com"}]),
+            json!([{"type": "custom", "name": "shell"}]),
+            json!([{"type": "future_tool"}]),
+            json!([{"name": "missing_type"}]),
+            json!([{"type": 42}]),
+            json!(["web_search"]),
+            json!({"type": "web_search"}),
+        ] {
+            let envelope = ProtocolContextEnvelope {
+                source_protocol: "openai_responses".to_string(),
+                body: BTreeMap::from([("responses_optional_tools".to_string(), tools)]),
+                ..ProtocolContextEnvelope::default()
+            };
+
+            assert!(restore_protocol_context(
+                OpenAiWireProtocol::Responses,
+                json!({"tools": [{"type": "function", "name": "lookup"}]}),
+                Some(&envelope),
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn wp_r15b_chat_keeps_tools_collision_fail_closed() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "openai_chat".to_string(),
+            body: BTreeMap::from([("tools".to_string(), json!([{"type": "web_search"}]))]),
+            ..ProtocolContextEnvelope::default()
+        };
+
+        let error = restore_protocol_context(
+            OpenAiWireProtocol::Chat,
+            json!({"tools": [{"type": "function", "function": {"name": "lookup"}}]}),
+            Some(&envelope),
+        )
+        .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("collides with typed field: tools"));
+    }
+
+    #[test]
     fn wp_d2c_current_abi_rejects_owned_query_and_header_collisions() {
         let context = RestoredProtocolContext {
             query: BTreeMap::from([("preview".to_string(), vec!["residual".to_string()])]),
@@ -446,7 +571,13 @@ mod tests {
     fn wp_r3_foreign_context_is_not_injected_while_same_protocol_fields_stay_fail_closed() {
         let foreign = ProtocolContextEnvelope {
             source_protocol: "anthropic_messages".to_string(),
-            body: BTreeMap::from([("future_option".to_string(), json!(true))]),
+            body: BTreeMap::from([
+                ("future_option".to_string(), json!(true)),
+                (
+                    "responses_optional_tools".to_string(),
+                    json!([{"type": "web_search", "search_context_size": "high"}]),
+                ),
+            ]),
             ..ProtocolContextEnvelope::default()
         };
         let (body, restored) =
