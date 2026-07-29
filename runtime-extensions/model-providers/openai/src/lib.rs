@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::Engine;
+use eventsource_stream::Eventsource;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
@@ -27,6 +28,16 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+mod protocol_context;
+mod sse_codec;
+
+pub use protocol_context::ProtocolContextEnvelope;
+use protocol_context::{
+    append_protocol_headers, append_protocol_query, restore_protocol_context, OpenAiWireProtocol,
+    RestoredProtocolContext,
+};
+use sse_codec::SseEventSizeGuard;
+
 const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_VALIDATE_MODEL: bool = true;
@@ -34,16 +45,6 @@ const STREAM_IDLE_TIMEOUT: Duration = Duration::from_millis(300_000);
 const WEBSOCKET_CURSOR_RECONNECT_ATTEMPTS: usize = 3;
 const RESPONSES_WEBSOCKETS_BETA: &str = "responses_websockets=2026-02-06";
 const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
-const ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST: &[&str] = &[
-    "anthropic-version",
-    "anthropic-beta",
-    "x-claude-code-session-id",
-    "anthropic-client-name",
-    "anthropic-client-version",
-    "x-client-name",
-    "x-client-version",
-    "user-agent",
-];
 const PASSTHROUGH_RESPONSE_PARAMETERS: &[&str] = &[
     "temperature",
     "top_p",
@@ -54,6 +55,15 @@ const PASSTHROUGH_RESPONSE_PARAMETERS: &[&str] = &[
     "include",
     "service_tier",
     "prompt_cache_key",
+    "metadata",
+];
+const PASSTHROUGH_CHAT_PARAMETERS: &[&str] = &[
+    "temperature",
+    "top_p",
+    "tool_choice",
+    "store",
+    "parallel_tool_calls",
+    "service_tier",
     "metadata",
 ];
 
@@ -278,6 +288,7 @@ pub enum ProviderInvocationCapability {
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    ProtocolContext,
 }
 
 #[derive(Clone, Deserialize)]
@@ -351,7 +362,7 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub run_context: BTreeMap<String, Value>,
     #[serde(default)]
-    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+    pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
     #[serde(default)]
     pub native_transport: Option<ProviderNativeTransport>,
 }
@@ -387,12 +398,65 @@ impl ProviderInvocationInput {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct ClientProtocolEnvelope {
-    pub source_protocol: String,
-    pub policy: String,
-    #[serde(default)]
-    pub headers: BTreeMap<String, String>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OpenAiReasoningMode {
+    Adaptive,
+    Enabled,
+    Disabled,
+}
+
+impl OpenAiReasoningMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Adaptive => "adaptive",
+            Self::Enabled => "enabled",
+            Self::Disabled => "disabled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct OpenAiReasoningIntent {
+    mode: Option<OpenAiReasoningMode>,
+    effort: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct OpenAiModelIntent {
+    requested_context_window: Option<u64>,
+    reasoning: Option<OpenAiReasoningIntent>,
+}
+
+impl OpenAiModelIntent {
+    fn provider_metadata(&self) -> Value {
+        let mut metadata = Map::new();
+        if let Some(requested_context_window) = self.requested_context_window {
+            metadata.insert(
+                "requested_context_window".to_string(),
+                Value::Number(requested_context_window.into()),
+            );
+        }
+        if let Some(reasoning) = &self.reasoning {
+            let mut value = Map::new();
+            if let Some(mode) = reasoning.mode {
+                value.insert("mode".to_string(), Value::String(mode.as_str().to_string()));
+            }
+            if let Some(effort) = &reasoning.effort {
+                value.insert("effort".to_string(), Value::String(effort.clone()));
+            }
+            metadata.insert("reasoning".to_string(), Value::Object(value));
+        }
+        Value::Object(metadata)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PreparedOpenAiRequest {
+    protocol: OpenAiWireProtocol,
+    pathname: &'static str,
+    body: Value,
+    protocol_context: RestoredProtocolContext,
+    model_intent: OpenAiModelIntent,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -442,14 +506,44 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
-    NativeEvent { protocol: String, event: Value },
-    TextDelta { delta: String },
-    ReasoningDelta { delta: String },
-    ToolCallDelta { call_id: String, delta: Value },
-    ToolCallCommit { call: ProviderToolCall },
-    UsageSnapshot { usage: ProviderUsage },
-    Finish { reason: ProviderFinishReason },
-    Error { error: ProviderRuntimeError },
+    NativeEvent {
+        protocol: String,
+        event: Value,
+    },
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
+    OutputItem {
+        phase: ProviderOutputItemPhase,
+        output_index: usize,
+        item: Value,
+    },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    Error {
+        error: ProviderRuntimeError,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderOutputItemPhase {
+    Added,
+    Done,
 }
 
 #[derive(Debug, Default)]
@@ -741,17 +835,22 @@ impl OpenAiProviderRuntime {
     ) -> Result<ProviderCompactResult> {
         let profile = input.compact_profile()?;
         let config = normalize_provider_config(&input.provider_config)?;
-        let body = build_compact_body(&input, profile)?;
         let pathname = match profile {
             ProviderCompactProfile::ResponsesCompact => "/responses/compact",
             ProviderCompactProfile::ResponsesCompactionV2 => "/responses",
         };
-        let payload = request_json_with_client_protocol(
-            &config,
+        let request = prepare_openai_request(
+            &input,
+            OpenAiWireProtocol::Responses,
             pathname,
+            build_compact_body(&input, profile)?,
+        )?;
+        let payload = request_json_with_protocol_context(
+            &config,
+            request.pathname,
             Method::POST,
-            Some(body),
-            input.client_protocol_envelope.as_ref(),
+            Some(request.body),
+            &request.protocol_context,
         )
         .await?;
         compact_result_from_upstream(profile, payload)
@@ -851,39 +950,45 @@ fn value_to_string(value: &Value) -> String {
 fn build_json_headers(
     config: &ProviderConfig,
     include_json_body: bool,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
 ) -> Result<HeaderMap> {
     build_headers(
         config,
         include_json_body,
         "application/json",
-        client_protocol_envelope,
+        protocol_context,
     )
 }
 
 fn build_stream_headers(
     config: &ProviderConfig,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
 ) -> Result<HeaderMap> {
-    build_headers(config, true, "text/event-stream", client_protocol_envelope)
+    build_headers(config, true, "text/event-stream", protocol_context)
 }
 
 fn build_headers(
     config: &ProviderConfig,
     include_json_body: bool,
     accept: &'static str,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<HeaderMap> {
+    let mut headers = build_base_headers(config, include_json_body, accept)?;
+    append_protocol_headers(&mut headers, protocol_context)?;
+    inject_provider_auth(&mut headers, config)?;
+    Ok(headers)
+}
+
+fn build_base_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    accept: &'static str,
 ) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static(accept));
     if include_json_body {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     }
-    headers.insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(&format!("Bearer {}", config.api_key))
-            .context("invalid api_key for authorization header")?,
-    );
     if let Some(organization) = &config.organization {
         headers.insert(
             HeaderName::from_static("openai-organization"),
@@ -896,33 +1001,15 @@ fn build_headers(
             HeaderValue::from_str(project).context("invalid project header")?,
         );
     }
-    apply_default_client_protocol_policy(&mut headers, client_protocol_envelope)?;
     Ok(headers)
 }
 
-fn apply_default_client_protocol_policy(
-    headers: &mut HeaderMap,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
-) -> Result<()> {
-    let Some(envelope) = client_protocol_envelope else {
-        return Ok(());
-    };
-    if envelope.source_protocol != "anthropic_messages"
-        || envelope.policy != "anthropic_messages_v1"
-    {
-        return Ok(());
-    }
-    for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
-        let name = *name;
-        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
-            continue;
-        };
-        headers.insert(
-            HeaderName::from_static(name),
-            HeaderValue::from_str(value)
-                .with_context(|| format!("invalid client protocol header: {name}"))?,
-        );
-    }
+fn inject_provider_auth(headers: &mut HeaderMap, config: &ProviderConfig) -> Result<()> {
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", config.api_key))
+            .context("invalid api_key for authorization header")?,
+    );
     Ok(())
 }
 
@@ -946,11 +1033,16 @@ fn redact_config_secrets(config: &ProviderConfig, message: &str) -> String {
     sanitized
 }
 
-fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
+fn build_url_with_protocol_context(
+    config: &ProviderConfig,
+    pathname: &str,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<String> {
     let base_url = config.base_url.trim_end_matches('/');
-    Url::parse(&format!("{base_url}{pathname}"))
-        .with_context(|| format!("invalid base_url: {}", config.base_url))
-        .map(|value| value.to_string())
+    let mut url = Url::parse(&format!("{base_url}{pathname}"))
+        .with_context(|| format!("invalid base_url: {}", config.base_url))?;
+    append_protocol_query(&mut url, protocol_context)?;
+    Ok(url.to_string())
 }
 
 async fn request_json(
@@ -959,23 +1051,33 @@ async fn request_json(
     method: Method,
     body: Option<Value>,
 ) -> Result<Value> {
-    request_json_with_client_protocol(config, pathname, method, body, None).await
+    request_json_with_protocol_context(
+        config,
+        pathname,
+        method,
+        body,
+        &RestoredProtocolContext::default(),
+    )
+    .await
 }
 
-async fn request_json_with_client_protocol(
+async fn request_json_with_protocol_context(
     config: &ProviderConfig,
     pathname: &str,
     method: Method,
     body: Option<Value>,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
 ) -> Result<Value> {
     let client = build_http_client(config)?;
     let mut request = client
-        .request(method, build_url(config, pathname)?)
+        .request(
+            method,
+            build_url_with_protocol_context(config, pathname, protocol_context)?,
+        )
         .headers(build_json_headers(
             config,
             body.is_some(),
-            client_protocol_envelope,
+            protocol_context,
         )?);
     if let Some(body) = body {
         request = request.json(&body);
@@ -1004,41 +1106,20 @@ fn parse_json_response_text(text: &str) -> Result<Value> {
 async fn provider_upstream_error_from_response(
     response: reqwest::Response,
 ) -> Result<ProviderRuntimeError> {
-    provider_upstream_error_from_response_with_redactions(response, &[]).await
-}
-
-async fn provider_upstream_error_from_response_with_redactions(
-    response: reqwest::Response,
-    redactions: &[String],
-) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
     let raw_body = response.text().await?;
-    Ok(provider_upstream_error_from_parts_with_redactions(
-        status, &headers, raw_body, redactions,
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
     ))
 }
 
-#[cfg(test)]
 fn provider_upstream_error_from_parts(
     status: reqwest::StatusCode,
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    provider_upstream_error_from_parts_with_redactions(status, headers, raw_body, &[])
-}
-
-fn provider_upstream_error_from_parts_with_redactions(
-    status: reqwest::StatusCode,
-    headers: &HeaderMap,
-    raw_body: String,
-    redactions: &[String],
-) -> ProviderRuntimeError {
-    let mut upstream_message = upstream_error_message(&raw_body);
-    for secret in redactions.iter().filter(|secret| !secret.is_empty()) {
-        upstream_message = upstream_message.replace(secret, "***");
-    }
-    let message = format!("{} {}: {}", status.as_u16(), status, upstream_message);
+    let message = upstream_error_body_message(status, &raw_body);
     let mut provider_details = Map::new();
     provider_details.insert("status".to_string(), json!(status.as_u16()));
     if let Some(request_id) = response_request_id(headers) {
@@ -1052,34 +1133,12 @@ fn provider_upstream_error_from_parts_with_redactions(
     }
 }
 
-fn upstream_error_message(raw_body: &str) -> String {
-    extract_upstream_error_message(raw_body)
-        .unwrap_or_else(|| "provider upstream request failed".to_string())
-}
-
-fn extract_upstream_error_message(raw_body: &str) -> Option<String> {
-    if let Ok(payload) = serde_json::from_str::<Value>(raw_body.trim()) {
-        if let Some(message) = upstream_error_message_from_json(&payload) {
-            return Some(message.to_string());
-        }
+fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
+    if raw_body.is_empty() {
+        format!("HTTP {status}")
+    } else {
+        raw_body.to_string()
     }
-
-    raw_body.lines().find_map(|line| {
-        let trimmed = line.trim();
-        if !trimmed.starts_with('{') {
-            return None;
-        }
-        let payload = serde_json::from_str::<Value>(trimmed).ok()?;
-        upstream_error_message_from_json(&payload).map(ToOwned::to_owned)
-    })
-}
-
-fn upstream_error_message_from_json(payload: &Value) -> Option<&str> {
-    payload
-        .get("error")
-        .and_then(|value| value.get("message").or(Some(value)))
-        .and_then(Value::as_str)
-        .or_else(|| payload.get("message").and_then(Value::as_str))
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -1131,22 +1190,25 @@ impl OpenAiProviderRuntime {
     {
         input.ensure_generate_operation()?;
         let config = normalize_provider_config(&input.provider_config)?;
-        let body = build_responses_body(&input)?;
+        let request = build_openai_generate_request(&input)?;
+        let body = request.body.clone();
         let native_passthrough = input.native_transport.is_some();
-        let transport_mode = if native_passthrough {
+        let transport_mode = if native_passthrough || request.protocol == OpenAiWireProtocol::Chat {
             OpenAiTransportMode::HttpSse
         } else {
             config.transport_mode
         };
-        match transport_mode {
+        let mut output = match transport_mode {
             OpenAiTransportMode::HttpSse => {
-                invoke_response_http_sse(
+                invoke_openai_http_sse(
                     &config,
+                    request.protocol,
+                    request.pathname,
                     body,
                     input.model.clone(),
                     &mut on_event,
                     native_passthrough,
-                    input.client_protocol_envelope.as_ref(),
+                    &request.protocol_context,
                 )
                 .await
             }
@@ -1158,6 +1220,7 @@ impl OpenAiProviderRuntime {
                         &config,
                         &input,
                         body.clone(),
+                        &request.protocol_context,
                         &mut on_event,
                     )
                     .await
@@ -1168,13 +1231,15 @@ impl OpenAiProviderRuntime {
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {
-                        invoke_response_http_sse(
+                        invoke_openai_http_sse(
                             &config,
+                            request.protocol,
+                            request.pathname,
                             body,
                             input.model.clone(),
                             &mut on_event,
                             native_passthrough,
-                            input.client_protocol_envelope.as_ref(),
+                            &request.protocol_context,
                         )
                         .await
                     }
@@ -1189,6 +1254,7 @@ impl OpenAiProviderRuntime {
                         &config,
                         &input,
                         body.clone(),
+                        &request.protocol_context,
                         &mut on_event,
                     )
                     .await
@@ -1199,20 +1265,28 @@ impl OpenAiProviderRuntime {
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {
-                        invoke_response_http_sse(
+                        invoke_openai_http_sse(
                             &config,
+                            request.protocol,
+                            request.pathname,
                             body,
                             input.model.clone(),
                             &mut on_event,
                             native_passthrough,
-                            input.client_protocol_envelope.as_ref(),
+                            &request.protocol_context,
                         )
                         .await
                     }
                     Err(error) => Err(error.source),
                 }
             }
-        }
+        }?;
+        attach_openai_model_intent(&mut output, &request.model_intent);
+        attach_foreign_protocol_context_decision(
+            &mut output.result.provider_metadata,
+            input.client_protocol_envelope.as_ref(),
+        )?;
+        Ok(output)
     }
 
     async fn invoke_response_websocket_with_cursor_retry<F>(
@@ -1220,6 +1294,7 @@ impl OpenAiProviderRuntime {
         config: &ProviderConfig,
         input: &ProviderInvocationInput,
         body: Value,
+        protocol_context: &RestoredProtocolContext,
         on_event: &mut F,
     ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
     where
@@ -1232,7 +1307,13 @@ impl OpenAiProviderRuntime {
             let retry_response_id =
                 responses_body_previous_response_id(&retry_body).map(ToOwned::to_owned);
             match self
-                .invoke_response_websocket(config, input, retry_body.clone(), on_event)
+                .invoke_response_websocket(
+                    config,
+                    input,
+                    retry_body.clone(),
+                    protocol_context,
+                    on_event,
+                )
                 .await
             {
                 Ok(output) => return Ok(output),
@@ -1295,6 +1376,7 @@ impl OpenAiProviderRuntime {
         config: &ProviderConfig,
         input: &ProviderInvocationInput,
         body: Value,
+        protocol_context: &RestoredProtocolContext,
         on_event: &mut F,
     ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
     where
@@ -1305,13 +1387,9 @@ impl OpenAiProviderRuntime {
             let turn_state = responses_body_previous_response_id(&body)
                 .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
                 .map(String::as_str);
-            let session = connect_responses_websocket(
-                config,
-                turn_state,
-                input.client_protocol_envelope.as_ref(),
-            )
-            .await
-            .map_err(WebsocketInvocationError::fallback_allowed)?;
+            let session = connect_responses_websocket(config, turn_state, protocol_context)
+                .await
+                .map_err(WebsocketInvocationError::fallback_allowed)?;
             self.websocket_sessions.insert(session_key.clone(), session);
         }
 
@@ -1405,47 +1483,226 @@ impl OpenAiProviderRuntime {
     }
 }
 
-async fn invoke_response_http_sse<F>(
+async fn invoke_openai_http_sse<F>(
     config: &ProviderConfig,
+    protocol: OpenAiWireProtocol,
+    pathname: &str,
     body: Value,
     request_model: String,
     on_event: &mut F,
     native_passthrough: bool,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let credential_redactions = native_passthrough
-        .then(|| native_transport_credential_values(&body))
-        .unwrap_or_default();
     let response = build_http_client(config)?
-        .request(Method::POST, build_url(config, "/responses")?)
-        .headers(build_stream_headers(config, client_protocol_envelope)?)
+        .request(
+            Method::POST,
+            build_url_with_protocol_context(config, pathname, protocol_context)?,
+        )
+        .headers(build_stream_headers(config, protocol_context)?)
         .json(&body)
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    read_streaming_response(
-        response,
-        request_model,
-        on_event,
-        native_passthrough,
-        &credential_redactions,
-    )
-    .await
+    match protocol {
+        OpenAiWireProtocol::Chat => {
+            read_chat_streaming_response(response, request_model, on_event).await
+        }
+        OpenAiWireProtocol::Responses => {
+            read_streaming_response(response, request_model, on_event, native_passthrough).await
+        }
+    }
 }
 
+#[cfg(test)]
 fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
+    Ok(build_openai_generate_request(input)?.body)
+}
+
+fn build_openai_generate_request(input: &ProviderInvocationInput) -> Result<PreparedOpenAiRequest> {
     input.ensure_generate_operation()?;
-    let mut body = match input.native_transport.as_ref() {
-        Some(transport) => build_native_responses_request_body(input, transport)?,
-        None => build_responses_request_body(input)?,
+    let protocol = openai_wire_protocol(input)?;
+    let model_intent = openai_model_intent(input)?;
+    let mut typed_body = match (protocol, input.native_transport.as_ref()) {
+        (OpenAiWireProtocol::Chat, Some(_)) => {
+            bail!("native Responses transport cannot render an OpenAI Chat request")
+        }
+        (OpenAiWireProtocol::Chat, None) => build_chat_request_body(input, &model_intent)?,
+        (OpenAiWireProtocol::Responses, Some(transport)) => {
+            build_native_responses_request_body(input, transport)?
+        }
+        (OpenAiWireProtocol::Responses, None) => {
+            build_responses_typed_request_body(input, &model_intent)?
+        }
     };
-    body.as_object_mut()
-        .expect("Responses request body must be an object")
+    typed_body
+        .as_object_mut()
+        .expect("typed OpenAI request body must be an object")
         .insert("stream".to_string(), Value::Bool(true));
-    Ok(body)
+    let pathname = match protocol {
+        OpenAiWireProtocol::Chat => "/chat/completions",
+        OpenAiWireProtocol::Responses => "/responses",
+    };
+    prepare_openai_request(input, protocol, pathname, typed_body)
+}
+
+fn prepare_openai_request(
+    input: &ProviderInvocationInput,
+    protocol: OpenAiWireProtocol,
+    pathname: &'static str,
+    typed_body: Value,
+) -> Result<PreparedOpenAiRequest> {
+    let (body, protocol_context) = restore_protocol_context(
+        protocol,
+        typed_body,
+        input.client_protocol_envelope.as_ref(),
+    )?;
+    Ok(PreparedOpenAiRequest {
+        protocol,
+        pathname,
+        body,
+        protocol_context,
+        model_intent: openai_model_intent(input)?,
+    })
+}
+
+fn openai_wire_protocol(input: &ProviderInvocationInput) -> Result<OpenAiWireProtocol> {
+    if input.native_transport.is_some() {
+        return Ok(OpenAiWireProtocol::Responses);
+    }
+    if let Some(envelope) = input.client_protocol_envelope.as_ref() {
+        match envelope.source_protocol.as_str() {
+            "openai_chat" => return Ok(OpenAiWireProtocol::Chat),
+            "openai_responses" => return Ok(OpenAiWireProtocol::Responses),
+            _ => {}
+        }
+    }
+    match input.protocol.as_str() {
+        "openai_chat" => Ok(OpenAiWireProtocol::Chat),
+        "openai_responses" => Ok(OpenAiWireProtocol::Responses),
+        protocol => bail!("unsupported OpenAI provider protocol: {protocol}"),
+    }
+}
+
+fn build_chat_request_body(
+    input: &ProviderInvocationInput,
+    model_intent: &OpenAiModelIntent,
+) -> Result<Value> {
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+    ensure_openai_semantic_capabilities(input)?;
+    let mut body = Map::new();
+    body.insert(
+        "model".to_string(),
+        Value::String(input.model.trim().to_string()),
+    );
+    body.insert(
+        "messages".to_string(),
+        Value::Array(build_chat_messages(input)),
+    );
+    if !input.tools.is_empty() {
+        body.insert("tools".to_string(), Value::Array(input.tools.clone()));
+    }
+    if let Some(response_format) = input
+        .response_format
+        .clone()
+        .and_then(normalize_response_text_format)
+        .or_else(|| {
+            parameter_value(input, "response_format").and_then(normalize_response_text_format)
+        })
+    {
+        body.insert("response_format".to_string(), response_format);
+    }
+    if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
+        body.insert("max_completion_tokens".to_string(), max_output_tokens);
+    }
+    if let Some(reasoning_effort) = openai_reasoning_effort(input, model_intent)? {
+        body.insert(
+            "reasoning_effort".to_string(),
+            Value::String(reasoning_effort),
+        );
+    }
+    for key in PASSTHROUGH_CHAT_PARAMETERS {
+        if let Some(value) = parameter_value(input, key) {
+            body.insert((*key).to_string(), value);
+        }
+    }
+    Ok(Value::Object(body))
+}
+
+fn build_chat_messages(input: &ProviderInvocationInput) -> Vec<Value> {
+    let mut messages = Vec::new();
+    if let Some(system) = input.system_text() {
+        messages.push(json!({"role": "developer", "content": system}));
+    }
+    for message in &input.messages {
+        let mut mapped = Map::new();
+        mapped.insert(
+            "role".to_string(),
+            Value::String(chat_role(message.role).to_string()),
+        );
+        mapped.insert(
+            "content".to_string(),
+            chat_message_content(message).unwrap_or_else(|| Value::String(message.content.clone())),
+        );
+        if let Some(name) = message.name.as_ref() {
+            mapped.insert("name".to_string(), Value::String(name.clone()));
+        }
+        if let Some(tool_call_id) = message.tool_call_id.as_ref() {
+            mapped.insert(
+                "tool_call_id".to_string(),
+                Value::String(tool_call_id.clone()),
+            );
+        }
+        if let Some(tool_calls) = message.tool_calls.as_ref() {
+            mapped.insert("tool_calls".to_string(), tool_calls.clone());
+        }
+        messages.push(Value::Object(mapped));
+    }
+    messages
+}
+
+fn chat_role(role: ProviderMessageRole) -> &'static str {
+    match role {
+        ProviderMessageRole::System => "system",
+        ProviderMessageRole::User => "user",
+        ProviderMessageRole::Assistant => "assistant",
+        ProviderMessageRole::Tool => "tool",
+    }
+}
+
+fn chat_message_content(message: &ProviderMessage) -> Option<Value> {
+    let items = responses_content_items_from_value(message.content_blocks.as_ref()?);
+    if !responses_content_items_contain_media(&items) {
+        return None;
+    }
+    Some(Value::Array(
+        items.into_iter().filter_map(chat_content_item).collect(),
+    ))
+}
+
+fn chat_content_item(item: Value) -> Option<Value> {
+    match item.get("type").and_then(Value::as_str) {
+        Some("input_text") => Some(json!({
+            "type": "text",
+            "text": item.get("text")?.clone(),
+        })),
+        Some("input_image") => {
+            let mut image_url = Map::new();
+            image_url.insert("url".to_string(), item.get("image_url")?.clone());
+            if let Some(detail) = item.get("detail") {
+                image_url.insert("detail".to_string(), detail.clone());
+            }
+            Some(json!({
+                "type": "image_url",
+                "image_url": image_url,
+            }))
+        }
+        _ => None,
+    }
 }
 
 fn build_native_responses_request_body(
@@ -1476,53 +1733,6 @@ fn build_native_responses_request_body(
     Ok(Value::Object(body))
 }
 
-fn native_transport_credential_values(body: &Value) -> Vec<String> {
-    fn collect_strings(value: &Value, output: &mut BTreeSet<String>) {
-        match value {
-            Value::String(value) if !value.is_empty() => {
-                output.insert(value.clone());
-            }
-            Value::Array(values) => {
-                for value in values {
-                    collect_strings(value, output);
-                }
-            }
-            Value::Object(values) => {
-                for value in values.values() {
-                    collect_strings(value, output);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn visit(value: &Value, output: &mut BTreeSet<String>) {
-        match value {
-            Value::Array(values) => {
-                for value in values {
-                    visit(value, output);
-                }
-            }
-            Value::Object(values) => {
-                for (key, value) in values {
-                    if key.eq_ignore_ascii_case("authorization")
-                        || key.eq_ignore_ascii_case("headers")
-                    {
-                        collect_strings(value, output);
-                    } else {
-                        visit(value, output);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let mut values = BTreeSet::new();
-    visit(body, &mut values);
-    values.into_iter().collect()
-}
-
 fn build_compact_body(
     input: &ProviderInvocationInput,
     profile: ProviderCompactProfile,
@@ -1542,28 +1752,17 @@ fn build_compact_body(
 }
 
 fn build_responses_request_body(input: &ProviderInvocationInput) -> Result<Value> {
+    build_responses_typed_request_body(input, &openai_model_intent(input)?)
+}
+
+fn build_responses_typed_request_body(
+    input: &ProviderInvocationInput,
+    model_intent: &OpenAiModelIntent,
+) -> Result<Value> {
     if input.model.trim().is_empty() {
         bail!("model is required");
     }
-    if input.required_capabilities.iter().any(|capability| {
-        matches!(
-            capability,
-            ProviderInvocationCapability::SystemPromptBlocks
-                | ProviderInvocationCapability::SystemPromptCacheControl
-                | ProviderInvocationCapability::EndUserReference
-        )
-    }) || input.system.iter().any(|block| {
-        matches!(
-            block,
-            NativePromptBlock::Text {
-                cache_control: Some(_),
-                ..
-            }
-        )
-    }) || input.request_context.end_user_reference.is_some()
-    {
-        bail!("OpenAI Responses does not support the requested semantic capabilities");
-    }
+    ensure_openai_semantic_capabilities(input)?;
     let mut body = Map::new();
     body.insert(
         "model".to_string(),
@@ -1602,7 +1801,7 @@ fn build_responses_request_body(input: &ProviderInvocationInput) -> Result<Value
     {
         body.insert("text".to_string(), json!({ "format": response_format }));
     }
-    if let Some(reasoning_effort) = parameter_value(input, "reasoning_effort") {
+    if let Some(reasoning_effort) = openai_reasoning_effort(input, model_intent)? {
         body.insert(
             "reasoning".to_string(),
             json!({ "effort": reasoning_effort }),
@@ -1614,6 +1813,29 @@ fn build_responses_request_body(input: &ProviderInvocationInput) -> Result<Value
         }
     }
     Ok(Value::Object(body))
+}
+
+fn ensure_openai_semantic_capabilities(input: &ProviderInvocationInput) -> Result<()> {
+    if input.required_capabilities.iter().any(|capability| {
+        matches!(
+            capability,
+            ProviderInvocationCapability::SystemPromptBlocks
+                | ProviderInvocationCapability::SystemPromptCacheControl
+                | ProviderInvocationCapability::EndUserReference
+        )
+    }) || input.system.iter().any(|block| {
+        matches!(
+            block,
+            NativePromptBlock::Text {
+                cache_control: Some(_),
+                ..
+            }
+        )
+    }) || input.request_context.end_user_reference.is_some()
+    {
+        bail!("OpenAI does not support the requested semantic capabilities");
+    }
+    Ok(())
 }
 
 fn compact_result_from_upstream(
@@ -1958,6 +2180,135 @@ fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> 
         .and_then(normalize_scalar_parameter)
 }
 
+fn openai_model_intent(input: &ProviderInvocationInput) -> Result<OpenAiModelIntent> {
+    let requested_context_window = match input.model_parameters.get("requested_context_window") {
+        Some(Value::Null) | None => None,
+        Some(value) => Some(
+            value
+                .as_u64()
+                .filter(|value| *value > 0)
+                .ok_or_else(|| anyhow!("requested_context_window must be a positive integer"))?,
+        ),
+    };
+    let reasoning = match input.model_parameters.get("reasoning") {
+        Some(Value::Null) | None => None,
+        Some(Value::Object(object)) => {
+            let unknown = object
+                .keys()
+                .filter(|name| !matches!(name.as_str(), "mode" | "effort" | "budget_tokens"))
+                .cloned()
+                .collect::<Vec<_>>();
+            if !unknown.is_empty() {
+                bail!(
+                    "unsupported OpenAI reasoning fields: {}",
+                    unknown.join(", ")
+                );
+            }
+            if object
+                .get("budget_tokens")
+                .is_some_and(|value| !value.is_null())
+            {
+                bail!("OpenAI wire does not support reasoning budget_tokens");
+            }
+            let mode = match object.get("mode") {
+                Some(Value::Null) | None => None,
+                Some(Value::String(mode)) => Some(match mode.as_str() {
+                    "adaptive" => OpenAiReasoningMode::Adaptive,
+                    "enabled" => OpenAiReasoningMode::Enabled,
+                    "disabled" => OpenAiReasoningMode::Disabled,
+                    mode => bail!("unsupported OpenAI reasoning mode: {mode}"),
+                }),
+                Some(_) => bail!("OpenAI reasoning mode must be text"),
+            };
+            let effort = match object.get("effort") {
+                Some(Value::Null) | None => None,
+                Some(Value::String(effort))
+                    if !effort.is_empty() && effort.trim().len() == effort.len() =>
+                {
+                    Some(effort.clone())
+                }
+                Some(_) => bail!("OpenAI reasoning effort must be non-empty text"),
+            };
+            Some(OpenAiReasoningIntent { mode, effort })
+        }
+        Some(_) => bail!("OpenAI reasoning parameters must be an object"),
+    };
+    Ok(OpenAiModelIntent {
+        requested_context_window,
+        reasoning,
+    })
+}
+
+fn openai_reasoning_effort(
+    input: &ProviderInvocationInput,
+    model_intent: &OpenAiModelIntent,
+) -> Result<Option<String>> {
+    let legacy_effort = match parameter_value(input, "reasoning_effort") {
+        Some(Value::String(effort)) => Some(effort),
+        Some(_) => bail!("reasoning_effort must be text"),
+        None => None,
+    };
+    let Some(reasoning) = model_intent.reasoning.as_ref() else {
+        return Ok(legacy_effort);
+    };
+    if legacy_effort.is_some() {
+        bail!("reasoning and reasoning_effort have conflicting typed owners");
+    }
+    match reasoning.mode {
+        Some(OpenAiReasoningMode::Disabled) => {
+            if reasoning.effort.is_some() {
+                bail!("disabled OpenAI reasoning cannot also declare an effort");
+            }
+            Ok(Some("none".to_string()))
+        }
+        Some(OpenAiReasoningMode::Adaptive | OpenAiReasoningMode::Enabled) | None => {
+            Ok(reasoning.effort.clone())
+        }
+    }
+}
+
+fn attach_openai_model_intent(
+    output: &mut RuntimeInvocationEnvelope,
+    model_intent: &OpenAiModelIntent,
+) {
+    let intent = model_intent.provider_metadata();
+    let Some(intent) = intent.as_object().filter(|value| !value.is_empty()) else {
+        return;
+    };
+    if let Some(metadata) = output.result.provider_metadata.as_object_mut() {
+        metadata.insert(
+            "request_model_parameters".to_string(),
+            Value::Object(intent.clone()),
+        );
+    }
+}
+
+fn attach_foreign_protocol_context_decision(
+    provider_metadata: &mut Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = envelope else {
+        return Ok(());
+    };
+    if matches!(
+        envelope.source_protocol.as_str(),
+        "openai_chat" | "openai_responses"
+    ) {
+        return Ok(());
+    }
+    let metadata = provider_metadata
+        .as_object_mut()
+        .context("OpenAI provider metadata must be an object")?;
+    if metadata.contains_key("provider_request_translation") {
+        bail!("OpenAI provider metadata contains reserved request translation receipt");
+    }
+    metadata.insert(
+        "provider_request_translation".to_string(),
+        json!({ "decisions": ["omitted_foreign_protocol_context"] }),
+    );
+    Ok(())
+}
+
 fn normalize_scalar_parameter(value: Value) -> Option<Value> {
     match value {
         Value::Null => None,
@@ -2051,9 +2402,9 @@ impl WebsocketInvocationError {
 async fn connect_responses_websocket(
     config: &ProviderConfig,
     turn_state: Option<&str>,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
 ) -> Result<ResponsesWebsocketSession> {
-    let url = build_websocket_url(config)?;
+    let url = build_websocket_url(config, protocol_context)?;
     let mut request = url
         .as_str()
         .into_client_request()
@@ -2061,7 +2412,7 @@ async fn connect_responses_websocket(
     request.headers_mut().extend(build_websocket_headers(
         config,
         turn_state,
-        client_protocol_envelope,
+        protocol_context,
     )?);
     let (stream, response) = if config.proxy_url.is_some() {
         connect_responses_websocket_through_proxy(config, &url, request).await
@@ -2183,9 +2534,16 @@ fn format_authority_host(host: &str) -> String {
     }
 }
 
-fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
-    let mut url = Url::parse(&build_url(config, "/responses")?)
-        .with_context(|| format!("invalid base_url: {}", config.base_url))?;
+fn build_websocket_url(
+    config: &ProviderConfig,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<Url> {
+    let mut url = Url::parse(&build_url_with_protocol_context(
+        config,
+        "/responses",
+        protocol_context,
+    )?)
+    .with_context(|| format!("invalid base_url: {}", config.base_url))?;
     let websocket_scheme = match url.scheme() {
         "https" => "wss",
         "http" => "ws",
@@ -2199,9 +2557,9 @@ fn build_websocket_url(config: &ProviderConfig) -> Result<Url> {
 fn build_websocket_headers(
     config: &ProviderConfig,
     turn_state: Option<&str>,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    protocol_context: &RestoredProtocolContext,
 ) -> Result<HeaderMap> {
-    let mut headers = build_headers(config, false, "application/json", client_protocol_envelope)?;
+    let mut headers = build_base_headers(config, false, "application/json")?;
     if let Some(turn_state) = turn_state.filter(|value| !value.trim().is_empty()) {
         headers.insert(
             HeaderName::from_static(X_CODEX_TURN_STATE_HEADER),
@@ -2212,6 +2570,8 @@ fn build_websocket_headers(
         HeaderName::from_static("openai-beta"),
         HeaderValue::from_static(RESPONSES_WEBSOCKETS_BETA),
     );
+    append_protocol_headers(&mut headers, protocol_context)?;
+    inject_provider_auth(&mut headers, config)?;
     Ok(headers)
 }
 
@@ -2231,12 +2591,13 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
 
 fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
     format!(
-        "{}\n{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}\n{}",
         input.provider_instance_id,
         config.base_url,
         config.api_key,
         config.organization.as_deref().unwrap_or_default(),
         config.project.as_deref().unwrap_or_default(),
+        serde_json::to_string(&input.client_protocol_envelope).unwrap_or_default(),
     )
 }
 
@@ -2514,24 +2875,255 @@ fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
     !matches!(finish_reason, ProviderFinishReason::Unknown)
 }
 
-async fn read_streaming_response<F>(
+#[derive(Debug, Default)]
+struct ChatToolCallState {
+    id: Option<String>,
+    name: String,
+    arguments: String,
+}
+
+impl ChatToolCallState {
+    fn into_provider_call(self, index: usize) -> ProviderToolCall {
+        let arguments = if self.arguments.is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&self.arguments).unwrap_or_else(|_| Value::String(self.arguments))
+        };
+        ProviderToolCall {
+            id: self.id.unwrap_or_else(|| format!("call_{index}")),
+            name: if self.name.is_empty() {
+                "unknown_tool".to_string()
+            } else {
+                self.name
+            },
+            arguments,
+        }
+    }
+}
+
+async fn read_chat_streaming_response<F>(
     response: reqwest::Response,
     request_model: String,
     on_event: &mut F,
-    native_passthrough: bool,
-    credential_redactions: &[String],
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let status = response.status();
     if !status.is_success() {
-        return Err(provider_upstream_error_from_response_with_redactions(
-            response,
-            credential_redactions,
-        )
-        .await?
-        .into());
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
+    let headers = response.headers().clone();
+    let upstream_request_id = header_text(&headers, "x-request-id");
+    let upstream_model =
+        header_text(&headers, "openai-model").or_else(|| header_text(&headers, "x-openai-model"));
+    let models_etag = header_text(&headers, "x-models-etag");
+    let mut all_events = Vec::new();
+    let mut events = Vec::new();
+    let mut text = String::new();
+    let mut tool_calls = BTreeMap::new();
+    let mut usage = ProviderUsage::default();
+    let mut finish_reason = ProviderFinishReason::Unknown;
+    let mut response_id = Value::Null;
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+        .await
+        .context("idle timeout waiting for Chat Completions SSE")?
+    {
+        let event = match event {
+            Ok(event) => event,
+            Err(_) if response_stream_finished(&finish_reason) => break,
+            Err(error) => return Err(anyhow!("invalid Chat Completions SSE stream: {error}")),
+        };
+        process_chat_sse_data(
+            &event.data,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )?;
+        emit_new_events(&events, on_event)?;
+        all_events.append(&mut events);
+    }
+    if response_id.is_null() || !response_stream_finished(&finish_reason) {
+        bail!("stream closed before Chat Completions finished");
+    }
+    let tool_calls = tool_calls
+        .into_iter()
+        .map(|(index, call)| call.into_provider_call(index))
+        .collect::<Vec<_>>();
+    if usage.has_any_value() {
+        events.push(ProviderStreamEvent::UsageSnapshot {
+            usage: usage.clone(),
+        });
+    }
+    for call in &tool_calls {
+        events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
+    }
+    events.push(ProviderStreamEvent::Finish {
+        reason: finish_reason.clone(),
+    });
+    emit_new_events(&events, on_event)?;
+    all_events.extend(events);
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
+    Ok(RuntimeInvocationEnvelope {
+        events: all_events,
+        result: ProviderInvocationResult {
+            final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
+            tool_calls,
+            mcp_calls: Vec::new(),
+            usage,
+            finish_reason: Some(finish_reason),
+            provider_metadata: json!({
+                "request_model": request_model,
+                "transport": "http_sse",
+                "protocol": "openai_chat",
+                "response_id": response_id,
+                "upstream_request_id": upstream_request_id,
+                "upstream_model": upstream_model,
+                "models_etag": models_etag,
+            }),
+        },
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_chat_sse_data(
+    data: &str,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_calls: &mut BTreeMap<usize, ChatToolCallState>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut ProviderFinishReason,
+    response_id: &mut Value,
+) -> Result<()> {
+    if data.is_empty() || data == "[DONE]" {
+        return Ok(());
+    }
+    let payload: Value = serde_json::from_str(data)?;
+    if let Some(error) = payload.get("error") {
+        let message = error
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("Chat Completions stream error");
+        bail!("{message}");
+    }
+    if let Some(id) = payload.get("id") {
+        *response_id = id.clone();
+    }
+    if let Some(raw_usage) = payload.get("usage") {
+        *usage = normalize_chat_usage(raw_usage);
+    }
+    let Some(choices) = payload.get("choices").and_then(Value::as_array) else {
+        return Ok(());
+    };
+    for choice in choices {
+        if let Some(delta) = choice.get("delta").and_then(Value::as_object) {
+            if let Some(content) = delta.get("content").and_then(Value::as_str) {
+                text.push_str(content);
+                events.push(ProviderStreamEvent::TextDelta {
+                    delta: content.to_string(),
+                });
+            }
+            if let Some(reasoning) = delta
+                .get("reasoning_content")
+                .or_else(|| delta.get("reasoning"))
+                .and_then(Value::as_str)
+            {
+                events.push(ProviderStreamEvent::ReasoningDelta {
+                    delta: reasoning.to_string(),
+                });
+            }
+            if let Some(calls) = delta.get("tool_calls").and_then(Value::as_array) {
+                for (fallback_index, call) in calls.iter().enumerate() {
+                    let index = call
+                        .get("index")
+                        .and_then(Value::as_u64)
+                        .and_then(|value| usize::try_from(value).ok())
+                        .unwrap_or(fallback_index);
+                    let state = tool_calls.entry(index).or_default();
+                    if let Some(id) = call.get("id").and_then(Value::as_str) {
+                        state.id = Some(id.to_string());
+                    }
+                    if let Some(name) = call
+                        .get("function")
+                        .and_then(|function| function.get("name"))
+                        .and_then(Value::as_str)
+                    {
+                        state.name.push_str(name);
+                    }
+                    let arguments = call
+                        .get("function")
+                        .and_then(|function| function.get("arguments"))
+                        .and_then(Value::as_str)
+                        .unwrap_or_default();
+                    state.arguments.push_str(arguments);
+                    events.push(ProviderStreamEvent::ToolCallDelta {
+                        call_id: state.id.clone().unwrap_or_else(|| format!("call_{index}")),
+                        delta: Value::String(arguments.to_string()),
+                    });
+                }
+            }
+        }
+        if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
+            *finish_reason = chat_finish_reason(reason);
+        }
+    }
+    Ok(())
+}
+
+fn chat_finish_reason(reason: &str) -> ProviderFinishReason {
+    match reason {
+        "stop" => ProviderFinishReason::Stop,
+        "length" => ProviderFinishReason::Length,
+        "tool_calls" | "function_call" => ProviderFinishReason::ToolCall,
+        "content_filter" => ProviderFinishReason::ContentFilter,
+        _ => ProviderFinishReason::Unknown,
+    }
+}
+
+fn normalize_chat_usage(raw: &Value) -> ProviderUsage {
+    ProviderUsage {
+        input_tokens: raw.get("prompt_tokens").and_then(Value::as_u64),
+        output_tokens: raw.get("completion_tokens").and_then(Value::as_u64),
+        reasoning_tokens: raw
+            .get("completion_tokens_details")
+            .and_then(|value| value.get("reasoning_tokens"))
+            .and_then(Value::as_u64),
+        cache_read_tokens: raw
+            .get("prompt_tokens_details")
+            .and_then(|value| value.get("cached_tokens"))
+            .and_then(Value::as_u64),
+        cache_write_tokens: None,
+        total_tokens: raw.get("total_tokens").and_then(Value::as_u64),
+    }
+}
+
+async fn read_streaming_response<F>(
+    response: reqwest::Response,
+    request_model: String,
+    on_event: &mut F,
+    native_passthrough: bool,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let status = response.status();
+    if !status.is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
     }
     let headers = response.headers().clone();
     let upstream_request_id = header_text(&headers, "x-request-id");
@@ -2545,45 +3137,27 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
-    while let Some(chunk) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
         .context("idle timeout waiting for Responses SSE")?
     {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
+        let event = match event {
+            Ok(event) => event,
             Err(_) if response_stream_finished(&finish_reason) => break,
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(anyhow!("invalid Responses SSE stream: {error}")),
         };
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        while let Some((index, delimiter_len)) = find_sse_event_boundary(&buffer) {
-            let block = buffer[..index].to_string();
-            buffer = buffer[index + delimiter_len..].to_string();
-            if native_passthrough {
-                emit_native_response_sse_block(&block, on_event)?;
-            }
-            process_response_sse_block(
-                &block,
-                &mut events,
-                &mut text,
-                &mut tool_calls,
-                &mut usage,
-                &mut finish_reason,
-                &mut response_id,
-            )?;
-            if !native_passthrough {
-                emit_new_events(&events, on_event)?;
-            }
-            all_events.append(&mut events);
-        }
-    }
-    if !buffer.trim().is_empty() {
         if native_passthrough {
-            emit_native_response_sse_block(&buffer, on_event)?;
+            emit_native_response_sse_data(&event.data, on_event)?;
         }
-        process_response_sse_block(
-            &buffer,
+        process_response_sse_payload(
+            &event.data,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -2591,9 +3165,7 @@ where
             &mut finish_reason,
             &mut response_id,
         )?;
-        if !native_passthrough {
-            emit_new_events(&events, on_event)?;
-        }
+        emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
@@ -2610,9 +3182,7 @@ where
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
-    if !native_passthrough {
-        emit_new_events(&events, on_event)?;
-    }
+    emit_new_events(&events, on_event)?;
     all_events.extend(events);
     let native_response_id = response_id.as_str().map(ToOwned::to_owned);
     Ok(RuntimeInvocationEnvelope {
@@ -2695,61 +3265,10 @@ fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-fn find_sse_event_boundary(buffer: &str) -> Option<(usize, usize)> {
-    match (buffer.find("\n\n"), buffer.find("\r\n\r\n")) {
-        (Some(left), Some(right)) if left < right => Some((left, 2)),
-        (Some(_), Some(right)) => Some((right, 4)),
-        (Some(left), None) => Some((left, 2)),
-        (None, Some(right)) => Some((right, 4)),
-        (None, None) => None,
-    }
-}
-
-fn process_response_sse_block(
-    block: &str,
-    events: &mut Vec<ProviderStreamEvent>,
-    text: &mut String,
-    tool_calls: &mut ResponseToolCalls,
-    usage: &mut ProviderUsage,
-    finish_reason: &mut ProviderFinishReason,
-    response_id: &mut Value,
-) -> Result<()> {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    process_response_sse_payload(
-        data.trim(),
-        events,
-        text,
-        tool_calls,
-        usage,
-        finish_reason,
-        response_id,
-    )
-}
-
-fn response_sse_block_data(block: &str) -> Option<String> {
-    let mut data = Vec::new();
-    for line in block.lines() {
-        let line = line.trim_end_matches('\r');
-        if let Some(value) = line.strip_prefix("data:") {
-            data.push(value.trim_start());
-        }
-    }
-    if data.is_empty() {
-        return None;
-    }
-    Some(data.join("\n"))
-}
-
-fn emit_native_response_sse_block<F>(block: &str, on_event: &mut F) -> Result<()>
+fn emit_native_response_sse_data<F>(data: &str, on_event: &mut F) -> Result<()>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let Some(data) = response_sse_block_data(block) else {
-        return Ok(());
-    };
-    let data = data.trim();
     if data.is_empty() || data == "[DONE]" {
         return Ok(());
     }
@@ -2761,8 +3280,8 @@ where
 }
 
 #[cfg(test)]
-fn process_response_sse_line(
-    line: &str,
+fn process_response_sse_data(
+    data: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
     tool_calls: &mut ResponseToolCalls,
@@ -2770,11 +3289,6 @@ fn process_response_sse_line(
     finish_reason: &mut ProviderFinishReason,
     response_id: &mut Value,
 ) -> Result<()> {
-    let line = line.trim();
-    if !line.starts_with("data:") {
-        return Ok(());
-    }
-    let data = line.trim_start_matches("data:").trim();
     process_response_sse_payload(
         data,
         events,
@@ -2842,6 +3356,11 @@ fn process_response_sse_payload(
         }
         "response.output_item.added" => {
             tool_calls.upsert_from_added_item(payload.get("item"));
+            if let Some(event) =
+                typed_response_output_item(&payload, ProviderOutputItemPhase::Added)?
+            {
+                events.push(event);
+            }
         }
         "response.function_call_arguments.done" => {
             if let Some(call) = provider_tool_call_from_function_call_arguments_done(
@@ -2863,6 +3382,11 @@ fn process_response_sse_payload(
         }
         "response.output_item.done" => {
             tool_calls.upsert_from_item(payload.get("item"));
+            if let Some(event) =
+                typed_response_output_item(&payload, ProviderOutputItemPhase::Done)?
+            {
+                events.push(event);
+            }
             if text.is_empty() {
                 if let Some(item_text) = response_item_text(payload.get("item")) {
                     text.push_str(&item_text);
@@ -2888,6 +3412,41 @@ fn process_response_sse_payload(
         _ => {}
     }
     Ok(())
+}
+
+fn typed_response_output_item(
+    payload: &Value,
+    phase: ProviderOutputItemPhase,
+) -> Result<Option<ProviderStreamEvent>> {
+    let Some(item) = payload.get("item") else {
+        return Ok(None);
+    };
+    if !matches!(
+        item.get("type").and_then(Value::as_str),
+        Some(
+            "tool_search_call"
+                | "tool_search_output"
+                | "additional_tools"
+                | "file_search_call"
+                | "program"
+                | "shell_call"
+                | "mcp_list_tools"
+                | "mcp_call"
+                | "mcp_approval_request"
+        )
+    ) {
+        return Ok(None);
+    }
+    let output_index = payload
+        .get("output_index")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| anyhow!("typed Responses output item omitted output_index"))?;
+    Ok(Some(ProviderStreamEvent::OutputItem {
+        phase,
+        output_index,
+        item: item.clone(),
+    }))
 }
 
 fn capture_response_id(payload: &Value, response_id: &mut Value) {
@@ -3182,6 +3741,24 @@ mod tests {
         },
     };
 
+    #[test]
+    fn wp_r3_foreign_context_receipt_is_bounded_and_contains_no_raw_values() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "anthropic_messages".to_string(),
+            body: BTreeMap::from([("raw-canary".to_string(), json!("must-not-leak"))]),
+            ..ProtocolContextEnvelope::default()
+        };
+        let mut metadata = json!({ "provider": "openai" });
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&envelope)).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_foreign_protocol_context"])
+        );
+        assert!(!metadata.to_string().contains("raw-canary"));
+        assert!(!metadata.to_string().contains("must-not-leak"));
+        assert!(metadata.to_string().len() <= 512);
+    }
+
     #[tokio::test]
     async fn ac_005_validate_redacts_configured_proxy_url() {
         let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
@@ -3246,18 +3823,29 @@ mod tests {
     fn start_generate_sse_server_with_body(
         body: impl Into<String>,
     ) -> (String, mpsc::Receiver<String>) {
+        start_generate_http_server("200 OK", "text/event-stream", body, None)
+    }
+
+    fn start_generate_http_server(
+        status: &str,
+        content_type: &str,
+        body: impl Into<String>,
+        declared_content_length: Option<usize>,
+    ) -> (String, mpsc::Receiver<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("generate listener should bind");
         let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
         let (request_tx, request_rx) = mpsc::channel();
+        let status = status.to_string();
+        let content_type = content_type.to_string();
         let body = body.into();
 
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("generate request should connect");
             let request = read_http_request_with_body(&mut stream);
             let _ = request_tx.send(request);
+            let content_length = declared_content_length.unwrap_or(body.len());
             let response = format!(
-                "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
-                body.len(),
+                "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {content_length}\r\nconnection: close\r\n\r\n{}",
                 body
             );
             stream
@@ -3266,6 +3854,49 @@ mod tests {
         });
 
         (base_url, request_rx)
+    }
+
+    fn start_chunked_sse_server(chunks: Vec<Vec<u8>>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("SSE listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("SSE request should connect");
+            let _ = read_http_request_with_body(&mut stream);
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n",
+                )
+                .expect("SSE response headers should be writable");
+            for chunk in chunks {
+                write!(stream, "{:x}\r\n", chunk.len()).expect("chunk size should be writable");
+                stream
+                    .write_all(&chunk)
+                    .expect("chunk payload should be writable");
+                stream
+                    .write_all(b"\r\n")
+                    .expect("chunk trailer should be writable");
+                stream.flush().expect("chunk should flush");
+            }
+            stream
+                .write_all(b"0\r\n\r\n")
+                .expect("terminating chunk should be writable");
+        });
+
+        address
+    }
+
+    fn split_chinese_and_emoji_tcp_chunks(body: &str) -> Vec<Vec<u8>> {
+        let bytes = body.as_bytes();
+        let chinese = body
+            .find('中')
+            .expect("fixture should contain Chinese text");
+        let emoji = body.find('🙂').expect("fixture should contain emoji");
+        vec![
+            bytes[..chinese + 1].to_vec(),
+            bytes[chinese + 1..emoji + 2].to_vec(),
+            bytes[emoji + 2..].to_vec(),
+        ]
     }
 
     fn start_compact_json_server(
@@ -3353,8 +3984,133 @@ mod tests {
         (proxy_url, request_rx, handle)
     }
 
+    #[tokio::test]
+    async fn openai_chat_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: message\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"choices\":[{\"delta\":{\"content\":\"中文🙂\"},\"finish_reason\":null}]}\r\n\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\r\n\r\n",
+            "data: [DONE]\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope =
+            read_chat_streaming_response(response, "gpt-5.4".to_string(), &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: response.output_text.delta\r\n",
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_split\",\"delta\":\"中文🙂\"}\r\n\r\n",
+            "event: response.completed\r\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_split\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope = read_streaming_response(
+            response,
+            "gpt-5.4".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn openai_chat_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"id\":\"chatcmpl_utf8\",\"choices\":[{\"delta\":{\"content\":\"before\"},\"finish_reason\":null}]}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_chat_streaming_response(response, "gpt-5.4".to_string(), &mut |event| {
+            events.push(event.clone());
+            Ok(())
+        })
+        .await
+        .expect_err("invalid UTF-8 must fail the Chat Completions SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_utf8\",\"delta\":\"before\"}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_streaming_response(
+            response,
+            "gpt-5.4".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            false,
+        )
+        .await
+        .expect_err("invalid UTF-8 must fail the Responses SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
     #[test]
-    fn ac_005_upstream_raw_body_and_secrets_stay_out_of_error_contract() {
+    fn wp_d3a_unknown_json_plain_html_and_whitespace_error_bodies_remain_exact() {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
@@ -3369,75 +4125,159 @@ mod tests {
             HeaderName::from_static("set-cookie"),
             HeaderValue::from_static("session=secret"),
         );
-        let raw_body = "plain upstream failure body with request payload".to_string();
+        for raw_body in [
+            r#"{"future_error":{"shape":"unknown"}}"#,
+            "plain upstream failure\nwith a trailing newline\n",
+            "<html><body>future provider failure</body></html>",
+            " \r\n\t leading and trailing whitespace \n ",
+            " \r\n\t ",
+        ] {
+            let error = provider_upstream_error_from_parts(
+                reqwest::StatusCode::BAD_REQUEST,
+                &headers,
+                raw_body.to_string(),
+            );
 
-        let error = provider_upstream_error_from_parts(
-            reqwest::StatusCode::BAD_REQUEST,
+            assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+            assert_eq!(error.message, raw_body);
+            assert_eq!(error.provider_summary.as_deref(), Some(raw_body));
+            assert_eq!(
+                error.provider_details,
+                Some(json!({ "status": 400, "request_id": "req_plain" }))
+            );
+            let encoded = serde_json::to_string(&error).unwrap();
+            assert!(!encoded.contains("sk-secret"));
+            assert!(!encoded.contains("session=secret"));
+        }
+
+        let empty = provider_upstream_error_from_parts(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
             &headers,
-            raw_body.clone(),
+            String::new(),
         );
-
-        assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert!(error.message.contains("provider upstream request failed"));
-        assert!(!error.message.contains(&raw_body));
-        assert!(!error
-            .provider_summary
-            .as_deref()
-            .expect("provider_summary should exist")
-            .contains(&raw_body));
-        let details = error
-            .provider_details
-            .as_ref()
-            .expect("upstream error should carry details");
+        assert_eq!(empty.message, "HTTP 503 Service Unavailable");
         assert_eq!(
-            details,
-            &json!({ "status": 400, "request_id": "req_plain" })
+            empty.provider_summary.as_deref(),
+            Some("HTTP 503 Service Unavailable")
         );
-        let encoded = serde_json::to_string(&error).unwrap();
-        assert!(!encoded.contains(&raw_body));
-        assert!(!encoded.contains("sk-secret"));
-        assert!(!encoded.contains("session=secret"));
     }
 
-    #[test]
-    fn d6_ac_005_native_mcp_credentials_are_redacted_from_upstream_errors() {
-        const AUTHORIZATION: &str = "Bearer mcp-authorization-canary";
-        const HEADER_SECRET: &str = "mcp-header-canary";
-        let body = json!({
-            "tools": [{
-                "type": "mcp",
-                "server_url": "https://127.0.0.1.invalid/mcp",
-                "authorization": AUTHORIZATION,
-                "headers": {"X-Provider-Token": HEADER_SECRET}
-            }]
-        });
-        let redactions = native_transport_credential_values(&body);
-        assert!(redactions.contains(&AUTHORIZATION.to_string()));
-        assert!(redactions.contains(&HEADER_SECRET.to_string()));
-
-        let error = provider_upstream_error_from_parts_with_redactions(
-            reqwest::StatusCode::BAD_REQUEST,
-            &HeaderMap::new(),
-            json!({
-                "error": {
-                    "message": format!("invalid credentials {AUTHORIZATION} {HEADER_SECRET}")
+    #[tokio::test]
+    async fn wp_d3a_chat_and_responses_errors_enter_runtime_error_unchanged() {
+        for (protocol, pathname, content_type, raw_body) in [
+            (
+                "openai_responses",
+                "/responses",
+                "application/problem+json",
+                " \r\n{\"future_error\":{\"shape\":\"unknown\"}}\n ",
+            ),
+            (
+                "openai_chat",
+                "/chat/completions",
+                "text/html",
+                "<html><body>chat upstream failure</body></html>\n",
+            ),
+        ] {
+            let (base_url, request_rx) =
+                start_generate_http_server("400 Bad Request", content_type, raw_body, None);
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-openai",
+                "provider_code": "openai",
+                "protocol": protocol,
+                "model": "gpt-5.4-mini",
+                "provider_config": {
+                    "base_url": base_url,
+                    "api_key": "error-fixture-secret",
+                    "transport_mode": "http_sse"
+                },
+                "messages": [{ "role": "user", "content": "fixture" }],
+                "required_capabilities": ["protocol_context"],
+                "client_protocol_envelope": {
+                    "source_protocol": protocol,
+                    "query": {"fixture": ["one", "two"]},
+                    "headers": {"x-client-name": ["wp-d3a"]},
+                    "body": {"future_option": {"mode": "exact"}}
                 }
-            })
-            .to_string(),
-            &redactions,
-        );
-        let encoded = serde_json::to_string(&error).unwrap();
+            }))
+            .expect("error fixture input should deserialize");
 
-        assert!(!encoded.contains(AUTHORIZATION));
-        assert!(!encoded.contains(HEADER_SECRET));
-        assert!(encoded.contains("***"));
+            let error = OpenAiProviderRuntime::default()
+                .invoke_response(input)
+                .await
+                .expect_err("non-success upstream response should fail");
+            let runtime_error = error
+                .downcast_ref::<ProviderRuntimeError>()
+                .expect("upstream response should remain a typed ProviderRuntimeError");
+
+            assert_eq!(
+                runtime_error.kind,
+                ProviderRuntimeErrorKind::ProviderUpstreamError
+            );
+            assert_eq!(runtime_error.message, raw_body);
+            assert_eq!(runtime_error.provider_summary.as_deref(), Some(raw_body));
+
+            let request = request_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("error fixture should capture the request");
+            let (request_head, request_body) = request
+                .split_once("\r\n\r\n")
+                .expect("captured request should contain headers and body");
+            assert!(request_head
+                .starts_with(&format!("POST {pathname}?fixture=one&fixture=two HTTP/1.1")));
+            assert!(request_head
+                .to_ascii_lowercase()
+                .contains("x-client-name: wp-d3a"));
+            let request_body: Value = serde_json::from_str(request_body)
+                .expect("captured request body should remain JSON");
+            assert_eq!(request_body["future_option"]["mode"], "exact");
+        }
+    }
+
+    #[tokio::test]
+    async fn wp_d3a_error_body_transport_failure_is_not_a_provider_runtime_error() {
+        let raw_body = "truncated";
+        let (base_url, _) = start_generate_http_server(
+            "502 Bad Gateway",
+            "text/plain",
+            raw_body,
+            Some(raw_body.len() + 64),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "api_key": "transport-fixture-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "fixture" }]
+        }))
+        .expect("transport failure fixture input should deserialize");
+
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("truncated upstream body should remain a transport failure");
+
+        assert!(error.downcast_ref::<ProviderRuntimeError>().is_none());
+        assert!(error.downcast_ref::<reqwest::Error>().is_some());
     }
 
     #[test]
     fn responses_body_maps_native_tool_calls_and_tool_results() {
         let input = ProviderInvocationInput {
             contract_version: ProviderInvocationContractVersion::Current,
+            protocol: "openai_responses".to_string(),
             model: "gpt-5.1".to_string(),
+            required_capabilities: BTreeSet::from([ProviderInvocationCapability::ProtocolContext]),
+            client_protocol_envelope: Some(ProtocolContextEnvelope {
+                source_protocol: "openai_responses".to_string(),
+                ..Default::default()
+            }),
             previous_response_id: Some("resp_previous".to_string()),
             messages: vec![
                 ProviderMessage {
@@ -3659,7 +4499,7 @@ mod tests {
             "future_extension": {"opaque": true}
         });
         let mut captured = Vec::new();
-        emit_native_response_sse_block(&format!("data: {provider_event}"), &mut |event| {
+        emit_native_response_sse_data(&provider_event.to_string(), &mut |event| {
             captured.push(event.clone());
             Ok(())
         })
@@ -3701,7 +4541,7 @@ mod tests {
         ];
         let mut captured = Vec::new();
         for event in &provider_events {
-            emit_native_response_sse_block(&format!("data: {event}"), &mut |event| {
+            emit_native_response_sse_data(&event.to_string(), &mut |event| {
                 captured.push(event.clone());
                 Ok(())
             })
@@ -3721,10 +4561,10 @@ mod tests {
     }
 
     #[test]
-    fn d4_ac_026_native_responses_sse_block_emits_exact_provider_event() {
+    fn d4_ac_026_native_responses_sse_data_emits_exact_provider_event() {
         let mut captured = Vec::new();
-        emit_native_response_sse_block(
-            r#"data: {"type":"response.future.delta","future":{"opaque":true}}"#,
+        emit_native_response_sse_data(
+            r#"{"type":"response.future.delta","future":{"opaque":true}}"#,
             &mut |event| {
                 captured.push(event.clone());
                 Ok(())
@@ -3792,6 +4632,11 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "body": { "foreign_raw_canary": "must-not-reach-openai" }
+            },
             "model": "gpt-5.4-mini",
             "provider_config": {
                 "base_url": base_url,
@@ -3817,6 +4662,7 @@ mod tests {
         let body: Value = serde_json::from_str(body).unwrap();
 
         assert!(headers.starts_with("POST /responses HTTP/1.1"));
+        assert!(body.get("foreign_raw_canary").is_none());
         assert!(headers
             .to_ascii_lowercase()
             .contains("authorization: bearer wire-secret"));
@@ -3931,9 +4777,10 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": { "base_url": base_url, "api_key": "legacy-compact-secret" },
-            "required_capabilities": ["compact.responses_compact"],
+            "required_capabilities": ["compact.responses_compact", "protocol_context"],
             "messages": [{ "role": "user", "content": "retain this turn" }]
         }))
         .expect("typed legacy Compact input should deserialize");
@@ -3993,9 +4840,10 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": { "base_url": base_url, "api_key": "v2-compact-secret" },
-            "required_capabilities": ["compact.responses_compaction_v2"],
+            "required_capabilities": ["compact.responses_compaction_v2", "protocol_context"],
             "messages": [{ "role": "user", "content": "retain this turn" }]
         }))
         .expect("typed V2 Compact input should deserialize");
@@ -4054,9 +4902,10 @@ mod tests {
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
             "model": "gpt-5.4-mini",
             "provider_config": { "base_url": base_url, "api_key": "remote-failure-secret" },
-            "required_capabilities": ["compact.responses_compaction_v2"],
+            "required_capabilities": ["compact.responses_compaction_v2", "protocol_context"],
             "messages": [{ "role": "user", "content": "retain this turn" }]
         }))
         .expect("typed V2 Compact input should deserialize");
@@ -4065,7 +4914,13 @@ mod tests {
             .invoke_compact_response(input)
             .await
             .expect_err("remote Compact failure must not downgrade to a local Generate result");
-        assert!(error.to_string().contains("503"));
+        let runtime_error = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("remote Compact failure should retain the typed Provider error");
+        assert_eq!(
+            runtime_error.message,
+            r#"{"error":{"message":"remote compact unavailable"}}"#
+        );
 
         let request = request_rx
             .recv_timeout(Duration::from_secs(5))
@@ -4144,14 +4999,21 @@ mod tests {
     #[test]
     fn d4_package_manifest_declares_remote_compact_and_native_responses_capabilities() {
         let manifest = include_str!("../manifest.yaml");
+        let gpt_5_4 = include_str!("../models/llm/gpt-5.4.yaml");
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
         assert!(manifest.contains(
-            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2\n    - responses.native_passthrough"
+            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2\n    - responses.native_passthrough\n    - protocol_context.restore.openai_chat.v1\n    - protocol_context.restore.openai_responses.v1"
         ));
+        assert!(!manifest
+            .lines()
+            .any(|line| line.trim() == "- protocol_context"));
+        assert_eq!(manifest.matches("protocol_context.restore.").count(), 2);
+        assert!(!manifest.contains("protocol_context.consume."));
         assert!(!manifest.contains("count_tokens"));
         assert!(!manifest.contains("system_prompt_blocks"));
+        assert!(gpt_5_4.contains("context_window: 1000000"));
     }
 
     #[test]
@@ -4317,8 +5179,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4327,8 +5189,8 @@ mod tests {
             &mut response_id,
         )
         .unwrap();
-        process_response_sse_line(
-            r#"data: {"type":"response.completed","response":{"id":"resp_1","output":[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.completed","response":{"id":"resp_1","output":[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4356,8 +5218,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4366,8 +5228,8 @@ mod tests {
             &mut response_id,
         )
         .unwrap();
-        process_response_sse_line(
-            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4392,8 +5254,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4404,8 +5266,8 @@ mod tests {
         .unwrap();
         assert!(tool_calls.is_empty());
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4430,8 +5292,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4442,8 +5304,8 @@ mod tests {
         .unwrap();
         assert!(tool_calls.is_empty());
 
-        process_response_sse_line(
-            r#"data: {"type":"response.function_call_arguments.done","item_id":"fc_1","call_id":"call_1","arguments":"{\"command\":\"pwd\"}" }"#,
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","call_id":"call_1","arguments":"{\"command\":\"pwd\"}" }"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4454,8 +5316,8 @@ mod tests {
         .unwrap();
         assert!(tool_calls.is_empty());
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4493,6 +5355,42 @@ mod tests {
         assert_eq!(text, "OK");
         assert_eq!(usage.total_tokens, Some(2));
         assert_eq!(finish_reason, ProviderFinishReason::Stop);
+    }
+
+    #[test]
+    fn responses_mcp_approval_is_emitted_as_typed_output_item() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.output_item.added","output_index":2,"item":{"id":"approval_1","type":"mcp_approval_request","server_label":"fixture_mcp","name":"lookup","arguments":"{}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(
+            events,
+            vec![ProviderStreamEvent::OutputItem {
+                phase: ProviderOutputItemPhase::Added,
+                output_index: 2,
+                item: json!({
+                    "id": "approval_1",
+                    "type": "mcp_approval_request",
+                    "server_label": "fixture_mcp",
+                    "name": "lookup",
+                    "arguments": "{}"
+                }),
+            }]
+        );
     }
 
     #[test]
@@ -4611,8 +5509,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        let error = process_response_sse_line(
-            r#"data: {"type":"response.failed","response":{"error":{"code":"insufficient_quota","message":"quota exceeded"}}}"#,
+        let error = process_response_sse_data(
+            r#"{"type":"response.failed","response":{"error":{"code":"insufficient_quota","message":"quota exceeded"}}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4634,8 +5532,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.reasoning_text.delta","content_index":0,"delta":"thinking"}"#,
+        process_response_sse_data(
+            r#"{"type":"response.reasoning_text.delta","content_index":0,"delta":"thinking"}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4644,8 +5542,8 @@ mod tests {
             &mut response_id,
         )
         .unwrap();
-        process_response_sse_line(
-            r#"data: {"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","delta":"{\"cmd\":\"pwd\"}"}"#,
+        process_response_sse_data(
+            r#"{"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","delta":"{\"cmd\":\"pwd\"}"}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4678,8 +5576,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        let error = process_response_sse_line(
-            r#"data: {"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}"#,
+        let error = process_response_sse_data(
+            r#"{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4701,8 +5599,8 @@ mod tests {
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut response_id = Value::Null;
 
-        process_response_sse_line(
-            r#"data: {"type":"response.output_item.done","item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -4747,7 +5645,7 @@ mod tests {
             proxy_url: None,
         };
 
-        let headers = build_stream_headers(&config, None).unwrap();
+        let headers = build_stream_headers(&config, &RestoredProtocolContext::default()).unwrap();
 
         assert_eq!(
             headers.get(ACCEPT).and_then(|value| value.to_str().ok()),
@@ -4756,23 +5654,20 @@ mod tests {
     }
 
     #[test]
-    fn client_protocol_envelope_uses_default_deny_policy_for_http_headers() {
+    fn wp_d2c_same_protocol_headers_preserve_repeated_values_and_provider_auth_wins_last() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
             "model": "gpt-5.1",
+            "required_capabilities": ["protocol_context"],
             "client_protocol_envelope": {
                 "source_protocol": "openai_responses",
-                "policy": "default_deny",
                 "headers": {
-                    "authorization": "Bearer client-secret",
-                    "x-api-key": "client-api-key",
-                    "openai-beta": "client-beta",
-                    "x-client-name": "ClaudeCode",
-                    "host": "evil.example"
-                }
+                    "x-client-name": ["fixture", "fixture-v2"]
+                },
+                "body": {"future_option": {"mode": "exact"}}
             }
         }))
         .unwrap();
@@ -4785,68 +5680,119 @@ mod tests {
             transport_mode: OpenAiTransportMode::HttpSse,
             proxy_url: None,
         };
-
-        assert!(input.client_protocol_envelope.is_some());
-
-        let headers =
-            build_json_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+        let request = build_openai_generate_request(&input).unwrap();
+        let headers = build_json_headers(&config, true, &request.protocol_context).unwrap();
 
         assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer sk-provider");
         assert!(headers.get("x-api-key").is_none());
-        assert!(headers.get("openai-beta").is_none());
-        assert!(headers.get("x-client-name").is_none());
-        assert!(headers.get("host").is_none());
+        assert_eq!(
+            headers
+                .get_all("x-client-name")
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["fixture", "fixture-v2"]
+        );
+        assert_eq!(request.body["future_option"]["mode"], "exact");
     }
 
     #[test]
-    fn headers_restore_anthropic_client_protocol_envelope_and_keep_config_auth() {
-        let input: ProviderInvocationInput = serde_json::from_value(json!({
+    fn wp_d2c_chat_and_responses_prepare_typed_model_intent_before_residual_restore() {
+        let chat: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
-            "model": "gpt-5.1",
+            "model": "gpt-5.4",
+            "messages": [{"role": "user", "content": "hello"}],
+            "model_parameters": {
+                "requested_context_window": 1000000,
+                "reasoning": {"mode": "adaptive", "effort": "max"}
+            },
+            "required_capabilities": ["protocol_context"],
             "client_protocol_envelope": {
-                "source_protocol": "anthropic_messages",
-                "policy": "anthropic_messages_v1",
-                "headers": {
-                    "anthropic-version": "2023-06-01",
-                    "anthropic-beta": "ccr-byoc-2025-07-29",
-                    "x-claude-code-session-id": "session-123",
-                    "x-client-name": "ClaudeCode",
-                    "user-agent": "ClaudeCode/1.0",
-                    "authorization": "Bearer client-secret",
-                    "x-api-key": "client-auth-must-not-win"
-                }
+                "source_protocol": "openai_chat",
+                "body": {"future_chat_option": {"mode": "exact"}}
             }
         }))
         .unwrap();
-        let config = ProviderConfig {
-            base_url: DEFAULT_BASE_URL.to_string(),
-            api_key: "sk-provider".to_string(),
-            organization: None,
-            project: None,
-            validate_model: false,
-            transport_mode: OpenAiTransportMode::HttpSse,
-            proxy_url: None,
-        };
+        let responses: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4",
+            "messages": [{"role": "user", "content": "hello"}],
+            "model_parameters": {
+                "requested_context_window": 1000000,
+                "reasoning": {"mode": "adaptive", "effort": "max"}
+            },
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "openai_responses",
+                "body": {"future_responses_option": {"mode": "exact"}}
+            }
+        }))
+        .unwrap();
 
-        let headers =
-            build_json_headers(&config, true, input.client_protocol_envelope.as_ref()).unwrap();
+        let chat = build_openai_generate_request(&chat).unwrap();
+        let responses = build_openai_generate_request(&responses).unwrap();
 
-        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer sk-provider");
-        assert!(headers.get("x-api-key").is_none());
-        assert_eq!(headers.get("anthropic-version").unwrap(), "2023-06-01");
         assert_eq!(
-            headers.get("anthropic-beta").unwrap(),
-            "ccr-byoc-2025-07-29"
+            (
+                chat.protocol,
+                chat.pathname,
+                chat.body["reasoning_effort"].clone()
+            ),
+            (OpenAiWireProtocol::Chat, "/chat/completions", json!("max"))
         );
         assert_eq!(
-            headers.get("x-claude-code-session-id").unwrap(),
-            "session-123"
+            (
+                responses.protocol,
+                responses.pathname,
+                responses.body["reasoning"].clone()
+            ),
+            (
+                OpenAiWireProtocol::Responses,
+                "/responses",
+                json!({"effort": "max"})
+            )
         );
-        assert_eq!(headers.get("x-client-name").unwrap(), "ClaudeCode");
-        assert_eq!(headers.get("user-agent").unwrap(), "ClaudeCode/1.0");
+        assert_eq!(chat.body["future_chat_option"]["mode"], "exact");
+        assert_eq!(responses.body["future_responses_option"]["mode"], "exact");
+        for request in [&chat, &responses] {
+            assert!(request.body.get("requested_context_window").is_none());
+            assert!(request.body.get("context_window").is_none());
+            assert_eq!(
+                request.model_intent.provider_metadata(),
+                json!({
+                    "requested_context_window": 1000000,
+                    "reasoning": {"mode": "adaptive", "effort": "max"}
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn wp_d2c_disabled_reasoning_uses_none_without_defaulting_absent_effort() {
+        let mut input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4",
+            "messages": [{"role": "user", "content": "hello"}],
+            "model_parameters": {"reasoning": {"mode": "disabled"}}
+        }))
+        .unwrap();
+
+        let disabled = build_openai_generate_request(&input).unwrap();
+        assert_eq!(disabled.body["reasoning"], json!({"effort": "none"}));
+
+        input.model_parameters =
+            BTreeMap::from([("reasoning".to_string(), json!({"mode": "adaptive"}))]);
+        let adaptive = build_openai_generate_request(&input).unwrap();
+        assert!(adaptive.body.get("reasoning").is_none());
     }
 
     #[test]
@@ -4883,7 +5829,9 @@ mod tests {
         };
 
         assert_eq!(
-            build_websocket_url(&config).unwrap().as_str(),
+            build_websocket_url(&config, &RestoredProtocolContext::default())
+                .unwrap()
+                .as_str(),
             "wss://api.openai.com/v1/responses"
         );
     }
@@ -4901,9 +5849,10 @@ mod tests {
             proxy_url: Some(proxy_url),
         };
 
-        let session = connect_responses_websocket(&config, None, None)
-            .await
-            .expect("websocket should connect through configured proxy");
+        let session =
+            connect_responses_websocket(&config, None, &RestoredProtocolContext::default())
+                .await
+                .expect("websocket should connect through configured proxy");
 
         assert_eq!(session.turn_state.as_deref(), Some("proxy-turn"));
         drop(session);
@@ -4946,7 +5895,8 @@ mod tests {
             proxy_url: None,
         };
 
-        let headers = build_websocket_headers(&config, None, None).unwrap();
+        let headers =
+            build_websocket_headers(&config, None, &RestoredProtocolContext::default()).unwrap();
 
         assert_eq!(
             headers
@@ -4969,7 +5919,12 @@ mod tests {
             proxy_url: None,
         };
 
-        let headers = build_websocket_headers(&config, Some("sticky-turn-1"), None).unwrap();
+        let headers = build_websocket_headers(
+            &config,
+            Some("sticky-turn-1"),
+            &RestoredProtocolContext::default(),
+        )
+        .unwrap();
 
         assert_eq!(
             headers
@@ -4980,20 +5935,19 @@ mod tests {
     }
 
     #[test]
-    fn websocket_headers_keep_internal_beta_and_turn_state_over_client_envelope() {
+    fn wp_d2c_websocket_headers_reject_collisions_with_transport_owned_fields() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-openai",
             "provider_code": "openai",
             "protocol": "openai_responses",
             "model": "gpt-5.1",
+            "required_capabilities": ["protocol_context"],
             "client_protocol_envelope": {
                 "source_protocol": "openai_responses",
-                "policy": "default_deny",
                 "headers": {
-                    "authorization": "Bearer client-secret",
-                    "openai-beta": "client-beta",
-                    "x-codex-turn-state": "client-turn-state"
+                    "openai-beta": ["client-beta"],
+                    "x-codex-turn-state": ["client-turn-state"]
                 }
             }
         }))
@@ -5007,26 +5961,15 @@ mod tests {
             transport_mode: OpenAiTransportMode::ResponsesWebsocket,
             proxy_url: None,
         };
+        let request = build_openai_generate_request(&input).unwrap();
 
-        let headers = build_websocket_headers(
-            &config,
-            Some("sticky-turn-1"),
-            input.client_protocol_envelope.as_ref(),
-        )
-        .unwrap();
+        let error =
+            build_websocket_headers(&config, Some("sticky-turn-1"), &request.protocol_context)
+                .unwrap_err();
 
-        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer sk-provider");
         assert_eq!(
-            headers
-                .get(HeaderName::from_static("openai-beta"))
-                .and_then(|value| value.to_str().ok()),
-            Some(RESPONSES_WEBSOCKETS_BETA)
-        );
-        assert_eq!(
-            headers
-                .get(HeaderName::from_static(X_CODEX_TURN_STATE_HEADER))
-                .and_then(|value| value.to_str().ok()),
-            Some("sticky-turn-1")
+            error.to_string(),
+            "protocol context header collides with an owned field: openai-beta"
         );
     }
 
