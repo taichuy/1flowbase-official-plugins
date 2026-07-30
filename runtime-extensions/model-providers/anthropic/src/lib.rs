@@ -7,14 +7,19 @@ use anyhow::{anyhow, bail, Context, Result};
 use eventsource_stream::Eventsource;
 use futures_util::StreamExt;
 use reqwest::{
-    header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, CONTENT_TYPE},
+    header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     Method, Url,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
+mod protocol_context;
 mod sse_codec;
 
+use protocol_context::{
+    attach_matching_protocol_context_receipt, restore_protocol_context_body,
+    restore_protocol_context_body_with_receipt,
+};
 use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "anthropic";
@@ -326,8 +331,26 @@ pub struct ProviderCountTokensResult {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
+pub struct SourceProtocolRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<ProtocolAuthenticationPresentation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtocolAuthenticationPresentation {
+    AuthorizationBearer,
+    XApiKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ProtocolContextEnvelope {
     pub source_protocol: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_request: Option<SourceProtocolRequest>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub query: BTreeMap<String, Vec<String>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -774,14 +797,52 @@ fn build_headers(
         );
     }
     apply_client_protocol_headers(&mut headers, client_protocol_envelope)?;
+    coalesce_anthropic_beta_header(&mut headers)?;
 
     // Provider credentials are injected only after every client-protocol
     // residual has been validated and restored.
-    headers.insert(
-        HeaderName::from_static("x-api-key"),
-        HeaderValue::from_str(&config.api_key).context("invalid api_key header")?,
-    );
+    match matching_protocol_context(client_protocol_envelope)?
+        .and_then(|envelope| envelope.source_request.as_ref())
+        .and_then(|request| request.authentication)
+    {
+        Some(ProtocolAuthenticationPresentation::AuthorizationBearer) => {
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", config.api_key))
+                    .context("invalid Authorization bearer header")?,
+            );
+        }
+        Some(ProtocolAuthenticationPresentation::XApiKey) | None => {
+            headers.insert(
+                HeaderName::from_static("x-api-key"),
+                HeaderValue::from_str(&config.api_key).context("invalid api_key header")?,
+            );
+        }
+    }
     Ok(headers)
+}
+
+fn coalesce_anthropic_beta_header(headers: &mut HeaderMap) -> Result<()> {
+    let values = headers
+        .get_all(ANTHROPIC_BETA_HEADER)
+        .iter()
+        .map(|value| {
+            value
+                .to_str()
+                .context("Anthropic beta header contains an invalid value")
+                .map(str::to_string)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    if values.len() <= 1 {
+        return Ok(());
+    }
+    headers.remove(ANTHROPIC_BETA_HEADER);
+    headers.insert(
+        HeaderName::from_static(ANTHROPIC_BETA_HEADER),
+        HeaderValue::from_str(&values.join(","))
+            .context("coalesced Anthropic beta header is invalid")?,
+    );
+    Ok(())
 }
 
 fn apply_client_protocol_headers(
@@ -873,7 +934,7 @@ fn protocol_context_header_is_safe(name: &str) -> bool {
     protocol_context_field_is_safe(name)
         && !matches!(
             name,
-            "content-type" | "accept" | "accept-encoding" | "origin" | "x-claude-code-session-id"
+            "content-type" | "accept" | "accept-encoding" | "origin"
         )
 }
 
@@ -981,52 +1042,6 @@ fn build_url_with_protocol_context(
         }
     }
     Ok(url.to_string())
-}
-
-fn restore_protocol_context_body(
-    mut typed_body: Value,
-    envelope: Option<&ProtocolContextEnvelope>,
-) -> Result<Value> {
-    let Some(envelope) = matching_protocol_context(envelope)? else {
-        return Ok(typed_body);
-    };
-    let body = typed_body
-        .as_object_mut()
-        .context("typed Anthropic request body must be an object")?;
-    for (name, value) in &envelope.body {
-        if !protocol_context_field_is_safe(name) {
-            bail!("protocol context contains a reserved body field");
-        }
-        if ANTHROPIC_TYPED_BODY_FIELDS.contains(&name.as_str()) || body.contains_key(name) {
-            bail!("protocol context collides with a typed Anthropic body field");
-        }
-        validate_protocol_context_value(value)?;
-        if name == "context_management" && !value.is_object() {
-            bail!("protocol context context_management must be an object");
-        }
-        body.insert(name.clone(), value.clone());
-    }
-    Ok(typed_body)
-}
-
-fn validate_protocol_context_value(value: &Value) -> Result<()> {
-    match value {
-        Value::Array(values) => {
-            for value in values {
-                validate_protocol_context_value(value)?;
-            }
-        }
-        Value::Object(object) => {
-            for (name, value) in object {
-                if !protocol_context_field_is_safe(name) {
-                    bail!("protocol context contains a nested reserved body field");
-                }
-                validate_protocol_context_value(value)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
 }
 
 fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
@@ -1297,8 +1312,10 @@ where
         .context("Anthropic request max_tokens must be an unsigned integer")?;
     let requests_one_million_context =
         typed_request.requested_context_window == Some(ANTHROPIC_CONTEXT_1M_TOKENS);
-    let body =
-        restore_protocol_context_body(typed_request.body, input.client_protocol_envelope.as_ref())?;
+    let restoration = restore_protocol_context_body_with_receipt(
+        typed_request.body,
+        input.client_protocol_envelope.as_ref(),
+    )?;
     let url = build_url_with_protocol_context(
         &config,
         "/v1/messages",
@@ -1312,7 +1329,7 @@ where
     let response = build_http_client(&config)?
         .request(Method::POST, url)
         .headers(headers)
-        .json(&body)
+        .json(&restoration.body)
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, &config))?;
@@ -1326,6 +1343,11 @@ where
     attach_foreign_protocol_context_decision(
         &mut output.result.provider_metadata,
         input.client_protocol_envelope.as_ref(),
+    )?;
+    attach_matching_protocol_context_receipt(
+        &mut output.result.provider_metadata,
+        input.client_protocol_envelope.as_ref(),
+        &restoration.receipt,
     )?;
     Ok(output)
 }
@@ -2574,8 +2596,23 @@ mod tests {
             "messages": [{ "role": "user", "content": "wire prompt" }],
             "system": [{ "type": "text", "text": "wire instructions" }],
             "request_context": { "end_user_reference": "wire-user" },
-            "required_capabilities": ["system_prompt_blocks", "end_user_reference"],
-            "model_parameters": { "max_output_tokens": 128 }
+            "required_capabilities": [
+                "system_prompt_blocks",
+                "end_user_reference",
+                "protocol_context"
+            ],
+            "model_parameters": {
+                "max_output_tokens": 128,
+                "requested_context_window": 1000000
+            },
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "headers": {
+                    "anthropic-beta": [
+                        "claude-code-20250219,interleaved-thinking-2025-05-14"
+                    ]
+                }
+            }
         }))
         .unwrap();
 
@@ -2594,6 +2631,17 @@ mod tests {
         assert!(headers
             .to_ascii_lowercase()
             .contains("x-api-key: wire-secret"));
+        let beta_headers = headers
+            .lines()
+            .filter(|line| line.to_ascii_lowercase().starts_with("anthropic-beta:"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            beta_headers,
+            vec![concat!(
+                "anthropic-beta: context-1m-2025-08-07,",
+                "claude-code-20250219,interleaved-thinking-2025-05-14"
+            )]
+        );
         assert_eq!(
             body,
             json!({
@@ -2740,7 +2788,7 @@ mod tests {
             "system_prompt_cache_control",
             "end_user_reference",
             "count_tokens",
-            "protocol_context.restore.anthropic_messages.v1",
+            "protocol_context.restore.anthropic_messages.v2",
         ] {
             assert_eq!(manifest.matches(capability).count(), 1);
         }
@@ -2930,6 +2978,13 @@ mod tests {
     fn wp_d2b_protocol_context_mirrors_the_frozen_host_abi() {
         let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
             "source_protocol": "anthropic_messages",
+            "source_request": {
+                "authentication": "authorization_bearer",
+                "body": {
+                    "model": "claude-opus-4-8",
+                    "messages": [{"role": "user", "content": "hello"}]
+                }
+            },
             "query": {"preview": ["one", "two"]},
             "headers": {
                 "anthropic-version": ["2023-06-01"],
@@ -2948,9 +3003,23 @@ mod tests {
             vec!["prompt-caching".to_string(), "private-beta".to_string()]
         );
         assert_eq!(
+            envelope
+                .source_request
+                .as_ref()
+                .and_then(|request| request.authentication),
+            Some(ProtocolAuthenticationPresentation::AuthorizationBearer)
+        );
+        assert_eq!(
             serde_json::to_value(&envelope).unwrap(),
             json!({
                 "source_protocol": "anthropic_messages",
+                "source_request": {
+                    "authentication": "authorization_bearer",
+                    "body": {
+                        "model": "claude-opus-4-8",
+                        "messages": [{"role": "user", "content": "hello"}]
+                    }
+                },
                 "query": {"preview": ["one", "two"]},
                 "headers": {
                     "anthropic-version": ["2023-06-01"],
@@ -2964,6 +3033,158 @@ mod tests {
             "policy": "anthropic_messages_v1"
         }))
         .expect_err("legacy envelope policy must not create a second ABI shape");
+    }
+
+    #[test]
+    fn ac_001_rebuilds_the_source_authentication_presentation_with_provider_secret() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            api_key: "provider-config-secret".to_string(),
+            anthropic_version: "2023-06-01".to_string(),
+            validate_model: true,
+            proxy_url: None,
+        };
+        let bearer = ProtocolContextEnvelope {
+            source_protocol: ANTHROPIC_MESSAGES_PROTOCOL.to_string(),
+            source_request: Some(SourceProtocolRequest {
+                authentication: Some(ProtocolAuthenticationPresentation::AuthorizationBearer),
+                body: None,
+            }),
+            ..ProtocolContextEnvelope::default()
+        };
+        let bearer_headers = build_headers(&config, Some(&bearer), false).unwrap();
+        assert_eq!(
+            bearer_headers[AUTHORIZATION],
+            "Bearer provider-config-secret"
+        );
+        assert!(bearer_headers.get("x-api-key").is_none());
+
+        let api_key = ProtocolContextEnvelope {
+            source_protocol: ANTHROPIC_MESSAGES_PROTOCOL.to_string(),
+            source_request: Some(SourceProtocolRequest {
+                authentication: Some(ProtocolAuthenticationPresentation::XApiKey),
+                body: None,
+            }),
+            ..ProtocolContextEnvelope::default()
+        };
+        let api_key_headers = build_headers(&config, Some(&api_key), false).unwrap();
+        assert_eq!(api_key_headers["x-api-key"], "provider-config-secret");
+        assert!(api_key_headers.get(AUTHORIZATION).is_none());
+
+        let serialized_context = serde_json::to_string(&bearer).unwrap();
+        assert!(!serialized_context.contains("provider-config-secret"));
+        assert!(!serialized_context.contains("Bearer "));
+    }
+
+    #[test]
+    fn ac_002_restores_unchanged_source_fields_and_keeps_only_the_system_delta() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-anthropic",
+            "provider_code": "anthropic",
+            "protocol": "anthropic_messages",
+            "model": "claude-opus-4-8",
+            "messages": [{
+                "role": "user",
+                "content": "hello world"
+            }],
+            "system": [
+                {"type": "text", "text": "source system"},
+                {"type": "text", "text": "，语言偏好中文"}
+            ],
+            "tools": [{
+                "type": "function",
+                "function": {
+                    "name": "Bash",
+                    "description": "Run a command",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"command": {"type": "string"}},
+                        "required": ["command"]
+                    }
+                }
+            }],
+            "model_parameters": {"max_output_tokens": 4096},
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "source_request": {
+                    "authentication": "authorization_bearer",
+                    "body": {
+                        "model": "claude-opus-4-8",
+                        "max_tokens": 4096,
+                        "stream": true,
+                        "system": [{"type": "text", "text": "source system"}],
+                        "messages": [{
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "hello"},
+                                {
+                                    "type": "text",
+                                    "text": " world",
+                                    "cache_control": {"type": "ephemeral"}
+                                }
+                            ]
+                        }],
+                        "tools": [{
+                            "name": "Bash",
+                            "description": "Run a command",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {"command": {"type": "string"}},
+                                "required": ["command"]
+                            },
+                            "cache_control": {"type": "ephemeral"}
+                        }]
+                    }
+                }
+            }
+        }))
+        .unwrap();
+
+        let typed = build_typed_messages_body(&input).unwrap();
+        let restoration = restore_protocol_context_body_with_receipt(
+            typed.body,
+            input.client_protocol_envelope.as_ref(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            restoration.body["messages"][0]["content"][1]["cache_control"]["type"],
+            "ephemeral"
+        );
+        assert_eq!(
+            restoration.body["tools"][0]["cache_control"]["type"],
+            "ephemeral"
+        );
+        assert_eq!(restoration.body["system"].as_array().map(Vec::len), Some(2));
+        assert!(restoration
+            .receipt
+            .reconstructed_source_fields
+            .contains("messages"));
+        assert!(restoration
+            .receipt
+            .reconstructed_source_fields
+            .contains("tools"));
+        assert_eq!(
+            restoration.receipt.semantic_delta_fields,
+            BTreeSet::from(["system".to_string()])
+        );
+
+        let mut metadata = json!({"provider": "anthropic"});
+        attach_matching_protocol_context_receipt(
+            &mut metadata,
+            input.client_protocol_envelope.as_ref(),
+            &restoration.receipt,
+        )
+        .unwrap();
+        let encoded = serde_json::to_string(&metadata).unwrap();
+        for hidden in ["hello world", "source system", "provider-config-secret"] {
+            assert!(!encoded.contains(hidden));
+        }
+        assert_eq!(
+            metadata["provider_request_translation"]["semantic_delta_fields"],
+            json!(["system"])
+        );
     }
 
     #[test]
@@ -3042,7 +3263,8 @@ mod tests {
                     "anthropic-version": ["2023-06-01"],
                     "anthropic-beta": ["prompt-caching", "private-beta"],
                     "Accept-Language": ["en-US", "zh-CN"],
-                    "user-agent": ["ClaudeCode/1.0"]
+                    "user-agent": ["ClaudeCode/1.0"],
+                    "x-claude-code-session-id": ["session-source-123"]
                 },
                 "body": {
                     "context_management": {
@@ -3105,6 +3327,7 @@ mod tests {
             vec!["en-US", "zh-CN"]
         );
         assert_eq!(headers["user-agent"], "ClaudeCode/1.0");
+        assert_eq!(headers["x-claude-code-session-id"], "session-source-123");
         assert_eq!(headers["x-api-key"], "provider-config-secret");
         let beta_values = headers
             .get_all(ANTHROPIC_BETA_HEADER)
@@ -3113,7 +3336,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             beta_values,
-            vec![ANTHROPIC_CONTEXT_1M_BETA, "prompt-caching", "private-beta"]
+            vec![format!(
+                "{ANTHROPIC_CONTEXT_1M_BETA},prompt-caching,private-beta"
+            )]
         );
     }
 
