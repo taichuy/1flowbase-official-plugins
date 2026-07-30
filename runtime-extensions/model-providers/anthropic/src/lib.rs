@@ -1352,6 +1352,7 @@ where
     Ok(output)
 }
 
+#[cfg(test)]
 fn build_messages_body(input: &ProviderInvocationInput) -> Result<Value> {
     Ok(build_typed_messages_body(input)?.body)
 }
