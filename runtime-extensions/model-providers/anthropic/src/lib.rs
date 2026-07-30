@@ -494,6 +494,7 @@ pub struct ProviderInvocationResult {
 pub enum ProviderStreamEvent {
     TextDelta { delta: String },
     ReasoningDelta { delta: String },
+    ReasoningSignatureDelta { signature: String },
     ToolCallDelta { call_id: String, delta: Value },
     ToolCallCommit { call: ProviderToolCall },
     UsageSnapshot { usage: ProviderUsage },
@@ -2076,6 +2077,13 @@ fn process_anthropic_sse_data(
                     if let Some(value) = delta.get("thinking").and_then(Value::as_str) {
                         events.push(ProviderStreamEvent::ReasoningDelta {
                             delta: value.to_string(),
+                        });
+                    }
+                }
+                "signature_delta" => {
+                    if let Some(value) = delta.get("signature").and_then(Value::as_str) {
+                        events.push(ProviderStreamEvent::ReasoningSignatureDelta {
+                            signature: value.to_string(),
                         });
                     }
                 }
@@ -3757,6 +3765,40 @@ mod tests {
         assert!(events.contains(&ProviderStreamEvent::Finish {
             reason: ProviderFinishReason::Stop
         }));
+    }
+
+    #[tokio::test]
+    async fn anthropic_stream_preserves_signature_delta_exactly() {
+        let response = reqwest::get(start_sse_server(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_signature\"}}\n\n",
+            "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"private reasoning\"}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"opaque-signature-fixture\"}}\n\n",
+            "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+            "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n\n",
+            "data: {\"type\":\"message_stop\"}\n\n"
+        )))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        read_streaming_message(
+            response,
+            "claude-opus-4-8".to_string(),
+            DEFAULT_MAX_TOKENS,
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            events.contains(&ProviderStreamEvent::ReasoningSignatureDelta {
+                signature: "opaque-signature-fixture".to_string()
+            })
+        );
     }
 
     #[tokio::test]
