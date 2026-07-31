@@ -734,7 +734,14 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Result<Vec<Valu
             ProviderMessageRole::Tool => "tool",
         };
         item.insert("role".to_string(), Value::String(role.to_string()));
-        item.insert("content".to_string(), lower_message_content(message)?);
+        let (content, reasoning_content) = lower_message_content(message)?;
+        item.insert("content".to_string(), content);
+        if let Some(reasoning_content) = reasoning_content {
+            item.insert(
+                "reasoning_content".to_string(),
+                Value::String(reasoning_content),
+            );
+        }
         if let Some(name) = message
             .name
             .as_deref()
@@ -763,14 +770,15 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Result<Vec<Valu
     Ok(messages)
 }
 
-fn lower_message_content(message: &ProviderMessage) -> Result<Value> {
+fn lower_message_content(message: &ProviderMessage) -> Result<(Value, Option<String>)> {
     let Some(content_blocks) = message.content_blocks.as_ref() else {
-        return Ok(Value::String(message.content.clone()));
+        return Ok((Value::String(message.content.clone()), None));
     };
     let blocks = content_blocks
         .as_array()
         .ok_or_else(|| anyhow!("canonical content_blocks must be an array"))?;
     let mut visible_text = Vec::new();
+    let mut reasoning_text = Vec::new();
     for (index, block) in blocks.iter().enumerate() {
         let block_type = block
             .as_object()
@@ -785,10 +793,17 @@ fn lower_message_content(message: &ProviderMessage) -> Result<Value> {
                     .ok_or_else(|| anyhow!("canonical text block must contain string text"))?;
                 visible_text.push(text);
             }
-            // DeepSeek's multi-turn contract carries the assistant's visible content forward,
-            // not the prior reasoning_content. Recognizing this block is therefore an explicit
-            // semantic lowering decision, not raw pass-through or accidental omission.
-            "reasoning" => {}
+            "reasoning" => {
+                if message.role != ProviderMessageRole::Assistant {
+                    bail!("canonical reasoning history is only valid on assistant messages")
+                }
+                let text = block
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .filter(|text| !text.is_empty())
+                    .ok_or_else(|| anyhow!("canonical reasoning block must contain string text"))?;
+                reasoning_text.push(text);
+            }
             "reasoning_redacted" => {
                 bail!("DeepSeek cannot safely lower redacted reasoning history")
             }
@@ -801,11 +816,13 @@ fn lower_message_content(message: &ProviderMessage) -> Result<Value> {
             unknown => bail!("unsupported canonical message block type: {unknown}"),
         }
     }
-    if visible_text.is_empty() {
-        Ok(Value::String(message.content.clone()))
+    let content = if visible_text.is_empty() {
+        Value::String(message.content.clone())
     } else {
-        Ok(Value::String(visible_text.join("\n")))
-    }
+        Value::String(visible_text.join("\n"))
+    };
+    let reasoning_content = (!reasoning_text.is_empty()).then(|| reasoning_text.join("\n"));
+    Ok((content, reasoning_content))
 }
 
 fn build_chat_completion_tool_calls(tool_calls: &Value) -> Value {
@@ -1820,8 +1837,11 @@ mod tests {
         let body = build_chat_completion_body(&input).unwrap();
 
         assert_eq!(body["messages"][0]["content"], "visible answer");
+        assert_eq!(
+            body["messages"][0]["reasoning_content"],
+            "private reasoning"
+        );
         let wire = serde_json::to_string(&body).unwrap();
-        assert!(!wire.contains("private reasoning"));
         assert!(!wire.contains("content_blocks"));
         assert!(!wire.contains("\"type\":\"reasoning\""));
     }
@@ -2172,7 +2192,8 @@ mod tests {
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(!manifest.contains("capabilities:"));
+        assert!(manifest.contains("capabilities:"));
+        assert!(manifest.contains("message_blocks.reasoning_history.v1"));
     }
 
     #[test]
