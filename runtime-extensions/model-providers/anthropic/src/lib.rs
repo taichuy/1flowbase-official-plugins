@@ -254,6 +254,10 @@ pub enum ProviderInvocationCapability {
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    #[serde(rename = "message_blocks.reasoning_history.v1")]
+    MessageBlocksReasoningHistoryV1,
+    #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
+    MessageBlocksRedactedReasoningHistoryV1,
     ProtocolContext,
 }
 

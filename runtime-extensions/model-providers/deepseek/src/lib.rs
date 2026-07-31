@@ -229,6 +229,10 @@ pub enum ProviderInvocationCapability {
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    #[serde(rename = "message_blocks.reasoning_history.v1")]
+    MessageBlocksReasoningHistoryV1,
+    #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
+    MessageBlocksRedactedReasoningHistoryV1,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -648,17 +652,20 @@ where
 }
 
 fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
-    if !input.required_capabilities.is_empty()
-        || input.system.iter().any(|block| {
-            matches!(
-                block,
-                NativePromptBlock::Text {
-                    cache_control: Some(_),
-                    ..
-                }
-            )
-        })
-        || input.request_context.end_user_reference.is_some()
+    if input.required_capabilities.iter().any(|capability| {
+        !matches!(
+            capability,
+            ProviderInvocationCapability::MessageBlocksReasoningHistoryV1
+        )
+    }) || input.system.iter().any(|block| {
+        matches!(
+            block,
+            NativePromptBlock::Text {
+                cache_control: Some(_),
+                ..
+            }
+        )
+    }) || input.request_context.end_user_reference.is_some()
     {
         bail!("DeepSeek Generate does not support the requested semantic capabilities");
     }
@@ -671,7 +678,7 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     body.insert("model".to_string(), Value::String(model.to_string()));
     body.insert(
         "messages".to_string(),
-        Value::Array(build_invocation_messages(input)),
+        Value::Array(build_invocation_messages(input)?),
     );
     body.insert("stream".to_string(), Value::Bool(true));
     body.insert(
@@ -710,7 +717,7 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     Ok(Value::Object(body))
 }
 
-fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
+fn build_invocation_messages(input: &ProviderInvocationInput) -> Result<Vec<Value>> {
     let mut messages = Vec::new();
     if let Some(system) = input.system_text() {
         messages.push(json!({
@@ -727,13 +734,7 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
             ProviderMessageRole::Tool => "tool",
         };
         item.insert("role".to_string(), Value::String(role.to_string()));
-        item.insert(
-            "content".to_string(),
-            message
-                .content_blocks
-                .clone()
-                .unwrap_or_else(|| Value::String(message.content.clone())),
-        );
+        item.insert("content".to_string(), lower_message_content(message)?);
         if let Some(name) = message
             .name
             .as_deref()
@@ -759,7 +760,52 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         }
         messages.push(Value::Object(item));
     }
-    messages
+    Ok(messages)
+}
+
+fn lower_message_content(message: &ProviderMessage) -> Result<Value> {
+    let Some(content_blocks) = message.content_blocks.as_ref() else {
+        return Ok(Value::String(message.content.clone()));
+    };
+    let blocks = content_blocks
+        .as_array()
+        .ok_or_else(|| anyhow!("canonical content_blocks must be an array"))?;
+    let mut visible_text = Vec::new();
+    for (index, block) in blocks.iter().enumerate() {
+        let block_type = block
+            .as_object()
+            .and_then(|object| object.get("type"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow!("canonical content_blocks[{index}].type must be a string"))?;
+        match block_type {
+            "text" => {
+                let text = block
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow!("canonical text block must contain string text"))?;
+                visible_text.push(text);
+            }
+            // DeepSeek's multi-turn contract carries the assistant's visible content forward,
+            // not the prior reasoning_content. Recognizing this block is therefore an explicit
+            // semantic lowering decision, not raw pass-through or accidental omission.
+            "reasoning" => {}
+            "reasoning_redacted" => {
+                bail!("DeepSeek cannot safely lower redacted reasoning history")
+            }
+            "image" | "image_url" | "document" => {
+                bail!("DeepSeek does not support canonical media block type: {block_type}")
+            }
+            "tool_use" | "tool_result" => {
+                bail!("canonical {block_type} blocks must use the typed tool message fields")
+            }
+            unknown => bail!("unsupported canonical message block type: {unknown}"),
+        }
+    }
+    if visible_text.is_empty() {
+        Ok(Value::String(message.content.clone()))
+    } else {
+        Ok(Value::String(visible_text.join("\n")))
+    }
 }
 
 fn build_chat_completion_tool_calls(tool_calls: &Value) -> Value {
@@ -1735,7 +1781,7 @@ mod tests {
             ..ProviderInvocationInput::default()
         };
 
-        let messages = build_invocation_messages(&input);
+        let messages = build_invocation_messages(&input).unwrap();
         let call = &messages[0]["tool_calls"][0];
 
         assert_eq!(call["id"], "call_00_XRooTtPLMotGXDkskaIA9845");
@@ -1747,6 +1793,66 @@ mod tests {
         );
         assert!(call.get("name").is_none());
         assert!(call.get("arguments").is_none());
+    }
+
+    #[test]
+    fn root_1534_ac_005_reasoning_history_is_lowered_without_canonical_wire_leakage() {
+        let input = ProviderInvocationInput {
+            model: "deepseek-v4-pro".to_string(),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::MessageBlocksReasoningHistoryV1,
+            ]),
+            messages: vec![ProviderMessage {
+                role: ProviderMessageRole::Assistant,
+                content: "visible answer".to_string(),
+                name: None,
+                tool_call_id: None,
+                is_error: None,
+                tool_calls: None,
+                content_blocks: Some(json!([
+                    {"type": "reasoning", "text": "private reasoning", "signature": "sig"},
+                    {"type": "text", "text": "visible answer"}
+                ])),
+            }],
+            ..ProviderInvocationInput::default()
+        };
+
+        let body = build_chat_completion_body(&input).unwrap();
+
+        assert_eq!(body["messages"][0]["content"], "visible answer");
+        let wire = serde_json::to_string(&body).unwrap();
+        assert!(!wire.contains("private reasoning"));
+        assert!(!wire.contains("content_blocks"));
+        assert!(!wire.contains("\"type\":\"reasoning\""));
+    }
+
+    #[test]
+    fn root_1534_ac_005_redacted_or_unknown_blocks_fail_closed_before_http() {
+        for content_blocks in [
+            json!([{"type": "reasoning_redacted", "data": "opaque"}]),
+            json!([{"type": "future_vendor_block", "payload": "must-not-cross"}]),
+        ] {
+            let input = ProviderInvocationInput {
+                model: "deepseek-v4-pro".to_string(),
+                messages: vec![ProviderMessage {
+                    role: ProviderMessageRole::Assistant,
+                    content: "visible answer".to_string(),
+                    name: None,
+                    tool_call_id: None,
+                    is_error: None,
+                    tool_calls: None,
+                    content_blocks: Some(content_blocks),
+                }],
+                ..ProviderInvocationInput::default()
+            };
+
+            let error = build_chat_completion_body(&input)
+                .expect_err("unsafe canonical blocks must not reach DeepSeek HTTP");
+            assert!(
+                error.to_string().contains("reasoning")
+                    || error.to_string().contains("canonical message block")
+            );
+        }
     }
 
     #[test]
