@@ -263,6 +263,12 @@ function runtimeEntries(repoRoot) {
         locator: sourcePath,
         publisher_registry: 'official-registry.json',
         plugin_id: plugin.plugin_id,
+        plugin_type: plugin.plugin_type,
+        provider_code: plugin.provider_code,
+        protocol: plugin.protocol,
+        model_discovery_mode: plugin.model_discovery_mode,
+        icon: plugin.icon ?? null,
+        help_url: plugin.help_url ?? null,
       },
       signature: signaturePairs.size === 1 ? (() => {
         const [algorithm, keyId] = [...signaturePairs][0].split(':');
