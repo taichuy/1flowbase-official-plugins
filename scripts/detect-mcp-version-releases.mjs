@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const BUNDLE_PATH_PATTERN = /^mcp\/([^/]+)\/([^/]+)\//;
+const BUNDLE_PATH_PATTERN = /^mcp\/@([^/]+)\/([^/]+)\//;
 
 function manifestVersion(content) {
   if (!content) return '';
@@ -20,7 +20,7 @@ export function detectMcpVersionReleases(changes) {
         );
       }
       return {
-        bundle_dir: `mcp/${organization}/${bundleId}`,
+        bundle_dir: `mcp/@${organization}/${bundleId}`,
         organization,
         bundle_id: bundleId,
         version,
@@ -68,7 +68,7 @@ export function detectMcpVersionReleasesBetweenRefs(baseRef, headRef) {
   }
   return detectMcpVersionReleases(
     [...bundleKeys.values()].map(([organization, bundleId]) => {
-      const manifestPath = `mcp/${organization}/${bundleId}/manifest.json`;
+      const manifestPath = `mcp/@${organization}/${bundleId}/manifest.json`;
       return {
         organization,
         bundleId,

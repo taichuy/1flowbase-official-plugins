@@ -145,7 +145,7 @@ test('buildRegistryEntry emits a raw GitHub icon URL for repository asset icons'
     pluginDir: path.join(
       repoRoot,
       'runtime-extensions',
-      'model-providers',
+      '@taichuy',
       'openai_compatible'
     ),
     providerCode: 'openai_compatible',
@@ -155,13 +155,13 @@ test('buildRegistryEntry emits a raw GitHub icon URL for repository asset icons'
 
   assert.equal(
     entry.icon,
-    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
+    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg'
   );
 });
 
 test('buildRegistryEntry strips Windows shell escapes from sha256 checksums', () => {
   const entry = buildRegistryEntry({
-    pluginDir: path.join(repoRoot, 'runtime-extensions', 'model-providers', 'gemini'),
+    pluginDir: path.join(repoRoot, 'runtime-extensions', '@taichuy', 'gemini'),
     providerCode: 'gemini',
     version: '0.1.4',
     artifacts: [

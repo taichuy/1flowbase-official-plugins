@@ -119,13 +119,13 @@ test('AC-CAT-4 check mode reports catalog drift without rewriting generated file
   assert.equal(fs.readFileSync(indexPath, 'utf8'), '{}\n');
 });
 
-test('AC-CAT-5 canonical source layout overrides a legacy publisher entry with the same identity', () => {
+test('AC-CAT-5 explicit canonical metadata overrides derived publisher metadata', () => {
   const repoRoot = fixtureRepo();
-  const workflowRoot = path.join(repoRoot, 'agent-flow/workflows/example');
+  const workflowRoot = path.join(repoRoot, 'agent-flow/@taichuy/example');
   fs.mkdirSync(workflowRoot, { recursive: true });
   fs.writeFileSync(path.join(workflowRoot, 'template.json'), JSON.stringify({
     schema_version: '1flowbase.application-template/v1',
-    application: { application_type: 'agent_flow', name: 'Legacy', description: '' },
+    application: { application_type: 'agent_flow', name: 'Derived', description: '' },
   }));
   canonicalEntry(repoRoot, 'agent-flow', 'taichuy', 'example', { name: 'Canonical' });
 
@@ -133,6 +133,36 @@ test('AC-CAT-5 canonical source layout overrides a legacy publisher entry with t
   assert.equal(entries.length, 1);
   assert.equal(entries[0].name, 'Canonical');
   assert.equal(entries[0].source.kind, 'repository');
+});
+
+test('AC-CAT-1 repository sources and repository downloads resolve through canonical artifact paths', () => {
+  const expectedCounts = new Map([
+    ['agent-flow', 2],
+    ['i18n', 1],
+    ['mcp', 2],
+    ['runtime-extensions', 6],
+  ]);
+
+  for (const [category, expectedCount] of expectedCounts) {
+    const entries = discoverCatalogEntries({ repoRoot: repositoryRoot, category });
+    assert.equal(entries.length, expectedCount);
+    for (const entry of entries) {
+      const artifactRoot = `${category}/@${entry.organization}/${entry.artifact}`;
+      assert.ok(entry.source.locator.startsWith(artifactRoot), `${entry.id} source must use ${artifactRoot}`);
+      if (entry.download_locator.kind === 'repository_file') {
+        assert.ok(entry.download_locator.locator.includes(artifactRoot));
+      }
+    }
+  }
+
+  for (const removedPath of [
+    ['agent-flow', 'workflows'].join('/'),
+    ['capability-plugins', 'nodes'].join('/'),
+    ['mcp', 'taichuy'].join('/'),
+    ['runtime-extensions', ['model', 'providers'].join('-')].join('/'),
+  ]) {
+    assert.equal(fs.existsSync(path.join(repositoryRoot, removedPath)), false);
+  }
 });
 
 test('AC-CAT-4 and AC-CAT-5 workflows detect drift, rebuild, and invoke publisher adapters', () => {

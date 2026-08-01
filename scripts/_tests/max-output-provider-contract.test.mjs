@@ -15,7 +15,7 @@ const providerIds = [
 function parameterForm(providerId) {
   const providerPath = path.join(
     repoRoot,
-    'runtime-extensions/model-providers',
+    'runtime-extensions/@taichuy',
     providerId,
     'provider',
     `${providerId}.yaml`

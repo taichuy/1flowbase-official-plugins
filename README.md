@@ -17,17 +17,17 @@
 
 - `host-extensions/`：宿主能力扩展目录
 - `runtime-extensions/`：运行时扩展目录
-- `runtime-extensions/model-providers/`：模型供应商运行时扩展目录
+- `runtime-extensions/@taichuy/`：模型供应商运行时扩展目录
 - `capability-plugins/`：能力插件目录
-- `capability-plugins/nodes/`：节点能力插件目录
-- `agent-flow/`：官方 AgentFlow 工作流模板与生成目录
-- `mcp/<organization>/<bundle_id>/`：按组织维护的整套 MCP 配置包源码
+- `capability-plugins/@taichuy/nodes/`：节点能力插件目录
+- `agent-flow/@<organization>/<workflow_id>/`：官方 AgentFlow 工作流模板
+- `mcp/@<organization>/<bundle_id>/`：按组织维护的整套 MCP 配置包源码
 - `mcp/catalog.json`：官方 MCP 配置包 latest-only 目录
 - `official-registry.json`：已发布插件目录元数据
 - `scripts/`：注册表与发布辅助脚本
 - `.github/workflows/`：CI 与发布自动化
 
-当前官方 model provider 位于 `runtime-extensions/model-providers/<provider_code>/` 下，通常包含：
+当前官方 model provider 位于 `runtime-extensions/@taichuy/<provider_code>/` 下，通常包含：
 
 - `manifest.yaml`：插件稳定身份、版本号与运行时元数据
 - `Cargo.toml` 与 `src/`：Rust provider runtime 源码
@@ -46,12 +46,12 @@
 仓库当前包含两个 GitHub Actions workflow：
 
 - `provider-ci`：在 `pull_request` 和 `push main` 时运行，校验 registry JSON、执行 provider 打包 dry-run，并运行脚本测试
-- `provider-release`：在 `main` 分支收到 `runtime-extensions/model-providers/**/manifest.yaml` 变更时运行
+- `provider-release`：在 `main` 分支收到 `runtime-extensions/@taichuy/**/manifest.yaml` 变更时运行
 - `mcp-bundle-release`：校验 MCP 包版本、打包 ZIP、发布 Release，并回写 ZIP checksum
 
 ### MCP 配置包
 
-每个 MCP 配置包固定放在 `mcp/<organization>/<bundle_id>/`，根目录包含
+每个 MCP 配置包固定放在 `mcp/@<organization>/<bundle_id>/`，根目录包含
 `manifest.json`、`tools/` 和 `instances/`。ZIP 解压后的根目录保持同样结构。
 
 修改任一 Tool、Instance 或 manifest 时，必须提升 `manifest.json` 的
@@ -69,7 +69,7 @@ node scripts/update-mcp-catalog.mjs
 `manifest.yaml` 是 provider 发布版本的唯一维护位置。`Cargo.toml` 中的 `version` 仅用于满足 Cargo 对包元数据的要求，不参与插件发布版本管理。
 
 1. 修改 provider 实现代码。
-2. 更新 `runtime-extensions/model-providers/<provider_code>/manifest.yaml` 中的 `version:`。
+2. 更新 `runtime-extensions/@taichuy/<provider_code>/manifest.yaml` 中的 `version:`。
 3. 将变更合并到 `main`。
 4. GitHub Actions 会自动：
    - 检测哪些 provider 的版本发生了变化
@@ -135,7 +135,7 @@ GitHub Release 页面中的 `Assets` 数量，不等于插件平台包数量。
 
 ## 新增 Provider
 
-1. 在 `runtime-extensions/model-providers/<provider_code>/` 下创建新目录。
+1. 在 `runtime-extensions/@taichuy/<provider_code>/` 下创建新目录。
 2. 至少补齐以下文件：
    - `manifest.yaml`
    - `provider/<provider_code>.yaml`

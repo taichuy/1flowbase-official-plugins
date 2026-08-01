@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - 'runtime-extensions/model-providers/**/manifest.yaml'
+      - 'runtime-extensions/@taichuy/**/manifest.yaml'
   workflow_dispatch:
     inputs:
       provider_code:
-        description: Provider code under runtime-extensions/model-providers
+        description: Provider code under runtime-extensions/@taichuy
         required: true
         type: string
       version:
@@ -59,7 +59,7 @@ jobs:
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             provider_code="${{ inputs.provider_code }}"
-            plugin_dir="runtime-extensions/model-providers/${provider_code}"
+            plugin_dir="runtime-extensions/@taichuy/${provider_code}"
             if [ ! -f "${plugin_dir}/manifest.yaml" ]; then
               echo "Provider manifest not found: ${plugin_dir}/manifest.yaml" >&2
               exit 1

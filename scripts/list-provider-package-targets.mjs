@@ -127,7 +127,7 @@ export function readProviderPackageTarget(pluginDir, baseRoot = repoRoot, option
 }
 
 export function listProviderPackageTargets(rootDir = repoRoot) {
-  const providersDir = path.join(rootDir, 'runtime-extensions', 'model-providers');
+  const providersDir = path.join(rootDir, 'runtime-extensions', '@taichuy');
   if (!fs.existsSync(providersDir)) {
     return [];
   }

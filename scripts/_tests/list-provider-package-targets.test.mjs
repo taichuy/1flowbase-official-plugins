@@ -10,7 +10,7 @@ import {
 } from '../list-provider-package-targets.mjs';
 
 function writeManifestV1(root, pluginDirName, { pluginId, entry }) {
-  const pluginDir = path.join(root, 'runtime-extensions', 'model-providers', pluginDirName);
+  const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', pluginDirName);
   fs.mkdirSync(pluginDir, { recursive: true });
   fs.writeFileSync(
     path.join(pluginDir, 'manifest.yaml'),
@@ -53,7 +53,7 @@ function writeManifestV1(root, pluginDirName, { pluginId, entry }) {
 }
 
 function writeManifestV2(root, providerCode, executablePath) {
-  const pluginDir = path.join(root, 'runtime-extensions', 'model-providers', providerCode);
+  const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', providerCode);
   fs.mkdirSync(pluginDir, { recursive: true });
   fs.writeFileSync(
     path.join(pluginDir, 'manifest.yaml'),
@@ -92,12 +92,12 @@ test('listProviderPackageTargets supports manifest v1 stable plugin_id and basen
   assert.deepEqual(targets, [
     {
       provider_code: 'alpha_provider',
-      plugin_dir: 'runtime-extensions/model-providers/alpha_provider',
+      plugin_dir: 'runtime-extensions/@taichuy/alpha_provider',
       binary_name: 'alpha-runtime',
     },
     {
       provider_code: 'fallback-provider',
-      plugin_dir: 'runtime-extensions/model-providers/fallback-provider',
+      plugin_dir: 'runtime-extensions/@taichuy/fallback-provider',
       binary_name: 'fallback-provider',
     },
   ]);
@@ -109,7 +109,7 @@ test('readProviderPackageTarget keeps old schema v2 plugin_code and executable p
 
   assert.deepEqual(readProviderPackageTarget(pluginDir, root), {
     provider_code: 'gamma_provider',
-    plugin_dir: 'runtime-extensions/model-providers/gamma_provider',
+    plugin_dir: 'runtime-extensions/@taichuy/gamma_provider',
     binary_name: 'gamma-provider.exe',
   });
 });
@@ -128,7 +128,7 @@ test('readProviderPackageTarget derives a windows runtime binary name from rust 
     }),
     {
       provider_code: 'openai_compatible',
-      plugin_dir: 'runtime-extensions/model-providers/openai_compatible',
+      plugin_dir: 'runtime-extensions/@taichuy/openai_compatible',
       binary_name: 'openai_compatible-provider',
       runtime_binary_name: 'openai_compatible-provider.exe',
     }

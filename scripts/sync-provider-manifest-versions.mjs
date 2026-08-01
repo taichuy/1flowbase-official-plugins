@@ -87,7 +87,7 @@ export function syncProviderManifestFile(manifestPath, options = {}) {
 }
 
 export function syncProviderManifestVersions(rootDir = repoRoot) {
-  const providersDir = path.join(rootDir, 'runtime-extensions', 'model-providers');
+  const providersDir = path.join(rootDir, 'runtime-extensions', '@taichuy');
   if (!fs.existsSync(providersDir)) {
     return {
       scannedFiles: [],

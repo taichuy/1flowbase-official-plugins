@@ -17,7 +17,7 @@ function writeProviderYaml(rootDir, providerCode, content) {
   const providerDir = path.join(
     rootDir,
     'runtime-extensions',
-    'model-providers',
+    '@taichuy',
     providerCode,
     'provider'
   );

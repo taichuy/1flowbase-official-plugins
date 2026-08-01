@@ -11,7 +11,7 @@ function readRepoJson(relativePath) {
 
 function readProviderManifestVersion(providerCode) {
   const manifest = fs.readFileSync(
-    path.join(repoRoot, 'runtime-extensions', 'model-providers', providerCode, 'manifest.yaml'),
+    path.join(repoRoot, 'runtime-extensions', '@taichuy', providerCode, 'manifest.yaml'),
     'utf8'
   );
   const match = manifest.match(/^version:\s*(.+)$/m);
@@ -21,7 +21,7 @@ function readProviderManifestVersion(providerCode) {
 
 function readProviderManifestField(providerCode, fieldName) {
   const manifest = fs.readFileSync(
-    path.join(repoRoot, 'runtime-extensions', 'model-providers', providerCode, 'manifest.yaml'),
+    path.join(repoRoot, 'runtime-extensions', '@taichuy', providerCode, 'manifest.yaml'),
     'utf8'
   );
   const match = manifest.match(new RegExp(`^${fieldName}:\\s*(.+)$`, 'm'));
@@ -46,27 +46,27 @@ test('official-registry.json tracks the current openai_compatible manifest and s
   assert.equal(entry.i18n_summary.default_locale, 'en_US');
   assert.equal(
     entry.i18n_summary.bundles.en_US.plugin.label,
-    readRepoJson('runtime-extensions/model-providers/openai_compatible/i18n/en_US.json').plugin
+    readRepoJson('runtime-extensions/@taichuy/openai_compatible/i18n/en_US.json').plugin
       .label
   );
   assert.equal(
     entry.i18n_summary.bundles.zh_Hans.plugin.label,
-    readRepoJson('runtime-extensions/model-providers/openai_compatible/i18n/zh_Hans.json').plugin
+    readRepoJson('runtime-extensions/@taichuy/openai_compatible/i18n/zh_Hans.json').plugin
       .label
   );
   assert.equal(
     entry.i18n_summary.bundles.en_US.plugin.description,
-    readRepoJson('runtime-extensions/model-providers/openai_compatible/i18n/en_US.json').plugin
+    readRepoJson('runtime-extensions/@taichuy/openai_compatible/i18n/en_US.json').plugin
       .description
   );
   assert.equal(
     entry.i18n_summary.bundles.zh_Hans.plugin.description,
-    readRepoJson('runtime-extensions/model-providers/openai_compatible/i18n/zh_Hans.json').plugin
+    readRepoJson('runtime-extensions/@taichuy/openai_compatible/i18n/zh_Hans.json').plugin
       .description
   );
   assert.equal(
     entry.i18n_summary.bundles.zh_Hans.provider.label,
-    readRepoJson('runtime-extensions/model-providers/openai_compatible/i18n/zh_Hans.json').provider
+    readRepoJson('runtime-extensions/@taichuy/openai_compatible/i18n/zh_Hans.json').provider
       .label
   );
   assert.equal(entry.artifacts.length, 6);

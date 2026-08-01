@@ -8,7 +8,7 @@ import { updateAgentFlowCatalog } from '../update-agent-flow-catalog.mjs';
 
 test('AC-CAT-5 keeps the existing AgentFlow publisher entry point as an adapter', () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-flow-catalog-adapter-'));
-  const workflowRoot = path.join(repoRoot, 'agent-flow', 'workflows', 'example');
+  const workflowRoot = path.join(repoRoot, 'agent-flow', '@taichuy', 'example');
   fs.mkdirSync(workflowRoot, { recursive: true });
   fs.writeFileSync(path.join(workflowRoot, 'template.json'), JSON.stringify({
     schema_version: '1flowbase.application-template/v1',
@@ -19,6 +19,6 @@ test('AC-CAT-5 keeps the existing AgentFlow publisher entry point as an adapter'
   const page = JSON.parse(fs.readFileSync(path.join(repoRoot, 'agent-flow/catalog/v1/pages/1.json')));
 
   assert.equal(result.totalEntries, 1);
-  assert.equal(page.entries[0].source.kind, 'legacy_agent_flow_template');
+  assert.equal(page.entries[0].source.kind, 'agent_flow_template');
   assert.equal(page.entries[0].id, 'agent-flow:taichuy/example');
 });

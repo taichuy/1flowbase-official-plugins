@@ -157,7 +157,7 @@ test('provider-release triggers only on runtime-extensions model provider manife
 
   assert.match(
     workflow,
-    /paths:\r?\n\s+- 'runtime-extensions\/model-providers\/\*\*\/manifest\.yaml'/
+    /paths:\r?\n\s+- 'runtime-extensions\/@taichuy\/\*\*\/manifest\.yaml'/
   );
   assert.doesNotMatch(workflow, /paths:\r?\n\s+- 'models\/\*\*\/manifest\.yaml'/);
 });
@@ -257,7 +257,7 @@ test('provider-release validates published registry state after updating officia
 });
 
 test('manifest.yaml is the single release version source for openai_compatible', () => {
-  const cargoToml = readRepoFile('runtime-extensions/model-providers/openai_compatible/Cargo.toml');
+  const cargoToml = readRepoFile('runtime-extensions/@taichuy/openai_compatible/Cargo.toml');
   const readme = readRepoFile('README.md');
 
   assert.match(
@@ -267,6 +267,6 @@ test('manifest.yaml is the single release version source for openai_compatible',
   assert.match(cargoToml, /^version\s*=\s*"0\.0\.0"$/m);
   assert.match(
     readme,
-    /`runtime-extensions\/model-providers\/<provider_code>\/manifest\.yaml` 中的 `version:`/
+    /`runtime-extensions\/@taichuy\/<provider_code>\/manifest\.yaml` 中的 `version:`/
   );
 });

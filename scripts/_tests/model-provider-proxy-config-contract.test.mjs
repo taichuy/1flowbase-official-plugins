@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
-const providersRoot = path.join(repoRoot, 'runtime-extensions', 'model-providers');
+const providersRoot = path.join(repoRoot, 'runtime-extensions', '@taichuy');
 
 function toRepoPath(filePath) {
   return path.relative(repoRoot, filePath).split(path.sep).join('/');

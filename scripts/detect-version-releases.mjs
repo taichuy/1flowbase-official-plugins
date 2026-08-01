@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const MANIFEST_PATH_PATTERN = /^runtime-extensions\/model-providers\/([^/]+)\/manifest\.yaml$/;
+const MANIFEST_PATH_PATTERN = /^runtime-extensions\/@taichuy\/([^/]+)\/manifest\.yaml$/;
 
 export function parseManifestVersion(content) {
   if (!content) {
@@ -30,7 +30,7 @@ export function detectVersionReleases(manifestChanges) {
 
       return [
         {
-          plugin_dir: `runtime-extensions/model-providers/${providerCode}`,
+          plugin_dir: `runtime-extensions/@taichuy/${providerCode}`,
           provider_code: providerCode,
           release_tag: `${providerCode}-v${nextVersion}`,
           version: nextVersion,
@@ -66,7 +66,7 @@ function listManifestPaths(baseRef, headRef) {
       baseRef,
       headRef,
       '--',
-      'runtime-extensions/model-providers/*/manifest.yaml',
+      'runtime-extensions/@taichuy/*/manifest.yaml',
     ]);
 
     return output ? output.split('\n').filter(Boolean) : [];
@@ -78,7 +78,7 @@ function listManifestPaths(baseRef, headRef) {
     '--name-only',
     headRef,
     '--',
-    'runtime-extensions/model-providers',
+    'runtime-extensions/@taichuy',
   ]);
   return output
     .split('\n')

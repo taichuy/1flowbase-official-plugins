@@ -14,7 +14,7 @@ function makeProviderRoot() {
 }
 
 function writeManifest(rootDir, providerCode, content) {
-  const pluginDir = path.join(rootDir, 'runtime-extensions', 'model-providers', providerCode);
+  const pluginDir = path.join(rootDir, 'runtime-extensions', '@taichuy', providerCode);
   fs.mkdirSync(pluginDir, { recursive: true });
   const manifestPath = path.join(pluginDir, 'manifest.yaml');
   fs.writeFileSync(manifestPath, content);

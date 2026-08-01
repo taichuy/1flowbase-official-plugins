@@ -20,9 +20,11 @@ The generator sorts by `id`, uses deterministic page numbers and cursors, and ke
 Empty categories still publish page 1 so every category has the same traversal
 contract.
 
-Legacy AgentFlow templates, MCP `catalog.json`, i18n catalog Seed releases, and the
-runtime extension `official-registry.json` are read only by publisher adapters in
-`scripts/extension-catalog.mjs`. They are not alternate v1 client contracts.
+AgentFlow templates, MCP bundle manifests, the i18n source tree, and runtime
+extension manifests are discovered only under canonical `@organization/artifact`
+directories. MCP `catalog.json`, i18n Seed releases, and `official-registry.json`
+contribute published download metadata but are not alternate source layouts or v1
+client contracts.
 
 Generate all categories with:
 

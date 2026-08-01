@@ -6,7 +6,7 @@ import path from 'node:path';
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 const providerRoot = path.join(
   repoRoot,
-  'runtime-extensions/model-providers/openai_compatible'
+  'runtime-extensions/@taichuy/openai_compatible'
 );
 
 function readProviderFile(relativePath) {

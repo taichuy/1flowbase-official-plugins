@@ -49,7 +49,11 @@ export function buildMcpBundleSource(bundleRoot) {
   if (!SCHEMA_VERSIONS.has(manifest.schema_version)) {
     throw new Error(`unsupported MCP bundle schema in ${manifestPath}`);
   }
-  const expectedOrganization = path.basename(path.dirname(bundleRoot));
+  const organizationDirectory = path.basename(path.dirname(bundleRoot));
+  if (!organizationDirectory.startsWith('@')) {
+    throw new Error(`MCP bundle must use an @organization directory: ${manifestPath}`);
+  }
+  const expectedOrganization = organizationDirectory.slice(1);
   const expectedBundleId = path.basename(bundleRoot);
   if (manifest.organization !== expectedOrganization || manifest.bundle_id !== expectedBundleId) {
     throw new Error(`MCP bundle path identity mismatch in ${manifestPath}`);
@@ -125,7 +129,7 @@ function bundleRoots(repositoryRoot) {
   const mcpRoot = path.join(repositoryRoot, 'mcp');
   if (!existsSync(mcpRoot)) return [];
   return readdirSync(mcpRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('@'))
     .flatMap((organization) => {
       const organizationRoot = path.join(mcpRoot, organization.name);
       return readdirSync(organizationRoot, { withFileTypes: true })

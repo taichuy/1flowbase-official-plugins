@@ -17,7 +17,7 @@ test('detects a versioned MCP bundle release', () => {
     ]),
     [
       {
-        bundle_dir: 'mcp/taichuy/1flowbase_zh_hans',
+        bundle_dir: 'mcp/@taichuy/1flowbase_zh_hans',
         organization: 'taichuy',
         bundle_id: '1flowbase_zh_hans',
         version: '1.1.0',

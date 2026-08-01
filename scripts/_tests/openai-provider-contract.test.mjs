@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
-const providerRoot = path.join(repoRoot, 'runtime-extensions/model-providers/openai');
+const providerRoot = path.join(repoRoot, 'runtime-extensions/@taichuy/openai');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(providerRoot, relativePath), 'utf8');

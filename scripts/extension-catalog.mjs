@@ -150,56 +150,65 @@ function discoverCanonicalEntries(repoRoot, category) {
 }
 
 function agentFlowEntries(repoRoot, rawBaseUrl) {
-  const root = path.join(repoRoot, 'agent-flow', 'workflows');
-  return directoryNames(root).flatMap((artifact) => {
-    const templatePath = path.join(root, artifact, 'template.json');
-    if (!fs.existsSync(templatePath)) return [];
-    const bytes = fs.readFileSync(templatePath);
-    const template = JSON.parse(bytes.toString('utf8'));
-    if (template?.schema_version !== '1flowbase.application-template/v1' ||
-        template?.application?.application_type !== 'agent_flow') {
-      throw new Error(`invalid AgentFlow template ${relative(repoRoot, templatePath)}`);
-    }
-    const sourcePath = relative(repoRoot, templatePath);
-    return [normalizeEntry('agent-flow', 'taichuy', artifact, {
-      name: template.application.name || artifact,
-      version: '1.0.0',
-      description: template.application.description || '',
-      host_version_requirement: '*',
-      source: { kind: 'legacy_agent_flow_template', locator: sourcePath },
-      signature: null,
-      checksum: sha256(bytes),
-      download_locator: { kind: 'repository_file', locator: rawUrl(rawBaseUrl, sourcePath) },
-    })];
-  });
+  const root = path.join(repoRoot, 'agent-flow');
+  return directoryNames(root)
+    .filter((name) => name.startsWith('@'))
+    .flatMap((organizationDirectory) => {
+      const organization = organizationDirectory.slice(1);
+      return directoryNames(path.join(root, organizationDirectory)).flatMap((artifact) => {
+        const templatePath = path.join(root, organizationDirectory, artifact, 'template.json');
+        if (!fs.existsSync(templatePath)) return [];
+        const bytes = fs.readFileSync(templatePath);
+        const template = JSON.parse(bytes.toString('utf8'));
+        if (template?.schema_version !== '1flowbase.application-template/v1' ||
+            template?.application?.application_type !== 'agent_flow') {
+          throw new Error(`invalid AgentFlow template ${relative(repoRoot, templatePath)}`);
+        }
+        const sourcePath = relative(repoRoot, templatePath);
+        return [normalizeEntry('agent-flow', organization, artifact, {
+          name: template.application.name || artifact,
+          version: '1.0.0',
+          description: template.application.description || '',
+          host_version_requirement: '*',
+          source: { kind: 'agent_flow_template', locator: sourcePath },
+          signature: null,
+          checksum: sha256(bytes),
+          download_locator: { kind: 'repository_file', locator: rawUrl(rawBaseUrl, sourcePath) },
+        })];
+      });
+    });
 }
 
 function mcpEntries(repoRoot) {
   const catalogPath = path.join(repoRoot, 'mcp', 'catalog.json');
   const catalog = readJsonIfExists(catalogPath);
   if (!catalog) return [];
-  return (catalog.bundles || []).map((bundle) => normalizeEntry(
-    'mcp', bundle.organization, bundle.bundle_id, {
+  return (catalog.bundles || []).flatMap((bundle) => {
+    const sourcePath = `mcp/@${bundle.organization}/${bundle.bundle_id}/manifest.json`;
+    if (!fs.existsSync(path.join(repoRoot, sourcePath))) return [];
+    return [normalizeEntry('mcp', bundle.organization, bundle.bundle_id, {
       name: bundle.bundle_id,
       version: bundle.latest_version,
       description: `Official ${bundle.locale} MCP bundle`,
       host_version_requirement: `>=${bundle.minimum_host_version}`,
       source: {
-        kind: 'legacy_mcp_catalog',
-        locator: 'mcp/catalog.json',
+        kind: 'mcp_bundle_manifest',
+        locator: sourcePath,
+        publisher_registry: 'mcp/catalog.json',
         release_tag: bundle.release_tag,
       },
       signature: null,
       checksum: bundle.artifact_sha256 ?? null,
       download_locator: { kind: 'release_asset', locator: bundle.download_url },
-    }
-  ));
+    })];
+  });
 }
 
 function i18nEntries(repoRoot) {
   const catalogPath = path.join(repoRoot, 'i18n', 'catalog.json');
   const seedPath = path.join(repoRoot, 'i18n', 'dist', 'catalog-seed.json');
-  if (!fs.existsSync(catalogPath) || !fs.existsSync(seedPath)) return [];
+  const sourceRoot = path.join(repoRoot, 'i18n', '@taichuy', 'platform');
+  if (!fs.existsSync(sourceRoot) || !fs.existsSync(catalogPath) || !fs.existsSync(seedPath)) return [];
   const catalog = readJson(catalogPath);
   const seedBytes = fs.readFileSync(seedPath);
   const version = catalog.catalog_version;
@@ -208,7 +217,11 @@ function i18nEntries(repoRoot) {
     version,
     description: 'Official 1flowbase platform translation catalog',
     host_version_requirement: '*',
-    source: { kind: 'legacy_i18n_catalog', locator: 'i18n/catalog.json' },
+    source: {
+      kind: 'i18n_source_tree',
+      locator: 'i18n/@taichuy/platform',
+      publisher_registry: 'i18n/catalog.json',
+    },
     signature: null,
     checksum: sha256(seedBytes),
     download_locator: {
@@ -222,7 +235,9 @@ function runtimeEntries(repoRoot) {
   const registryPath = path.join(repoRoot, 'official-registry.json');
   const registry = readJsonIfExists(registryPath);
   if (!registry) return [];
-  return (registry.plugins || []).map((plugin) => {
+  return (registry.plugins || []).flatMap((plugin) => {
+    const sourcePath = `runtime-extensions/@taichuy/${plugin.provider_code}/manifest.yaml`;
+    if (!fs.existsSync(path.join(repoRoot, sourcePath))) return [];
     const artifacts = (plugin.artifacts || []).map((artifact) => ({
       os: artifact.os,
       arch: artifact.arch,
@@ -238,14 +253,15 @@ function runtimeEntries(repoRoot) {
       .filter((artifact) => artifact.signature)
       .map((artifact) => `${artifact.signature.algorithm}:${artifact.signature.key_id}`));
     const description = plugin.i18n_summary?.bundles?.en_US?.plugin?.description || '';
-    return normalizeEntry('runtime-extensions', '1flowbase', plugin.provider_code, {
+    return [normalizeEntry('runtime-extensions', 'taichuy', plugin.provider_code, {
       name: plugin.display_name,
       version: plugin.latest_version,
       description,
       host_version_requirement: `>=${plugin.minimum_host_version}`,
       source: {
-        kind: 'legacy_official_registry',
-        locator: 'official-registry.json',
+        kind: 'runtime_extension_manifest',
+        locator: sourcePath,
+        publisher_registry: 'official-registry.json',
         plugin_id: plugin.plugin_id,
       },
       signature: signaturePairs.size === 1 ? (() => {
@@ -254,11 +270,11 @@ function runtimeEntries(repoRoot) {
       })() : null,
       checksum: null,
       download_locator: { kind: 'platform_release_assets', artifacts },
-    });
+    })];
   });
 }
 
-function legacyEntries(repoRoot, category, rawBaseUrl) {
+function publisherEntries(repoRoot, category, rawBaseUrl) {
   switch (category) {
     case 'agent-flow': return agentFlowEntries(repoRoot, rawBaseUrl);
     case 'i18n': return i18nEntries(repoRoot);
@@ -271,8 +287,8 @@ function legacyEntries(repoRoot, category, rawBaseUrl) {
 export function discoverCatalogEntries({ repoRoot, category, rawBaseUrl = DEFAULT_RAW_BASE_URL }) {
   if (!CATALOG_CATEGORIES.includes(category)) throw new Error(`unsupported category ${category}`);
   const byId = new Map();
-  // Legacy publishers remain readable, while the target @organization/artifact layout wins.
-  for (const entry of legacyEntries(repoRoot, category, rawBaseUrl)) byId.set(entry.id, entry);
+  for (const entry of publisherEntries(repoRoot, category, rawBaseUrl)) byId.set(entry.id, entry);
+  // Explicit metadata in the canonical artifact directory overrides derived publisher metadata.
   for (const entry of discoverCanonicalEntries(repoRoot, category)) byId.set(entry.id, entry);
   return [...byId.values()].sort((left, right) => compareText(left.id, right.id));
 }

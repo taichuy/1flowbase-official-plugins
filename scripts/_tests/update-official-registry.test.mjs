@@ -11,11 +11,11 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI-Compatible API Provider',
     icon:
-      'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg',
+      'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg',
     protocol: 'openai_compatible',
     latest_version: '0.1.0',
     help_url:
-      'https://github.com/taichuy/1flowbase-official-plugins/tree/main/runtime-extensions/model-providers/openai_compatible',
+      'https://github.com/taichuy/1flowbase-official-plugins/tree/main/runtime-extensions/@taichuy/openai_compatible',
     model_discovery_mode: 'hybrid',
     i18n_summary: {
       default_locale: 'en_US',
@@ -45,7 +45,7 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   assert.equal(next.plugins[0].plugin_type, 'model_provider');
   assert.equal(
     next.plugins[0].icon,
-    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
+    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg'
   );
   assert.equal(next.plugins[0].latest_version, '0.1.0');
   assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');
@@ -80,11 +80,11 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
     provider_code: 'openai_compatible',
     display_name: 'OpenAI-Compatible API Provider',
     icon:
-      'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg',
+      'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg',
     protocol: 'openai_compatible',
     latest_version: '0.2.1',
     help_url:
-      'https://github.com/taichuy/1flowbase-official-plugins/tree/main/runtime-extensions/model-providers/openai_compatible',
+      'https://github.com/taichuy/1flowbase-official-plugins/tree/main/runtime-extensions/@taichuy/openai_compatible',
     model_discovery_mode: 'hybrid',
     i18n_summary: {
       default_locale: 'en_US',
@@ -121,7 +121,7 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
   assert.equal(next.plugins[0].plugin_type, 'model_provider');
   assert.equal(
     next.plugins[0].icon,
-    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/model-providers/openai_compatible/_assets/icon.svg'
+    'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg'
   );
   assert.equal(next.plugins[0].latest_version, '0.2.1');
   assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');

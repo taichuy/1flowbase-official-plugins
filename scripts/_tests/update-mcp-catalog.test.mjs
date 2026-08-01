@@ -12,7 +12,7 @@ import { setMcpArtifactChecksum } from '../set-mcp-artifact-checksum.mjs';
 
 function fixtureRepository() {
   const root = mkdtempSync(path.join(tmpdir(), '1flowbase-mcp-catalog-'));
-  const bundleRoot = path.join(root, 'mcp', 'taichuy', '1flowbase_zh_hans');
+  const bundleRoot = path.join(root, 'mcp', '@taichuy', '1flowbase_zh_hans');
   mkdirSync(path.join(bundleRoot, 'tools'), { recursive: true });
   mkdirSync(path.join(bundleRoot, 'instances'), { recursive: true });
   writeFileSync(

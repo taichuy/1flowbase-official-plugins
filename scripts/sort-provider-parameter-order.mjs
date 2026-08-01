@@ -137,7 +137,7 @@ export function sortProviderParameterOrderForPlugin(pluginId, options = {}) {
   const providerPath = path.join(
     rootDir,
     'runtime-extensions',
-    'model-providers',
+    '@taichuy',
     providerCode,
     'provider',
     `${providerCode}.yaml`
