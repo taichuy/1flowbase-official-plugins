@@ -1,6 +1,6 @@
 manifest_version: 1
 plugin_id: openai
-version: 0.2.23
+version: 0.2.24
 vendor: 1flowbase
 display_name: OpenAI
 description: OpenAI Responses API provider runtime extension
@@ -14,7 +14,7 @@ slot_codes:
 binding_targets:
   - workspace
 selection_mode: assignment_then_select
-minimum_host_version: 0.2.6
+minimum_host_version: 0.3.1
 contract_version: 1flowbase.provider/v2
 schema_version: 1flowbase.plugin.manifest/v1
 permissions:
@@ -27,6 +27,7 @@ runtime:
   protocol: stdio_json_worker
   entry: bin/openai-provider
   capabilities:
+    - count_tokens
     - compact.responses_compact
     - compact.responses_compaction_v2
     - responses.native_passthrough

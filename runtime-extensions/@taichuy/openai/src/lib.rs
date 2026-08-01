@@ -28,6 +28,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+mod count_tokens;
 mod protocol_context;
 mod sse_codec;
 
@@ -322,6 +323,7 @@ pub enum ProviderCompactProfile {
 pub enum ProviderWireOperation {
     #[default]
     Generate,
+    CountTokens,
     Compact,
 }
 
@@ -787,6 +789,11 @@ impl OpenAiProviderRuntime {
                 )?)))
             }
             "invoke" => {
+                if request.input.get("operation").and_then(Value::as_str) == Some("count_tokens") {
+                    return Ok(ProviderStdioResponse::ok(count_tokens_result(
+                        request.input,
+                    )));
+                }
                 let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
                 let output = match input.operation {
                     ProviderWireOperation::Generate => {
@@ -795,6 +802,7 @@ impl OpenAiProviderRuntime {
                     ProviderWireOperation::Compact => {
                         serde_json::to_value(self.invoke_compact_response(input).await?)?
                     }
+                    ProviderWireOperation::CountTokens => unreachable!("handled above"),
                 };
                 Ok(ProviderStdioResponse::ok(output))
             }
@@ -3724,6 +3732,39 @@ where
     Ok(())
 }
 
+fn count_tokens_result(input: Value) -> Value {
+    let mut generate_input = input.clone();
+    if let Some(object) = generate_input.as_object_mut() {
+        object.insert(
+            "operation".to_string(),
+            Value::String("generate".to_string()),
+        );
+        object.remove("profile");
+        if let Some(Value::Array(capabilities)) = object.get_mut("required_capabilities") {
+            capabilities.retain(|capability| capability.as_str() != Some("count_tokens"));
+        }
+    }
+    let wire_body = serde_json::from_value::<ProviderInvocationInput>(generate_input)
+        .ok()
+        .and_then(|input| {
+            build_openai_generate_request(&input)
+                .ok()
+                .map(|request| request.body)
+        })
+        .unwrap_or_else(|| count_tokens_fallback_body(&input));
+    count_tokens::provider_estimate(wire_body)
+}
+
+fn count_tokens_fallback_body(input: &Value) -> Value {
+    let mut body = Map::new();
+    for key in ["model", "messages", "system", "tools", "response_format"] {
+        if let Some(value) = input.get(key) {
+            body.insert(key.to_string(), value.clone());
+        }
+    }
+    Value::Object(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5011,7 +5052,7 @@ mod tests {
             .any(|line| line.trim() == "- protocol_context"));
         assert_eq!(manifest.matches("protocol_context.restore.").count(), 2);
         assert!(!manifest.contains("protocol_context.consume."));
-        assert!(!manifest.contains("count_tokens"));
+        assert!(manifest.contains("count_tokens"));
         assert!(!manifest.contains("system_prompt_blocks"));
         assert!(gpt_5_4.contains("context_window: 1000000"));
     }

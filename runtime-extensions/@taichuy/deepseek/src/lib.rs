@@ -9,6 +9,8 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
+mod count_tokens;
+
 const PROVIDER_CODE: &str = "deepseek";
 const DEFAULT_BASE_URL: &str = "https://api.deepseek.com";
 const DEFAULT_VALIDATE_MODEL: bool = true;
@@ -358,6 +360,11 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
         "list_models" => list_models(&request.input).await,
         "balance" => get_balance(&request.input).await,
         "invoke" => {
+            if request.input.get("operation").and_then(Value::as_str) == Some("count_tokens") {
+                return Ok(ProviderStdioResponse::ok(count_tokens_result(
+                    request.input,
+                )));
+            }
             let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
             let output = invoke_chat_completion(input).await?;
             Ok(ProviderStdioResponse::ok(serde_json::to_value(output)?))
@@ -367,6 +374,33 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
             format!("unsupported method: {other}"),
         )),
     }
+}
+
+fn count_tokens_result(input: Value) -> Value {
+    let mut generate_input = input.clone();
+    if let Some(object) = generate_input.as_object_mut() {
+        object.remove("operation");
+        object.remove("profile");
+        object.remove("native_transport");
+        if let Some(Value::Array(capabilities)) = object.get_mut("required_capabilities") {
+            capabilities.retain(|capability| capability.as_str() != Some("count_tokens"));
+        }
+    }
+    let wire_body = serde_json::from_value::<ProviderInvocationInput>(generate_input)
+        .ok()
+        .and_then(|input| build_chat_completion_body(&input).ok())
+        .unwrap_or_else(|| count_tokens_fallback_body(&input));
+    count_tokens::provider_estimate(wire_body)
+}
+
+fn count_tokens_fallback_body(input: &Value) -> Value {
+    let mut body = Map::new();
+    for key in ["model", "messages", "system", "tools", "response_format"] {
+        if let Some(value) = input.get(key) {
+            body.insert(key.to_string(), value.clone());
+        }
+    }
+    Value::Object(body)
 }
 
 pub async fn handle_invoke_request_streaming<F>(

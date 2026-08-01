@@ -360,7 +360,7 @@ fn ac_002_package_manifest_declares_only_current_generate_contract() {
 
     assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
     assert!(!manifest.contains("1flowbase.provider/v1"));
-    assert!(!manifest.contains("capabilities:"));
+    assert!(manifest.contains("count_tokens"));
 }
 
 #[tokio::test]

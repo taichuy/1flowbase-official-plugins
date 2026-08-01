@@ -1,6 +1,6 @@
 manifest_version: 1
 plugin_id: openai_compatible
-version: 0.3.40
+version: 0.3.41
 vendor: 1flowbase
 display_name: OpenAI Compatible
 description: OpenAI-compatible provider runtime extension
@@ -14,7 +14,7 @@ slot_codes:
 binding_targets:
   - workspace
 selection_mode: assignment_then_select
-minimum_host_version: 0.2.6
+minimum_host_version: 0.3.1
 contract_version: 1flowbase.provider/v2
 schema_version: 1flowbase.plugin.manifest/v1
 permissions:
@@ -27,6 +27,7 @@ runtime:
   protocol: stdio_json
   entry: bin/openai_compatible-provider
   capabilities:
+    - count_tokens
     - protocol_context.restore.openai_chat.v1
   limits:
     timeout_ms: 30000

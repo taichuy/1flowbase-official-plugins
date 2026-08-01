@@ -21,7 +21,7 @@ async fn main() {
                 input: serde_json::Value::Null,
             });
         if request.method == "invoke" {
-            if compact_invoke(&request) {
+            if unary_invoke(&request) {
                 run_unary_request(&mut runtime, request).await;
             } else {
                 run_streaming_invoke(&mut runtime, request).await;
@@ -33,12 +33,15 @@ async fn main() {
     }
 }
 
-fn compact_invoke(request: &ProviderStdioRequest) -> bool {
-    // Compact is selected only by the typed provider operation tag; transport
-    // must not infer a remote profile from provider identity or configuration.
-    serde_json::from_value::<ProviderInvocationInput>(request.input.clone())
-        .map(|input| input.operation == ProviderWireOperation::Compact)
-        .unwrap_or(false)
+fn unary_invoke(request: &ProviderStdioRequest) -> bool {
+    request
+        .input
+        .get("operation")
+        .and_then(serde_json::Value::as_str)
+        == Some("count_tokens")
+        || serde_json::from_value::<ProviderInvocationInput>(request.input.clone())
+            .map(|input| input.operation == ProviderWireOperation::Compact)
+            .unwrap_or(false)
 }
 
 async fn run_unary_request(runtime: &mut OpenAiProviderRuntime, request: ProviderStdioRequest) {

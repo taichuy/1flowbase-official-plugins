@@ -309,10 +309,14 @@ pub enum ProviderWireOperation {
 pub struct ProviderCountTokensInput {
     pub operation: ProviderWireOperation,
     pub contract_version: ProviderInvocationContractVersion,
+    #[serde(default)]
+    pub profile: Option<Value>,
     pub provider_instance_id: String,
     pub provider_code: String,
     pub protocol: String,
     pub model: String,
+    #[serde(default)]
+    pub previous_response_id: Option<String>,
     #[serde(default)]
     pub provider_config: Value,
     #[serde(default)]
@@ -324,13 +328,42 @@ pub struct ProviderCountTokensInput {
     #[serde(default)]
     pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
     #[serde(default)]
+    pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
+    #[serde(default)]
+    pub response_format: Option<Value>,
+    #[serde(default)]
+    pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
     pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
+    #[serde(default)]
+    pub native_transport: Option<Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ProviderCountTokensResult {
     pub operation: ProviderWireOperation,
     pub input_tokens: u64,
+    pub method: ProviderCountTokensMethod,
+    pub coverage: ProviderCountTokensCoverage,
+    pub unknown_block_count: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderCountTokensMethod {
+    UpstreamApi,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderCountTokensCoverage {
+    Complete,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -1298,6 +1331,9 @@ async fn count_message_tokens(
     Ok(ProviderCountTokensResult {
         operation: ProviderWireOperation::CountTokens,
         input_tokens,
+        method: ProviderCountTokensMethod::UpstreamApi,
+        coverage: ProviderCountTokensCoverage::Complete,
+        unknown_block_count: 0,
     })
 }
 
@@ -1509,6 +1545,15 @@ fn build_count_tokens_body(input: &ProviderCountTokensInput) -> Result<Value> {
             "system".to_string(),
             serde_json::to_value(&input.system).context("serializing Native system blocks")?,
         );
+    }
+    if !input.tools.is_empty() {
+        body.insert(
+            "tools".to_string(),
+            Value::Array(build_anthropic_tools(&input.tools)),
+        );
+    }
+    if let Some(tool_choice) = input.model_parameters.get("tool_choice") {
+        body.insert("tool_choice".to_string(), tool_choice.clone());
     }
     if let Some(end_user_reference) = input
         .request_context
@@ -2441,7 +2486,7 @@ mod tests {
                 "provider_instance_id": "provider-anthropic",
                 "provider_code": "anthropic",
                 "protocol": "anthropic_messages",
-                "model": "claude-sonnet-4-20250514",
+                "model": "unknown-fixture-model",
                 "provider_config": {
                     "base_url": base_url,
                     "api_key": "wire-secret",
@@ -2449,6 +2494,11 @@ mod tests {
                 },
                 "messages": [{ "role": "user", "content": "wire prompt" }],
                 "system": [{ "type": "text", "text": "wire instructions" }],
+                "tools": [{
+                    "name": "weather",
+                    "description": "Get weather",
+                    "input_schema": {"type": "object"}
+                }],
                 "request_context": { "end_user_reference": "wire-user" },
                 "required_capabilities": [
                     "count_tokens",
@@ -2689,7 +2739,13 @@ mod tests {
         assert!(response.ok);
         assert_eq!(
             response.result,
-            json!({ "operation": "count_tokens", "input_tokens": 37 })
+            json!({
+                "operation": "count_tokens",
+                "input_tokens": 37,
+                "method": "upstream_api",
+                "coverage": "complete",
+                "unknown_block_count": 0
+            })
         );
         assert!(headers.starts_with("POST /v1/messages/count_tokens HTTP/1.1"));
         assert!(headers
@@ -2701,12 +2757,17 @@ mod tests {
         assert_eq!(
             body,
             json!({
-                "model": "claude-sonnet-4-20250514",
+                "model": "unknown-fixture-model",
                 "messages": [{
                     "role": "user",
                     "content": [{ "type": "text", "text": "wire prompt" }]
                 }],
                 "system": [{ "type": "text", "text": "wire instructions" }],
+                "tools": [{
+                    "name": "weather",
+                    "description": "Get weather",
+                    "input_schema": {"type": "object"}
+                }],
                 "metadata": { "user_id": "wire-user" }
             })
         );

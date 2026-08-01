@@ -347,6 +347,10 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
             "balance_infos": []
         }))),
         "invoke" => {
+            if request.input.get("operation").and_then(Value::as_str) == Some("count_tokens") {
+                let output = count_tokens(request.input).await?;
+                return Ok(ProviderStdioResponse::ok(output));
+            }
             let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
             let output = invoke_generate_content(input).await?;
             Ok(ProviderStdioResponse::ok(serde_json::to_value(output)?))
@@ -356,6 +360,52 @@ pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStd
             format!("unsupported method: {other}"),
         )),
     }
+}
+
+async fn count_tokens(input: Value) -> Result<Value> {
+    let mut generate_input = input;
+    if let Some(object) = generate_input.as_object_mut() {
+        object.remove("operation");
+        object.remove("profile");
+        object.remove("native_transport");
+        if let Some(Value::Array(capabilities)) = object.get_mut("required_capabilities") {
+            capabilities.retain(|capability| capability.as_str() != Some("count_tokens"));
+        }
+    }
+    let input: ProviderInvocationInput = serde_json::from_value(generate_input)?;
+    let config = normalize_provider_config(&input.provider_config)?;
+    let body = build_generate_content_body(&input)?;
+    let response = build_http_client(&config)?
+        .request(
+            Method::POST,
+            build_model_action_url(&config, &input.model, "countTokens", false)?,
+        )
+        .headers(build_headers(
+            &config,
+            true,
+            input.client_protocol_envelope.as_ref(),
+        )?)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| sanitize_error(error, &config))?;
+    let status = response.status();
+    let payload = read_json_response(response)
+        .await
+        .map_err(|error| sanitize_anyhow_error(error, &config))?;
+    ensure_success_status(status, &payload, &config)?;
+    let input_tokens = payload
+        .get("totalTokens")
+        .or_else(|| payload.get("total_tokens"))
+        .and_then(Value::as_u64)
+        .ok_or_else(|| anyhow!("Gemini countTokens response must include totalTokens"))?;
+    Ok(json!({
+        "operation": "count_tokens",
+        "input_tokens": input_tokens,
+        "method": "upstream_api",
+        "coverage": "complete",
+        "unknown_block_count": 0
+    }))
 }
 
 pub async fn handle_invoke_request_streaming<F>(
@@ -2848,7 +2898,7 @@ mod tests {
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(!manifest.contains("capabilities:"));
+        assert!(manifest.contains("count_tokens"));
     }
 
     #[test]

@@ -82,7 +82,7 @@ fn count_tokens_invoke_line(base_url: &str) -> String {
             "provider_instance_id": "provider-anthropic",
             "provider_code": "anthropic",
             "protocol": "anthropic_messages",
-            "model": "claude-sonnet-4-20250514",
+            "model": "unknown-fixture-model",
             "provider_config": {
                 "base_url": base_url,
                 "api_key": "stdio-secret",
@@ -90,6 +90,11 @@ fn count_tokens_invoke_line(base_url: &str) -> String {
             },
             "messages": [{ "role": "user", "content": "stdio prompt" }],
             "system": [{ "type": "text", "text": "stdio instructions" }],
+            "tools": [{
+                "name": "weather",
+                "description": "Get weather",
+                "input_schema": {"type": "object"}
+            }],
             "request_context": { "end_user_reference": "stdio-user" },
             "required_capabilities": [
                 "count_tokens",
@@ -135,7 +140,13 @@ fn c2_count_tokens_uses_the_non_streaming_stdio_envelope() {
     assert_eq!(response["ok"], json!(true));
     assert_eq!(
         response["result"],
-        json!({ "operation": "count_tokens", "input_tokens": 37 })
+        json!({
+            "operation": "count_tokens",
+            "input_tokens": 37,
+            "method": "upstream_api",
+            "coverage": "complete",
+            "unknown_block_count": 0
+        })
     );
     assert_eq!(response["error"], Value::Null);
 
@@ -157,12 +168,17 @@ fn c2_count_tokens_uses_the_non_streaming_stdio_envelope() {
     assert_eq!(
         body,
         json!({
-            "model": "claude-sonnet-4-20250514",
+            "model": "unknown-fixture-model",
             "messages": [{
                 "role": "user",
                 "content": [{ "type": "text", "text": "stdio prompt" }]
             }],
             "system": [{ "type": "text", "text": "stdio instructions" }],
+            "tools": [{
+                "name": "weather",
+                "description": "Get weather",
+                "input_schema": {"type": "object"}
+            }],
             "metadata": { "user_id": "stdio-user" }
         })
     );
