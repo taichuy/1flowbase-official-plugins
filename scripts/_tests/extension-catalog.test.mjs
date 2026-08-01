@@ -155,6 +155,15 @@ test('AC-CAT-1 repository sources and repository downloads resolve through canon
     }
   }
 
+  for (const entry of discoverCatalogEntries({ repoRoot: repositoryRoot, category: 'runtime-extensions' })) {
+    assert.equal(entry.source.plugin_type, 'model_provider');
+    assert.equal(entry.source.provider_code, entry.artifact);
+    assert.equal(typeof entry.source.protocol, 'string');
+    assert.ok(entry.source.protocol.length > 0);
+    assert.equal(typeof entry.source.model_discovery_mode, 'string');
+    assert.ok(entry.source.model_discovery_mode.length > 0);
+  }
+
   for (const removedPath of [
     ['agent-flow', 'workflows'].join('/'),
     ['capability-plugins', 'nodes'].join('/'),
