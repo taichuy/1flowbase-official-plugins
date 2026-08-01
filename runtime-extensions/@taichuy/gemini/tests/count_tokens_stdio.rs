@@ -48,7 +48,7 @@ fn request(base_url: &str) -> ProviderStdioRequest {
             "tools": [{"functionDeclarations":[{"name":"weather"}]}],
             "mcp_bindings": [],
             "response_format": null,
-            "model_parameters": {},
+            "model_parameters": {"temperature":0.8,"max_output_tokens":512},
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
                 "source_request": {
@@ -97,6 +97,9 @@ async fn official_count_tokens_uses_model_method_body_and_auth() {
     assert!(body.get("contents").is_some());
     assert!(body.get("systemInstruction").is_some());
     assert!(body.get("tools").is_some());
+    assert!(body.get("generationConfig").is_none());
+    assert!(body.get("toolConfig").is_none());
+    assert!(body.get("safetySettings").is_none());
 }
 
 #[tokio::test]

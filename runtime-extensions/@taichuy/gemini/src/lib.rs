@@ -396,7 +396,7 @@ async fn count_tokens(input: Value) -> Result<Value> {
     }
     let input: ProviderInvocationInput = serde_json::from_value(generate_input)?;
     let config = normalize_provider_config(&input.provider_config)?;
-    let body = build_generate_content_body(&input)?;
+    let body = build_count_tokens_body(&input)?;
     let response = build_http_client(&config)?
         .request(
             Method::POST,
@@ -980,6 +980,71 @@ fn build_generate_content_body(input: &ProviderInvocationInput) -> Result<Value>
 
     if let Some(safety_settings) = parameter_value(input, "safety_settings") {
         body.insert("safetySettings".to_string(), safety_settings);
+    }
+
+    Ok(Value::Object(body))
+}
+
+fn build_count_tokens_body(input: &ProviderInvocationInput) -> Result<Value> {
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+
+    let mut body = Map::new();
+    let mut contents = Vec::new();
+    let mut system_parts = Vec::new();
+    let mut tool_call_names_by_id = BTreeMap::new();
+
+    if let Some(system) = input.system_text() {
+        system_parts.push(json!({ "text": system }));
+    }
+
+    for message in &input.messages {
+        if message.role == ProviderMessageRole::System {
+            if let Some(content_blocks) = &message.content_blocks {
+                append_text_parts(&mut system_parts, content_blocks);
+            } else if !message.content.trim().is_empty() {
+                system_parts.push(json!({ "text": message.content }));
+            }
+            continue;
+        }
+
+        let gemini_role = normalize_gemini_role(message.role);
+        let mut parts = if message.role == ProviderMessageRole::Tool {
+            let content_block_parts = build_message_content_parts(message);
+            if content_parts_contain_media(&content_block_parts) {
+                content_block_parts
+            } else {
+                build_tool_response_parts(message, &tool_call_names_by_id)
+            }
+        } else {
+            build_message_content_parts(message)
+        };
+        if gemini_role == "model" {
+            append_tool_call_parts(
+                &mut parts,
+                message.tool_calls.as_ref(),
+                &mut tool_call_names_by_id,
+            );
+        }
+        if !parts.is_empty() {
+            contents.push(json!({ "role": gemini_role, "parts": parts }));
+        }
+    }
+
+    if contents.is_empty() {
+        bail!("messages are required");
+    }
+    body.insert("contents".to_string(), Value::Array(contents));
+    if !system_parts.is_empty() {
+        body.insert(
+            "systemInstruction".to_string(),
+            json!({ "parts": system_parts }),
+        );
+    }
+    let tools = build_tools(input)?;
+    if !tools.is_empty() {
+        body.insert("tools".to_string(), Value::Array(tools));
     }
 
     Ok(Value::Object(body))
@@ -2928,6 +2993,35 @@ mod tests {
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
         assert!(manifest.contains("count_tokens"));
+    }
+
+    #[test]
+    fn count_tokens_body_keeps_prompt_semantics_and_drops_generation_settings() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "gemini",
+            "protocol": "gemini",
+            "model": "gemini-2.5-flash",
+            "messages": [{"role":"user","content":"hello"}],
+            "system": [{"type":"text","text":"instructions"}],
+            "tools": [{"functionDeclarations":[{"name":"weather"}]}],
+            "model_parameters": {
+                "temperature": 0.8,
+                "max_output_tokens": 512,
+                "safety_settings": [{"category":"future"}]
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(
+            build_count_tokens_body(&input).unwrap(),
+            json!({
+                "contents": [{"role":"user","parts":[{"text":"hello"}]}],
+                "systemInstruction": {"parts":[{"text":"instructions"}]},
+                "tools": [{"functionDeclarations":[{"name":"weather"}]}]
+            })
+        );
     }
 
     #[test]
