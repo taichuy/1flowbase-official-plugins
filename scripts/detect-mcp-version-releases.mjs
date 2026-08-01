@@ -10,11 +10,12 @@ function manifestVersion(content) {
 
 export function detectMcpVersionReleases(changes) {
   return changes
-    .map(({ organization, bundleId, beforeManifest = '', afterManifest = '' }) => {
+    .map(({ organization, bundleId, beforeManifest = '', afterManifest = '', pathMigration = false }) => {
       const previousVersion = manifestVersion(beforeManifest);
       const version = manifestVersion(afterManifest);
       if (!version) throw new Error(`missing bundle_version for ${organization}/${bundleId}`);
       if (previousVersion === version) {
+        if (pathMigration) return null;
         throw new Error(
           `MCP bundle ${organization}/${bundleId} changed without a bundle_version bump`
         );
@@ -28,6 +29,7 @@ export function detectMcpVersionReleases(changes) {
         asset_name: `${organization}-${bundleId}-v${version}.zip`
       };
     })
+    .filter(Boolean)
     .sort((left, right) => left.bundle_dir.localeCompare(right.bundle_dir));
 }
 
@@ -69,11 +71,16 @@ export function detectMcpVersionReleasesBetweenRefs(baseRef, headRef) {
   return detectMcpVersionReleases(
     [...bundleKeys.values()].map(([organization, bundleId]) => {
       const manifestPath = `mcp/@${organization}/${bundleId}/manifest.json`;
+      const canonicalBeforeManifest = readAt(baseRef, manifestPath);
+      const legacyBeforeManifest = canonicalBeforeManifest
+        ? ''
+        : readAt(baseRef, `mcp/${organization}/${bundleId}/manifest.json`);
       return {
         organization,
         bundleId,
-        beforeManifest: readAt(baseRef, manifestPath),
-        afterManifest: readAt(headRef, manifestPath)
+        beforeManifest: canonicalBeforeManifest || legacyBeforeManifest,
+        afterManifest: readAt(headRef, manifestPath),
+        pathMigration: !canonicalBeforeManifest && Boolean(legacyBeforeManifest)
       };
     })
   );

@@ -136,6 +136,14 @@ test('AC-004 keeps output byte-equal for semantically identical sources and pres
   assert.doesNotThrow(() => publishCatalogSeed({ repoRoot, outputPath, check: true }));
 });
 
+test('generated extension catalog JSON is not treated as an i18n locale source', () => {
+  const repoRoot = makeFixture();
+  writeJson(repoRoot, 'i18n/_maintenance/catalog-state.json', { schema_version: 'test' });
+  writeJson(repoRoot, 'i18n/catalog/v1/pages/1.json', { items: [] });
+
+  assert.doesNotThrow(() => buildCatalogSeed({ repoRoot }));
+});
+
 test('controlled negative validates schema, locale paths, source groups, and exact registry', async (context) => {
   await context.test('schema', () => {
     const repoRoot = makeFixture();

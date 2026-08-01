@@ -125,7 +125,8 @@ function discoverLocaleFiles(repoRoot) {
       if (entry.isDirectory()) {
         if (filePath !== path.join(root, 'dist')) visit(filePath);
       } else if (entry.isFile() && entry.name.endsWith('.json') && filePath !== path.join(root, 'catalog.json')) {
-        discovered.push(path.relative(repoRoot, filePath).split(path.sep).join('/'));
+        const relativePath = path.relative(repoRoot, filePath).split(path.sep).join('/');
+        if (expectedLocaleFromPath(relativePath)) discovered.push(relativePath);
       }
     }
   }

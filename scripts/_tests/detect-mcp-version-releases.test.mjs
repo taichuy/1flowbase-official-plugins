@@ -42,3 +42,18 @@ test('rejects bundle content changes without a version bump', () => {
     /without a bundle_version bump/
   );
 });
+
+test('ignores a canonical organization path migration when the bundle version is unchanged', () => {
+  assert.deepEqual(
+    detectMcpVersionReleases([
+      {
+        organization: 'taichuy',
+        bundleId: '1flowbase_zh_hans',
+        beforeManifest: manifest('1.1.0'),
+        afterManifest: manifest('1.1.0'),
+        pathMigration: true
+      }
+    ]),
+    []
+  );
+});
