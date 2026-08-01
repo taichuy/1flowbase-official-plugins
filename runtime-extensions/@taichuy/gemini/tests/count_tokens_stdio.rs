@@ -49,6 +49,19 @@ fn request(base_url: &str) -> ProviderStdioRequest {
             "mcp_bindings": [],
             "response_format": null,
             "model_parameters": {},
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "source_request": {
+                    "authentication": "x_api_key",
+                    "body": {"model":"foreign-model"}
+                },
+                "query": {"future":["ignored"]},
+                "headers": {
+                    "x-client-name": ["CanonicalClient"],
+                    "authorization": ["Bearer must-not-win"]
+                },
+                "body": {"future_field":true}
+            },
             "trace_context": {},
             "run_context": {}
         }),
@@ -74,6 +87,12 @@ async fn official_count_tokens_uses_model_method_body_and_auth() {
     assert!(headers
         .to_ascii_lowercase()
         .contains("x-goog-api-key: fixture-secret"));
+    assert!(headers
+        .to_ascii_lowercase()
+        .contains("x-client-name: canonicalclient"));
+    assert!(!headers
+        .to_ascii_lowercase()
+        .contains("authorization: bearer must-not-win"));
     let body: Value = serde_json::from_str(body).unwrap();
     assert!(body.get("contents").is_some());
     assert!(body.get("systemInstruction").is_some());

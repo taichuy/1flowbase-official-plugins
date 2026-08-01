@@ -248,7 +248,7 @@ pub struct ProviderInvocationInput {
     #[serde(default)]
     pub model_parameters: BTreeMap<String, Value>,
     #[serde(default)]
-    pub client_protocol_envelope: Option<ClientProtocolEnvelope>,
+    pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
     #[serde(default)]
     pub trace_context: BTreeMap<String, String>,
     #[serde(default)]
@@ -269,11 +269,33 @@ impl ProviderInvocationInput {
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
-pub struct ClientProtocolEnvelope {
+#[serde(deny_unknown_fields)]
+pub struct ProtocolContextEnvelope {
     pub source_protocol: String,
-    pub policy: String,
     #[serde(default)]
-    pub headers: BTreeMap<String, String>,
+    pub source_request: Option<SourceProtocolRequest>,
+    #[serde(default)]
+    pub query: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub headers: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub body: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SourceProtocolRequest {
+    #[serde(default)]
+    pub authentication: Option<ProtocolAuthenticationPresentation>,
+    #[serde(default)]
+    pub body: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtocolAuthenticationPresentation {
+    AuthorizationBearer,
+    XApiKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -652,7 +674,7 @@ fn number_or_none_ref(value: &Value) -> Option<u64> {
 fn build_headers(
     config: &ProviderConfig,
     include_json_body: bool,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    client_protocol_envelope: Option<&ProtocolContextEnvelope>,
 ) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
@@ -683,19 +705,22 @@ fn build_headers(
 
 fn apply_default_client_protocol_policy(
     headers: &mut HeaderMap,
-    client_protocol_envelope: Option<&ClientProtocolEnvelope>,
+    client_protocol_envelope: Option<&ProtocolContextEnvelope>,
 ) -> Result<()> {
     let Some(envelope) = client_protocol_envelope else {
         return Ok(());
     };
-    if envelope.source_protocol != "anthropic_messages"
-        || envelope.policy != "anthropic_messages_v1"
-    {
+    if envelope.source_protocol != "anthropic_messages" {
         return Ok(());
     }
     for name in ANTHROPIC_CLIENT_PROTOCOL_HEADER_ALLOWLIST {
         let name = *name;
-        let Some(value) = envelope.headers.get(name).map(String::as_str) else {
+        let Some(value) = envelope
+            .headers
+            .get(name)
+            .and_then(|values| values.iter().find(|value| !value.trim().is_empty()))
+            .map(String::as_str)
+        else {
             continue;
         };
         headers.insert(
@@ -2398,7 +2423,7 @@ mod tests {
     }
 
     #[test]
-    fn client_protocol_envelope_uses_default_deny_policy_for_headers() {
+    fn canonical_foreign_protocol_envelope_ignores_undeclared_headers() {
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-test",
@@ -2407,13 +2432,18 @@ mod tests {
             "model": "gemini-2.5-flash",
             "client_protocol_envelope": {
                 "source_protocol": "openai_chat",
-                "policy": "default_deny",
+                "source_request": {
+                    "authentication": "authorization_bearer",
+                    "body": {"model":"foreign"}
+                },
+                "query": {"api-version":["future"]},
                 "headers": {
-                    "authorization": "Bearer client-secret",
-                    "x-goog-api-key": "client-api-key",
-                    "x-client-name": "ClaudeCode",
-                    "accept-encoding": "gzip"
-                }
+                    "authorization": ["Bearer client-secret"],
+                    "x-goog-api-key": ["client-api-key"],
+                    "x-client-name": ["ClaudeCode"],
+                    "accept-encoding": ["gzip"]
+                },
+                "body": {"future_field":true}
             }
         }))
         .unwrap();
@@ -2444,15 +2474,14 @@ mod tests {
             "model": "gemini-2.5-flash",
             "client_protocol_envelope": {
                 "source_protocol": "anthropic_messages",
-                "policy": "anthropic_messages_v1",
                 "headers": {
-                    "anthropic-version": "2023-06-01",
-                    "anthropic-beta": "ccr-byoc-2025-07-29",
-                    "x-claude-code-session-id": "session-123",
-                    "x-client-name": "ClaudeCode",
-                    "user-agent": "ClaudeCode/1.0",
-                    "authorization": "Bearer client-secret",
-                    "x-goog-api-key": "client-auth-must-not-win"
+                    "anthropic-version": ["2023-06-01"],
+                    "anthropic-beta": ["", "ccr-byoc-2025-07-29"],
+                    "x-claude-code-session-id": ["session-123"],
+                    "x-client-name": ["ClaudeCode"],
+                    "user-agent": ["ClaudeCode/1.0"],
+                    "authorization": ["Bearer client-secret"],
+                    "x-goog-api-key": ["client-auth-must-not-win"]
                 }
             }
         }))

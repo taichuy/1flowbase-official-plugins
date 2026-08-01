@@ -1144,9 +1144,24 @@ fn provider_upstream_error_from_parts(
 fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
     if raw_body.is_empty() {
         format!("HTTP {status}")
+    } else if let Some(message) = mixed_json_sse_error_message(raw_body) {
+        message
     } else {
         raw_body.to_string()
     }
+}
+
+fn mixed_json_sse_error_message(raw_body: &str) -> Option<String> {
+    let (json_prefix, trailing) = raw_body.split_once('\n')?;
+    if !trailing.trim_start().starts_with("data:") {
+        return None;
+    }
+    serde_json::from_str::<Value>(json_prefix)
+        .ok()?
+        .get("error")?
+        .get("message")?
+        .as_str()
+        .map(str::to_string)
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -2691,6 +2706,11 @@ where
                 }
             };
         let Some(message) = next_message else {
+            if !tool_calls.is_empty() && !response_id.is_null() {
+                finish_reason = ProviderFinishReason::ToolCall;
+                session_reusable = false;
+                break;
+            }
             let error = anyhow!("websocket closed before response.completed");
             return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
@@ -2754,6 +2774,11 @@ where
             }
             Message::Pong(_) => {}
             Message::Close(frame) => {
+                if !tool_calls.is_empty() && !response_id.is_null() {
+                    finish_reason = ProviderFinishReason::ToolCall;
+                    session_reusable = false;
+                    break;
+                }
                 let error = websocket_closed_before_completed_error(frame);
                 return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                     error,
