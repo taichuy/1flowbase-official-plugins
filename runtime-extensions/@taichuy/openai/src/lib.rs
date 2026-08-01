@@ -5044,15 +5044,35 @@ mod tests {
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(manifest.contains(
-            "capabilities:\n    - compact.responses_compact\n    - compact.responses_compaction_v2\n    - responses.native_passthrough\n    - protocol_context.restore.openai_chat.v1\n    - protocol_context.restore.openai_responses.v1"
-        ));
+        let capabilities = manifest
+            .split("  capabilities:\n")
+            .nth(1)
+            .and_then(|section| section.split("  limits:\n").next())
+            .expect("runtime capabilities section");
+        for capability in [
+            "count_tokens",
+            "compact.responses_compact",
+            "compact.responses_compaction_v2",
+            "responses.native_passthrough",
+            "protocol_context.restore.openai_chat.v1",
+            "protocol_context.restore.openai_responses.v1",
+        ] {
+            assert!(capabilities
+                .lines()
+                .any(|line| line.trim() == format!("- {capability}")));
+        }
+        assert_eq!(
+            capabilities
+                .lines()
+                .filter(|line| line.trim().starts_with("- "))
+                .count(),
+            6
+        );
         assert!(!manifest
             .lines()
             .any(|line| line.trim() == "- protocol_context"));
         assert_eq!(manifest.matches("protocol_context.restore.").count(), 2);
         assert!(!manifest.contains("protocol_context.consume."));
-        assert!(manifest.contains("count_tokens"));
         assert!(!manifest.contains("system_prompt_blocks"));
         assert!(gpt_5_4.contains("context_window: 1000000"));
     }

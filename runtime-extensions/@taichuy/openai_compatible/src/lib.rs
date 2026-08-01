@@ -3054,7 +3054,23 @@ mod tests {
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));
-        assert!(manifest.contains("capabilities:\n    - protocol_context.restore.openai_chat.v1"));
+        let capabilities = manifest
+            .split("  capabilities:\n")
+            .nth(1)
+            .and_then(|section| section.split("  limits:\n").next())
+            .expect("runtime capabilities section");
+        for capability in ["count_tokens", "protocol_context.restore.openai_chat.v1"] {
+            assert!(capabilities
+                .lines()
+                .any(|line| line.trim() == format!("- {capability}")));
+        }
+        assert_eq!(
+            capabilities
+                .lines()
+                .filter(|line| line.trim().starts_with("- "))
+                .count(),
+            2
+        );
         assert!(!manifest
             .lines()
             .any(|line| line.trim() == "- protocol_context"));

@@ -82,9 +82,12 @@ async fn official_count_tokens_uses_model_method_body_and_auth() {
 
 #[tokio::test]
 async fn malformed_upstream_count_tokens_is_a_plugin_failure_fixture() {
-    let (base_url, _) = fake_count_tokens_upstream("{}");
+    let (base_url, captured) = fake_count_tokens_upstream("{}");
     let error = handle_request(request(&base_url))
         .await
         .expect_err("missing totalTokens must fail");
+    captured
+        .recv_timeout(Duration::from_secs(5))
+        .expect("malformed fixture request must remain captured until the response is sent");
     assert!(error.to_string().contains("totalTokens"));
 }

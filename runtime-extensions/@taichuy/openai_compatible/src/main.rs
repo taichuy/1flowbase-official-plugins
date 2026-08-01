@@ -17,7 +17,7 @@ async fn main() {
             input: serde_json::Value::Null,
         });
 
-    if request.method == "invoke" {
+    if request.method == "invoke" && !unary_invoke(&request) {
         run_streaming_invoke(request).await;
         return;
     }
@@ -32,6 +32,31 @@ async fn main() {
             })
     });
     print!("{}", serde_json::to_string(&response).unwrap());
+}
+
+fn unary_invoke(request: &ProviderStdioRequest) -> bool {
+    request.method == "invoke"
+        && request
+            .input
+            .get("operation")
+            .and_then(serde_json::Value::as_str)
+            == Some("count_tokens")
+}
+
+#[cfg(test)]
+mod dispatcher_tests {
+    use super::*;
+
+    #[test]
+    fn count_tokens_is_unary_while_generate_remains_streaming() {
+        let request = |operation| ProviderStdioRequest {
+            method: "invoke".to_string(),
+            input: serde_json::json!({ "operation": operation }),
+        };
+
+        assert!(unary_invoke(&request("count_tokens")));
+        assert!(!unary_invoke(&request("generate")));
+    }
 }
 
 async fn run_streaming_invoke(request: ProviderStdioRequest) {
