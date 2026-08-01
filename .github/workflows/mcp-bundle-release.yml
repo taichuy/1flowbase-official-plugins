@@ -129,6 +129,7 @@ jobs:
             checksum="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1])).checksum' "${metadata}")"
             node scripts/set-mcp-artifact-checksum.mjs "${release_tag}" "${checksum}"
           done
+          node scripts/update-extension-catalog.mjs --category mcp
       - name: Commit generated manifests and catalog
         shell: bash
         run: |

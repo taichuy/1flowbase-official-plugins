@@ -9,6 +9,8 @@ on:
       - main
     paths:
       - 'agent-flow/workflows/**'
+      - 'agent-flow/@*/**'
+      - 'scripts/extension-catalog.mjs'
       - 'scripts/update-agent-flow-catalog.mjs'
       - '.github/workflows/agent-flow-catalog.yml'
 
@@ -28,7 +30,7 @@ jobs:
           node-version: 22
 
       - name: Update AgentFlow catalog
-        run: node scripts/update-agent-flow-catalog.mjs
+        run: node scripts/update-extension-catalog.mjs --category agent-flow
 
       - name: Commit generated catalog
         shell: bash

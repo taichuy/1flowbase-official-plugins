@@ -8,6 +8,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { updateCategoryCatalog } from './extension-catalog.mjs';
 
 const SCHEMA_VERSIONS = new Set([
   '1flowbase.mcp.bundle/v1',
@@ -185,6 +186,11 @@ export function updateMcpCatalog(repositoryRoot, options = {}) {
     catalogPath,
     `${JSON.stringify(catalog, null, 2)}\n`
   );
+  updateCategoryCatalog({
+    repoRoot: repositoryRoot,
+    category: 'mcp',
+    now: options.generatedAt
+  });
   return catalog;
 }
 

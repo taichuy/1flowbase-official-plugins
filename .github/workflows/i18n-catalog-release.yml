@@ -35,6 +35,7 @@ jobs:
         run: |
           node --test scripts/_tests/i18n-catalog*.test.mjs
           node scripts/i18n-catalog-publisher.mjs --check
+          node scripts/update-extension-catalog.mjs --category i18n --check
 
   immutable-release:
     if: startsWith(github.ref, 'refs/tags/i18n-catalog-v')
