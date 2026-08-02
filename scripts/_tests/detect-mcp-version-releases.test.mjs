@@ -43,6 +43,16 @@ test('rejects bundle content changes without a version bump', () => {
   );
 });
 
+test('rejects a bundle version downgrade', () => {
+  assert.throws(
+    () => detectMcpVersionReleases([{
+      organization: 'taichuy', bundleId: '1flowbase_zh_hans',
+      beforeManifest: manifest('1.1.0'), afterManifest: manifest('1.0.9'),
+    }]),
+    /bundle_version must increase/,
+  );
+});
+
 test('ignores a canonical organization path migration when the bundle version is unchanged', () => {
   assert.deepEqual(
     detectMcpVersionReleases([

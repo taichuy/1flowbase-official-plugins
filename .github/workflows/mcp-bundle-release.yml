@@ -1,13 +1,15 @@
 name: mcp-bundle-release
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'mcp/**'
+      - 'mcp/@*/**'
       - 'scripts/*mcp*.mjs'
       - 'scripts/_tests/*mcp*.test.mjs'
-  workflow_dispatch:
+      - 'scripts/extension-catalog.mjs'
+      - '.github/workflows/mcp-bundle-release.yml'
 
 permissions:
   contents: write
@@ -30,27 +32,19 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Validate MCP bundle source and tests
+      - name: Validate MCP publisher contract
         run: node --test scripts/_tests/*mcp*.test.mjs
-      - name: Detect versioned bundle changes
+      - name: Detect source-declared releases
         id: releases
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            base_ref="${{ github.event.before }}"
-            if [ -z "${base_ref}" ]; then base_ref="HEAD^"; fi
-          else
-            base_ref="${{ github.event.before }}"
-          fi
+          base_ref="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${base_ref}" ]; then base_ref="HEAD^"; fi
           matrix="$(node scripts/detect-mcp-version-releases.mjs "${base_ref}" "${{ github.sha }}")"
           count="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).include.length))' "${matrix}")"
           echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
-          if [ "${count}" -gt 0 ]; then
-            echo "has_releases=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has_releases=false" >> "${GITHUB_OUTPUT}"
-          fi
+          if [ "${count}" -gt 0 ]; then echo "has_releases=true" >> "${GITHUB_OUTPUT}"; else echo "has_releases=false" >> "${GITHUB_OUTPUT}"; fi
 
   release:
     needs: detect
@@ -64,44 +58,67 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Materialize manifest checksums
-        run: node scripts/update-mcp-catalog.mjs
-      - name: Build portable ZIP
+      - name: Validate signing configuration
         env:
-          BUNDLE_DIR: ${{ matrix.bundle_dir }}
-          ASSET_NAME: ${{ matrix.asset_name }}
+          MCP_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          MCP_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
-          (
-            cd "${BUNDLE_DIR}"
-            bundle_entries=(manifest.json tools instances)
-            if [ -d connections ]; then bundle_entries+=(connections); fi
-            zip -q -r "${GITHUB_WORKSPACE}/dist/${ASSET_NAME}" "${bundle_entries[@]}"
-          )
-          checksum="sha256:$(sha256sum "dist/${ASSET_NAME}" | awk '{print $1}')"
-          node -e 'const fs = require("fs"); fs.writeFileSync(process.argv[1], JSON.stringify({ release_tag: process.argv[2], checksum: process.argv[3] }) + "\n")' \
-            "dist/${{ matrix.release_tag }}.json" "${{ matrix.release_tag }}" "${checksum}"
-      - name: Create release and upload ZIP
+          test -n "${MCP_SIGNING_PRIVATE_KEY_PEM}" || { echo "OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM is required" >&2; exit 1; }
+          test -n "${MCP_SIGNING_KEY_ID}" || { echo "OFFICIAL_PLUGIN_SIGNING_KEY_ID is required" >&2; exit 1; }
+      - name: Build, sign exact ZIP bytes, and publish immutable asset
         env:
           GH_TOKEN: ${{ github.token }}
+          MCP_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          MCP_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p dist/records dist/existing
+          key_file="${RUNNER_TEMP}/mcp-ed25519-private.pem"
+          printf '%s' "${MCP_SIGNING_PRIVATE_KEY_PEM}" > "${key_file}"
+          chmod 600 "${key_file}"
+          trap 'rm -f "${key_file}"' EXIT
+
+          node scripts/update-mcp-catalog.mjs validate --bundle-root "${{ matrix.bundle_dir }}"
+          asset_path="dist/${{ matrix.asset_name }}"
+          (
+            cd "${{ matrix.bundle_dir }}"
+            bundle_entries=(manifest.json tools instances)
+            if [ -d connections ]; then bundle_entries+=(connections); fi
+            find "${bundle_entries[@]}" -type f -exec touch -t 198001010000 {} +
+            find "${bundle_entries[@]}" -type f -print | LC_ALL=C sort | zip -X -q "${GITHUB_WORKSPACE}/${asset_path}" -@
+          )
+          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ matrix.release_tag }}/${{ matrix.asset_name }}"
+          raw_record="dist/records/raw.json"
+          node scripts/update-mcp-catalog.mjs sign \
+            --artifact "${asset_path}" \
+            --bundle-root "${{ matrix.bundle_dir }}" \
+            --private-key "${key_file}" \
+            --key-id "${MCP_SIGNING_KEY_ID}" \
+            --download-url "${download_url}" \
+            --output "${raw_record}"
+          node -e 'const fs=require("fs"); const record=JSON.parse(fs.readFileSync(process.argv[1])); fs.writeFileSync(process.argv[2], JSON.stringify({organization:process.argv[3],bundle_id:process.argv[4],record})+"\n")' \
+            "${raw_record}" "dist/records/${{ matrix.organization }}-${{ matrix.bundle_id }}.json" "${{ matrix.organization }}" "${{ matrix.bundle_id }}"
+          rm "${raw_record}"
+
           if gh release view "${{ matrix.release_tag }}" >/dev/null 2>&1; then
-            echo "Release tag already exists: ${{ matrix.release_tag }}" >&2
-            exit 1
+            gh release download "${{ matrix.release_tag }}" --pattern "${{ matrix.asset_name }}" --dir dist/existing
+            cmp -- "${asset_path}" "dist/existing/${{ matrix.asset_name }}" || {
+              echo "Immutable MCP Release asset conflict: ${{ matrix.release_tag }}/${{ matrix.asset_name }}" >&2
+              exit 1
+            }
+          else
+            gh release create "${{ matrix.release_tag }}" "${asset_path}" \
+              --target "${GITHUB_SHA}" \
+              --title "MCP ${{ matrix.organization }}/${{ matrix.bundle_id }} v${{ matrix.version }}" \
+              --notes "Signed immutable MCP bundle release."
           fi
-          gh release create "${{ matrix.release_tag }}" \
-            "dist/${{ matrix.asset_name }}" \
-            --target "${{ github.sha }}" \
-            --title "MCP ${{ matrix.organization }}/${{ matrix.bundle_id }} v${{ matrix.version }}" \
-            --generate-notes
       - uses: actions/upload-artifact@v6
         with:
-          name: mcp-checksum-${{ matrix.organization }}-${{ matrix.bundle_id }}
-          path: dist/${{ matrix.release_tag }}.json
+          name: mcp-release-record-${{ matrix.organization }}-${{ matrix.bundle_id }}
+          path: dist/records/*.json
 
   update-catalog:
     needs: [detect, release]
@@ -116,27 +133,20 @@ jobs:
           node-version: 22
       - uses: actions/download-artifact@v7
         with:
-          pattern: mcp-checksum-*
-          path: checksum-metadata
+          pattern: mcp-release-record-*
+          path: release-records
           merge-multiple: true
-      - name: Update catalog artifact checksums
+      - name: Generate history-preserving signed catalog
+        run: node scripts/update-mcp-catalog.mjs update --repo-root . --records-dir release-records
+      - name: Refresh MCP discovery catalog
+        run: node scripts/update-extension-catalog.mjs --category mcp
+      - name: Commit generated MCP catalogs
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/update-mcp-catalog.mjs
-          for metadata in checksum-metadata/*.json; do
-            release_tag="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1])).release_tag' "${metadata}")"
-            checksum="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1])).checksum' "${metadata}")"
-            node scripts/set-mcp-artifact-checksum.mjs "${release_tag}" "${checksum}"
-          done
-          node scripts/update-extension-catalog.mjs --category mcp
-      - name: Commit generated manifests and catalog
-        shell: bash
-        run: |
-          set -euo pipefail
+          git add mcp/catalog.json mcp/_maintenance mcp/catalog
+          if git diff --cached --quiet; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add mcp
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore: publish MCP bundle catalog"
+          git commit -m "chore: publish signed MCP bundle catalog"
           git push origin main

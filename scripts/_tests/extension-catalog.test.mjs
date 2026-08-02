@@ -169,6 +169,28 @@ test('AC-CAT-6 Agent Flow discovery projects the latest signed release record', 
   assert.equal(entry.signature.key_id, 'official-key-2026-04');
 });
 
+test('AC-003 MCP discovery projects the latest signed v2 history record', () => {
+  const repoRoot = fixtureRepo();
+  const sourceRoot = path.join(repoRoot, 'mcp', '@taichuy', 'example');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  fs.writeFileSync(path.join(sourceRoot, 'manifest.json'), '{}');
+  fs.writeFileSync(path.join(repoRoot, 'mcp', 'catalog.json'), JSON.stringify({
+    schema_version: '1flowbase.mcp-catalog/v2',
+    bundles: [{
+      organization: 'taichuy', bundle_id: 'example', source_path: 'mcp/@taichuy/example/manifest.json',
+      versions: [
+        { bundle_version: '1.0.0', locale: 'zh_Hans', minimum_host_version: '0.3.0', exported_from_system_version: '0.3.0', release_tag: 'old', download_url: 'https://example.test/old.zip', checksum: `sha256:${'a'.repeat(64)}`, algorithm: 'ed25519', key_id: 'key', signature: 'old-signature' },
+        { bundle_version: '1.1.0', locale: 'zh_Hans', minimum_host_version: '0.3.1', exported_from_system_version: '0.3.1', release_tag: 'new', download_url: 'https://example.test/new.zip', checksum: `sha256:${'b'.repeat(64)}`, algorithm: 'ed25519', key_id: 'key', signature: 'new-signature' },
+      ],
+    }],
+  }));
+  const [entry] = discoverCatalogEntries({ repoRoot, category: 'mcp' });
+  assert.equal(entry.version, '1.1.0');
+  assert.equal(entry.checksum, `sha256:${'b'.repeat(64)}`);
+  assert.equal(entry.signature.signature, 'new-signature');
+  assert.equal(entry.source.release_tag, 'new');
+});
+
 test('AC-CAT-1 repository sources and repository downloads resolve through canonical artifact paths', () => {
   const expectedCounts = new Map([
     ['agent-flow', 2],

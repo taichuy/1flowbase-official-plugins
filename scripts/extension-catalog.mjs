@@ -186,20 +186,44 @@ function mcpEntries(repoRoot) {
   return (catalog.bundles || []).flatMap((bundle) => {
     const sourcePath = `mcp/@${bundle.organization}/${bundle.bundle_id}/manifest.json`;
     if (!fs.existsSync(path.join(repoRoot, sourcePath))) return [];
+    const latest = catalog.schema_version === '1flowbase.mcp-catalog/v2'
+      ? [...(bundle.versions || [])]
+        .sort((left, right) => right.bundle_version.localeCompare(left.bundle_version, undefined, { numeric: true }))[0]
+      : catalog.version === 1
+        ? {
+            bundle_version: bundle.latest_version,
+            locale: bundle.locale,
+            minimum_host_version: bundle.minimum_host_version,
+            release_tag: bundle.release_tag,
+            download_url: bundle.download_url,
+            checksum: bundle.artifact_sha256 ?? null,
+            algorithm: null,
+            key_id: null,
+            signature: null,
+          }
+        : null;
+    if (catalog.schema_version !== '1flowbase.mcp-catalog/v2' && catalog.version !== 1) {
+      throw new Error('invalid MCP release catalog');
+    }
+    if (!latest) return [];
     return [normalizeEntry('mcp', bundle.organization, bundle.bundle_id, {
       name: bundle.bundle_id,
-      version: bundle.latest_version,
-      description: `Official ${bundle.locale} MCP bundle`,
-      host_version_requirement: `>=${bundle.minimum_host_version}`,
+      version: latest.bundle_version,
+      description: `Official ${latest.locale} MCP bundle`,
+      host_version_requirement: `>=${latest.minimum_host_version}`,
       source: {
         kind: 'mcp_bundle_manifest',
         locator: sourcePath,
         publisher_registry: 'mcp/catalog.json',
-        release_tag: bundle.release_tag,
+        release_tag: latest.release_tag,
       },
-      signature: null,
-      checksum: bundle.artifact_sha256 ?? null,
-      download_locator: { kind: 'release_asset', locator: bundle.download_url },
+      signature: latest.algorithm ? {
+        algorithm: latest.algorithm,
+        key_id: latest.key_id,
+        signature: latest.signature,
+      } : null,
+      checksum: latest.checksum,
+      download_locator: { kind: 'release_asset', locator: latest.download_url },
     })];
   });
 }

@@ -22,7 +22,7 @@
 - `capability-plugins/@taichuy/nodes/`：节点能力插件目录
 - `agent-flow/@<organization>/<workflow_id>/`：官方 AgentFlow 工作流模板
 - `mcp/@<organization>/<bundle_id>/`：按组织维护的整套 MCP 配置包源码
-- `mcp/catalog.json`：官方 MCP 配置包 latest-only 目录
+- `mcp/catalog.json`：官方 MCP 配置包签名版本历史目录（`1flowbase.mcp-catalog/v2`）
 - `official-registry.json`：已发布插件目录元数据
 - `scripts/`：注册表与发布辅助脚本
 - `.github/workflows/`：CI 与发布自动化
@@ -47,7 +47,7 @@
 
 - `provider-ci`：在 `pull_request` 和 `push main` 时运行，校验 registry JSON、执行 provider 打包 dry-run，并运行脚本测试
 - `provider-release`：在 `main` 分支收到 `runtime-extensions/@taichuy/**/manifest.yaml` 变更时运行
-- `mcp-bundle-release`：校验 MCP 包版本、打包 ZIP、发布 Release，并回写 ZIP checksum
+- `mcp-bundle-release`：校验 MCP 包版本、打包 ZIP、对原始 ZIP 字节计算 checksum 与 Ed25519 签名、发布不可变 Release，并保留版本历史
 - `agent-flow-catalog`：校验模板声明的整数发布版本，对原始 JSON bytes 做 SHA-256 与 Ed25519 签名，发布不可变 Release asset，并原子更新可枚举历史版本的 catalog
 
 ### MCP 配置包
@@ -58,11 +58,11 @@
 修改任一 Tool、Instance 或 manifest 时，必须提升 `manifest.json` 的
 `bundle_version`。合并到 `main` 后，发布流程会创建
 `mcp-<organization>-<bundle_id>-v<version>` Release，并将 ZIP 的 SHA-256
-写入 `mcp/catalog.json`。本地可运行：
+写入 `mcp/catalog.json`。`mcp/_maintenance/release-history.json` 是发布历史的维护状态，不能手工删改已有版本。本地可运行：
 
 ```bash
 node --test scripts/_tests/*mcp*.test.mjs
-node scripts/update-mcp-catalog.mjs
+node scripts/update-mcp-catalog.mjs validate --bundle-root mcp/@taichuy/1flowbase_zh_hans
 ```
 
 正式发布由版本号驱动：

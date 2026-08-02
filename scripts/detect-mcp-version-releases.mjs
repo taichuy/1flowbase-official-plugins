@@ -8,6 +8,20 @@ function manifestVersion(content) {
   return JSON.parse(content).bundle_version ?? '';
 }
 
+function compareSemver(left, right) {
+  const parse = (value) => {
+    const match = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/.exec(value);
+    if (!match) throw new Error(`invalid MCP bundle_version ${value}`);
+    return match.slice(1, 4).map(Number);
+  };
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return left.localeCompare(right);
+}
+
 export function detectMcpVersionReleases(changes) {
   return changes
     .map(({ organization, bundleId, beforeManifest = '', afterManifest = '', pathMigration = false }) => {
@@ -19,6 +33,9 @@ export function detectMcpVersionReleases(changes) {
         throw new Error(
           `MCP bundle ${organization}/${bundleId} changed without a bundle_version bump`
         );
+      }
+      if (previousVersion && compareSemver(version, previousVersion) <= 0) {
+        throw new Error(`MCP bundle ${organization}/${bundleId} bundle_version must increase`);
       }
       return {
         bundle_dir: `mcp/@${organization}/${bundleId}`,
@@ -61,7 +78,7 @@ function readAt(ref, filePath) {
 
 export function detectMcpVersionReleasesBetweenRefs(baseRef, headRef) {
   const paths = refExists(baseRef)
-    ? git(['diff', '--name-only', '--diff-filter=AMRT', baseRef, headRef, '--', 'mcp'])
+    ? git(['diff', '--name-only', '--diff-filter=ADMRT', baseRef, headRef, '--', 'mcp'])
     : git(['ls-tree', '-r', '--name-only', headRef, '--', 'mcp']);
   const bundleKeys = new Map();
   for (const filePath of paths.split('\n').filter(Boolean)) {
