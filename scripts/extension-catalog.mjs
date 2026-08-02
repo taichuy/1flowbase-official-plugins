@@ -216,6 +216,8 @@ function mcpEntries(repoRoot) {
         locator: sourcePath,
         publisher_registry: 'mcp/catalog.json',
         release_tag: latest.release_tag,
+        locale: latest.locale,
+        exported_from_system_version: latest.exported_from_system_version,
       },
       signature: latest.algorithm ? {
         algorithm: latest.algorithm,

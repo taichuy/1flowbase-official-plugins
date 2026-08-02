@@ -189,13 +189,15 @@ test('AC-003 MCP discovery projects the latest signed v2 history record', () => 
   assert.equal(entry.checksum, `sha256:${'b'.repeat(64)}`);
   assert.equal(entry.signature.signature, 'new-signature');
   assert.equal(entry.source.release_tag, 'new');
+  assert.equal(entry.source.locale, 'zh_Hans');
+  assert.equal(entry.source.exported_from_system_version, '0.3.1');
 });
 
 test('AC-CAT-1 repository sources and repository downloads resolve through canonical artifact paths', () => {
   const expectedCounts = new Map([
     ['agent-flow', 2],
     ['i18n', 1],
-    ['mcp', 2],
+    ['mcp', 1],
     ['runtime-extensions', 6],
   ]);
 
