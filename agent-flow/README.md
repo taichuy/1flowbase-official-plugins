@@ -22,8 +22,8 @@ artifact bytes plus `algorithm: ed25519`, `key_id`, and a base64 signature over
 those same bytes. Do not edit the generated catalog by hand.
 
 Production signing requires the Actions secrets
-`AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM` (an Ed25519 PKCS#8 PEM) and
-`AGENT_FLOW_SIGNING_KEY_ID`. The corresponding Ed25519 public key must be
+`OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM` (the shared official Ed25519 PKCS#8 PEM) and
+`OFFICIAL_PLUGIN_SIGNING_KEY_ID`. The corresponding Ed25519 public key must be
 distributed through the 1flowbase trusted-key configuration and pinned to that
 key ID; it must not be learned from the catalog being verified. Private keys
 must never be committed. The deterministic key embedded in the test file is a
