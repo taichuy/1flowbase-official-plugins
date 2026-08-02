@@ -1,0 +1,391 @@
+{
+  "tool_id": "frontstage_list_pages",
+  "name": "list_frontstage_pages",
+  "short_description": "列出当前工作区的 Frontstage 页面和导航结构。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_pages"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "id",
+        "is_hidden",
+        "kind",
+        "placement",
+        "content_presentation"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "group",
+            "page"
+          ],
+          "type": "string"
+        },
+        "slug": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tooltip": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "is_hidden",
+              "kind",
+              "placement",
+              "content_presentation"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "icon": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "enum": [
+                  "group",
+                  "page"
+                ],
+                "type": "string"
+              },
+              "slug": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tooltip": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "children": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "is_hidden",
+                    "kind",
+                    "placement",
+                    "content_presentation"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "icon": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "enum": [
+                        "group",
+                        "page"
+                      ],
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tooltip": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "children": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "is_hidden",
+                          "kind",
+                          "placement",
+                          "content_presentation"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "kind": {
+                            "enum": [
+                              "group",
+                              "page"
+                            ],
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "title": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "tooltip": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "children": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "is_hidden",
+                                "kind",
+                                "placement",
+                                "content_presentation"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "icon": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "group",
+                                    "page"
+                                  ],
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "title": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "tooltip": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "children": {
+                                  "type": "array",
+                                  "items": {
+                                    "$ref": "#/components/schemas/FrontstagePageTreeNodeResponse"
+                                  }
+                                },
+                                "is_hidden": {
+                                  "type": "boolean"
+                                },
+                                "placement": {
+                                  "enum": [
+                                    "topbar",
+                                    "sidebar"
+                                  ],
+                                  "type": "string"
+                                },
+                                "content_presentation": {
+                                  "enum": [
+                                    "single",
+                                    "tabs"
+                                  ],
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "is_hidden": {
+                            "type": "boolean"
+                          },
+                          "placement": {
+                            "enum": [
+                              "topbar",
+                              "sidebar"
+                            ],
+                            "type": "string"
+                          },
+                          "content_presentation": {
+                            "enum": [
+                              "single",
+                              "tabs"
+                            ],
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "is_hidden": {
+                      "type": "boolean"
+                    },
+                    "placement": {
+                      "enum": [
+                        "topbar",
+                        "sidebar"
+                      ],
+                      "type": "string"
+                    },
+                    "content_presentation": {
+                      "enum": [
+                        "single",
+                        "tabs"
+                      ],
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "is_hidden": {
+                "type": "boolean"
+              },
+              "placement": {
+                "enum": [
+                  "topbar",
+                  "sidebar"
+                ],
+                "type": "string"
+              },
+              "content_presentation": {
+                "enum": [
+                  "single",
+                  "tabs"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        },
+        "is_hidden": {
+          "type": "boolean"
+        },
+        "placement": {
+          "enum": [
+            "topbar",
+            "sidebar"
+          ],
+          "type": "string"
+        },
+        "content_presentation": {
+          "enum": [
+            "single",
+            "tabs"
+          ],
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

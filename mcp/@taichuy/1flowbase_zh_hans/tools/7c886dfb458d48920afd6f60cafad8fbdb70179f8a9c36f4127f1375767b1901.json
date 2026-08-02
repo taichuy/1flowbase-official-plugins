@@ -1,0 +1,732 @@
+{
+  "tool_id": "agent_flow_get_monitoring",
+  "name": "get_agent_flow_monitoring",
+  "short_description": "返回 Agent Flow 运行趋势、状态、耗时与工具回调监控指标。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_run_monitoring_report"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "description": "Exclusive started_at upper bound in RFC3339"
+          },
+          "from": {
+            "type": "string",
+            "description": "Inclusive started_at lower bound in RFC3339"
+          },
+          "bucket": {
+            "type": "string",
+            "description": "Trend bucket: hour, day, week or month"
+          },
+          "time_range_days": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Fallback started_at day window"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "meta",
+      "overview",
+      "duration",
+      "tokens",
+      "tokens_comparison",
+      "tool_callbacks",
+      "nodes",
+      "concurrency",
+      "tokens_trend",
+      "protocols",
+      "sources",
+      "authorized_accounts",
+      "external_users",
+      "api_keys",
+      "external_conversations",
+      "slowest_runs",
+      "high_token_runs"
+    ],
+    "properties": {
+      "meta": {
+        "type": "object",
+        "required": [
+          "bucket",
+          "slow_run_threshold_ms"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "started_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slow_run_threshold_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "nodes": {
+        "type": "object",
+        "required": [
+          "avg_unique_node_count",
+          "max_unique_node_count"
+        ],
+        "properties": {
+          "avg_unique_node_count": {
+            "type": "number",
+            "format": "double"
+          },
+          "max_unique_node_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "tokens": {
+        "type": "object",
+        "required": [
+          "total_tokens_sum",
+          "input_tokens_sum",
+          "output_tokens_sum",
+          "input_cache_hit_tokens_sum",
+          "avg_tokens_per_run",
+          "token_recorded_count"
+        ],
+        "properties": {
+          "input_tokens_sum": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_tokens_sum": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "output_tokens_sum": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "avg_tokens_per_run": {
+            "type": "number",
+            "format": "double"
+          },
+          "token_recorded_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "input_cache_hit_tokens_sum": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "invocation_source",
+            "request_count",
+            "success_rate",
+            "total_tokens"
+          ],
+          "properties": {
+            "success_rate": {
+              "type": "number",
+              "format": "double"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "request_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "invocation_source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "api_keys": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "api_key_id",
+            "request_count",
+            "total_tokens",
+            "avg_duration_ms",
+            "failed_count"
+          ],
+          "properties": {
+            "api_key_id": {
+              "type": "string"
+            },
+            "failed_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "request_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "avg_duration_ms": {
+              "type": "number",
+              "format": "double"
+            },
+            "api_key_name_snapshot": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "duration": {
+        "type": "object",
+        "required": [
+          "duration_recorded_count",
+          "avg_duration_ms",
+          "p50_duration_ms",
+          "p95_duration_ms",
+          "slow_run_rate"
+        ],
+        "properties": {
+          "slow_run_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "avg_duration_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p50_duration_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p95_duration_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration_recorded_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "overview": {
+        "type": "object",
+        "required": [
+          "total_count",
+          "success_count",
+          "failed_count",
+          "cancelled_count",
+          "success_rate",
+          "failed_rate",
+          "running_count_included"
+        ],
+        "properties": {
+          "failed_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "success_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "success_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancelled_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "running_count_included": {
+            "type": "boolean"
+          }
+        }
+      },
+      "protocols": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "protocol",
+            "request_count",
+            "success_rate",
+            "avg_duration_ms",
+            "total_tokens"
+          ],
+          "properties": {
+            "protocol": {
+              "type": "string"
+            },
+            "success_rate": {
+              "type": "number",
+              "format": "double"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "request_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "avg_duration_ms": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
+      "concurrency": {
+        "type": "object",
+        "required": [
+          "peak_concurrency"
+        ],
+        "properties": {
+          "peak_concurrency": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "slowest_runs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "flow_run_id",
+            "title",
+            "status",
+            "started_at"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "started_at": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "finished_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "total_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "tokens_trend": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "bucket_start",
+            "run_count",
+            "total_tokens",
+            "input_tokens",
+            "output_tokens",
+            "input_cache_hit_tokens"
+          ],
+          "properties": {
+            "run_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "bucket_start": {
+              "type": "string"
+            },
+            "input_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "output_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "input_cache_hit_tokens": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "external_users": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "request_count",
+            "total_tokens",
+            "avg_duration_ms",
+            "failed_count"
+          ],
+          "properties": {
+            "failed_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "external_user": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "avg_duration_ms": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
+      "tool_callbacks": {
+        "type": "object",
+        "required": [
+          "total_tool_callback_count",
+          "avg_tool_callback_count",
+          "runs_with_tool_callback"
+        ],
+        "properties": {
+          "avg_tool_callback_count": {
+            "type": "number",
+            "format": "double"
+          },
+          "runs_with_tool_callback": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_tool_callback_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "high_token_runs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "flow_run_id",
+            "title",
+            "status",
+            "started_at"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "started_at": {
+              "type": "string"
+            },
+            "duration_ms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "finished_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "total_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "tokens_comparison": {
+        "type": "object",
+        "required": [
+          "previous_total_tokens_sum",
+          "previous_run_count",
+          "previous_avg_tokens_per_run",
+          "token_change_rate",
+          "run_count_change_rate",
+          "avg_tokens_per_run_change_rate",
+          "traffic_effect",
+          "cost_per_run_effect"
+        ],
+        "properties": {
+          "traffic_effect": {
+            "type": "number",
+            "format": "double"
+          },
+          "token_change_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "previous_run_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cost_per_run_effect": {
+            "type": "number",
+            "format": "double"
+          },
+          "run_count_change_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "previous_total_tokens_sum": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "previous_avg_tokens_per_run": {
+            "type": "number",
+            "format": "double"
+          },
+          "avg_tokens_per_run_change_rate": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "authorized_accounts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "request_count",
+            "total_tokens",
+            "avg_duration_ms",
+            "failed_count"
+          ],
+          "properties": {
+            "failed_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "request_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "avg_duration_ms": {
+              "type": "number",
+              "format": "double"
+            },
+            "authorized_account": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "external_conversations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "request_count",
+            "total_tokens",
+            "avg_duration_ms",
+            "failed_count"
+          ],
+          "properties": {
+            "failed_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "request_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "avg_duration_ms": {
+              "type": "number",
+              "format": "double"
+            },
+            "external_conversation_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.from",
+        "description": "Inclusive started_at lower bound in RFC3339",
+        "interface_param": "from"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.to",
+        "description": "Exclusive started_at upper bound in RFC3339",
+        "interface_param": "to"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.time_range_days",
+        "description": "Fallback started_at day window",
+        "interface_param": "time_range_days"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.bucket",
+        "description": "监控趋势粒度：hour、day、week 或 month。",
+        "interface_param": "bucket"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "from",
+        "required": false,
+        "field_type": "string",
+        "description": "Inclusive started_at lower bound in RFC3339",
+        "parameter_type": "url"
+      },
+      {
+        "name": "to",
+        "required": false,
+        "field_type": "string",
+        "description": "Exclusive started_at upper bound in RFC3339",
+        "parameter_type": "url"
+      },
+      {
+        "name": "time_range_days",
+        "required": false,
+        "field_type": "integer",
+        "description": "Fallback started_at day window",
+        "parameter_type": "url"
+      },
+      {
+        "name": "bucket",
+        "required": false,
+        "field_type": "string",
+        "description": "Trend bucket: hour, day, week or month",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,118 @@
+{
+  "tool_id": "workflow_get_schedule_trigger",
+  "name": "get_workflow_schedule_trigger",
+  "short_description": "返回 Schedule Workflow 的 cron、时区、Start 输入默认值和启用状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_workflow_schedule_trigger"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "oneOf": [
+      {
+        "type": "null"
+      },
+      {
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "application_id",
+          "enabled",
+          "cron",
+          "timezone",
+          "input_payload",
+          "created_by",
+          "updated_by",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cron": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "False for schedule configuration created with a new Application until explicitly enabled by\nPUT /workflow-schedule-trigger."
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "input_payload": {},
+          "application_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    ]
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Schedule 类型 Workflow 的 Application 稳定标识。",
+        "interface_param": "application_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Schedule 类型 Workflow 的 Application 稳定标识。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

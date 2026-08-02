@@ -1,0 +1,113 @@
+{
+  "tool_id": "frontstage_list_tabs",
+  "name": "list_frontstage_page_tabs",
+  "short_description": "列出 Frontstage 页面的页签。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_page_tabs"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "id",
+        "page_id",
+        "rank",
+        "is_default",
+        "document_root_uid"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "string"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "page_id": {
+          "type": "string"
+        },
+        "is_default": {
+          "type": "boolean"
+        },
+        "route_segment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "document_root_uid": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

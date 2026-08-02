@@ -1,0 +1,158 @@
+{
+  "tool_id": "frontstage_list_data_capabilities",
+  "name": "list_frontstage_data_capabilities",
+  "short_description": "列出 Frontstage 可读取的数据模型及其动态 API 能力。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_data_capabilities"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "queries",
+      "actions",
+      "models"
+    ],
+    "properties": {
+      "models": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "code",
+            "scope_kind",
+            "fields"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "title",
+                  "field_kind",
+                  "is_required",
+                  "is_writable"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "field_kind": {
+                    "type": "string"
+                  },
+                  "is_required": {
+                    "type": "boolean"
+                  },
+                  "is_writable": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "scope_kind": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "actions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "kind",
+            "params_schema",
+            "result_schema"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "params_schema": {},
+            "result_schema": {}
+          }
+        }
+      },
+      "queries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "kind",
+            "params_schema",
+            "result_schema"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "params_schema": {},
+            "result_schema": {}
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

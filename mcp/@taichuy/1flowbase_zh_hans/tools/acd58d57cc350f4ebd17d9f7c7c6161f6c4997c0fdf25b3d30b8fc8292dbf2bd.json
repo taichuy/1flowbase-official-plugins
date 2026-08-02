@@ -1,0 +1,226 @@
+{
+  "tool_id": "frontstage_get_page_detail",
+  "name": "get_frontstage_page_detail",
+  "short_description": "读取页面、目标页签、文档和 Block 的完整配置。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_frontstage_page_detail"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id",
+          "tab_reference"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Page id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          },
+          "tab_reference": {
+            "type": "string",
+            "description": "Tab route segment or legacy tab id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "page",
+      "tab",
+      "document"
+    ],
+    "properties": {
+      "tab": {
+        "type": "object",
+        "required": [
+          "id",
+          "page_id",
+          "rank",
+          "is_default",
+          "document_root_uid"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_id": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "route_segment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "document_root_uid": {
+            "type": "string"
+          }
+        }
+      },
+      "page": {
+        "type": "object",
+        "required": [
+          "id",
+          "is_hidden",
+          "kind",
+          "rank",
+          "placement",
+          "content_presentation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "group",
+              "page"
+            ],
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_hidden": {
+            "type": "boolean"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "topbar",
+              "sidebar"
+            ],
+            "type": "string"
+          },
+          "content_presentation": {
+            "enum": [
+              "single",
+              "tabs"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "document": {
+        "type": "object",
+        "required": [
+          "root_uid",
+          "payload"
+        ],
+        "properties": {
+          "payload": {},
+          "root_uid": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.tab_reference",
+        "description": "Frontstage 页签 ID 或 route segment。",
+        "interface_param": "tab_reference"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Page id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "tab_reference",
+        "required": true,
+        "field_type": "string",
+        "description": "Tab route segment or legacy tab id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

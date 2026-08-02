@@ -1,0 +1,90 @@
+{
+  "tool_id": "business_get_data_model_openapi",
+  "name": "get_data_model_openapi",
+  "short_description": "返回数据模型激活后生成的动态 CRUD OpenAPI 契约。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_data_model_openapi"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "model_id"
+        ],
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "description": "Data Model id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "openapi",
+      "info",
+      "paths",
+      "components",
+      "x-data-model",
+      "x-scope-permission-note",
+      "x-external-source-safety-limits"
+    ],
+    "properties": {
+      "info": {
+        "type": "object"
+      },
+      "paths": {
+        "type": "object"
+      },
+      "openapi": {
+        "type": "string"
+      },
+      "components": {
+        "type": "object"
+      },
+      "x-data-model": {
+        "type": "object"
+      },
+      "x-scope-permission-note": {
+        "type": "string"
+      },
+      "x-external-source-safety-limits": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.model_id",
+        "description": "数据模型的稳定标识。",
+        "interface_param": "model_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "model_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Data Model id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,319 @@
+{
+  "tool_id": "frontstage_create_page",
+  "name": "create_frontstage_page",
+  "short_description": "创建一个 Frontstage 页面并返回页面稳定标识。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_frontstage_page"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rank": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "topbar",
+              "sidebar"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "allOf": [
+      {
+        "type": "object",
+        "required": [
+          "id",
+          "is_hidden",
+          "kind",
+          "rank",
+          "placement",
+          "content_presentation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "group",
+              "page"
+            ],
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_hidden": {
+            "type": "boolean"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "topbar",
+              "sidebar"
+            ],
+            "type": "string"
+          },
+          "content_presentation": {
+            "enum": [
+              "single",
+              "tabs"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "required": [
+          "default_tab"
+        ],
+        "properties": {
+          "default_tab": {
+            "type": "object",
+            "required": [
+              "id",
+              "page_id",
+              "rank",
+              "is_default",
+              "document_root_uid"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "rank": {
+                "type": "string"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "page_id": {
+                "type": "string"
+              },
+              "is_default": {
+                "type": "boolean"
+              },
+              "route_segment": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "document_root_uid": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.icon",
+        "description": "页面图标。",
+        "interface_param": "icon"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.parent_id",
+        "description": "父分组或父页面标识。",
+        "interface_param": "parent_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.placement",
+        "description": "页面在导航中的位置。",
+        "interface_param": "placement"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.rank",
+        "description": "同层展示顺序。",
+        "interface_param": "rank"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.slug",
+        "description": "页面 URL 中稳定且唯一的路径片段。",
+        "interface_param": "slug"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.title",
+        "description": "用户可见名称。",
+        "interface_param": "title"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.tooltip",
+        "description": "页面导航提示。",
+        "interface_param": "tooltip"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "icon",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "parent_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "placement",
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "rank",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "slug",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "tooltip",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,250 @@
+{
+  "tool_id": "frontstage_list_interface_capabilities",
+  "name": "list_frontstage_interface_capabilities",
+  "short_description": "按路径或方法发现 Frontstage JS Block 可调用的接口。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_interface_capabilities"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "maximum": 20,
+            "minimum": 1
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "adapter_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path_query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path_prefixes": {
+            "type": "string",
+            "description": "Comma-separated canonical path prefixes combined with OR semantics."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "total",
+      "offset",
+      "limit",
+      "has_more",
+      "adapter_ids",
+      "methods"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "interface_id",
+            "method",
+            "path",
+            "adapter_id"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string"
+            },
+            "adapter_id": {
+              "type": "string"
+            },
+            "interface_id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "methods": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "has_more": {
+        "type": "boolean"
+      },
+      "adapter_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "next_offset": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.path_prefixes",
+        "description": "只返回匹配路径前缀的接口。",
+        "interface_param": "path_prefixes"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.path_query",
+        "description": "按接口路径搜索。",
+        "interface_param": "path_query"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.adapter_id",
+        "description": "按接口适配器过滤。",
+        "interface_param": "adapter_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.method",
+        "description": "按 HTTP 方法过滤。",
+        "interface_param": "method"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.offset",
+        "description": "分页偏移量。",
+        "interface_param": "offset"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "最大返回数量。",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "path_prefixes",
+        "required": false,
+        "field_type": "string",
+        "description": "Comma-separated canonical path prefixes combined with OR semantics.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "path_query",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "adapter_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "method",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "offset",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

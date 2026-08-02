@@ -1,0 +1,402 @@
+{
+  "tool_id": "application_list_nodes",
+  "name": "list_application_nodes",
+  "short_description": "按 Application 类型返回边界节点、内置节点、插件节点及其配置契约和运行状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_node_contributions"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Target Application. Its persisted application_type selects the boundary-node family."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "nodes"
+    ],
+    "properties": {
+      "nodes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "source_kind",
+            "node_type",
+            "title",
+            "description",
+            "category",
+            "runtime_status",
+            "runtime_status_description",
+            "dependency_status",
+            "field_contract"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "plugin": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "installation_id",
+                    "provider_code",
+                    "plugin_unique_identifier",
+                    "package_id",
+                    "plugin_id",
+                    "plugin_version",
+                    "contribution_code",
+                    "node_shell",
+                    "category",
+                    "title",
+                    "description",
+                    "schema_version",
+                    "experimental",
+                    "icon",
+                    "schema_ui",
+                    "output_schema",
+                    "contribution_checksum",
+                    "compiled_contribution_hash",
+                    "output_schema_snapshot",
+                    "side_effect_policy",
+                    "infra_contracts",
+                    "required_auth",
+                    "visibility",
+                    "dependency_installation_kind",
+                    "dependency_plugin_version_range"
+                  ],
+                  "properties": {
+                    "icon": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string"
+                    },
+                    "plugin_id": {
+                      "type": "string"
+                    },
+                    "schema_ui": {
+                      "type": "object"
+                    },
+                    "node_shell": {
+                      "type": "string"
+                    },
+                    "package_id": {
+                      "type": "string"
+                    },
+                    "visibility": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "experimental": {
+                      "type": "boolean"
+                    },
+                    "output_schema": {
+                      "type": "object"
+                    },
+                    "provider_code": {
+                      "type": "string"
+                    },
+                    "required_auth": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "plugin_version": {
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "type": "string"
+                    },
+                    "infra_contracts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "installation_id": {
+                      "type": "string"
+                    },
+                    "contribution_code": {
+                      "type": "string"
+                    },
+                    "side_effect_policy": {
+                      "type": "string"
+                    },
+                    "contribution_checksum": {
+                      "type": "string"
+                    },
+                    "output_schema_snapshot": {
+                      "type": "object"
+                    },
+                    "plugin_unique_identifier": {
+                      "type": "string"
+                    },
+                    "compiled_contribution_hash": {
+                      "type": "string"
+                    },
+                    "dependency_installation_kind": {
+                      "type": "string"
+                    },
+                    "dependency_plugin_version_range": {
+                      "type": "string"
+                    }
+                  },
+                  "description": "Present only when source_kind is plugin."
+                }
+              ]
+            },
+            "category": {
+              "type": "string"
+            },
+            "node_type": {
+              "type": "string",
+              "description": "Flow document node.type. Plugin contributions use plugin_node and retain their exact\ncontribution identity under plugin."
+            },
+            "description": {
+              "type": "string"
+            },
+            "source_kind": {
+              "enum": [
+                "builtin",
+                "plugin"
+              ],
+              "type": "string"
+            },
+            "field_contract": {
+              "type": "object",
+              "required": [
+                "config_fields",
+                "input_fields",
+                "output_fields"
+              ],
+              "properties": {
+                "input_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "description",
+                      "required",
+                      "value_types",
+                      "allowed_values"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Exact flow-document or runtime field path."
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "description": "Whether this field is required when its applicability condition is met."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Stable semantic description for an Agent constructing node configuration."
+                      },
+                      "value_types": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Accepted flow-document or JSON value kinds."
+                      },
+                      "applicability": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Conditional applicability, when the field does not apply to every configuration."
+                      },
+                      "allowed_values": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Closed value set; empty when the value is open-ended."
+                      }
+                    }
+                  },
+                  "description": "Runtime bindings or invocation inputs."
+                },
+                "config_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "description",
+                      "required",
+                      "value_types",
+                      "allowed_values"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Exact flow-document or runtime field path."
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "description": "Whether this field is required when its applicability condition is met."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Stable semantic description for an Agent constructing node configuration."
+                      },
+                      "value_types": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Accepted flow-document or JSON value kinds."
+                      },
+                      "applicability": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Conditional applicability, when the field does not apply to every configuration."
+                      },
+                      "allowed_values": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Closed value set; empty when the value is open-ended."
+                      }
+                    }
+                  },
+                  "description": "Persisted node config fields."
+                },
+                "output_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "description",
+                      "required",
+                      "value_types",
+                      "allowed_values"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Exact flow-document or runtime field path."
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "description": "Whether this field is required when its applicability condition is met."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Stable semantic description for an Agent constructing node configuration."
+                      },
+                      "value_types": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Accepted flow-document or JSON value kinds."
+                      },
+                      "applicability": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Conditional applicability, when the field does not apply to every configuration."
+                      },
+                      "allowed_values": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Closed value set; empty when the value is open-ended."
+                      }
+                    }
+                  },
+                  "description": "Runtime or declared output fields."
+                }
+              }
+            },
+            "runtime_status": {
+              "enum": [
+                "ready",
+                "unavailable"
+              ],
+              "type": "string"
+            },
+            "dependency_status": {
+              "enum": [
+                "not_applicable",
+                "ready",
+                "missing_plugin",
+                "version_mismatch",
+                "disabled_plugin"
+              ],
+              "type": "string"
+            },
+            "runtime_status_description": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Type-specific boundary nodes, all known built-in processing nodes, and current-workspace\nplugin contributions."
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "query.application_id",
+        "description": "目标 Application 稳定标识；其 application_type 决定 Start/End 边界节点。",
+        "interface_param": "application_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Application 稳定标识；其 application_type 决定 Start/End 边界节点。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "plugin_config.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,114 @@
+{
+  "tool_id": "frontstage_get_block_code",
+  "name": "get_frontstage_block_code",
+  "short_description": "返回指定 JS Block 的当前源码与摘要。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_frontstage_block_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id",
+          "code_ref"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Page id"
+          },
+          "code_ref": {
+            "type": "string",
+            "description": "JS block code ref"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "page_id",
+      "code_ref",
+      "code",
+      "source_sha256"
+    ],
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "code_ref": {
+        "type": "string"
+      },
+      "source_sha256": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.code_ref",
+        "description": "JS Block 源码稳定引用。",
+        "interface_param": "code_ref"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Page id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "code_ref",
+        "required": true,
+        "field_type": "string",
+        "description": "JS block code ref",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

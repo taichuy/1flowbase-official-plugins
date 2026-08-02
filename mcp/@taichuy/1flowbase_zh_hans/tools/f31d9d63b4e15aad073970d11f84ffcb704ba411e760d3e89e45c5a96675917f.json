@@ -1,0 +1,669 @@
+{
+  "tool_id": "agent_flow_get_run_trace",
+  "name": "get_agent_flow_run_trace",
+  "short_description": "返回指定 Agent Flow 运行的 trace tree 以定位节点与工具调用。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_run_trace_tree"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "run_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          },
+          "run_id": {
+            "type": "string",
+            "description": "Flow run id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "run",
+      "statistics",
+      "flow_run",
+      "projection_status",
+      "nodes"
+    ],
+    "properties": {
+      "run": {
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "application_type",
+          "run_object_kind",
+          "run_kind",
+          "status",
+          "title",
+          "execution_stage",
+          "invocation_source",
+          "subject",
+          "principal",
+          "correlation",
+          "started_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string"
+              },
+              "draft_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "target_node_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "run_kind": {
+            "type": "string"
+          },
+          "principal": {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "correlation": {
+            "type": "object",
+            "properties": {
+              "api_key_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "external_user": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "idempotency_key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "external_trace_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "compatibility_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "publication_version_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "external_conversation_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "application_id": {
+            "type": "string"
+          },
+          "execution_stage": {
+            "type": "string"
+          },
+          "run_object_kind": {
+            "type": "string"
+          },
+          "application_type": {
+            "type": "string"
+          },
+          "invocation_source": {
+            "type": "string"
+          },
+          "compatibility_mode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "nodes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "trace_node_id",
+            "stable_locator",
+            "node_kind",
+            "flow_run_id",
+            "node_alias",
+            "status",
+            "started_at",
+            "metrics_payload",
+            "has_children",
+            "child_count",
+            "has_content"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "node_kind": {
+              "type": "string"
+            },
+            "node_mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "node_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "node_alias": {
+              "type": "string"
+            },
+            "started_at": {
+              "type": "string"
+            },
+            "child_count": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "duration_ms": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "finished_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "has_content": {
+              "type": "boolean"
+            },
+            "node_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "has_children": {
+              "type": "boolean"
+            },
+            "trace_node_id": {
+              "type": "string"
+            },
+            "stable_locator": {
+              "type": "string"
+            },
+            "metrics_payload": {},
+            "callback_task_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_flow_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "parent_tool_call_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "trace_relation_kind": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "parent_trace_node_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_trace_node_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "parent_callback_task_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "flow_run": {
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "flow_id",
+          "draft_id",
+          "run_mode",
+          "status",
+          "title",
+          "input_payload",
+          "output_payload",
+          "created_by",
+          "started_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "draft_id": {
+            "type": "string"
+          },
+          "run_mode": {
+            "type": "string"
+          },
+          "expand_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_payload": {},
+          "input_payload": {},
+          "application_id": {
+            "type": "string"
+          },
+          "output_payload": {},
+          "target_node_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compiled_plan_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authorized_account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "external_conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "statistics": {
+        "type": "object",
+        "required": [
+          "unique_node_count",
+          "tool_callback_count"
+        ],
+        "properties": {
+          "input_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "total_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "output_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "unique_node_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tool_callback_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "input_cache_hit_rate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "input_cache_hit_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "answer_snapshot": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "text",
+              "output_payload",
+              "complete",
+              "materialized_from"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "complete": {
+                "type": "boolean"
+              },
+              "answer_node_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "output_payload": {},
+              "waiting_node_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "materialized_from": {
+                "type": "string"
+              },
+              "answer_node_run_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "waiting_node_run_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "projection_status": {
+        "type": "object",
+        "required": [
+          "projection_status",
+          "projection_version",
+          "source_watermark",
+          "attempt_count",
+          "retriable"
+        ],
+        "properties": {
+          "retriable": {
+            "type": "boolean"
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "last_error_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_success_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_stage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_watermark": {
+            "type": "string"
+          },
+          "projection_status": {
+            "type": "string"
+          },
+          "projection_version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "last_error_source_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_source_locator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.run_id",
+        "description": "调试或发布运行返回的稳定 run id。",
+        "interface_param": "run_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "run_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Flow run id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

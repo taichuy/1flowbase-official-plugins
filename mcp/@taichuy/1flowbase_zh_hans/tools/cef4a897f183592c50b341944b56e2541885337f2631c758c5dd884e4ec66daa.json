@@ -1,0 +1,101 @@
+{
+  "tool_id": "agent_flow_set_api_status",
+  "name": "set_agent_flow_api_status",
+  "short_description": "启用或停用已发布 Agent Flow 的 API 调用状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "patch_application_api_status"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "api_enabled"
+        ],
+        "properties": {
+          "api_enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "application_id",
+      "api_enabled",
+      "public_url"
+    ],
+    "properties": {
+      "public_url": {
+        "type": "string"
+      },
+      "api_enabled": {
+        "type": "boolean"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.api_enabled",
+        "description": "是否允许调用当前 publication 的公开 API。",
+        "interface_param": "api_enabled"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "api_enabled",
+        "required": true,
+        "field_type": "boolean",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

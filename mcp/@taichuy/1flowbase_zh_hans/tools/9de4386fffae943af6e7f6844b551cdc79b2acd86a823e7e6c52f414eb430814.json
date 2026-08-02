@@ -1,0 +1,231 @@
+{
+  "tool_id": "agent_flow_get_trace_node_content",
+  "name": "get_agent_flow_trace_node_content",
+  "short_description": "读取 trace 节点的输入、输出、错误与制品内容。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_run_trace_node_content"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "trace_node_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          },
+          "run_id": {
+            "type": "string",
+            "description": "Flow run id"
+          },
+          "trace_node_id": {
+            "type": "string",
+            "description": "Trace node id to load"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "artifact_preview": {
+            "type": "string",
+            "description": "Set to auto to materialize runtime debug artifact previews"
+          },
+          "artifact_preview_field": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Repeated dot-separated response payload field paths to preview"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "trace_node_id",
+      "node_kind",
+      "projection_status",
+      "content_kind",
+      "source_refs",
+      "detail_refs",
+      "payload"
+    ],
+    "properties": {
+      "payload": {},
+      "node_kind": {
+        "type": "string"
+      },
+      "detail_refs": {},
+      "source_refs": {},
+      "content_kind": {
+        "type": "string"
+      },
+      "trace_node_id": {
+        "type": "string"
+      },
+      "projection_status": {
+        "type": "object",
+        "required": [
+          "projection_status",
+          "projection_version",
+          "source_watermark",
+          "attempt_count",
+          "retriable"
+        ],
+        "properties": {
+          "retriable": {
+            "type": "boolean"
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "last_error_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_success_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_stage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_watermark": {
+            "type": "string"
+          },
+          "projection_status": {
+            "type": "string"
+          },
+          "projection_version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "last_error_source_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_source_locator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "Agent Flow 应用的稳定 application_id。",
+        "interface_param": "id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.run_id",
+        "description": "运行记录的稳定 run id。",
+        "interface_param": "run_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.trace_node_id",
+        "description": "trace tree 返回的稳定 trace_node_id。",
+        "interface_param": "trace_node_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.artifact_preview",
+        "description": "是否返回制品内容预览。",
+        "interface_param": "artifact_preview"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.artifact_preview_field",
+        "description": "需要预览的制品字段。",
+        "interface_param": "artifact_preview_field"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "run_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Flow run id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "trace_node_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Trace node id to load",
+        "parameter_type": "url"
+      },
+      {
+        "name": "artifact_preview",
+        "required": false,
+        "field_type": "string",
+        "description": "Set to auto to materialize runtime debug artifact previews",
+        "parameter_type": "url"
+      },
+      {
+        "name": "artifact_preview_field",
+        "required": false,
+        "field_type": "array",
+        "description": "Repeated dot-separated response payload field paths to preview",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

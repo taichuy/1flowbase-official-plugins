@@ -1,0 +1,376 @@
+{
+  "tool_id": "agent_flow_debug_node",
+  "name": "debug_agent_flow_node",
+  "short_description": "执行一个 Agent Flow 节点的单点调试并返回该节点最近运行结果。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "start_node_debug_preview"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "input_payload"
+        ],
+        "properties": {
+          "document": {},
+          "input_payload": {},
+          "debug_session_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "node_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          },
+          "node_id": {
+            "type": "string",
+            "description": "Node id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "flow_run",
+      "node_run",
+      "checkpoints",
+      "events"
+    ],
+    "properties": {
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "flow_run_id",
+            "sequence",
+            "event_type",
+            "payload",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "payload": {},
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "event_type": {
+              "type": "string"
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "node_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "flow_run": {
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "flow_id",
+          "draft_id",
+          "run_mode",
+          "status",
+          "title",
+          "input_payload",
+          "output_payload",
+          "created_by",
+          "started_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "draft_id": {
+            "type": "string"
+          },
+          "run_mode": {
+            "type": "string"
+          },
+          "expand_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_payload": {},
+          "input_payload": {},
+          "application_id": {
+            "type": "string"
+          },
+          "output_payload": {},
+          "target_node_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compiled_plan_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authorized_account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "external_conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "node_run": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_run_id",
+          "node_id",
+          "node_type",
+          "node_alias",
+          "status",
+          "input_payload",
+          "input_payload_view",
+          "output_payload",
+          "metrics_payload",
+          "debug_payload",
+          "started_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "node_type": {
+            "type": "string"
+          },
+          "node_alias": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "flow_run_id": {
+            "type": "string"
+          },
+          "debug_payload": {},
+          "error_payload": {},
+          "input_payload": {},
+          "output_payload": {},
+          "metrics_payload": {},
+          "input_payload_view": {}
+        }
+      },
+      "checkpoints": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "flow_run_id",
+            "status",
+            "reason",
+            "locator_payload",
+            "variable_snapshot",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "node_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator_payload": {},
+            "variable_snapshot": {},
+            "external_ref_payload": {}
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.node_id",
+        "description": "编排文档中的稳定节点 id。",
+        "interface_param": "node_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.debug_session_id",
+        "description": "接口参数 debug_session_id。",
+        "interface_param": "debug_session_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.document",
+        "description": "完整 FlowAuthoringDocument；通常基于 get orchestration 返回文档修改。",
+        "interface_param": "document"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.input_payload",
+        "description": "本次节点或整链执行的输入对象。",
+        "interface_param": "input_payload"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "node_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Node id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "debug_session_id",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "document",
+        "required": false,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "input_payload",
+        "required": true,
+        "field_type": "object",
+        "description": "",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

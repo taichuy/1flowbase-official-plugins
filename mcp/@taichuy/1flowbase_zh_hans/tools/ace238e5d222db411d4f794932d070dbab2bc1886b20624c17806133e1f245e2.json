@@ -1,0 +1,139 @@
+{
+  "tool_id": "frontstage_save_block_code",
+  "name": "save_frontstage_block_code",
+  "short_description": "保存指定 code_ref 对应的 JS Block 源码。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "save_frontstage_block_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id",
+          "code_ref"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Page id"
+          },
+          "code_ref": {
+            "type": "string",
+            "description": "JS block code ref"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "page_id",
+      "code_ref",
+      "code",
+      "source_sha256"
+    ],
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "code_ref": {
+        "type": "string"
+      },
+      "source_sha256": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.code_ref",
+        "description": "JS Block 源码的稳定引用。",
+        "interface_param": "code_ref"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.code",
+        "description": "稳定、唯一且适合作为 API 标识的代码。",
+        "interface_param": "code"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Page id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "code_ref",
+        "required": true,
+        "field_type": "string",
+        "description": "JS block code ref",
+        "parameter_type": "url"
+      },
+      {
+        "name": "code",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

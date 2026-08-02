@@ -1,0 +1,301 @@
+{
+  "tool_id": "frontstage_update_page_metadata",
+  "name": "update_frontstage_page_metadata",
+  "short_description": "更新 Frontstage 页面的导航位置、路径和展示元数据。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "update_frontstage_page_title"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_hidden": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "placement": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "topbar",
+                  "sidebar"
+                ],
+                "type": "string"
+              }
+            ]
+          },
+          "content_presentation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "single",
+                  "tabs"
+                ],
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Page or group id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "is_hidden",
+      "kind",
+      "rank",
+      "placement",
+      "content_presentation"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "kind": {
+        "enum": [
+          "group",
+          "page"
+        ],
+        "type": "string"
+      },
+      "rank": {
+        "type": "string"
+      },
+      "slug": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tooltip": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "is_hidden": {
+        "type": "boolean"
+      },
+      "parent_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "placement": {
+        "enum": [
+          "topbar",
+          "sidebar"
+        ],
+        "type": "string"
+      },
+      "content_presentation": {
+        "enum": [
+          "single",
+          "tabs"
+        ],
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.content_presentation",
+        "description": "页面内容模式：single 或 tabs。",
+        "interface_param": "content_presentation"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.icon",
+        "description": "页面图标。",
+        "interface_param": "icon"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.is_hidden",
+        "description": "是否隐藏页面。",
+        "interface_param": "is_hidden"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.placement",
+        "description": "页面导航位置：topbar 或 sidebar。",
+        "interface_param": "placement"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.slug",
+        "description": "顶栏根页面稳定路径片段。",
+        "interface_param": "slug"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.title",
+        "description": "用户可见名称。",
+        "interface_param": "title"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.tooltip",
+        "description": "页面导航提示。",
+        "interface_param": "tooltip"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Page or group id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "content_presentation",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "is_hidden",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "placement",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "slug",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "tooltip",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

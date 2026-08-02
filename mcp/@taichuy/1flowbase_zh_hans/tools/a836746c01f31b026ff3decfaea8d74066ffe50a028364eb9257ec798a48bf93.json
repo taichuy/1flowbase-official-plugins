@@ -1,0 +1,346 @@
+{
+  "tool_id": "business_create_data_model",
+  "name": "create_data_model",
+  "short_description": "创建一个数据模型定义并返回模型标识与初始字段。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_model"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "scope_kind",
+          "code",
+          "title"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope_kind": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_kind",
+      "scope_id",
+      "code",
+      "title",
+      "status",
+      "runtime_availability",
+      "source_kind",
+      "physical_table_name",
+      "acl_namespace",
+      "audit_namespace",
+      "capabilities",
+      "fields"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "code": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "fields": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "code",
+            "title",
+            "physical_column_name",
+            "field_kind",
+            "is_system",
+            "is_writable",
+            "is_required",
+            "api_required",
+            "is_unique",
+            "default_value",
+            "display_options",
+            "relation_options",
+            "sort_order",
+            "capabilities"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "is_system": {
+              "type": "boolean"
+            },
+            "is_unique": {
+              "type": "boolean"
+            },
+            "field_kind": {
+              "type": "string"
+            },
+            "sort_order": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "is_required": {
+              "type": "boolean"
+            },
+            "is_writable": {
+              "type": "boolean"
+            },
+            "api_required": {
+              "type": "boolean"
+            },
+            "capabilities": {
+              "type": "object",
+              "required": [
+                "ownership",
+                "can_update_presentation_metadata",
+                "can_update_physical_metadata",
+                "can_delete"
+              ],
+              "properties": {
+                "ownership": {
+                  "type": "string"
+                },
+                "can_delete": {
+                  "type": "boolean"
+                },
+                "can_update_physical_metadata": {
+                  "type": "boolean"
+                },
+                "can_update_presentation_metadata": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "default_value": {
+              "type": "object"
+            },
+            "display_options": {
+              "type": "object"
+            },
+            "relation_options": {
+              "type": "object"
+            },
+            "display_interface": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "external_field_key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "physical_column_name": {
+              "type": "string"
+            },
+            "relation_target_model_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "status": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string"
+      },
+      "scope_kind": {
+        "type": "string"
+      },
+      "source_kind": {
+        "type": "string"
+      },
+      "builtin_kind": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "capabilities": {
+        "type": "object",
+        "required": [
+          "can_delete",
+          "can_add_user_field",
+          "can_update_lifecycle_status",
+          "record"
+        ],
+        "properties": {
+          "record": {
+            "type": "object",
+            "required": [
+              "can_list",
+              "can_get",
+              "can_create",
+              "can_update",
+              "can_delete"
+            ],
+            "properties": {
+              "can_get": {
+                "type": "boolean"
+              },
+              "can_list": {
+                "type": "boolean"
+              },
+              "can_create": {
+                "type": "boolean"
+              },
+              "can_delete": {
+                "type": "boolean"
+              },
+              "can_update": {
+                "type": "boolean"
+              }
+            }
+          },
+          "can_delete": {
+            "type": "boolean"
+          },
+          "can_add_user_field": {
+            "type": "boolean"
+          },
+          "can_update_lifecycle_status": {
+            "type": "boolean"
+          }
+        }
+      },
+      "acl_namespace": {
+        "type": "string"
+      },
+      "data_source_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "audit_namespace": {
+        "type": "string"
+      },
+      "external_table_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "physical_table_name": {
+        "type": "string"
+      },
+      "runtime_availability": {
+        "type": "string"
+      },
+      "external_resource_key": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.code",
+        "description": "稳定、唯一且适合作为 API 标识的代码。",
+        "interface_param": "code"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.scope_kind",
+        "description": "数据模型所属范围；任务系统使用 workspace。",
+        "interface_param": "scope_kind"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.status",
+        "description": "目标状态或状态过滤值。",
+        "interface_param": "status"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.title",
+        "description": "用户可见名称。",
+        "interface_param": "title"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "code",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "scope_kind",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "status",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

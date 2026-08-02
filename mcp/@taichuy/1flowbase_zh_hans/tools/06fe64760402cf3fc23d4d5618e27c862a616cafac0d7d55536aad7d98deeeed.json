@@ -1,0 +1,280 @@
+{
+  "tool_id": "frontstage_create_block",
+  "name": "create_frontstage_block",
+  "short_description": "在目标页签创建一个 JS Block 并返回 Block 与 code_ref。",
+  "full_description": "Block 的 code_ref 是源码的稳定引用；后续保存源码和页签文档时必须继续使用返回的 page_id、tab_id、block id 与 code_ref。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_frontstage_block"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "payload",
+          "code_ref",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "payload": {},
+          "code_ref": {
+            "type": "string"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id",
+          "tab_id"
+        ],
+        "properties": {
+          "tab_id": {
+            "type": "string"
+          },
+          "page_id": {
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "page",
+      "tab",
+      "document"
+    ],
+    "properties": {
+      "tab": {
+        "type": "object",
+        "required": [
+          "id",
+          "page_id",
+          "rank",
+          "is_default",
+          "document_root_uid"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_id": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "route_segment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "document_root_uid": {
+            "type": "string"
+          }
+        }
+      },
+      "page": {
+        "type": "object",
+        "required": [
+          "id",
+          "is_hidden",
+          "kind",
+          "rank",
+          "placement",
+          "content_presentation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "group",
+              "page"
+            ],
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_hidden": {
+            "type": "boolean"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "topbar",
+              "sidebar"
+            ],
+            "type": "string"
+          },
+          "content_presentation": {
+            "enum": [
+              "single",
+              "tabs"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "document": {
+        "type": "object",
+        "required": [
+          "root_uid",
+          "payload"
+        ],
+        "properties": {
+          "payload": {},
+          "root_uid": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.tab_id",
+        "description": "Frontstage 页签稳定标识。",
+        "interface_param": "tab_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.code",
+        "description": "稳定、唯一且适合作为 API 标识的代码。",
+        "interface_param": "code"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.code_ref",
+        "description": "JS Block 源码的稳定引用。",
+        "interface_param": "code_ref"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.payload",
+        "description": "Frontstage 文档或 JS Block 的结构化配置。",
+        "interface_param": "payload"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "tab_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "code",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "code_ref",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "payload",
+        "required": true,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,7 +1,7 @@
 {
-  "tool_id": "workflow_ops_get_api_mapping",
-  "name": "get_workflow_api_mapping",
-  "short_description": "返回 Workflow 当前 API input/output 与 extension mapping 草稿。",
+  "tool_id": "agent_flow_get_api_mapping",
+  "name": "get_agent_flow_api_mapping",
+  "short_description": "返回 Agent Flow 当前 API input/output mapping 草稿。",
   "full_description": "",
   "execution_target": {
     "kind": "interface_wrapper",
@@ -115,8 +115,7 @@
             ],
             "properties": {
               "slug": {
-                "type": "string",
-                "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
+                "type": "string"
               },
               "method": {
                 "enum": [
@@ -128,16 +127,14 @@
                   "HEAD",
                   "OPTIONS"
                 ],
-                "type": "string",
-                "description": "HTTP method accepted by the published extension interface."
+                "type": "string"
               },
               "response_mode": {
                 "enum": [
                   "sync",
                   "async"
                 ],
-                "type": "string",
-                "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -151,7 +148,7 @@
       {
         "required": true,
         "mcp_param": "path.application_id",
-        "description": "Workflow Application 稳定标识。",
+        "description": "Agent Flow application 的稳定 application_id。",
         "interface_param": "application_id"
       }
     ],
@@ -160,7 +157,7 @@
         "name": "application_id",
         "required": true,
         "field_type": "string",
-        "description": "Workflow Application 稳定标识。",
+        "description": "Application id",
         "parameter_type": "url"
       }
     ]

@@ -1,0 +1,232 @@
+{
+  "tool_id": "task_plan_list_tasks",
+  "name": "list_tasks",
+  "short_description": "分页返回任务记录，可按字段筛选和排序。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__019fbed9-b78d-70a0-9718-0ea03f0333b7__list_records"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "description": "Page number."
+          },
+          "sort": {
+            "type": "string",
+            "description": "Single sort expression using field:asc or field:desc."
+          },
+          "expand": {
+            "type": "string",
+            "description": "Comma-separated relation field codes to expand."
+          },
+          "filter": {
+            "type": "string",
+            "description": "JSON filter expression. Supports field operators such as $eq, $ne, $gt, $gte, $lt, $lte, $includes, $notIncludes and $in."
+          },
+          "page_size": {
+            "type": "integer",
+            "default": 20,
+            "minimum": 1,
+            "description": "Page size."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "scope_id",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at",
+            "title",
+            "status",
+            "priority"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "due_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "type": "string"
+            },
+            "assignee": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "priority": {
+              "type": "string"
+            },
+            "scope_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Relation record id or relation expansion target."
+            },
+            "start_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "created_by": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_by": {
+              "type": "string"
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "completed_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.filter",
+        "description": "JSON filter expression. Supports field operators such as $eq, $ne, $gt, $gte, $lt, $lte, $includes, $notIncludes and $in.",
+        "interface_param": "filter"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.sort",
+        "description": "Single sort expression using field:asc or field:desc.",
+        "interface_param": "sort"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page",
+        "description": "Page number.",
+        "interface_param": "page"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page_size",
+        "description": "Page size.",
+        "interface_param": "page_size"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.expand",
+        "description": "Comma-separated relation field codes to expand.",
+        "interface_param": "expand"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "filter",
+        "required": false,
+        "field_type": "string",
+        "description": "JSON filter expression. Supports field operators such as $eq, $ne, $gt, $gte, $lt, $lte, $includes, $notIncludes and $in.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "sort",
+        "required": false,
+        "field_type": "string",
+        "description": "Single sort expression using field:asc or field:desc.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page",
+        "required": false,
+        "field_type": "integer",
+        "description": "Page number.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "field_type": "integer",
+        "description": "Page size.",
+        "parameter_type": "url"
+      },
+      {
+        "name": "expand",
+        "required": false,
+        "field_type": "string",
+        "description": "Comma-separated relation field codes to expand.",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

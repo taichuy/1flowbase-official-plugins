@@ -1,0 +1,280 @@
+{
+  "tool_id": "agent_flow_get_application",
+  "name": "get_agent_flow_application",
+  "short_description": "返回指定 Agent Flow 应用的详情与各功能区状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_type",
+      "name",
+      "description",
+      "created_by",
+      "updated_at",
+      "tags",
+      "sections"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "sections": {
+        "type": "object",
+        "required": [
+          "orchestration",
+          "api",
+          "logs",
+          "monitoring"
+        ],
+        "properties": {
+          "api": {
+            "type": "object",
+            "required": [
+              "status",
+              "credential_kind",
+              "invoke_routing_mode",
+              "api_capability_status",
+              "credentials_status"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "active",
+                  "planned",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              "credential_kind": {
+                "enum": [
+                  "application_api_key",
+                  "user_or_public",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              "credentials_status": {
+                "enum": [
+                  "configured",
+                  "missing",
+                  "not_required",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              "invoke_routing_mode": {
+                "enum": [
+                  "api_key_bound_application",
+                  "published_workflow_operation",
+                  "not_available"
+                ],
+                "type": "string"
+              },
+              "invoke_path_template": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "api_capability_status": {
+                "enum": [
+                  "enabled",
+                  "disabled",
+                  "not_published",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          "logs": {
+            "type": "object",
+            "required": [
+              "status",
+              "runs_capability_status",
+              "run_object_kind",
+              "log_retention_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "run_object_kind": {
+                "type": "string"
+              },
+              "log_retention_status": {
+                "type": "string"
+              },
+              "runs_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "monitoring": {
+            "type": "object",
+            "required": [
+              "status",
+              "metrics_capability_status",
+              "metrics_object_kind",
+              "tracing_config_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "metrics_object_kind": {
+                "type": "string"
+              },
+              "tracing_config_status": {
+                "type": "string"
+              },
+              "metrics_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "orchestration": {
+            "type": "object",
+            "required": [
+              "status",
+              "subject_kind",
+              "subject_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "subject_kind": {
+                "type": "string"
+              },
+              "subject_status": {
+                "type": "string"
+              },
+              "current_draft_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current_subject_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "icon_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_by": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "icon_background": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "application_type": {
+        "type": "string"
+      },
+      "workflow_trigger_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

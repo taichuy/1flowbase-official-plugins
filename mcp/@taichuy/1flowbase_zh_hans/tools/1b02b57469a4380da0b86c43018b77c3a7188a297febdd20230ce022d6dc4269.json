@@ -1,0 +1,178 @@
+{
+  "tool_id": "business_create_data_model_grant",
+  "name": "create_data_model_scope_grant",
+  "short_description": "为数据模型创建范围授权，使目标应用或工作区能够按档位读写。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_scope_grant"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "scope_kind",
+          "scope_id",
+          "permission_profile"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "scope_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope_kind": {
+            "type": "string"
+          },
+          "permission_profile": {
+            "type": "string"
+          },
+          "confirm_unsafe_external_source_system_all": {
+            "type": "boolean"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Model definition id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_kind",
+      "scope_id",
+      "data_model_id",
+      "enabled",
+      "permission_profile"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "scope_id": {
+        "type": "string"
+      },
+      "scope_kind": {
+        "type": "string"
+      },
+      "data_model_id": {
+        "type": "string"
+      },
+      "permission_profile": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "目标资源的稳定标识。",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.confirm_unsafe_external_source_system_all",
+        "description": "填写 confirm_unsafe_external_source_system_all。",
+        "interface_param": "confirm_unsafe_external_source_system_all"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.enabled",
+        "description": "填写 enabled。",
+        "interface_param": "enabled"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.permission_profile",
+        "description": "授予目标范围的读写权限档位。",
+        "interface_param": "permission_profile"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.scope_id",
+        "description": "获得数据模型访问权的目标范围标识。",
+        "interface_param": "scope_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.scope_kind",
+        "description": "数据模型所属范围；任务系统使用 workspace。",
+        "interface_param": "scope_kind"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Model definition id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "confirm_unsafe_external_source_system_all",
+        "required": false,
+        "field_type": "boolean",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "enabled",
+        "required": false,
+        "field_type": "boolean",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "permission_profile",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "scope_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "scope_kind",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

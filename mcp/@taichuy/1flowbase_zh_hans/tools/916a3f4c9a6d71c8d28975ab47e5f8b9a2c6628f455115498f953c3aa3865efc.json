@@ -1,8 +1,8 @@
 {
-  "tool_id": "workflow_ops_publish_api",
-  "name": "publish_workflow_extension",
-  "short_description": "冻结当前 Workflow 草稿并发布普通 /api/ex/ extension 接口。",
-  "full_description": "发布使用当前 draft 生成不可变 flow version。mapping.extension 定义 /api/ex/ 下的 slug、method、response_mode；extension parameters 的 target 必须引用 Workflow Start 输入字段，output selector 必须引用当前编排可输出的数据。Workflow extension 不使用 Application API Key，也不进入 Agent Flow AI Gateway。",
+  "tool_id": "agent_flow_publish_api",
+  "name": "publish_agent_flow_api",
+  "short_description": "冻结当前 Agent Flow 草稿并创建活动 API publication。",
+  "full_description": "发布使用当前 draft 生成不可变 flow version；mapping.input 的目标必须对应 Start 输入或协议上下文，mapping.output selector 必须引用当前编排可输出的数据。公开网关调用还需要用户自行在 GUI 创建 Application API Key；MCP 不创建、保存或显示该密钥。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "publish_application_api"
@@ -106,8 +106,7 @@
                     ],
                     "properties": {
                       "slug": {
-                        "type": "string",
-                        "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
+                        "type": "string"
                       },
                       "method": {
                         "enum": [
@@ -119,28 +118,24 @@
                           "HEAD",
                           "OPTIONS"
                         ],
-                        "type": "string",
-                        "description": "HTTP method accepted by the published extension interface."
+                        "type": "string"
                       },
                       "response_mode": {
                         "enum": [
                           "sync",
                           "async"
                         ],
-                        "type": "string",
-                        "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
+                        "type": "string"
                       }
                     },
                     "additionalProperties": false
                   }
                 ]
               }
-            },
-            "description": "Agent Flow request/output mapping or Workflow extension publication mapping."
+            }
           },
           "api_enabled": {
-            "type": "boolean",
-            "description": "Enables invocation for the new active publication. Workflow extension invocation uses the\nnormal /api/ex/{slug} interface and never requires an Application API Key."
+            "type": "boolean"
           }
         }
       },
@@ -232,16 +227,14 @@
                 "type": "object"
               },
               "route_template": {
-                "type": "string",
-                "description": "Relative route template appended to the normal /api/ex/ interface prefix."
+                "type": "string"
               },
               "parameter_schema": {
                 "type": "object"
               }
             }
           }
-        ],
-        "description": "For Workflow extension publications, the Agent-readable normal HTTP operation under\n/api/ex/{slug}; absent for Agent Flow and schedule-triggered Workflow publications."
+        ]
       },
       "created_at": {
         "type": "string"
@@ -251,8 +244,7 @@
         "format": "uuid"
       },
       "public_url": {
-        "type": "string",
-        "description": "/api/ex/{slug} for extension publications; /api/agent/v1/runs for Agent Flow."
+        "type": "string"
       },
       "api_enabled": {
         "type": "boolean"
@@ -354,8 +346,7 @@
                 ],
                 "properties": {
                   "slug": {
-                    "type": "string",
-                    "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
+                    "type": "string"
                   },
                   "method": {
                     "enum": [
@@ -367,16 +358,14 @@
                       "HEAD",
                       "OPTIONS"
                     ],
-                    "type": "string",
-                    "description": "HTTP method accepted by the published extension interface."
+                    "type": "string"
                   },
                   "response_mode": {
                     "enum": [
                       "sync",
                       "async"
                     ],
-                    "type": "string",
-                    "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -471,73 +460,73 @@
       {
         "required": true,
         "mcp_param": "path.application_id",
-        "description": "Workflow Application 稳定标识。",
+        "description": "Agent Flow application 的稳定 application_id。",
         "interface_param": "application_id"
       },
       {
         "required": true,
         "mcp_param": "body.api_enabled",
-        "description": "新 publication 是否立即开放 /api/ex/ 调用。",
+        "description": "是否允许调用当前 publication 的公开 API。",
         "interface_param": "api_enabled"
       },
       {
-        "required": true,
+        "required": false,
         "mcp_param": "body.mapping.extension",
-        "description": "extension 的 slug、HTTP method、响应模式与可选参数来源。",
+        "description": "接口参数 mapping.extension。",
         "interface_param": "mapping.extension"
-      },
-      {
-        "required": true,
-        "mcp_param": "body.mapping.input.query_target",
-        "description": "兼容基础输入映射的 Workflow Start 目标字段。",
-        "interface_param": "mapping.input.query_target"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.input.attachments_target",
-        "description": "可选附件输入目标；无附件时为 null 或省略。",
+        "description": "接口参数 mapping.input.attachments_target。",
         "interface_param": "mapping.input.attachments_target"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.input.history_target",
-        "description": "可选历史输入目标；无历史时为 null 或省略。",
+        "description": "接口参数 mapping.input.history_target。",
         "interface_param": "mapping.input.history_target"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.input.inputs_target",
-        "description": "可选结构化 inputs 目标；不用时为 null 或省略。",
+        "description": "接口参数 mapping.input.inputs_target。",
         "interface_param": "mapping.input.inputs_target"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.input.model_target",
-        "description": "可选模型标识目标；普通 Workflow 通常为 null 或省略。",
+        "description": "接口参数 mapping.input.model_target。",
         "interface_param": "mapping.input.model_target"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.mapping.input.query_target",
+        "description": "公开 API query 映射到的 Start 输入目标。",
+        "interface_param": "mapping.input.query_target"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.output.answer_selector",
-        "description": "同步响应的主要结果 selector。",
+        "description": "公开 API answer 从编排输出读取的 selector。",
         "interface_param": "mapping.output.answer_selector"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.output.error_selector",
-        "description": "可选错误结果 selector。",
+        "description": "接口参数 mapping.output.error_selector。",
         "interface_param": "mapping.output.error_selector"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.output.files_selector",
-        "description": "可选文件结果 selector。",
+        "description": "接口参数 mapping.output.files_selector。",
         "interface_param": "mapping.output.files_selector"
       },
       {
         "required": false,
         "mcp_param": "body.mapping.output.usage_selector",
-        "description": "可选用量结果 selector。",
+        "description": "接口参数 mapping.output.usage_selector。",
         "interface_param": "mapping.output.usage_selector"
       }
     ],
@@ -546,84 +535,84 @@
         "name": "application_id",
         "required": true,
         "field_type": "string",
-        "description": "Workflow Application 稳定标识。",
+        "description": "Application id",
         "parameter_type": "url"
       },
       {
         "name": "api_enabled",
         "required": true,
         "field_type": "boolean",
-        "description": "新 publication 是否立即开放 /api/ex/ 调用。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.extension",
         "required": false,
         "field_type": "object",
-        "description": "extension 的 slug、HTTP method、响应模式与可选参数来源。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.input.attachments_target",
         "required": false,
         "field_type": "object",
-        "description": "可选附件输入目标；无附件时为 null 或省略。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.input.history_target",
         "required": false,
         "field_type": "object",
-        "description": "可选历史输入目标；无历史时为 null 或省略。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.input.inputs_target",
         "required": false,
         "field_type": "object",
-        "description": "可选结构化 inputs 目标；不用时为 null 或省略。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.input.model_target",
         "required": false,
         "field_type": "object",
-        "description": "可选模型标识目标；普通 Workflow 通常为 null 或省略。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.input.query_target",
         "required": true,
         "field_type": "string",
-        "description": "兼容基础输入映射的 Workflow Start 目标字段。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.output.answer_selector",
         "required": false,
         "field_type": "object",
-        "description": "同步响应的主要结果 selector。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.output.error_selector",
         "required": false,
         "field_type": "object",
-        "description": "可选错误结果 selector。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.output.files_selector",
         "required": false,
         "field_type": "object",
-        "description": "可选文件结果 selector。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "mapping.output.usage_selector",
         "required": false,
         "field_type": "object",
-        "description": "可选用量结果 selector。",
+        "description": "",
         "parameter_type": "json_body"
       }
     ]

@@ -1,0 +1,360 @@
+{
+  "tool_id": "frontstage_list_component_capabilities",
+  "name": "list_frontstage_component_capabilities",
+  "short_description": "列出 Frontstage JS Block 可使用的低代码组件能力。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_component_capabilities"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "maximum": 20,
+            "minimum": 1
+          },
+          "query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "module_source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "contribution_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "total",
+      "offset",
+      "limit",
+      "has_more",
+      "module_sources"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "component_id",
+            "installation_id",
+            "provider_code",
+            "plugin_id",
+            "plugin_version",
+            "contribution_code",
+            "module_source",
+            "module_version",
+            "exports",
+            "binding",
+            "assets",
+            "export_name",
+            "description",
+            "insert_snippet"
+          ],
+          "properties": {
+            "assets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "role",
+                  "media_type",
+                  "sha256",
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  },
+                  "media_type": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "binding": {
+              "type": "string"
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "upstream": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "package",
+                    "component",
+                    "version"
+                  ],
+                  "properties": {
+                    "package": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "component": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "export_name": {
+              "type": "string"
+            },
+            "component_id": {
+              "type": "string"
+            },
+            "browser_asset": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "sha256",
+                    "url"
+                  ],
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            },
+            "module_source": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "insert_snippet": {
+              "type": "string"
+            },
+            "module_version": {
+              "type": "string"
+            },
+            "plugin_version": {
+              "type": "string"
+            },
+            "installation_id": {
+              "type": "string"
+            },
+            "contribution_code": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "has_more": {
+        "type": "boolean"
+      },
+      "next_offset": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0
+      },
+      "module_sources": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.installation_id",
+        "description": "按插件安装标识过滤。",
+        "interface_param": "installation_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.contribution_code",
+        "description": "按贡献代码过滤。",
+        "interface_param": "contribution_code"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.query",
+        "description": "搜索关键词。",
+        "interface_param": "query"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.module_source",
+        "description": "按模块来源过滤。",
+        "interface_param": "module_source"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.offset",
+        "description": "分页偏移量。",
+        "interface_param": "offset"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "最大返回数量。",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "installation_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "contribution_code",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "query",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "module_source",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "offset",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

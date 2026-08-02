@@ -13,6 +13,34 @@
       "sort_order": 0
     },
     {
+      "path": "/applications/agent-flows/manage",
+      "display_name": "应用管理",
+      "description_short": "创建应用并读取应用各功能区状态。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/applications/nodes",
+      "display_name": "节点管理",
+      "description_short": "按 Application 类型发现边界节点、内置节点、插件节点及其入参出参规范。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/applications/workflows/authoring",
+      "display_name": "编排",
+      "description_short": "读取 Workflow 当前编排并保存完整草稿。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
+      "path": "/business-systems/data-models",
+      "display_name": "数据模型",
+      "description_short": "定义业务数据结构、字段、生命周期和访问授权。",
+      "enabled": true,
+      "sort_order": 10
+    },
+    {
       "path": "/data",
       "display_name": "system data",
       "description_short": "Access 1flowbase system data suitable for querying through MCP.",
@@ -69,6 +97,34 @@
       "sort_order": 10
     },
     {
+      "path": "/applications",
+      "display_name": "Application",
+      "description_short": "管理 Agent Flow、Workflow、统一节点目录与触发器契约。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/applications/agent-flows/capabilities",
+      "display_name": "模型能力",
+      "description_short": "发现 Agent Flow 可选择的模型供应商、模型和多模态能力。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/applications/workflows/triggers",
+      "display_name": "触发器",
+      "description_short": "理解 extension、schedule 的用途、表单来源与 Schedule 启用状态。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
+      "path": "/business-systems/frontstage",
+      "display_name": "低代码页面",
+      "description_short": "发现页面能力并创建 Frontstage 页面、页签、文档和 JS Block。",
+      "enabled": true,
+      "sort_order": 20
+    },
+    {
       "path": "/system_mcp/configure",
       "display_name": "Configure MCP",
       "description_short": "Create and maintain instances Tool、 Directory grouping and mounting relationship.",
@@ -97,6 +153,48 @@
       "sort_order": 20
     },
     {
+      "path": "/applications/agent-flows",
+      "display_name": "Agent Flow",
+      "description_short": "创建、编排、调试、发布并排查 Agent Flow 应用。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/applications/agent-flows/authoring",
+      "display_name": "编排与节点配置",
+      "description_short": "读取当前编排并保存完整草稿。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/applications/workflows",
+      "display_name": "Workflow",
+      "description_short": "创建、编排并发布普通 extension 或管理 schedule 触发的 Workflow。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/applications/workflows/publishing",
+      "display_name": "接口发布",
+      "description_short": "配置 mapping、发布 /api/ex/ extension 并读取接口文档。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/business-systems",
+      "display_name": "业务系统构建",
+      "description_short": "用数据模型、自动化编排和 Frontstage 低代码页面构建可运行的业务系统。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
+      "path": "/business-systems/task-planning",
+      "display_name": "任务计划管理",
+      "description_short": "创建、查询、更新和删除任务计划，并查看任务状态统计。",
+      "enabled": true,
+      "sort_order": 30
+    },
+    {
       "path": "/system_mcp/configure/directory",
       "display_name": "目录管理",
       "description_short": "管理实例中的目录分组和 Tool 挂载位置。",
@@ -111,11 +209,18 @@
       "sort_order": 30
     },
     {
-      "path": "/applications/workflows",
-      "display_name": "Workflow 管理",
-      "description_short": "通过 MCP 创建、保存和发布 Workflow 应用。",
+      "path": "/applications/agent-flows/debug",
+      "display_name": "调试运行",
+      "description_short": "执行节点单点调试、整链调试并读取运行快照。",
       "enabled": true,
       "sort_order": 40
+    },
+    {
+      "path": "/applications/agent-flows/publishing",
+      "display_name": "API 发布",
+      "description_short": "读取 mapping、发布 API 并核对 publication 状态。",
+      "enabled": true,
+      "sort_order": 50
     },
     {
       "path": "/system_mcp/configure/upstreams",
@@ -123,9 +228,163 @@
       "description_short": "通过 MCP 管理第三方 MCP 连接、发现并导入远程 Tool。",
       "enabled": true,
       "sort_order": 50
+    },
+    {
+      "path": "/applications/agent-flows/operations",
+      "display_name": "运行与日志排障",
+      "description_short": "查询运行状态、trace 与监控指标。",
+      "enabled": true,
+      "sort_order": 60
     }
   ],
   "bindings": [
+    {
+      "group_path": "/applications/agent-flows/authoring",
+      "tool_id": "agent_flow_get_orchestration",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/agent-flows/authoring",
+      "tool_id": "agent_flow_save_draft",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/agent-flows/capabilities",
+      "tool_id": "agent_flow_list_model_options",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/agent-flows/debug",
+      "tool_id": "agent_flow_debug_node",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/agent-flows/debug",
+      "tool_id": "agent_flow_debug_flow",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/agent-flows/debug",
+      "tool_id": "agent_flow_get_debug_snapshot",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/applications/agent-flows/manage",
+      "tool_id": "agent_flow_create_application",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/agent-flows/manage",
+      "tool_id": "agent_flow_get_application",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/agent-flows/operations",
+      "tool_id": "agent_flow_list_runs",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/agent-flows/operations",
+      "tool_id": "agent_flow_get_run_overview",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/agent-flows/operations",
+      "tool_id": "agent_flow_get_run_trace",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/applications/agent-flows/operations",
+      "tool_id": "agent_flow_get_monitoring",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/applications/agent-flows/operations",
+      "tool_id": "agent_flow_get_trace_node_content",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 50
+    },
+    {
+      "group_path": "/applications/agent-flows/operations",
+      "tool_id": "agent_flow_list_provider_attempts",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 60
+    },
+    {
+      "group_path": "/applications/agent-flows/publishing",
+      "tool_id": "agent_flow_get_api_mapping",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/agent-flows/publishing",
+      "tool_id": "agent_flow_publish_api",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/agent-flows/publishing",
+      "tool_id": "agent_flow_get_publication",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/applications/agent-flows/publishing",
+      "tool_id": "agent_flow_set_api_status",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/applications/agent-flows/publishing",
+      "tool_id": "agent_flow_get_api_docs",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 50
+    },
+    {
+      "group_path": "/applications/agent-flows/publishing",
+      "tool_id": "agent_flow_list_api_keys",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 60
+    },
+    {
+      "group_path": "/applications/nodes",
+      "tool_id": "application_list_nodes",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
     {
       "group_path": "/applications/workflows",
       "tool_id": "workflow_ops_create_application",
@@ -134,53 +393,263 @@
       "sort_order": 10
     },
     {
-      "group_path": "/applications/workflows",
+      "group_path": "/applications/workflows/authoring",
       "tool_id": "workflow_ops_get_orchestration",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/workflows/authoring",
+      "tool_id": "workflow_ops_save_draft",
       "display_alias": null,
       "visible": true,
       "sort_order": 20
     },
     {
-      "group_path": "/applications/workflows",
-      "tool_id": "workflow_ops_save_draft",
+      "group_path": "/applications/workflows/publishing",
+      "tool_id": "workflow_ops_get_api_mapping",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/workflows/publishing",
+      "tool_id": "workflow_ops_publish_api",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/workflows/publishing",
+      "tool_id": "workflow_ops_get_api_docs_catalog",
       "display_alias": null,
       "visible": true,
       "sort_order": 30
     },
     {
-      "group_path": "/applications/workflows",
-      "tool_id": "workflow_ops_get_api_mapping",
+      "group_path": "/applications/workflows/publishing",
+      "tool_id": "workflow_ops_list_api_operations",
       "display_alias": null,
       "visible": true,
       "sort_order": 40
     },
     {
-      "group_path": "/applications/workflows",
-      "tool_id": "workflow_ops_publish_api",
+      "group_path": "/applications/workflows/triggers",
+      "tool_id": "application_get_catalog",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/applications/workflows/triggers",
+      "tool_id": "workflow_get_schedule_trigger",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/applications/workflows/triggers",
+      "tool_id": "workflow_replace_schedule_trigger",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_list_data_models",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_create_data_model",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_add_data_model_field",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_update_data_model",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_list_data_model_grants",
       "display_alias": null,
       "visible": true,
       "sort_order": 50
     },
     {
-      "group_path": "/applications/workflows",
-      "tool_id": "workflow_ops_get_api_docs_catalog",
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_create_data_model_grant",
       "display_alias": null,
       "visible": true,
       "sort_order": 60
     },
     {
-      "group_path": "/applications/workflows",
-      "tool_id": "workflow_ops_list_api_operations",
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_get_data_model_openapi",
       "display_alias": null,
       "visible": true,
       "sort_order": 70
     },
     {
-      "group_path": "/applications/workflows",
-      "tool_id": "workflow_mcp_test_echo",
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_list_data_model_options",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 75
+    },
+    {
+      "group_path": "/business-systems/data-models",
+      "tool_id": "business_delete_data_model",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 90
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_list_pages",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_create_page",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_list_tabs",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_create_tab",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_get_page_detail",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 50
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_save_document",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 60
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_create_block",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 70
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_save_block_code",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 80
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_get_block_code",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 85
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_list_data_capabilities",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 90
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_list_interface_capabilities",
       "display_alias": null,
       "visible": true,
       "sort_order": 100
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_list_component_capabilities",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 110
+    },
+    {
+      "group_path": "/business-systems/frontstage",
+      "tool_id": "frontstage_update_page_metadata",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 115
+    },
+    {
+      "group_path": "/business-systems/task-planning",
+      "tool_id": "task_plan_list_tasks",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/business-systems/task-planning",
+      "tool_id": "task_plan_get_task",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "group_path": "/business-systems/task-planning",
+      "tool_id": "task_plan_create_task",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 30
+    },
+    {
+      "group_path": "/business-systems/task-planning",
+      "tool_id": "task_plan_update_task",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 40
+    },
+    {
+      "group_path": "/business-systems/task-planning",
+      "tool_id": "task_plan_delete_task",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 50
+    },
+    {
+      "group_path": "/business-systems/task-planning",
+      "tool_id": "task_plan_get_status_statistics",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 60
     },
     {
       "group_path": "/data/conversations",

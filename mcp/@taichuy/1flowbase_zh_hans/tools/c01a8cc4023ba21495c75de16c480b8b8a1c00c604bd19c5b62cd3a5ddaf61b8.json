@@ -1,8 +1,8 @@
 {
-  "tool_id": "workflow_ops_save_draft",
-  "name": "save_workflow_draft",
-  "short_description": "保存完整 Workflow 编排草稿并返回新 draft 与版本信息。",
-  "full_description": "document.meta.flowId 必须使用当前编排返回的 flow_id；节点先声明稳定 id，edge 的 source/target 再引用这些节点。必须保留 workflow_start 与 workflow_end 边界，Workflow Start 的 input 字段 key 是 extension 或 schedule 传参的目标。",
+  "tool_id": "agent_flow_save_draft",
+  "name": "save_agent_flow_draft",
+  "short_description": "保存完整 Agent Flow 编排草稿并返回新 draft 与版本信息。",
+  "full_description": "document.meta.flowId 必须使用当前编排返回的 flow_id；节点先声明稳定 id，edge 的 source/target 再引用这些节点。If/Else 分支 edge 的 sourceHandle 必须引用分支 sourceHandle；LLM 工具注册的 target_node_id 与 connector_id 必须和工具分支节点及 sourceHandle 对应。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "save_draft"
@@ -162,26 +162,26 @@
     "mappings": [
       {
         "required": true,
-        "mcp_param": "path.id",
-        "description": "Workflow Application 稳定标识。",
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
         "interface_param": "id"
       },
       {
         "required": true,
         "mcp_param": "body.change_kind",
-        "description": "变更类型：logical 表示节点、连接或配置变化；layout 只表示画布位置变化。",
+        "description": "逻辑或布局变更；本次编排变更填写 logical。",
         "interface_param": "change_kind"
       },
       {
         "required": true,
         "mcp_param": "body.document",
-        "description": "完整 authoring document，包含 nodes、edges、meta 与节点配置。",
+        "description": "完整 FlowAuthoringDocument；通常基于 get orchestration 返回文档修改。",
         "interface_param": "document"
       },
       {
         "required": true,
         "mcp_param": "body.summary",
-        "description": "供版本历史显示的本次变更摘要。",
+        "description": "本次草稿变更摘要。",
         "interface_param": "summary"
       }
     ],
@@ -190,28 +190,28 @@
         "name": "id",
         "required": true,
         "field_type": "string",
-        "description": "Workflow Application 稳定标识。",
+        "description": "Application id",
         "parameter_type": "url"
       },
       {
         "name": "change_kind",
         "required": true,
         "field_type": "string",
-        "description": "变更类型：logical 表示节点、连接或配置变化；layout 只表示画布位置变化。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "document",
         "required": true,
         "field_type": "object",
-        "description": "完整 authoring document，包含 nodes、edges、meta 与节点配置。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "summary",
         "required": true,
         "field_type": "string",
-        "description": "供版本历史显示的本次变更摘要。",
+        "description": "",
         "parameter_type": "json_body"
       }
     ]

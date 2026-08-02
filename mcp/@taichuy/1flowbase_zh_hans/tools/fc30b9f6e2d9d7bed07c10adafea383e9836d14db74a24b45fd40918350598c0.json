@@ -1,8 +1,8 @@
 {
-  "tool_id": "workflow_ops_create_application",
-  "name": "create_workflow_application",
-  "short_description": "创建 Workflow，并返回 application_id、触发方式和各功能区初始状态。",
-  "full_description": "workflow_trigger_type 决定 workflow_trigger_config 的形状：extension 使用 subpath，可选 http_method 与 response_mode；schedule 使用 cron、timezone 和可选 input_payload，创建后默认禁用，需通过 Schedule 配置显式启用。form 只是 extension 参数来源，不是触发器。",
+  "tool_id": "agent_flow_create_application",
+  "name": "create_agent_flow_application",
+  "short_description": "创建 Agent Flow 应用并返回 application_id 与各功能区初始状态。",
+  "full_description": "",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "create_application"
@@ -46,26 +46,12 @@
             ]
           },
           "application_type": {
-            "enum": [
-              "agent_flow",
-              "workflow"
-            ],
-            "type": "string",
-            "description": "Closed Application family. Agent Flow and Workflow have different boundary nodes and API\npublication semantics."
+            "type": "string"
           },
           "workflow_trigger_type": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "enum": [
-                  "extension",
-                  "schedule"
-                ],
-                "type": "string",
-                "description": "Applies only to workflow. Defaults to extension when omitted; Agent Flow ignores no trigger\nvalue and rejects trigger configuration."
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "workflow_trigger_config": {
@@ -80,69 +66,39 @@
                     "type": [
                       "string",
                       "null"
-                    ],
-                    "description": "Required for schedule triggers; standard cron expression."
+                    ]
                   },
                   "subpath": {
                     "type": [
                       "string",
                       "null"
-                    ],
-                    "description": "Required for extension triggers; route template below /api/ex/ without leading slash."
+                    ]
                   },
                   "timezone": {
                     "type": [
                       "string",
                       "null"
-                    ],
-                    "description": "Required for schedule triggers; IANA timezone name."
-                  },
-                  "http_method": {
-                    "oneOf": [
-                      {
-                        "type": "null"
-                      },
-                      {
-                        "enum": [
-                          "GET",
-                          "POST",
-                          "PUT",
-                          "PATCH",
-                          "DELETE",
-                          "HEAD",
-                          "OPTIONS"
-                        ],
-                        "type": "string",
-                        "description": "Extension HTTP method. Defaults to POST."
-                      }
                     ]
                   },
-                  "input_payload": {
-                    "description": "Optional schedule defaults keyed by Workflow Start input field key."
+                  "http_method": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
+                  "input_payload": {},
                   "response_mode": {
-                    "oneOf": [
-                      {
-                        "type": "null"
-                      },
-                      {
-                        "enum": [
-                          "sync",
-                          "async"
-                        ],
-                        "type": "string",
-                        "description": "Extension response mode: sync or async. Defaults to sync."
-                      }
+                    "type": [
+                      "string",
+                      "null"
                     ]
                   }
                 },
-                "description": "Optional initial config for the selected Workflow trigger. Schedule creation is always\ndisabled until its schedule resource is enabled with PUT.",
                 "additionalProperties": false
               }
             ]
           }
-        },
-        "description": "Creates exactly one Agent Flow or Workflow Application."
+        }
       }
     },
     "additionalProperties": false
@@ -362,24 +318,12 @@
         ]
       },
       "application_type": {
-        "enum": [
-          "agent_flow",
-          "workflow"
-        ],
         "type": "string"
       },
       "workflow_trigger_type": {
-        "oneOf": [
-          {
-            "type": "null"
-          },
-          {
-            "enum": [
-              "extension",
-              "schedule"
-            ],
-            "type": "string"
-          }
+        "type": [
+          "string",
+          "null"
         ]
       }
     }
@@ -389,50 +333,20 @@
       {
         "required": true,
         "mcp_param": "body.application_type",
-        "description": "固定填写 workflow；Agent Flow 使用独立创建入口。",
+        "description": "固定填写 agent_flow。",
         "interface_param": "application_type"
       },
       {
         "required": true,
-        "mcp_param": "body.name",
-        "description": "Workflow 名称。",
-        "interface_param": "name"
-      },
-      {
-        "required": true,
         "mcp_param": "body.description",
-        "description": "Workflow 的用户目标与预期结果。",
+        "description": "Agent Flow 应用用途说明。",
         "interface_param": "description"
       },
       {
-        "required": false,
-        "mcp_param": "body.icon",
-        "description": "可选图标内容。",
-        "interface_param": "icon"
-      },
-      {
-        "required": false,
-        "mcp_param": "body.icon_background",
-        "description": "可选图标背景色。",
-        "interface_param": "icon_background"
-      },
-      {
-        "required": false,
-        "mcp_param": "body.icon_type",
-        "description": "可选图标类型。",
-        "interface_param": "icon_type"
-      },
-      {
         "required": true,
-        "mcp_param": "body.workflow_trigger_type",
-        "description": "Workflow 触发器：extension 或 schedule。",
-        "interface_param": "workflow_trigger_type"
-      },
-      {
-        "required": true,
-        "mcp_param": "body.workflow_trigger_config",
-        "description": "与 workflow_trigger_type 对应的初始触发器配置。",
-        "interface_param": "workflow_trigger_config"
+        "mcp_param": "body.name",
+        "description": "Agent Flow 应用名称。",
+        "interface_param": "name"
       }
     ],
     "interface_parameters": [
@@ -440,56 +354,56 @@
         "name": "application_type",
         "required": true,
         "field_type": "string",
-        "description": "固定填写 workflow；Agent Flow 使用独立创建入口。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "description",
         "required": true,
         "field_type": "string",
-        "description": "Workflow 的用户目标与预期结果。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "icon",
         "required": false,
         "field_type": "object",
-        "description": "可选图标内容。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "icon_background",
         "required": false,
         "field_type": "object",
-        "description": "可选图标背景色。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "icon_type",
         "required": false,
         "field_type": "object",
-        "description": "可选图标类型。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "name",
         "required": true,
         "field_type": "string",
-        "description": "Workflow 名称。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "workflow_trigger_config",
         "required": false,
         "field_type": "object",
-        "description": "与 workflow_trigger_type 对应的初始触发器配置。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "workflow_trigger_type",
         "required": false,
         "field_type": "object",
-        "description": "Workflow 触发器：extension 或 schedule。",
+        "description": "",
         "parameter_type": "json_body"
       }
     ]

@@ -1,0 +1,355 @@
+{
+  "tool_id": "agent_flow_get_publication",
+  "name": "get_agent_flow_publication",
+  "short_description": "返回 Agent Flow 当前活动 publication、版本、mapping 快照与公开 URL。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_api_publication"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_id",
+      "flow_id",
+      "flow_version_id",
+      "compiled_plan_id",
+      "version_sequence",
+      "active",
+      "api_enabled",
+      "mapping_snapshot",
+      "dependency_snapshot",
+      "public_url",
+      "created_by",
+      "created_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "flow_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "operation": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "required": [
+              "interface_id",
+              "method",
+              "route_template",
+              "response_mode",
+              "parameter_schema",
+              "result_schema"
+            ],
+            "properties": {
+              "method": {
+                "enum": [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "PATCH",
+                  "DELETE",
+                  "HEAD",
+                  "OPTIONS"
+                ],
+                "type": "string"
+              },
+              "interface_id": {
+                "type": "string"
+              },
+              "response_mode": {
+                "enum": [
+                  "sync",
+                  "async"
+                ],
+                "type": "string"
+              },
+              "result_schema": {
+                "type": "object"
+              },
+              "route_template": {
+                "type": "string"
+              },
+              "parameter_schema": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "public_url": {
+        "type": "string"
+      },
+      "api_enabled": {
+        "type": "boolean"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "flow_version_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "compiled_plan_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "mapping_snapshot": {
+        "type": "object",
+        "required": [
+          "input",
+          "output"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "query_target"
+            ],
+            "properties": {
+              "model_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "query_target": {
+                "type": "string"
+              },
+              "inputs_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "history_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "attachments_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "error_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "files_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "usage_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "answer_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "extension": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "slug",
+                  "method",
+                  "response_mode"
+                ],
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "HEAD",
+                      "OPTIONS"
+                    ],
+                    "type": "string"
+                  },
+                  "response_mode": {
+                    "enum": [
+                      "sync",
+                      "async"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "version_sequence": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "dependency_snapshot": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "installation_id",
+            "provider_code",
+            "plugin_id",
+            "plugin_version",
+            "alias",
+            "package",
+            "version",
+            "target",
+            "artifact_path",
+            "artifact_hash",
+            "integrity",
+            "permissions"
+          ],
+          "properties": {
+            "alias": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "package": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "integrity": {
+              "type": "string"
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "permissions": {
+              "type": "object",
+              "required": [
+                "network",
+                "filesystem",
+                "env"
+              ],
+              "properties": {
+                "env": {
+                  "type": "string"
+                },
+                "network": {
+                  "type": "string"
+                },
+                "filesystem": {
+                  "type": "string"
+                }
+              }
+            },
+            "artifact_hash": {
+              "type": "string"
+            },
+            "artifact_path": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "plugin_version": {
+              "type": "string"
+            },
+            "installation_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "application_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

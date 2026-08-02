@@ -1,0 +1,111 @@
+{
+  "tool_id": "application_get_catalog",
+  "name": "get_application_catalog",
+  "short_description": "返回 Application 类型、Workflow 触发器及其稳定语义说明。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_catalog"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "types",
+      "workflow_triggers",
+      "tags"
+    ],
+    "properties": {
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "application_count"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "application_count": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "types": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "label",
+            "description"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "value": {
+              "enum": [
+                "agent_flow",
+                "workflow"
+              ],
+              "type": "string"
+            },
+            "description": {
+              "type": "string",
+              "description": "Stable boundary and invocation semantics for this Application family."
+            }
+          }
+        }
+      },
+      "workflow_triggers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "label",
+            "description"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "value": {
+              "enum": [
+                "extension",
+                "schedule"
+              ],
+              "type": "string"
+            },
+            "description": {
+              "type": "string",
+              "description": "Stable trigger behavior. Request form is an extension input source, never a trigger."
+            }
+          }
+        },
+        "description": "Closed Workflow trigger set: extension and schedule only."
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

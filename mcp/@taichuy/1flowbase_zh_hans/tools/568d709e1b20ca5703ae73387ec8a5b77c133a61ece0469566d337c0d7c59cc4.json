@@ -1,36 +1,18 @@
 {
-  "tool_id": "workflow_ops_save_draft",
-  "name": "save_workflow_draft",
-  "short_description": "保存完整 Workflow 编排草稿并返回新 draft 与版本信息。",
-  "full_description": "document.meta.flowId 必须使用当前编排返回的 flow_id；节点先声明稳定 id，edge 的 source/target 再引用这些节点。必须保留 workflow_start 与 workflow_end 边界，Workflow Start 的 input 字段 key 是 extension 或 schedule 传参的目标。",
+  "tool_id": "agent_flow_get_orchestration",
+  "name": "get_agent_flow_orchestration",
+  "short_description": "返回 Agent Flow 当前 flow、draft、完整编排文档和版本。",
+  "full_description": "",
   "execution_target": {
     "kind": "interface_wrapper",
-    "interface_id": "save_draft"
+    "interface_id": "get_orchestration"
   },
   "parameter_schema_snapshot": {
     "type": "object",
     "required": [
-      "path",
-      "body"
+      "path"
     ],
     "properties": {
-      "body": {
-        "type": "object",
-        "required": [
-          "document",
-          "change_kind",
-          "summary"
-        ],
-        "properties": {
-          "summary": {
-            "type": "string"
-          },
-          "document": {},
-          "change_kind": {
-            "type": "string"
-          }
-        }
-      },
       "path": {
         "type": "object",
         "required": [
@@ -162,27 +144,9 @@
     "mappings": [
       {
         "required": true,
-        "mcp_param": "path.id",
-        "description": "Workflow Application 稳定标识。",
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
         "interface_param": "id"
-      },
-      {
-        "required": true,
-        "mcp_param": "body.change_kind",
-        "description": "变更类型：logical 表示节点、连接或配置变化；layout 只表示画布位置变化。",
-        "interface_param": "change_kind"
-      },
-      {
-        "required": true,
-        "mcp_param": "body.document",
-        "description": "完整 authoring document，包含 nodes、edges、meta 与节点配置。",
-        "interface_param": "document"
-      },
-      {
-        "required": true,
-        "mcp_param": "body.summary",
-        "description": "供版本历史显示的本次变更摘要。",
-        "interface_param": "summary"
       }
     ],
     "interface_parameters": [
@@ -190,34 +154,13 @@
         "name": "id",
         "required": true,
         "field_type": "string",
-        "description": "Workflow Application 稳定标识。",
+        "description": "Application id",
         "parameter_type": "url"
-      },
-      {
-        "name": "change_kind",
-        "required": true,
-        "field_type": "string",
-        "description": "变更类型：logical 表示节点、连接或配置变化；layout 只表示画布位置变化。",
-        "parameter_type": "json_body"
-      },
-      {
-        "name": "document",
-        "required": true,
-        "field_type": "object",
-        "description": "完整 authoring document，包含 nodes、edges、meta 与节点配置。",
-        "parameter_type": "json_body"
-      },
-      {
-        "name": "summary",
-        "required": true,
-        "field_type": "string",
-        "description": "供版本历史显示的本次变更摘要。",
-        "parameter_type": "json_body"
       }
     ]
   },
   "output_mapping": {},
-  "permission_code_snapshot": "application.edit.all",
-  "risk_level_snapshot": "high",
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
   "status": "enabled"
 }

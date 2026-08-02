@@ -1,0 +1,395 @@
+{
+  "tool_id": "business_add_data_model_field",
+  "name": "add_data_model_field",
+  "short_description": "向数据模型添加一个字段并返回物理列与字段能力。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_field"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "field_kind"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "is_unique": {
+            "type": "boolean"
+          },
+          "field_kind": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_required": {
+            "type": "boolean"
+          },
+          "api_required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "default_value": {},
+          "display_options": {},
+          "relation_options": {},
+          "display_interface": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "external_field_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "relation_target_model_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Model definition id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "code",
+      "title",
+      "physical_column_name",
+      "field_kind",
+      "is_system",
+      "is_writable",
+      "is_required",
+      "api_required",
+      "is_unique",
+      "default_value",
+      "display_options",
+      "relation_options",
+      "sort_order",
+      "capabilities"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "code": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "is_system": {
+        "type": "boolean"
+      },
+      "is_unique": {
+        "type": "boolean"
+      },
+      "field_kind": {
+        "type": "string"
+      },
+      "sort_order": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "is_required": {
+        "type": "boolean"
+      },
+      "is_writable": {
+        "type": "boolean"
+      },
+      "api_required": {
+        "type": "boolean"
+      },
+      "capabilities": {
+        "type": "object",
+        "required": [
+          "ownership",
+          "can_update_presentation_metadata",
+          "can_update_physical_metadata",
+          "can_delete"
+        ],
+        "properties": {
+          "ownership": {
+            "type": "string"
+          },
+          "can_delete": {
+            "type": "boolean"
+          },
+          "can_update_physical_metadata": {
+            "type": "boolean"
+          },
+          "can_update_presentation_metadata": {
+            "type": "boolean"
+          }
+        }
+      },
+      "default_value": {
+        "type": "object"
+      },
+      "display_options": {
+        "type": "object"
+      },
+      "relation_options": {
+        "type": "object"
+      },
+      "display_interface": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "external_field_key": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "physical_column_name": {
+        "type": "string"
+      },
+      "relation_target_model_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "目标资源的稳定标识。",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.api_required",
+        "description": "动态 API 是否要求该字段。",
+        "interface_param": "api_required"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.code",
+        "description": "稳定、唯一且适合作为 API 标识的代码。",
+        "interface_param": "code"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.default_value",
+        "description": "字段默认值。",
+        "interface_param": "default_value"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.description",
+        "description": "字段用途说明。",
+        "interface_param": "description"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.display_interface",
+        "description": "字段在低代码页面中的编辑组件。",
+        "interface_param": "display_interface"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.display_options",
+        "description": "字段展示组件配置。",
+        "interface_param": "display_options"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.external_field_key",
+        "description": "外部数据源字段标识。",
+        "interface_param": "external_field_key"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.field_kind",
+        "description": "字段数据类型。",
+        "interface_param": "field_kind"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.is_required",
+        "description": "创建记录时该字段是否必填。",
+        "interface_param": "is_required"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.is_unique",
+        "description": "该字段是否必须唯一。",
+        "interface_param": "is_unique"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.relation_options",
+        "description": "关系字段配置。",
+        "interface_param": "relation_options"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.relation_target_model_id",
+        "description": "关系字段引用的数据模型标识。",
+        "interface_param": "relation_target_model_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.title",
+        "description": "用户可见名称。",
+        "interface_param": "title"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Model definition id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "api_required",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "code",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "default_value",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "display_interface",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "display_options",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "external_field_key",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "field_kind",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "is_required",
+        "required": false,
+        "field_type": "boolean",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "is_unique",
+        "required": false,
+        "field_type": "boolean",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "relation_options",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "relation_target_model_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

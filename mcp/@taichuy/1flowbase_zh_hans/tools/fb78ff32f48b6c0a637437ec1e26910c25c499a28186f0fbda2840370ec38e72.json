@@ -1,0 +1,89 @@
+{
+  "tool_id": "business_delete_data_model",
+  "name": "delete_data_model",
+  "short_description": "删除指定数据模型定义及其物理运行表。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "delete_model"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Model definition id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "Must be true to confirm deletion"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "deleted"
+    ],
+    "properties": {
+      "deleted": {
+        "type": "boolean"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "要删除的数据模型稳定标识。",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.confirmed",
+        "description": "必须为 true 才执行删除。",
+        "interface_param": "confirmed"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Model definition id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "confirmed",
+        "required": false,
+        "field_type": "boolean",
+        "description": "Must be true to confirm deletion",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "critical",
+  "status": "enabled"
+}

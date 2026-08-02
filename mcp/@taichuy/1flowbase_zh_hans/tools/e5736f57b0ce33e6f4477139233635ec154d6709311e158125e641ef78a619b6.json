@@ -1,0 +1,396 @@
+{
+  "tool_id": "agent_flow_list_provider_attempts",
+  "name": "list_agent_flow_provider_attempts",
+  "short_description": "按 Agent Flow run 查询模型供应商请求尝试，并返回关联 node_run_id。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_request_logs"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_size": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "flow_run_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "started_after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "application_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "zero_output_only": {
+            "type": "boolean"
+          },
+          "provider_instance_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "total_count",
+      "page",
+      "page_size"
+    ],
+    "properties": {
+      "page": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "attempt_id",
+            "flow_run_id",
+            "application_name",
+            "attempt_index",
+            "is_retry",
+            "provider_code",
+            "protocol",
+            "upstream_model_id",
+            "status",
+            "failed_after_first_token",
+            "started_at"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "is_retry": {
+              "type": "boolean"
+            },
+            "protocol": {
+              "type": "string"
+            },
+            "attempt_id": {
+              "type": "string"
+            },
+            "error_code": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "started_at": {
+              "type": "string"
+            },
+            "finished_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "node_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "input_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "retry_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "total_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "attempt_index": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "output_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "application_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "first_token_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "conversation_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "application_name": {
+              "type": "string"
+            },
+            "reasoning_effort": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "total_duration_ms": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "upstream_model_id": {
+              "type": "string"
+            },
+            "provider_instance_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "time_to_first_token_ms": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            },
+            "failed_after_first_token": {
+              "type": "boolean"
+            },
+            "provider_instance_display_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "page_size": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "total_count": {
+        "type": "integer",
+        "format": "int64"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.flow_run_id",
+        "description": "按 Agent Flow run id 过滤 Provider 请求尝试。",
+        "interface_param": "flow_run_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.application_name",
+        "description": "按应用名称过滤。",
+        "interface_param": "application_name"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.provider_instance_id",
+        "description": "按模型供应商实例过滤。",
+        "interface_param": "provider_instance_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.model_id",
+        "description": "按实际执行的模型标识过滤 Provider 请求尝试。",
+        "interface_param": "model_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.status",
+        "description": "目标状态或状态过滤值。",
+        "interface_param": "status"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.zero_output_only",
+        "description": "是否只返回零输出请求。",
+        "interface_param": "zero_output_only"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.started_after",
+        "description": "只返回此时间之后开始的请求。",
+        "interface_param": "started_after"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.started_before",
+        "description": "只返回此时间之前开始的请求。",
+        "interface_param": "started_before"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page",
+        "description": "页码，从 1 开始。",
+        "interface_param": "page"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page_size",
+        "description": "每页记录数。",
+        "interface_param": "page_size"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "flow_run_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "application_name",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "provider_instance_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "model_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "status",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "zero_output_only",
+        "required": false,
+        "field_type": "boolean",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "started_after",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "started_before",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "page",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,436 @@
+{
+  "tool_id": "agent_flow_list_runs",
+  "name": "list_agent_flow_runs",
+  "short_description": "分页列出 Agent Flow 运行记录及其状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_application_runs"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int64",
+            "description": "1-based page number"
+          },
+          "sort_by": {
+            "type": "string",
+            "description": "Sort field: created_at, started_at, finished_at or updated_at"
+          },
+          "page_size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Page size"
+          },
+          "cache_mode": {
+            "type": "string",
+            "description": "Read mode: refresh bypasses application log cache reads"
+          },
+          "sort_order": {
+            "type": "string",
+            "description": "Sort direction: asc or desc"
+          },
+          "time_range_days": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Created-at day window, defaults to 7 days"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "total",
+      "page",
+      "page_size"
+    ],
+    "properties": {
+      "page": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "application_id",
+            "application_type",
+            "run_object_kind",
+            "run_kind",
+            "run_mode",
+            "status",
+            "title",
+            "execution_stage",
+            "invocation_source",
+            "subject",
+            "principal",
+            "correlation",
+            "statistics",
+            "started_at",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "subject": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "draft_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "target_node_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "run_kind": {
+              "type": "string"
+            },
+            "run_mode": {
+              "type": "string"
+            },
+            "expand_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "principal": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "display_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "started_at": {
+              "type": "string"
+            },
+            "statistics": {
+              "type": "object",
+              "required": [
+                "unique_node_count",
+                "tool_callback_count"
+              ],
+              "properties": {
+                "input_tokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64"
+                },
+                "total_tokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64"
+                },
+                "output_tokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64"
+                },
+                "unique_node_count": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "tool_callback_count": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "input_cache_hit_rate": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "format": "double"
+                },
+                "input_cache_hit_tokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64"
+                }
+              }
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "correlation": {
+              "type": "object",
+              "properties": {
+                "api_key_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "external_user": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "idempotency_key": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "external_trace_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "compatibility_mode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "publication_version_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "external_conversation_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "finished_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "application_id": {
+              "type": "string"
+            },
+            "target_node_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "execution_stage": {
+              "type": "string"
+            },
+            "run_object_kind": {
+              "type": "string"
+            },
+            "application_type": {
+              "type": "string"
+            },
+            "invocation_source": {
+              "type": "string"
+            },
+            "authorized_account": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "compatibility_mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "total": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "page_size": {
+        "type": "integer",
+        "format": "int64"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page",
+        "description": "页码，从 1 开始。",
+        "interface_param": "page"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.page_size",
+        "description": "每页运行记录数量。",
+        "interface_param": "page_size"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.time_range_days",
+        "description": "Created-at day window, defaults to 7 days",
+        "interface_param": "time_range_days"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.sort_by",
+        "description": "Sort field: created_at, started_at, finished_at or updated_at",
+        "interface_param": "sort_by"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.sort_order",
+        "description": "Sort direction: asc or desc",
+        "interface_param": "sort_order"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.cache_mode",
+        "description": "Read mode: refresh bypasses application log cache reads",
+        "interface_param": "cache_mode"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page",
+        "required": false,
+        "field_type": "integer",
+        "description": "1-based page number",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "field_type": "integer",
+        "description": "Page size",
+        "parameter_type": "url"
+      },
+      {
+        "name": "time_range_days",
+        "required": false,
+        "field_type": "integer",
+        "description": "Created-at day window, defaults to 7 days",
+        "parameter_type": "url"
+      },
+      {
+        "name": "sort_by",
+        "required": false,
+        "field_type": "string",
+        "description": "Sort field: created_at, started_at, finished_at or updated_at",
+        "parameter_type": "url"
+      },
+      {
+        "name": "sort_order",
+        "required": false,
+        "field_type": "string",
+        "description": "Sort direction: asc or desc",
+        "parameter_type": "url"
+      },
+      {
+        "name": "cache_mode",
+        "required": false,
+        "field_type": "string",
+        "description": "Read mode: refresh bypasses application log cache reads",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

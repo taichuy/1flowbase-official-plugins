@@ -1,0 +1,190 @@
+{
+  "tool_id": "workflow_replace_schedule_trigger",
+  "name": "replace_workflow_schedule_trigger",
+  "short_description": "原子替换 Schedule Workflow 的计划配置与启用状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "replace_workflow_schedule_trigger"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "cron",
+          "timezone",
+          "input_payload"
+        ],
+        "properties": {
+          "cron": {
+            "type": "string",
+            "description": "Standard cron expression."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Desired scheduler state. This PUT resource changes configuration and enabled state together."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone used to evaluate cron."
+          },
+          "input_payload": {
+            "description": "Defaults keyed by Workflow Start input field key. HTTP source is irrelevant for schedules."
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "workspace_id",
+      "application_id",
+      "enabled",
+      "cron",
+      "timezone",
+      "input_payload",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "cron": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean",
+        "description": "False for schedule configuration created with a new Application until explicitly enabled by\nPUT /workflow-schedule-trigger."
+      },
+      "timezone": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "updated_by": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "workspace_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "input_payload": {},
+      "application_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Schedule 类型 Workflow 的 Application 稳定标识。",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.cron",
+        "description": "标准 cron 表达式。",
+        "interface_param": "cron"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.timezone",
+        "description": "解释 cron 的 IANA 时区，例如 Asia/Shanghai。",
+        "interface_param": "timezone"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.input_payload",
+        "description": "按 Workflow Start 字段 key 提供的定时运行默认输入；允许空对象。",
+        "interface_param": "input_payload"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.enabled",
+        "description": "期望的调度状态；创建后默认 false，确认配置后再设为 true。",
+        "interface_param": "enabled"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Schedule 类型 Workflow 的 Application 稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "cron",
+        "required": true,
+        "field_type": "string",
+        "description": "标准 cron 表达式。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "enabled",
+        "required": true,
+        "field_type": "boolean",
+        "description": "期望的调度状态；创建后默认 false，确认配置后再设为 true。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "input_payload",
+        "required": true,
+        "field_type": "object",
+        "description": "按 Workflow Start 字段 key 提供的定时运行默认输入；允许空对象。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timezone",
+        "required": true,
+        "field_type": "string",
+        "description": "解释 cron 的 IANA 时区，例如 Asia/Shanghai。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
