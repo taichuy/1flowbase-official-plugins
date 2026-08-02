@@ -115,7 +115,8 @@
             ],
             "properties": {
               "slug": {
-                "type": "string"
+                "type": "string",
+                "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
               },
               "method": {
                 "enum": [
@@ -127,14 +128,16 @@
                   "HEAD",
                   "OPTIONS"
                 ],
-                "type": "string"
+                "type": "string",
+                "description": "HTTP method accepted by the published extension interface."
               },
               "response_mode": {
                 "enum": [
                   "sync",
                   "async"
                 ],
-                "type": "string"
+                "type": "string",
+                "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
               }
             },
             "additionalProperties": false

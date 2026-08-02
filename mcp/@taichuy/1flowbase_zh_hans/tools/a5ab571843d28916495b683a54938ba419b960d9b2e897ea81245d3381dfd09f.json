@@ -101,14 +101,16 @@
                 "type": "object"
               },
               "route_template": {
-                "type": "string"
+                "type": "string",
+                "description": "Relative route template appended to the normal /api/ex/ interface prefix."
               },
               "parameter_schema": {
                 "type": "object"
               }
             }
           }
-        ]
+        ],
+        "description": "For Workflow extension publications, the Agent-readable normal HTTP operation under\n/api/ex/{slug}; absent for Agent Flow and schedule-triggered Workflow publications."
       },
       "created_at": {
         "type": "string"
@@ -118,7 +120,8 @@
         "format": "uuid"
       },
       "public_url": {
-        "type": "string"
+        "type": "string",
+        "description": "/api/ex/{slug} for extension publications; /api/agent/v1/runs for Agent Flow."
       },
       "api_enabled": {
         "type": "boolean"
@@ -220,7 +223,8 @@
                 ],
                 "properties": {
                   "slug": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
                   },
                   "method": {
                     "enum": [
@@ -232,14 +236,16 @@
                       "HEAD",
                       "OPTIONS"
                     ],
-                    "type": "string"
+                    "type": "string",
+                    "description": "HTTP method accepted by the published extension interface."
                   },
                   "response_mode": {
                     "enum": [
                       "sync",
                       "async"
                     ],
-                    "type": "string"
+                    "type": "string",
+                    "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
                   }
                 },
                 "additionalProperties": false

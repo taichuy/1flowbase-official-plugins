@@ -46,12 +46,26 @@
             ]
           },
           "application_type": {
-            "type": "string"
+            "enum": [
+              "agent_flow",
+              "workflow"
+            ],
+            "type": "string",
+            "description": "Closed Application family. Agent Flow and Workflow have different boundary nodes and API\npublication semantics."
           },
           "workflow_trigger_type": {
-            "type": [
-              "string",
-              "null"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "extension",
+                  "schedule"
+                ],
+                "type": "string",
+                "description": "Applies only to workflow. Defaults to extension when omitted; Agent Flow ignores no trigger\nvalue and rejects trigger configuration."
+              }
             ]
           },
           "workflow_trigger_config": {
@@ -66,39 +80,69 @@
                     "type": [
                       "string",
                       "null"
-                    ]
+                    ],
+                    "description": "Required for schedule triggers; standard cron expression."
                   },
                   "subpath": {
                     "type": [
                       "string",
                       "null"
-                    ]
+                    ],
+                    "description": "Required for extension triggers; route template below /api/ex/ without leading slash."
                   },
                   "timezone": {
                     "type": [
                       "string",
                       "null"
-                    ]
+                    ],
+                    "description": "Required for schedule triggers; IANA timezone name."
                   },
                   "http_method": {
-                    "type": [
-                      "string",
-                      "null"
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE",
+                          "HEAD",
+                          "OPTIONS"
+                        ],
+                        "type": "string",
+                        "description": "Extension HTTP method. Defaults to POST."
+                      }
                     ]
                   },
-                  "input_payload": {},
+                  "input_payload": {
+                    "description": "Optional schedule defaults keyed by Workflow Start input field key."
+                  },
                   "response_mode": {
-                    "type": [
-                      "string",
-                      "null"
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "sync",
+                          "async"
+                        ],
+                        "type": "string",
+                        "description": "Extension response mode: sync or async. Defaults to sync."
+                      }
                     ]
                   }
                 },
+                "description": "Optional initial config for the selected Workflow trigger. Schedule creation is always\ndisabled until its schedule resource is enabled with PUT.",
                 "additionalProperties": false
               }
             ]
           }
-        }
+        },
+        "description": "Creates exactly one Agent Flow or Workflow Application."
       }
     },
     "additionalProperties": false
@@ -318,12 +362,24 @@
         ]
       },
       "application_type": {
+        "enum": [
+          "agent_flow",
+          "workflow"
+        ],
         "type": "string"
       },
       "workflow_trigger_type": {
-        "type": [
-          "string",
-          "null"
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "enum": [
+              "extension",
+              "schedule"
+            ],
+            "type": "string"
+          }
         ]
       }
     }

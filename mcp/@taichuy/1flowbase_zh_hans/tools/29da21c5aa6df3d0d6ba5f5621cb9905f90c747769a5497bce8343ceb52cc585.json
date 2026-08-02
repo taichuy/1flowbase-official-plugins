@@ -37,7 +37,7 @@
       "name",
       "short_description",
       "full_description",
-      "interface_id",
+      "execution_target",
       "operation",
       "parameter_schema",
       "result_schema",
@@ -47,6 +47,7 @@
       "des_id",
       "des_id_required",
       "status",
+      "availability_status",
       "revision"
     ],
     "properties": {
@@ -75,18 +76,13 @@
       "risk_level": {
         "type": "string"
       },
-      "interface_id": {
-        "type": "string"
-      },
       "workspace_id": {
         "type": "string"
       },
       "input_mapping": {
         "type": "object"
       },
-      "result_schema": {
-        "type": "object"
-      },
+      "result_schema": {},
       "output_mapping": {
         "type": "object"
       },
@@ -99,6 +95,54 @@
           "null"
         ]
       },
+      "execution_target": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "interface_id",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "interface_wrapper"
+                ],
+                "type": "string"
+              },
+              "interface_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upstream_connection_id",
+              "remote_tool_name",
+              "source_schema_hash",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "mcp_proxy"
+                ],
+                "type": "string"
+              },
+              "remote_tool_name": {
+                "type": "string"
+              },
+              "source_schema_hash": {
+                "type": "string"
+              },
+              "upstream_connection_id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
       "full_description": {
         "type": "string"
       },
@@ -106,6 +150,23 @@
         "type": "object"
       },
       "short_description": {
+        "type": "string"
+      },
+      "availability_reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "availability_status": {
+        "enum": [
+          "available",
+          "interface_missing",
+          "upstream_disabled",
+          "credentials_missing",
+          "upstream_tool_missing",
+          "mapping_invalid"
+        ],
         "type": "string"
       }
     }
@@ -211,7 +272,7 @@
       }
     }
   },
-  "permission_code_snapshot": "mcp_management.manage.all",
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
   "risk_level_snapshot": "high",
   "status": "enabled"
 }

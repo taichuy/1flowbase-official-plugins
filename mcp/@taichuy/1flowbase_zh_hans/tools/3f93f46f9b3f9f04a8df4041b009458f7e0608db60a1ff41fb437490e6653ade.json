@@ -244,12 +244,24 @@
         ]
       },
       "application_type": {
+        "enum": [
+          "agent_flow",
+          "workflow"
+        ],
         "type": "string"
       },
       "workflow_trigger_type": {
-        "type": [
-          "string",
-          "null"
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "enum": [
+              "extension",
+              "schedule"
+            ],
+            "type": "string"
+          }
         ]
       }
     }
