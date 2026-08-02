@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 export const REMOTE_NAME = 'origin';
 export const BRANCH_NAME = 'main';
 export const UPSTREAM_REF = `${REMOTE_NAME}/${BRANCH_NAME}`;
-export const REGISTRY_FILE = 'official-registry.json';
 export const BOT_AUTHOR_NAME = 'github-actions[bot]';
 export const BOT_AUTHOR_EMAIL = '41898282+github-actions[bot]@users.noreply.github.com';
 export const AUTO_REGISTRY_COMMIT_SUBJECT =
@@ -41,15 +40,11 @@ export function parseNameStatus(output) {
     });
 }
 
-export function isAllowedRegistryAutomationCommit(commit, changedFiles) {
-  return (
-    commit.authorName === BOT_AUTHOR_NAME &&
-    commit.authorEmail === BOT_AUTHOR_EMAIL &&
-    commit.subject === AUTO_REGISTRY_COMMIT_SUBJECT &&
-    changedFiles.length === 1 &&
-    changedFiles[0].status === 'M' &&
-    changedFiles[0].path === REGISTRY_FILE
-  );
+export function parseNameOnly(output) {
+  return output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function pluralize(count, singular, plural = `${singular}s`) {
@@ -79,29 +74,35 @@ function listRemoteAheadCommits(git) {
   return parseGitLogRecords(git(['log', `--format=${LOG_FORMAT}`, `HEAD..${UPSTREAM_REF}`]));
 }
 
+function listLocalChangedPaths(git) {
+  return parseNameOnly(git(['diff', '--name-only', `${UPSTREAM_REF}...HEAD`, '--']));
+}
+
 function describeCommit(commit, changedFiles) {
   const paths = changedFiles.map((file) => `${file.status} ${file.path}`).join(', ');
   return `${commit.sha.slice(0, 12)} ${commit.subject} (${commit.authorName}; ${paths || 'no files'})`;
 }
 
-function assertRemoteAheadCommitsAreSafe(git, commits) {
-  const unsafeDescriptions = [];
+function assertRemoteAheadCommitsAreSafe(git, commits, localChangedPaths) {
+  const localPaths = new Set(localChangedPaths);
+  const overlappingDescriptions = [];
 
   for (const commit of commits) {
     const changedFiles = parseNameStatus(
       git(['diff-tree', '--no-commit-id', '--name-status', '-r', commit.sha, '--'])
     );
+    const overlappingFiles = changedFiles.filter((file) => localPaths.has(file.path));
 
-    if (!isAllowedRegistryAutomationCommit(commit, changedFiles)) {
-      unsafeDescriptions.push(describeCommit(commit, changedFiles));
+    if (overlappingFiles.length > 0) {
+      overlappingDescriptions.push(describeCommit(commit, overlappingFiles));
     }
   }
 
-  if (unsafeDescriptions.length > 0) {
+  if (overlappingDescriptions.length > 0) {
     throw new Error(
       [
-        `Refusing to auto-rebase because ${UPSTREAM_REF} contains non-registry automation commits:`,
-        ...unsafeDescriptions.map((description) => `- ${description}`),
+        `Refusing to auto-rebase because ${UPSTREAM_REF} commits overlap locally changed files:`,
+        ...overlappingDescriptions.map((description) => `- ${description}`),
       ].join('\n')
     );
   }
@@ -124,12 +125,13 @@ export function syncMain({ git = runGit, stdout = process.stdout } = {}) {
   stdout.write(`Fetching ${UPSTREAM_REF}...\n`);
   git(['fetch', REMOTE_NAME, BRANCH_NAME]);
 
+  const localChangedPaths = listLocalChangedPaths(git);
   const remoteAheadCommits = listRemoteAheadCommits(git);
-  assertRemoteAheadCommitsAreSafe(git, remoteAheadCommits);
+  assertRemoteAheadCommitsAreSafe(git, remoteAheadCommits, localChangedPaths);
 
   if (remoteAheadCommits.length > 0) {
     stdout.write(
-      `Auto-rebasing over ${remoteAheadCommits.length} registry automation ${pluralize(
+      `Auto-rebasing over ${remoteAheadCommits.length} non-overlapping remote ${pluralize(
         remoteAheadCommits.length,
         'commit'
       )}...\n`
