@@ -2,47 +2,146 @@ name: agent-flow-catalog
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 */2 * * *'
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - 'agent-flow/@taichuy/**'
       - 'agent-flow/@*/**'
-      - 'scripts/extension-catalog.mjs'
-      - 'scripts/update-agent-flow-catalog.mjs'
+      - 'scripts/*agent-flow*.mjs'
+      - 'scripts/_tests/*agent-flow*.test.mjs'
       - '.github/workflows/agent-flow-catalog.yml'
 
 permissions:
   contents: write
 
+concurrency:
+  group: agent-flow-catalog-main
+  cancel-in-progress: false
+
 jobs:
-  update-agent-flow-catalog:
+  publish-agent-flow-catalog:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout official plugins repo
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
 
-      - name: Update AgentFlow catalog
-        run: node scripts/update-extension-catalog.mjs --category agent-flow
+      - name: Validate Agent Flow publisher contract
+        run: node --test scripts/_tests/*agent-flow*.test.mjs
 
-      - name: Commit generated catalog
+      - name: Plan source-declared releases
+        id: plan
         shell: bash
         run: |
           set -euo pipefail
-          git add agent-flow/catalog agent-flow/_maintenance
-          if git diff --cached --quiet -- agent-flow/catalog agent-flow/_maintenance; then
-            echo "AgentFlow catalog is already current."
-            exit 0
+          plan="$(node scripts/update-agent-flow-catalog.mjs plan --repo-root .)"
+          count="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).length))' "${plan}")"
+          {
+            echo "count=${count}"
+            echo "json=${plan}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Validate signing configuration
+        if: steps.plan.outputs.count != '0'
+        env:
+          AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM }}
+          AGENT_FLOW_SIGNING_KEY_ID: ${{ secrets.AGENT_FLOW_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM}" ]; then
+            echo "AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM is required" >&2
+            exit 1
+          fi
+          if [ -z "${AGENT_FLOW_SIGNING_KEY_ID}" ]; then
+            echo "AGENT_FLOW_SIGNING_KEY_ID is required" >&2
+            exit 1
           fi
 
+      - name: Sign exact bytes and publish immutable Release assets
+        if: steps.plan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PLAN: ${{ steps.plan.outputs.json }}
+          AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM }}
+          AGENT_FLOW_SIGNING_KEY_ID: ${{ secrets.AGENT_FLOW_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/agent-flow-records dist/agent-flow-assets dist/existing-assets
+          key_file="${RUNNER_TEMP}/agent-flow-ed25519-private.pem"
+          printf '%s' "${AGENT_FLOW_SIGNING_PRIVATE_KEY_PEM}" > "${key_file}"
+          chmod 600 "${key_file}"
+          trap 'rm -f "${key_file}"' EXIT
+
+          count="$(node -e 'process.stdout.write(String(JSON.parse(process.env.RELEASE_PLAN).length))')"
+          for ((index=0; index<count; index++)); do
+            field() {
+              node -e 'process.stdout.write(String(JSON.parse(process.env.RELEASE_PLAN)[Number(process.argv[1])][process.argv[2]]))' "${index}" "$1"
+            }
+            template_id="$(field template_id)"
+            release_version="$(field release_version)"
+            template_path="$(field source_path)"
+            release_tag="$(field release_tag)"
+            asset_name="$(field asset_name)"
+            download_url="$(field download_url)"
+            asset_path="dist/agent-flow-assets/${asset_name}"
+            record_path="dist/agent-flow-records/${template_id}-v${release_version}.json"
+
+            cp "${template_path}" "${asset_path}"
+            node scripts/update-agent-flow-catalog.mjs sign \
+              --template "${template_path}" \
+              --private-key "${key_file}" \
+              --key-id "${AGENT_FLOW_SIGNING_KEY_ID}" \
+              --download-url "${download_url}" \
+              --output "${record_path}"
+
+            if gh release view "${release_tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              existing_dir="dist/existing-assets/${release_tag}"
+              mkdir -p "${existing_dir}"
+              gh release download "${release_tag}" --repo "${GITHUB_REPOSITORY}" \
+                --pattern "${asset_name}" --dir "${existing_dir}"
+              cmp -- "${asset_path}" "${existing_dir}/${asset_name}" || {
+                echo "Immutable Release asset conflict: ${release_tag}/${asset_name}" >&2
+                exit 1
+              }
+            else
+              gh release create "${release_tag}" "${asset_path}" \
+                --repo "${GITHUB_REPOSITORY}" \
+                --target "${GITHUB_SHA}" \
+                --title "Agent Flow ${template_id} v${release_version}" \
+                --notes "Signed immutable Agent Flow template release."
+            fi
+          done
+
+      - name: Generate history-preserving catalog atomically
+        if: steps.plan.outputs.count != '0'
+        run: >-
+          node scripts/update-agent-flow-catalog.mjs update
+          --repo-root .
+          --records-dir dist/agent-flow-records
+
+      - name: Refresh Agent Flow discovery catalog
+        if: steps.plan.outputs.count != '0'
+        run: node scripts/update-extension-catalog.mjs --category agent-flow
+
+      - name: Commit generated Agent Flow catalog
+        if: steps.plan.outputs.count != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add agent-flow/catalog agent-flow/_maintenance agent-flow/releases/v1/catalog.json
+          if git diff --cached --quiet -- agent-flow/catalog agent-flow/_maintenance agent-flow/releases/v1/catalog.json; then
+            echo "Agent Flow catalog is already current."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: update official agent-flow catalog"
-          git push
+          git commit -m "chore: publish signed agent-flow catalog"
+          git push origin main

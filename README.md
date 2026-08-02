@@ -48,6 +48,7 @@
 - `provider-ci`：在 `pull_request` 和 `push main` 时运行，校验 registry JSON、执行 provider 打包 dry-run，并运行脚本测试
 - `provider-release`：在 `main` 分支收到 `runtime-extensions/@taichuy/**/manifest.yaml` 变更时运行
 - `mcp-bundle-release`：校验 MCP 包版本、打包 ZIP、发布 Release，并回写 ZIP checksum
+- `agent-flow-catalog`：校验模板声明的整数发布版本，对原始 JSON bytes 做 SHA-256 与 Ed25519 签名，发布不可变 Release asset，并原子更新可枚举历史版本的 catalog
 
 ### MCP 配置包
 
