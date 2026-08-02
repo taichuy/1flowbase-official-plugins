@@ -149,34 +149,34 @@ function discoverCanonicalEntries(repoRoot, category) {
   return entries;
 }
 
-function agentFlowEntries(repoRoot, rawBaseUrl) {
-  const root = path.join(repoRoot, 'agent-flow');
-  return directoryNames(root)
-    .filter((name) => name.startsWith('@'))
-    .flatMap((organizationDirectory) => {
-      const organization = organizationDirectory.slice(1);
-      return directoryNames(path.join(root, organizationDirectory)).flatMap((artifact) => {
-        const templatePath = path.join(root, organizationDirectory, artifact, 'template.json');
-        if (!fs.existsSync(templatePath)) return [];
-        const bytes = fs.readFileSync(templatePath);
-        const template = JSON.parse(bytes.toString('utf8'));
-        if (template?.schema_version !== '1flowbase.application-template/v1' ||
-            template?.application?.application_type !== 'agent_flow') {
-          throw new Error(`invalid AgentFlow template ${relative(repoRoot, templatePath)}`);
-        }
-        const sourcePath = relative(repoRoot, templatePath);
-        return [normalizeEntry('agent-flow', organization, artifact, {
-          name: template.application.name || artifact,
-          version: '1.0.0',
-          description: template.application.description || '',
-          host_version_requirement: '*',
-          source: { kind: 'agent_flow_template', locator: sourcePath },
-          signature: null,
-          checksum: sha256(bytes),
-          download_locator: { kind: 'repository_file', locator: rawUrl(rawBaseUrl, sourcePath) },
-        })];
-      });
-    });
+function agentFlowEntries(repoRoot) {
+  const catalog = readJsonIfExists(
+    path.join(repoRoot, 'agent-flow', 'releases', 'v1', 'catalog.json'),
+  );
+  if (!catalog) return [];
+  if (catalog.schema_version !== '1flowbase.agent-flow-catalog/v1' ||
+      !Array.isArray(catalog.templates)) {
+    throw new Error('invalid signed Agent Flow release catalog');
+  }
+  return catalog.templates.flatMap((template) => {
+    const latest = [...(template.versions || [])]
+      .sort((left, right) => right.release_version - left.release_version)[0];
+    if (!latest) return [];
+    return [normalizeEntry('agent-flow', template.organization, template.artifact, {
+      name: latest.application.name || template.artifact,
+      version: String(latest.release_version),
+      description: latest.application.description || '',
+      host_version_requirement: latest.exported_from_system_version,
+      source: { kind: 'agent_flow_release', locator: template.source_path },
+      signature: {
+        algorithm: latest.algorithm,
+        key_id: latest.key_id,
+        signature: latest.signature,
+      },
+      checksum: latest.checksum,
+      download_locator: { kind: 'https', locator: latest.download_url },
+    })];
+  });
 }
 
 function mcpEntries(repoRoot) {
@@ -282,7 +282,7 @@ function runtimeEntries(repoRoot) {
 
 function publisherEntries(repoRoot, category, rawBaseUrl) {
   switch (category) {
-    case 'agent-flow': return agentFlowEntries(repoRoot, rawBaseUrl);
+    case 'agent-flow': return agentFlowEntries(repoRoot);
     case 'i18n': return i18nEntries(repoRoot);
     case 'mcp': return mcpEntries(repoRoot);
     case 'runtime-extensions': return runtimeEntries(repoRoot);

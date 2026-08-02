@@ -135,6 +135,40 @@ test('AC-CAT-5 explicit canonical metadata overrides derived publisher metadata'
   assert.equal(entries[0].source.kind, 'repository');
 });
 
+test('AC-CAT-6 Agent Flow discovery projects the latest signed release record', () => {
+  const repoRoot = fixtureRepo();
+  const catalogRoot = path.join(repoRoot, 'agent-flow/releases/v1');
+  fs.mkdirSync(catalogRoot, { recursive: true });
+  fs.writeFileSync(path.join(catalogRoot, 'catalog.json'), JSON.stringify({
+    schema_version: '1flowbase.agent-flow-catalog/v1',
+    templates: [{
+      template_id: '019f5443-5b8e-74b2-90e3-c867dbddd37b',
+      organization: 'taichuy',
+      artifact: 'multimodal-mount-test',
+      source_path: 'agent-flow/@taichuy/multimodal-mount-test/template.json',
+      versions: [{
+        template_id: '019f5443-5b8e-74b2-90e3-c867dbddd37b',
+        release_version: 2,
+        exported_from_system_version: '0.3.1',
+        exported_at: '2026-08-02T00:00:00Z',
+        application: { name: 'Multimodal', description: 'Signed template' },
+        download_url: 'https://github.com/taichuy/1flowbase-official-plugins/releases/download/template-v2/template-v2.json',
+        checksum: `sha256:${'a'.repeat(64)}`,
+        algorithm: 'ed25519',
+        key_id: 'official-key-2026-04',
+        signature: 'fixture-signature',
+      }],
+    }],
+  }));
+
+  const [entry] = discoverCatalogEntries({ repoRoot, category: 'agent-flow' });
+  assert.equal(entry.version, '2');
+  assert.equal(entry.host_version_requirement, '0.3.1');
+  assert.equal(entry.source.kind, 'agent_flow_release');
+  assert.equal(entry.download_locator.kind, 'https');
+  assert.equal(entry.signature.key_id, 'official-key-2026-04');
+});
+
 test('AC-CAT-1 repository sources and repository downloads resolve through canonical artifact paths', () => {
   const expectedCounts = new Map([
     ['agent-flow', 2],
