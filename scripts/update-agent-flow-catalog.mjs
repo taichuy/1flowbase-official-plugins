@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 export const AGENT_FLOW_CATALOG_SCHEMA = '1flowbase.agent-flow-catalog/v1';
 export const AGENT_FLOW_TEMPLATE_SCHEMAS = new Set([
+  '1flowbase.application-archive/v1',
   '1flowbase.application-template/v1',
 ]);
 export const RELEASE_REPOSITORY = 'taichuy/1flowbase-official-plugins';
@@ -81,13 +82,21 @@ function readCatalog(catalogPath) {
   return catalog;
 }
 
-export function validateAgentFlowTemplate(entry, sourcePath = 'template.json') {
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+export function validateAgentFlowTemplate(document, sourcePath = 'template.json') {
+  if (!document || typeof document !== 'object' || Array.isArray(document)) {
     throw new Error(`${sourcePath} must contain one template entry`);
   }
-  if (!AGENT_FLOW_TEMPLATE_SCHEMAS.has(entry.schema_version)) {
+  if (!AGENT_FLOW_TEMPLATE_SCHEMAS.has(document.schema_version)) {
     throw new Error(`${sourcePath} has an unsupported template schema`);
   }
+  const entry = document.schema_version === '1flowbase.application-archive/v1'
+    ? (() => {
+        if (!Array.isArray(document.applications) || document.applications.length !== 1) {
+          throw new Error(`${sourcePath} must contain exactly one exported application`);
+        }
+        return document.applications[0];
+      })()
+    : document;
   assertUuid(entry.template_id, `${sourcePath}.template_id`);
   if (!Number.isSafeInteger(entry.release_version) || entry.release_version < 1) {
     throw new Error(`${sourcePath}.release_version must be an unsigned integer >= 1`);
@@ -101,9 +110,6 @@ export function validateAgentFlowTemplate(entry, sourcePath = 'template.json') {
   }
   if (!Array.isArray(entry.dependencies)) {
     throw new Error(`${sourcePath}.dependencies must be an array`);
-  }
-  if ('applications' in entry) {
-    throw new Error(`${sourcePath} must contain one template entry, not an applications archive`);
   }
   return entry;
 }

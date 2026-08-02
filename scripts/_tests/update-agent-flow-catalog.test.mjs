@@ -27,14 +27,16 @@ const TEMPLATE_ID = '76dfdbb6-cbc5-4bd7-bdc9-cc7c2b720f70';
 
 function fixtureEntry(releaseVersion = 1) {
   return {
-    schema_version: '1flowbase.application-template/v1',
-    template_id: TEMPLATE_ID,
-    release_version: releaseVersion,
-    exported_from_system_version: '0.3.0',
-    exported_at: '2026-08-01T00:00:00Z',
-    application: { application_type: 'agent_flow', name: 'Example', description: '' },
-    flow_document: { meta: { name: 'Example' }, graph: { nodes: [], edges: [] } },
-    dependencies: [],
+    schema_version: '1flowbase.application-archive/v1',
+    applications: [{
+      template_id: TEMPLATE_ID,
+      release_version: releaseVersion,
+      exported_from_system_version: '0.3.0',
+      exported_at: '2026-08-01T00:00:00Z',
+      application: { application_type: 'agent_flow', name: 'Example', description: '' },
+      flow_document: { meta: { name: 'Example' }, graph: { nodes: [], edges: [] } },
+      dependencies: [],
+    }],
   };
 }
 
@@ -64,13 +66,17 @@ function signedRecord(templatePath, releaseVersion = 1) {
 
 test('AC-002 validates the frozen single-template export contract', () => {
   assert.equal(validateAgentFlowTemplate(fixtureEntry()).template_id, TEMPLATE_ID);
+  const invalidVersion = fixtureEntry();
+  invalidVersion.applications[0].release_version = 0;
   assert.throws(
-    () => validateAgentFlowTemplate({ ...fixtureEntry(), release_version: 0 }),
+    () => validateAgentFlowTemplate(invalidVersion),
     /unsigned integer >= 1/,
   );
+  const multipleApplications = fixtureEntry();
+  multipleApplications.applications.push(multipleApplications.applications[0]);
   assert.throws(
-    () => validateAgentFlowTemplate({ ...fixtureEntry(), applications: [fixtureEntry()] }),
-    /not an applications archive/,
+    () => validateAgentFlowTemplate(multipleApplications),
+    /exactly one exported application/,
   );
 });
 
@@ -92,7 +98,7 @@ test('AC-007 rejects the same template ID and version when artifact bytes change
   const record = signedRecord(templatePath);
   updateAgentFlowCatalog({ repoRoot: root, records: [record], generatedAt: '2026-08-01T01:00:00Z' });
   const changed = fixtureEntry();
-  changed.application.name = 'Changed without a version bump';
+  changed.applications[0].application.name = 'Changed without a version bump';
   fs.writeFileSync(templatePath, `${JSON.stringify(changed, null, 2)}\n`);
 
   assert.throws(
