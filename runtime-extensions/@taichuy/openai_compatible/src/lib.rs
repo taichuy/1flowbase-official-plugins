@@ -346,16 +346,22 @@ enum NativeReasoningEffort {
 }
 
 impl NativeReasoningEffort {
-    fn as_chat_value(self) -> Result<&'static str> {
+    fn as_chat_value(self) -> &'static str {
         match self {
-            Self::Minimal => Ok("minimal"),
-            Self::Low => Ok("low"),
-            Self::Medium => Ok("medium"),
-            Self::High => Ok("high"),
-            Self::Xhigh => Ok("xhigh"),
-            Self::Max => bail!("reasoning.effort=max is not supported by the Chat-compatible wire"),
+            Self::Minimal => "minimal",
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Xhigh => "xhigh",
+            Self::Max => "max",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ChatReasoningTranslation {
+    reasoning_effort: Option<&'static str>,
+    decisions: Vec<&'static str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -822,16 +828,32 @@ fn attach_foreign_protocol_context_decision(
     if envelope.source_protocol == OPENAI_CHAT_PROTOCOL {
         return Ok(());
     }
+    append_request_translation_decisions(provider_metadata, ["omitted_foreign_protocol_context"])
+}
+
+fn append_request_translation_decisions(
+    provider_metadata: &mut Value,
+    decisions: impl IntoIterator<Item = &'static str>,
+) -> Result<()> {
+    let decisions = decisions.into_iter().collect::<Vec<_>>();
+    if decisions.is_empty() {
+        return Ok(());
+    }
     let metadata = provider_metadata
         .as_object_mut()
         .context("OpenAI Compatible provider metadata must be an object")?;
-    if metadata.contains_key("provider_request_translation") {
-        bail!("OpenAI Compatible provider metadata contains reserved request translation receipt");
-    }
-    metadata.insert(
-        "provider_request_translation".to_string(),
-        json!({ "decisions": ["omitted_foreign_protocol_context"] }),
-    );
+    let receipt = metadata
+        .entry("provider_request_translation".to_string())
+        .or_insert_with(|| json!({ "decisions": [] }));
+    let receipt = receipt
+        .as_object_mut()
+        .context("OpenAI Compatible provider request translation receipt must be an object")?;
+    let recorded = receipt
+        .entry("decisions".to_string())
+        .or_insert_with(|| json!([]))
+        .as_array_mut()
+        .context("OpenAI Compatible provider request translation decisions must be an array")?;
+    recorded.extend(decisions.into_iter().map(|decision| json!(decision)));
     Ok(())
 }
 
@@ -1408,6 +1430,7 @@ where
     .await?;
     let mut output =
         read_streaming_chat_completion(response, input.model.clone(), &mut on_event).await?;
+    attach_reasoning_translation_decisions(&mut output.result.provider_metadata, &input)?;
     attach_foreign_protocol_context_decision(
         &mut output.result.provider_metadata,
         input.client_protocol_envelope.as_ref(),
@@ -1468,16 +1491,22 @@ fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<V
         body.insert("max_tokens".to_string(), json!(max_output_tokens));
     }
     if let Some(reasoning) = typed_parameters.reasoning.as_ref() {
-        if input.model_parameters.contains_key("reasoning_effort") {
-            bail!("reasoning collides with legacy reasoning_effort");
+        let translation = translate_chat_reasoning(
+            reasoning,
+            input.model_parameters.contains_key("reasoning_effort"),
+        )?;
+        if let Some(effort) = translation.reasoning_effort {
+            body.insert(
+                "reasoning_effort".to_string(),
+                Value::String(effort.to_string()),
+            );
         }
-        body.insert(
-            "reasoning_effort".to_string(),
-            Value::String(chat_reasoning_effort(reasoning)?.to_string()),
-        );
     }
     for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
-        if *key == "reasoning_effort" && typed_parameters.reasoning.is_some() {
+        if *key == "reasoning_effort"
+            && typed_parameters.reasoning.is_some()
+            && !input.model_parameters.contains_key("reasoning_effort")
+        {
             continue;
         }
         if let Some(value) = parameter_value(&input, key) {
@@ -1488,25 +1517,58 @@ fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<V
     Ok(Value::Object(body))
 }
 
-fn chat_reasoning_effort(reasoning: &NativeReasoningParameters) -> Result<&'static str> {
+fn translate_chat_reasoning(
+    reasoning: &NativeReasoningParameters,
+    has_explicit_reasoning_effort: bool,
+) -> Result<ChatReasoningTranslation> {
+    let mut decisions = Vec::new();
     if reasoning.budget_tokens.is_some() {
-        bail!("reasoning.budget_tokens is not supported by the Chat-compatible wire");
+        decisions.push("omitted_reasoning_budget_tokens");
     }
-    match reasoning.mode {
+    let translated_effort = match reasoning.mode {
         NativeReasoningMode::Adaptive => {
-            bail!("reasoning.mode=adaptive is not supported by the Chat-compatible wire")
+            decisions.push("omitted_reasoning_mode_adaptive");
+            reasoning.effort.map(NativeReasoningEffort::as_chat_value)
         }
         NativeReasoningMode::Disabled => {
             if reasoning.effort.is_some() {
                 bail!("disabled reasoning must not declare reasoning.effort");
             }
-            Ok("none")
+            Some("none")
         }
-        NativeReasoningMode::Enabled => reasoning
-            .effort
-            .context("enabled reasoning requires effort on the Chat-compatible wire")?
-            .as_chat_value(),
-    }
+        NativeReasoningMode::Enabled => {
+            if reasoning.effort.is_none() {
+                decisions.push("omitted_reasoning_without_effort");
+            }
+            reasoning.effort.map(NativeReasoningEffort::as_chat_value)
+        }
+    };
+    let reasoning_effort = if has_explicit_reasoning_effort {
+        if translated_effort.is_some() {
+            decisions.push("preserved_explicit_reasoning_effort");
+        }
+        None
+    } else {
+        translated_effort
+    };
+    Ok(ChatReasoningTranslation {
+        reasoning_effort,
+        decisions,
+    })
+}
+
+fn attach_reasoning_translation_decisions(
+    provider_metadata: &mut Value,
+    input: &ProviderInvocationInput,
+) -> Result<()> {
+    let Some(reasoning) = TypedModelParameters::from_input(input)?.reasoning else {
+        return Ok(());
+    };
+    let translation = translate_chat_reasoning(
+        &reasoning,
+        input.model_parameters.contains_key("reasoning_effort"),
+    )?;
+    append_request_translation_decisions(provider_metadata, translation.decisions)
 }
 
 async fn read_streaming_chat_completion<F>(
@@ -2272,35 +2334,50 @@ mod tests {
             "none"
         );
 
-        for (model_parameters, reason) in [
-            (
-                json!({"requested_context_window": 128000}),
-                "a context-window request has no Chat-compatible wire field",
-            ),
-            (
-                json!({"reasoning": {"mode": "adaptive", "effort": "high"}}),
-                "adaptive reasoning has no Chat-compatible representation",
-            ),
+        let adaptive: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "model_parameters": {
+                "reasoning": {"mode": "adaptive", "effort": "high"}
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            build_typed_chat_completion_body(&adaptive).unwrap()["reasoning_effort"],
+            "high"
+        );
+
+        let adaptive_without_effort: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "model_parameters": {
+                "reasoning": {"mode": "adaptive"}
+            }
+        }))
+        .unwrap();
+        assert!(build_typed_chat_completion_body(&adaptive_without_effort)
+            .unwrap()
+            .get("reasoning_effort")
+            .is_none());
+
+        let lossy_cases = [
             (
                 json!({"reasoning": {"mode": "enabled", "effort": "high", "budget_tokens": 1024}}),
-                "Chat-compatible reasoning has no token-budget field",
+                Some("high"),
             ),
             (
                 json!({"reasoning": {"mode": "enabled", "effort": "max"}}),
-                "Chat-compatible reasoning does not support max effort",
+                Some("max"),
             ),
-            (
-                json!({"reasoning": {"mode": "enabled"}}),
-                "enabled reasoning without effort cannot be represented exactly",
-            ),
-            (
-                json!({
-                    "reasoning": {"mode": "enabled", "effort": "high"},
-                    "reasoning_effort": "low"
-                }),
-                "typed reasoning and legacy reasoning effort must not compete",
-            ),
-        ] {
+            (json!({"reasoning": {"mode": "enabled"}}), None),
+        ];
+        for (model_parameters, expected_effort) in lossy_cases {
             let input: ProviderInvocationInput = serde_json::from_value(json!({
                 "contract_version": "1flowbase.provider/v2",
                 "provider_instance_id": "provider-test",
@@ -2310,8 +2387,48 @@ mod tests {
                 "model_parameters": model_parameters
             }))
             .unwrap();
-            build_typed_chat_completion_body(&input).expect_err(reason);
+            let body = build_typed_chat_completion_body(&input).unwrap();
+            assert_eq!(
+                body.get("reasoning_effort").and_then(Value::as_str),
+                expected_effort
+            );
         }
+
+        let explicit_effort: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "model_parameters": {
+                "reasoning": {"mode": "adaptive", "effort": "high"},
+                "reasoning_effort": "low"
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            build_typed_chat_completion_body(&explicit_effort).unwrap()["reasoning_effort"],
+            "low"
+        );
+
+        let mut metadata = json!({"provider": "openai_compatible"});
+        attach_reasoning_translation_decisions(&mut metadata, &adaptive).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_reasoning_mode_adaptive"])
+        );
+
+        let unsupported_context: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "gpt-compatible",
+            "model_parameters": {"requested_context_window": 128000}
+        }))
+        .unwrap();
+        build_typed_chat_completion_body(&unsupported_context)
+            .expect_err("a context-window request has no Chat-compatible wire field");
     }
 
     #[test]
@@ -2991,11 +3108,14 @@ mod tests {
                 "api_key": "test-key"
             },
             "system": [{ "type": "text", "text": "Be concise" }],
-            "messages": [{ "role": "user", "content": "hello" }]
+            "messages": [{ "role": "user", "content": "hello" }],
+            "model_parameters": {
+                "reasoning": {"mode": "adaptive", "effort": "high"}
+            }
         }))
         .unwrap();
 
-        invoke_chat_completion(input)
+        let output = invoke_chat_completion(input)
             .await
             .expect("current Generate should complete against fake upstream");
         let captured_body: Value = serde_json::from_str(
@@ -3013,9 +3133,14 @@ mod tests {
                     { "role": "system", "content": "Be concise" },
                     { "role": "user", "content": "hello" }
                 ],
+                "reasoning_effort": "high",
                 "stream": true,
                 "stream_options": { "include_usage": true }
             })
+        );
+        assert_eq!(
+            output.result.provider_metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_reasoning_mode_adaptive"])
         );
     }
 

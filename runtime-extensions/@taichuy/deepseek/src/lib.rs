@@ -286,6 +286,33 @@ impl ProviderInvocationInput {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+enum NativeReasoningMode {
+    Adaptive,
+    #[default]
+    Enabled,
+    Disabled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NativeReasoningParameters {
+    #[serde(default)]
+    mode: NativeReasoningMode,
+    #[serde(default)]
+    effort: Option<String>,
+    #[serde(default)]
+    budget_tokens: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct DeepSeekReasoningTranslation {
+    thinking_type: Option<&'static str>,
+    reasoning_effort: Option<String>,
+    decisions: Vec<&'static str>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClientProtocolEnvelope {
     pub source_protocol: String,
@@ -682,7 +709,15 @@ where
         .await
         .map_err(|error| sanitize_error(error, &config))?;
 
-    read_streaming_chat_completion(response, input.model, &config.api_key, &mut on_event).await
+    let mut output = read_streaming_chat_completion(
+        response,
+        input.model.clone(),
+        &config.api_key,
+        &mut on_event,
+    )
+    .await?;
+    attach_reasoning_translation_decisions(&mut output.result.provider_metadata, &input)?;
+    Ok(output)
 }
 
 fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -720,7 +755,12 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
         json!({ "include_usage": true }),
     );
 
-    if let Some(thinking_type) = parameter_value(input, "thinking_type") {
+    let reasoning_translation = translate_deepseek_reasoning(input)?;
+    if let Some(thinking_type) = parameter_value(input, "thinking_type").or_else(|| {
+        reasoning_translation
+            .thinking_type
+            .map(|value| Value::String(value.to_string()))
+    }) {
         body.insert("thinking".to_string(), json!({ "type": thinking_type }));
     }
     if let Some(response_format) = input
@@ -742,6 +782,14 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
         body.insert("max_tokens".to_string(), max_output_tokens);
     }
+    if !input.model_parameters.contains_key("reasoning_effort") {
+        if let Some(reasoning_effort) = reasoning_translation.reasoning_effort {
+            body.insert(
+                "reasoning_effort".to_string(),
+                Value::String(reasoning_effort),
+            );
+        }
+    }
     for key in PASSTHROUGH_CHAT_COMPLETION_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {
             body.insert((*key).to_string(), value);
@@ -749,6 +797,78 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
     }
 
     Ok(Value::Object(body))
+}
+
+fn translate_deepseek_reasoning(
+    input: &ProviderInvocationInput,
+) -> Result<DeepSeekReasoningTranslation> {
+    let Some(value) = input.model_parameters.get("reasoning") else {
+        return Ok(DeepSeekReasoningTranslation::default());
+    };
+    let reasoning = serde_json::from_value::<NativeReasoningParameters>(value.clone())
+        .context("reasoning must contain only typed mode, effort, and budget_tokens")?;
+    if reasoning.budget_tokens == Some(0) {
+        bail!("reasoning.budget_tokens must be a positive integer");
+    }
+    if reasoning.mode == NativeReasoningMode::Disabled && reasoning.effort.is_some() {
+        bail!("disabled reasoning must not declare reasoning.effort");
+    }
+
+    let mut decisions = Vec::new();
+    if reasoning.budget_tokens.is_some() {
+        decisions.push("omitted_reasoning_budget_tokens");
+    }
+    let translated_thinking_type = match reasoning.mode {
+        NativeReasoningMode::Adaptive => {
+            decisions.push("omitted_reasoning_mode_adaptive");
+            None
+        }
+        NativeReasoningMode::Enabled => Some("enabled"),
+        NativeReasoningMode::Disabled => Some("disabled"),
+    };
+    let thinking_type = if input.model_parameters.contains_key("thinking_type") {
+        if translated_thinking_type.is_some() {
+            decisions.push("preserved_explicit_thinking_type");
+        }
+        None
+    } else {
+        translated_thinking_type
+    };
+    let reasoning_effort = if input.model_parameters.contains_key("reasoning_effort") {
+        if reasoning.effort.is_some() {
+            decisions.push("preserved_explicit_reasoning_effort");
+        }
+        None
+    } else {
+        reasoning.effort
+    };
+
+    Ok(DeepSeekReasoningTranslation {
+        thinking_type,
+        reasoning_effort,
+        decisions,
+    })
+}
+
+fn attach_reasoning_translation_decisions(
+    provider_metadata: &mut Value,
+    input: &ProviderInvocationInput,
+) -> Result<()> {
+    let decisions = translate_deepseek_reasoning(input)?.decisions;
+    if decisions.is_empty() {
+        return Ok(());
+    }
+    let metadata = provider_metadata
+        .as_object_mut()
+        .context("DeepSeek provider metadata must be an object")?;
+    if metadata.contains_key("provider_request_translation") {
+        bail!("DeepSeek provider metadata contains reserved request translation receipt");
+    }
+    metadata.insert(
+        "provider_request_translation".to_string(),
+        json!({ "decisions": decisions }),
+    );
+    Ok(())
 }
 
 fn build_invocation_messages(input: &ProviderInvocationInput) -> Result<Vec<Value>> {
@@ -1505,6 +1625,76 @@ mod tests {
     }
 
     #[test]
+    fn ac_002_adaptive_native_reasoning_preserves_supported_effort() {
+        let input = ProviderInvocationInput {
+            model: "deepseek-v4-flash".to_string(),
+            model_parameters: BTreeMap::from([(
+                "reasoning".to_string(),
+                json!({"mode": "adaptive", "effort": "high"}),
+            )]),
+            ..ProviderInvocationInput::default()
+        };
+
+        let body = build_chat_completion_body(&input).unwrap();
+
+        assert_eq!(body["reasoning_effort"], "high");
+        assert!(body.get("reasoning").is_none());
+        assert!(body.get("thinking").is_none());
+
+        let mut metadata = json!({"provider": "deepseek"});
+        attach_reasoning_translation_decisions(&mut metadata, &input).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_reasoning_mode_adaptive"])
+        );
+    }
+
+    #[test]
+    fn ac_002_native_reasoning_maps_exact_modes_and_preserves_explicit_parameters() {
+        for (mode, expected_thinking) in [("enabled", "enabled"), ("disabled", "disabled")] {
+            let input = ProviderInvocationInput {
+                model: "deepseek-v4-flash".to_string(),
+                model_parameters: BTreeMap::from([(
+                    "reasoning".to_string(),
+                    json!({"mode": mode}),
+                )]),
+                ..ProviderInvocationInput::default()
+            };
+
+            assert_eq!(
+                build_chat_completion_body(&input).unwrap()["thinking"]["type"],
+                expected_thinking
+            );
+        }
+
+        let explicit = ProviderInvocationInput {
+            model: "deepseek-v4-flash".to_string(),
+            model_parameters: BTreeMap::from([
+                (
+                    "reasoning".to_string(),
+                    json!({"mode": "enabled", "effort": "high", "budget_tokens": 1024}),
+                ),
+                ("thinking_type".to_string(), json!("disabled")),
+                ("reasoning_effort".to_string(), json!("max")),
+            ]),
+            ..ProviderInvocationInput::default()
+        };
+        let body = build_chat_completion_body(&explicit).unwrap();
+        assert_eq!(body["thinking"]["type"], "disabled");
+        assert_eq!(body["reasoning_effort"], "max");
+        let mut metadata = json!({"provider": "deepseek"});
+        attach_reasoning_translation_decisions(&mut metadata, &explicit).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!([
+                "omitted_reasoning_budget_tokens",
+                "preserved_explicit_thinking_type",
+                "preserved_explicit_reasoning_effort"
+            ])
+        );
+    }
+
+    #[test]
     fn normalize_balance_payload_preserves_deepseek_balances() {
         let result = normalize_balance_payload(&serde_json::json!({
             "is_available": true,
@@ -2023,7 +2213,10 @@ mod tests {
                 "messages": [{
                     "role": "user",
                     "content": "hello"
-                }]
+                }],
+                "model_parameters": {
+                    "reasoning": {"mode": "adaptive", "effort": "high"}
+                }
             }),
             |event| {
                 events.push(event.clone());
@@ -2045,6 +2238,7 @@ mod tests {
                     { "role": "system", "content": "Be concise" },
                     { "role": "user", "content": "hello" }
                 ],
+                "reasoning_effort": "high",
                 "stream": true,
                 "stream_options": { "include_usage": true }
             })
@@ -2091,6 +2285,10 @@ mod tests {
         assert_eq!(
             result.provider_metadata["response_id"],
             json!("chatcmpl_test")
+        );
+        assert_eq!(
+            result.provider_metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_reasoning_mode_adaptive"])
         );
         assert_eq!(result.usage.input_cache_hit_tokens, Some(40));
         assert_eq!(result.usage.input_cache_miss_tokens, Some(60));
