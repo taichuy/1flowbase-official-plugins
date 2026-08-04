@@ -10,4 +10,6 @@ Every runtime manifest declares a required `publisher_namespace`. Official manif
 use `1flowbase`; this publisher identity determines the runtime catalog organization
 and ID independently of the repository owner and display/legal `vendor` metadata.
 Manifests also publish `slot_codes` and may publish `keywords` (defaulting to an empty
-list) for catalog classification and search.
+list) for catalog classification and search. Registry publication records the actual
+repository-relative manifest path as `manifest_locator`; that source path may use a
+different organization segment than `publisher_namespace`.

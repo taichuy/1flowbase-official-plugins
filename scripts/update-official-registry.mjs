@@ -5,6 +5,9 @@ function normalizeRegistryEntry(entry) {
   if (typeof entry?.publisher_namespace !== 'string' || entry.publisher_namespace.length === 0) {
     throw new Error('publisher_namespace must be a non-empty string');
   }
+  if (typeof entry?.manifest_locator !== 'string' || entry.manifest_locator.length === 0) {
+    throw new Error('manifest_locator must be a non-empty string');
+  }
   return {
     ...entry,
     plugin_type: entry?.plugin_type || 'model_provider',

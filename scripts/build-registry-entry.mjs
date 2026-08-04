@@ -202,6 +202,14 @@ function toPosixPath(value) {
   return value.split(path.sep).join('/');
 }
 
+function repositoryLocator(repositoryRoot, filePath) {
+  const locator = path.relative(repositoryRoot, filePath);
+  if (!locator || path.isAbsolute(locator) || locator === '..' || locator.startsWith(`..${path.sep}`)) {
+    throw new Error('provider manifest must be inside repositoryRoot');
+  }
+  return toPosixPath(locator);
+}
+
 function resolveRegistryIcon(pluginDir, manifestIcon) {
   const trimmedIcon = manifestIcon.trim();
   if (!trimmedIcon) {
@@ -228,8 +236,9 @@ function resolveRegistryIcon(pluginDir, manifestIcon) {
   return `${OFFICIAL_PLUGIN_RAW_BASE_URL}/${toPosixPath(relativeAssetPath)}`;
 }
 
-export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts }) {
-  const manifest = fs.readFileSync(path.join(pluginDir, 'manifest.yaml'), 'utf8');
+export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts, repositoryRoot = repoRoot }) {
+  const manifestPath = path.resolve(pluginDir, 'manifest.yaml');
+  const manifest = fs.readFileSync(manifestPath, 'utf8');
   const publisherNamespace = readField(manifest, 'publisher_namespace', '');
   if (!publisherNamespace) {
     throw new Error('manifest publisher_namespace must be a non-empty string');
@@ -248,6 +257,7 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     plugin_id: `${publisherNamespace}.${providerCode}`,
     plugin_type: pluginType,
     publisher_namespace: publisherNamespace,
+    manifest_locator: repositoryLocator(repositoryRoot, manifestPath),
     provider_code: providerCode,
     slot_codes: readListField(manifest, 'slot_codes'),
     keywords: readListField(manifest, 'keywords'),

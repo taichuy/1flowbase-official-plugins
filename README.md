@@ -41,6 +41,8 @@
 `slot_codes` 与可选 `keywords` 提供目录分类和搜索元数据。`vendor` 仅用于展示或
 法律信息，不参与目录组织或 ID 计算。发布流程将这些字段投影到
 `official-registry.json` 与 Extension Catalog v1。
+注册表同时保存从实际 provider 目录生成的仓库相对 `manifest_locator`；源码路径与
+`publisher_namespace` 相互独立，不从发布者或 `vendor` 推导。
 
 ## 当前官方 Provider
 

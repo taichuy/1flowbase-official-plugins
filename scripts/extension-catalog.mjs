@@ -286,8 +286,15 @@ function runtimeEntries(repoRoot) {
   const registry = readJsonIfExists(registryPath);
   if (!registry) return [];
   return (registry.plugins || []).flatMap((plugin) => {
-    const sourcePath = `runtime-extensions/@taichuy/${plugin.provider_code}/manifest.yaml`;
-    if (!fs.existsSync(path.join(repoRoot, sourcePath))) return [];
+    assertString(plugin.manifest_locator, `${plugin.provider_code}.manifest_locator`);
+    const sourcePath = posix(plugin.manifest_locator);
+    const manifestPath = path.resolve(repoRoot, sourcePath);
+    const relativeManifestPath = path.relative(repoRoot, manifestPath);
+    if (path.isAbsolute(sourcePath) || sourcePath.includes('\\') || path.posix.normalize(sourcePath) !== sourcePath ||
+        relativeManifestPath === '..' || relativeManifestPath.startsWith(`..${path.sep}`)) {
+      throw new Error(`${plugin.provider_code}.manifest_locator must be repository-relative`);
+    }
+    if (!fs.existsSync(manifestPath)) return [];
     const artifacts = (plugin.artifacts || []).map((artifact) => ({
       os: artifact.os,
       arch: artifact.arch,

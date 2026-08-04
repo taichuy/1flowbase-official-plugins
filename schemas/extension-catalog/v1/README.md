@@ -23,7 +23,9 @@ Every page entry exposes `slot_codes` and `keywords` arrays. Canonical source en
 may omit them and receive empty arrays. Runtime entries instead project both arrays
 from the runtime manifest through `official-registry.json`. Runtime identity is
 `publisher_namespace/provider_code`; repository ownership and the display/legal
-`vendor` field never determine catalog identity.
+`vendor` field never determine catalog identity. The registry's `manifest_locator`
+is generated from the actual repository-relative manifest path and is the sole source
+locator used by runtime catalog publication; it is not derived from publisher identity.
 
 The generator sorts by `id`, uses deterministic page numbers and cursors, and keeps
 `generated_at` stable while the source fingerprint and page size are unchanged.

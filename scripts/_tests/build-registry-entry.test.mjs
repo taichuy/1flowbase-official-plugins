@@ -60,6 +60,7 @@ test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summar
     pluginDir: root,
     providerCode: 'openai_compatible',
     version: '0.2.1',
+    repositoryRoot: root,
     artifacts: [
       {
         os: 'linux',
@@ -75,6 +76,7 @@ test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summar
   assert.equal(entry.plugin_type, 'model_provider');
   assert.equal(entry.plugin_id, 'acme.openai_compatible');
   assert.equal(entry.publisher_namespace, 'acme');
+  assert.equal(entry.manifest_locator, 'manifest.yaml');
   assert.deepEqual(entry.slot_codes, ['data_source']);
   assert.deepEqual(entry.keywords, ['Search']);
   assert.equal(entry.minimum_host_version, '0.3.0');
@@ -137,6 +139,7 @@ test('buildRegistryEntry prefers manifest metadata for plugin label and descript
     pluginDir: root,
     providerCode: 'openai_compatible',
     version: '0.2.1',
+    repositoryRoot: root,
     artifacts: [],
   });
 
@@ -166,6 +169,11 @@ test('buildRegistryEntry emits a raw GitHub icon URL for repository asset icons'
   assert.equal(
     entry.icon,
     'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg'
+  );
+  assert.equal(entry.publisher_namespace, '1flowbase');
+  assert.equal(
+    entry.manifest_locator,
+    'runtime-extensions/@taichuy/openai_compatible/manifest.yaml'
   );
 });
 

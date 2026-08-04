@@ -159,8 +159,12 @@ test('AC-CAT-SEARCH emits deterministic normalized metadata tied to verified cat
 
 test('AC-CAT-RUNTIME derives identity from publisher namespace and slot classification from metadata', () => {
   const repoRoot = fixtureRepo();
-  for (const providerCode of ['alpha', 'beta']) {
-    const root = path.join(repoRoot, 'runtime-extensions', '@taichuy', providerCode);
+  const manifestLocators = new Map([
+    ['alpha', 'runtime-extensions/@source-one/alpha/manifest.yaml'],
+    ['beta', 'runtime-extensions/@source-two/beta/manifest.yaml'],
+  ]);
+  for (const manifestLocator of manifestLocators.values()) {
+    const root = path.dirname(path.join(repoRoot, manifestLocator));
     fs.mkdirSync(root, { recursive: true });
     fs.writeFileSync(path.join(root, 'manifest.yaml'), 'manifest fixture\n');
   }
@@ -168,13 +172,13 @@ test('AC-CAT-RUNTIME derives identity from publisher namespace and slot classifi
     version: 1,
     plugins: [
       {
-        plugin_id: 'acme.alpha', publisher_namespace: 'acme', provider_code: 'alpha',
+        plugin_id: 'acme.alpha', publisher_namespace: 'acme', manifest_locator: manifestLocators.get('alpha'), provider_code: 'alpha',
         plugin_type: 'model_provider', display_name: 'Alpha', latest_version: '1.0.0',
         minimum_host_version: '0.3.0', protocol: 'alpha', model_discovery_mode: 'hybrid',
         slot_codes: ['data_source'], keywords: ['warehouse'], artifacts: [],
       },
       {
-        plugin_id: '1flowbase.beta', publisher_namespace: '1flowbase', provider_code: 'beta',
+        plugin_id: '1flowbase.beta', publisher_namespace: '1flowbase', manifest_locator: manifestLocators.get('beta'), provider_code: 'beta',
         plugin_type: 'model_provider', display_name: 'Beta', latest_version: '1.0.0',
         minimum_host_version: '0.3.0', protocol: 'beta', model_discovery_mode: 'hybrid',
         slot_codes: ['model_provider'], keywords: [], artifacts: [],
@@ -187,7 +191,10 @@ test('AC-CAT-RUNTIME derives identity from publisher namespace and slot classifi
     { id: 'runtime-extensions:1flowbase/beta', organization: '1flowbase', slot_codes: ['model_provider'] },
     { id: 'runtime-extensions:acme/alpha', organization: 'acme', slot_codes: ['data_source'] },
   ]);
-  assert.equal(entries[1].source.locator, 'runtime-extensions/@taichuy/alpha/manifest.yaml');
+  assert.equal(entries[0].source.locator, manifestLocators.get('beta'));
+  assert.equal(entries[1].source.locator, manifestLocators.get('alpha'));
+  assert.equal(fs.existsSync(path.join(repoRoot, entries[0].source.locator)), true);
+  assert.equal(fs.existsSync(path.join(repoRoot, entries[1].source.locator)), true);
 });
 
 test('AC-CAT-4 check mode reports catalog drift without rewriting generated files', () => {
@@ -278,7 +285,7 @@ test('AC-003 MCP discovery projects the latest signed v2 history record', () => 
   assert.equal(entry.source.exported_from_system_version, '0.3.1');
 });
 
-test('AC-CAT-1 repository sources and repository downloads resolve through canonical artifact paths', () => {
+test('AC-CAT-1 source locators resolve independently from publisher-based runtime identity', () => {
   const expectedCounts = new Map([
     ['agent-flow', 2],
     ['i18n', 1],
@@ -290,6 +297,11 @@ test('AC-CAT-1 repository sources and repository downloads resolve through canon
     const entries = discoverCatalogEntries({ repoRoot: repositoryRoot, category });
     assert.equal(entries.length, expectedCount);
     for (const entry of entries) {
+      if (category === 'runtime-extensions') {
+        assert.equal(fs.existsSync(path.join(repositoryRoot, entry.source.locator)), true);
+        assert.equal(entry.organization, '1flowbase');
+        continue;
+      }
       const artifactRoot = `${category}/@${entry.organization}/${entry.artifact}`;
       assert.ok(entry.source.locator.startsWith(artifactRoot), `${entry.id} source must use ${artifactRoot}`);
       if (entry.download_locator.kind === 'repository_file') {

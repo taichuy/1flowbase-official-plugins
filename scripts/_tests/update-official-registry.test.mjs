@@ -9,6 +9,7 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
     plugin_id: '1flowbase.openai_compatible',
     plugin_type: 'model_provider',
     publisher_namespace: '1flowbase',
+    manifest_locator: 'runtime-extensions/@source-owner/openai_compatible/manifest.yaml',
     provider_code: 'openai_compatible',
     slot_codes: ['model_provider'],
     keywords: ['openai compatible', 'ai', 'openai compatible'],
@@ -47,6 +48,10 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   assert.equal(next.plugins.length, 1);
   assert.equal(next.plugins[0].plugin_type, 'model_provider');
   assert.equal(next.plugins[0].publisher_namespace, '1flowbase');
+  assert.equal(
+    next.plugins[0].manifest_locator,
+    'runtime-extensions/@source-owner/openai_compatible/manifest.yaml'
+  );
   assert.deepEqual(next.plugins[0].slot_codes, ['model_provider']);
   assert.deepEqual(next.plugins[0].keywords, ['ai', 'openai compatible']);
   assert.equal(
@@ -84,6 +89,7 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
     plugin_id: '1flowbase.openai_compatible',
     plugin_type: 'model_provider',
     publisher_namespace: '1flowbase',
+    manifest_locator: 'runtime-extensions/@source-owner/openai_compatible/manifest.yaml',
     provider_code: 'openai_compatible',
     slot_codes: ['model_provider'],
     keywords: [],
