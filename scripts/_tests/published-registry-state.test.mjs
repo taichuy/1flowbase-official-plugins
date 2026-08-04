@@ -29,19 +29,56 @@ function readProviderManifestField(providerCode, fieldName) {
   return match[1].trim();
 }
 
-test('official-registry.json tracks the current openai_compatible manifest and six-target schema', () => {
+function parseStableSemver(value) {
+  const match = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  assert.ok(match, `invalid stable semver: ${value}`);
+  return match.slice(1).map(Number);
+}
+
+function compareStableSemver(left, right) {
+  const leftParts = parseStableSemver(left);
+  const rightParts = parseStableSemver(right);
+
+  for (let index = 0; index < leftParts.length; index += 1) {
+    if (leftParts[index] !== rightParts[index]) {
+      return leftParts[index] - rightParts[index];
+    }
+  }
+
+  return 0;
+}
+
+test('official-registry.json keeps the published openai_compatible state consistent without source regression', () => {
   const registry = readRepoJson('official-registry.json');
   const entry = registry.plugins.find(
     (item) => item.provider_code === 'openai_compatible'
   );
 
   assert.ok(entry, 'missing openai_compatible entry in official-registry.json');
-  assert.equal(entry.latest_version, readProviderManifestVersion('openai_compatible'));
+  assert.ok(
+    compareStableSemver(
+      readProviderManifestVersion('openai_compatible'),
+      entry.latest_version
+    ) >= 0,
+    'openai_compatible source version must not precede the published version'
+  );
+  assert.equal(entry.plugin_id, '1flowbase.openai_compatible');
+  assert.equal(entry.publisher_namespace, '1flowbase');
+  assert.equal(entry.provider_code, 'openai_compatible');
+  assert.equal(entry.plugin_type, 'model_provider');
+  assert.deepEqual(entry.slot_codes, ['model_provider']);
+  assert.equal(
+    readProviderManifestField('openai_compatible', 'publisher_namespace'),
+    '1flowbase'
+  );
   assert.equal(
     entry.minimum_host_version,
     readProviderManifestField('openai_compatible', 'minimum_host_version')
   );
-  assert.equal(entry.plugin_type, 'model_provider');
+  assert.equal(
+    readProviderManifestField('openai_compatible', 'contract_version'),
+    '1flowbase.provider/v2'
+  );
   assert.deepEqual(entry.i18n_summary.available_locales, ['en_US', 'zh_Hans']);
   assert.equal(entry.i18n_summary.default_locale, 'en_US');
   assert.equal(
@@ -85,6 +122,21 @@ test('official-registry.json tracks the current openai_compatible manifest and s
       ['windows', 'arm64', 'msvc'],
     ]
   );
+
+  for (const artifact of entry.artifacts) {
+    assert.match(
+      artifact.checksum,
+      /^sha256:[0-9a-f]{64}$/,
+      `${entry.provider_code} ${artifact.os}-${artifact.arch} has invalid checksum`
+    );
+    const checksumHex = artifact.checksum.slice('sha256:'.length);
+    assert.equal(
+      artifact.download_url,
+      `https://github.com/taichuy/1flowbase-official-plugins/releases/download/${entry.provider_code}-v${entry.latest_version}/1flowbase@${entry.provider_code}@${entry.latest_version}@${artifact.os}-${artifact.arch}@${checksumHex}.1flowbasepkg`
+    );
+    assert.equal(artifact.signature_algorithm, 'ed25519');
+    assert.equal(artifact.signing_key_id, 'official-key-2026-04');
+  }
 });
 
 test('official-registry.json stores normalized sha256 checksums', () => {
