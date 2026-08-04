@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 function normalizeRegistryEntry(entry) {
+  if (typeof entry?.publisher_namespace !== 'string' || entry.publisher_namespace.length === 0) {
+    throw new Error('publisher_namespace must be a non-empty string');
+  }
   return {
     ...entry,
     plugin_type: entry?.plugin_type || 'model_provider',
@@ -11,7 +14,24 @@ function normalizeRegistryEntry(entry) {
       bundles: {},
     },
     artifacts: Array.isArray(entry?.artifacts) ? entry.artifacts : [],
+    slot_codes: normalizeRegistryList(entry?.slot_codes, 'slot_codes'),
+    keywords: normalizeRegistryList(entry?.keywords, 'keywords'),
   };
+}
+
+function normalizeRegistryList(value, field) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.trim().length === 0)) {
+    throw new Error(`${field} must be an array of non-empty strings`);
+  }
+  return [...new Set(value.map((item) => item.trim()))]
+    .sort(compareText);
+}
+
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 export function upsertRegistryEntry(registry, entry) {
@@ -24,7 +44,7 @@ export function upsertRegistryEntry(registry, entry) {
     plugins: [
       ...plugins.filter((item) => item?.provider_code !== normalizedEntry.provider_code),
       normalizedEntry,
-    ].sort((left, right) => left.provider_code.localeCompare(right.provider_code)),
+    ].sort((left, right) => compareText(left.provider_code, right.provider_code)),
   };
 }
 

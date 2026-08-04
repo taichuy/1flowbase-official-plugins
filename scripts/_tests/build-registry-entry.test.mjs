@@ -17,7 +17,12 @@ test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summar
     path.join(root, 'manifest.yaml'),
     [
       'plugin_type: model_provider',
+      'publisher_namespace: acme',
       'version: 0.2.1',
+      'slot_codes:',
+      '  - data_source',
+      'keywords:',
+      '  - Search',
       'minimum_host_version: 0.3.0',
       '',
     ].join('\n')
@@ -68,6 +73,10 @@ test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summar
   });
 
   assert.equal(entry.plugin_type, 'model_provider');
+  assert.equal(entry.plugin_id, 'acme.openai_compatible');
+  assert.equal(entry.publisher_namespace, 'acme');
+  assert.deepEqual(entry.slot_codes, ['data_source']);
+  assert.deepEqual(entry.keywords, ['Search']);
   assert.equal(entry.minimum_host_version, '0.3.0');
   assert.deepEqual(entry.i18n_summary.available_locales, ['en_US', 'zh_Hans']);
   assert.equal(entry.i18n_summary.default_locale, 'en_US');
@@ -83,6 +92,7 @@ test('buildRegistryEntry prefers manifest metadata for plugin label and descript
     path.join(root, 'manifest.yaml'),
     [
       'plugin_type: model_provider',
+      'publisher_namespace: 1flowbase',
       'version: 0.2.1',
       'metadata:',
       '  label:',

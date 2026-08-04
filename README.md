@@ -37,6 +37,11 @@
 - `readme/`：provider 说明文档
 - `demo/`：本地调试页面资源
 
+运行时 manifest 使用必填的 `publisher_namespace` 声明发布者身份，并通过
+`slot_codes` 与可选 `keywords` 提供目录分类和搜索元数据。`vendor` 仅用于展示或
+法律信息，不参与目录组织或 ID 计算。发布流程将这些字段投影到
+`official-registry.json` 与 Extension Catalog v1。
+
 ## 当前官方 Provider
 
 - `openai_compatible`：OpenAI-compatible API provider 插件

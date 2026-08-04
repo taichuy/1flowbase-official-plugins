@@ -8,7 +8,10 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   const next = upsertRegistryEntry(registry, {
     plugin_id: '1flowbase.openai_compatible',
     plugin_type: 'model_provider',
+    publisher_namespace: '1flowbase',
     provider_code: 'openai_compatible',
+    slot_codes: ['model_provider'],
+    keywords: ['openai compatible', 'ai', 'openai compatible'],
     display_name: 'OpenAI-Compatible API Provider',
     icon:
       'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg',
@@ -43,6 +46,9 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
 
   assert.equal(next.plugins.length, 1);
   assert.equal(next.plugins[0].plugin_type, 'model_provider');
+  assert.equal(next.plugins[0].publisher_namespace, '1flowbase');
+  assert.deepEqual(next.plugins[0].slot_codes, ['model_provider']);
+  assert.deepEqual(next.plugins[0].keywords, ['ai', 'openai compatible']);
   assert.equal(
     next.plugins[0].icon,
     'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg'
@@ -77,7 +83,10 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
   const next = upsertRegistryEntry(registry, {
     plugin_id: '1flowbase.openai_compatible',
     plugin_type: 'model_provider',
+    publisher_namespace: '1flowbase',
     provider_code: 'openai_compatible',
+    slot_codes: ['model_provider'],
+    keywords: [],
     display_name: 'OpenAI-Compatible API Provider',
     icon:
       'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai_compatible/_assets/icon.svg',

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,6 +27,8 @@ function canonicalEntry(repoRoot, category, organization, artifact, overrides = 
     name: artifact,
     version: '1.0.0',
     description: `${artifact} description`,
+    slot_codes: [],
+    keywords: [],
     host_version_requirement: '>=0.3.0',
     source: { kind: 'repository', locator: `${category}/@${organization}/${artifact}` },
     signature: null,
@@ -47,12 +50,15 @@ test('AC-CAT-1 emits the same v1 index/page/state contract for all six categorie
     const index = read(repoRoot, `${category}/catalog/v1/index.json`);
     const page = read(repoRoot, `${category}/catalog/v1/pages/1.json`);
     const state = read(repoRoot, `${category}/_maintenance/catalog-state.json`);
+    const searchIndex = read(repoRoot, `${category}/catalog/v1/search-index.json`);
     assert.equal(index.schema_version, '1flowbase.extension-catalog/v1');
     assert.equal(page.schema_version, index.schema_version);
     assert.equal(index.category, category);
     assert.equal(page.category, category);
     assert.equal(index.first_page.cursor, 'start');
     assert.equal(state.schema_version, '1flowbase.extension-catalog-state/v1');
+    assert.equal(searchIndex.schema_version, '1flowbase.extension-catalog-search/v1');
+    assert.equal(index.search_index.entry_count, 0);
     assert.equal(Object.hasOwn(index, '_maintenance'), false);
     assert.equal(Object.hasOwn(page, '_maintenance'), false);
   }
@@ -98,11 +104,90 @@ test('AC-CAT-3 exposes the Gateway field set with domain names and catalog page'
 
   assert.deepEqual(Object.keys(entry), [
     'id', 'name', 'category', 'organization', 'artifact', 'version', 'description',
-    'host_version_requirement', 'source', 'signature', 'checksum', 'download_locator', 'catalog_page',
+    'slot_codes', 'keywords', 'host_version_requirement', 'source', 'signature', 'checksum',
+    'download_locator', 'catalog_page',
   ]);
   assert.equal(entry.organization, 'taichuy');
   assert.equal(entry.artifact, 'nodes');
   assert.equal(entry.catalog_page, 1);
+  assert.deepEqual(entry.slot_codes, []);
+  assert.deepEqual(entry.keywords, []);
+});
+
+test('AC-CAT-SEARCH emits deterministic normalized metadata tied to verified catalog pages', () => {
+  const repoRoot = fixtureRepo();
+  canonicalEntry(repoRoot, 'host-extensions', 'Zeta', 'Second', {
+    name: '  Mixed   CASE Name  ',
+    description: 'Search\nDescription',
+    slot_codes: ['data_source', 'model_provider', 'data_source'],
+    keywords: ['AI Search', 'Provider'],
+  });
+  updateCategoryCatalog({
+    repoRoot,
+    category: 'host-extensions',
+    pageSize: 1,
+    now: '2026-08-01T00:00:00.000Z',
+  });
+
+  const index = read(repoRoot, 'host-extensions/catalog/v1/index.json');
+  const search = read(repoRoot, 'host-extensions/catalog/v1/search-index.json');
+  const searchBytes = fs.readFileSync(path.join(repoRoot, 'host-extensions/catalog/v1/search-index.json'));
+  const pageBytes = fs.readFileSync(path.join(repoRoot, 'host-extensions/catalog/v1/pages/1.json'));
+  const pageChecksum = `sha256:${crypto.createHash('sha256').update(pageBytes).digest('hex')}`;
+
+  assert.equal(search.source_fingerprint, read(repoRoot, 'host-extensions/_maintenance/catalog-state.json').source_fingerprint);
+  assert.equal(search.generated_at, index.generated_at);
+  assert.equal(search.entries[0].name, 'mixed case name');
+  assert.equal(search.entries[0].description, 'search description');
+  assert.equal(search.entries[0].organization, 'zeta');
+  assert.deepEqual(search.entries[0].slot_codes, ['data_source', 'model_provider']);
+  assert.deepEqual(search.entries[0].keywords, ['ai search', 'provider']);
+  assert.equal(search.entries[0].catalog_page.checksum, pageChecksum);
+  assert.deepEqual(Object.keys(search.entries[0]), [
+    'id', 'name', 'category', 'organization', 'artifact', 'version', 'description',
+    'host_version_requirement', 'source', 'signature', 'checksum', 'slot_codes', 'keywords',
+    'catalog_page',
+  ]);
+  assert.equal(index.search_index.schema_version, '1flowbase.extension-catalog-search/v1');
+  assert.equal(index.search_index.entry_count, 1);
+  assert.equal(index.search_index.checksum, `sha256:${crypto.createHash('sha256').update(searchBytes).digest('hex')}`);
+  assert.equal(index.search_index.locator.endsWith('/host-extensions/catalog/v1/search-index.json'), true);
+
+  updateCategoryCatalog({ repoRoot, category: 'host-extensions', pageSize: 1, now: '2099-01-01T00:00:00.000Z' });
+  assert.deepEqual(fs.readFileSync(path.join(repoRoot, 'host-extensions/catalog/v1/search-index.json')), searchBytes);
+});
+
+test('AC-CAT-RUNTIME derives identity from publisher namespace and slot classification from metadata', () => {
+  const repoRoot = fixtureRepo();
+  for (const providerCode of ['alpha', 'beta']) {
+    const root = path.join(repoRoot, 'runtime-extensions', '@taichuy', providerCode);
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, 'manifest.yaml'), 'manifest fixture\n');
+  }
+  fs.writeFileSync(path.join(repoRoot, 'official-registry.json'), JSON.stringify({
+    version: 1,
+    plugins: [
+      {
+        plugin_id: 'acme.alpha', publisher_namespace: 'acme', provider_code: 'alpha',
+        plugin_type: 'model_provider', display_name: 'Alpha', latest_version: '1.0.0',
+        minimum_host_version: '0.3.0', protocol: 'alpha', model_discovery_mode: 'hybrid',
+        slot_codes: ['data_source'], keywords: ['warehouse'], artifacts: [],
+      },
+      {
+        plugin_id: '1flowbase.beta', publisher_namespace: '1flowbase', provider_code: 'beta',
+        plugin_type: 'model_provider', display_name: 'Beta', latest_version: '1.0.0',
+        minimum_host_version: '0.3.0', protocol: 'beta', model_discovery_mode: 'hybrid',
+        slot_codes: ['model_provider'], keywords: [], artifacts: [],
+      },
+    ],
+  }));
+
+  const entries = discoverCatalogEntries({ repoRoot, category: 'runtime-extensions' });
+  assert.deepEqual(entries.map(({ id, organization, slot_codes }) => ({ id, organization, slot_codes })), [
+    { id: 'runtime-extensions:1flowbase/beta', organization: '1flowbase', slot_codes: ['model_provider'] },
+    { id: 'runtime-extensions:acme/alpha', organization: 'acme', slot_codes: ['data_source'] },
+  ]);
+  assert.equal(entries[1].source.locator, 'runtime-extensions/@taichuy/alpha/manifest.yaml');
 });
 
 test('AC-CAT-4 check mode reports catalog drift without rewriting generated files', () => {

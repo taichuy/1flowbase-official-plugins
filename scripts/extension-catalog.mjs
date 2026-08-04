@@ -12,6 +12,7 @@ export const CATALOG_CATEGORIES = Object.freeze([
 ]);
 
 export const CATALOG_SCHEMA_VERSION = '1flowbase.extension-catalog/v1';
+export const CATALOG_SEARCH_SCHEMA_VERSION = '1flowbase.extension-catalog-search/v1';
 export const CATALOG_STATE_SCHEMA_VERSION = '1flowbase.extension-catalog-state/v1';
 export const DEFAULT_PAGE_SIZE = 100;
 export const DEFAULT_RAW_BASE_URL =
@@ -85,6 +86,7 @@ function catalogPaths(repoRoot, category) {
     catalogRoot,
     pagesRoot: path.join(catalogRoot, 'pages'),
     indexPath: path.join(catalogRoot, 'index.json'),
+    searchIndexPath: path.join(catalogRoot, 'search-index.json'),
     maintenanceRoot: path.join(categoryRoot, '_maintenance'),
     statePath: path.join(categoryRoot, '_maintenance', 'catalog-state.json'),
   };
@@ -97,6 +99,8 @@ function assertString(value, field, { allowEmpty = false } = {}) {
 }
 
 function normalizeEntry(category, organization, artifact, source) {
+  const slotCodes = normalizeStringList(source.slot_codes, `${category}:${organization}/${artifact}.slot_codes`);
+  const keywords = normalizeStringList(source.keywords, `${category}:${organization}/${artifact}.keywords`);
   const entry = {
     id: `${category}:${organization}/${artifact}`,
     name: source.name,
@@ -105,6 +109,8 @@ function normalizeEntry(category, organization, artifact, source) {
     artifact,
     version: source.version,
     description: source.description,
+    slot_codes: slotCodes,
+    keywords,
     host_version_requirement: source.host_version_requirement,
     source: source.source,
     signature: source.signature ?? null,
@@ -130,6 +136,22 @@ function normalizeEntry(category, organization, artifact, source) {
   return entry;
 }
 
+function normalizeStringList(value, field) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.trim().length === 0)) {
+    throw new Error(`${field} must be an array of non-empty strings`);
+  }
+  return [...new Set(value.map((item) => item.trim()))].sort(compareText);
+}
+
+function normalizeSearchText(value) {
+  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
+}
+
+function normalizeSearchList(values) {
+  return [...new Set(values.map(normalizeSearchText))].sort(compareText);
+}
+
 function discoverCanonicalEntries(repoRoot, category) {
   const root = path.join(repoRoot, category);
   const entries = [];
@@ -140,7 +162,9 @@ function discoverCanonicalEntries(repoRoot, category) {
       if (!fs.existsSync(manifestPath)) continue;
       const source = readJson(manifestPath);
       const fields = Object.keys(source).sort();
-      if (JSON.stringify(fields) !== JSON.stringify(SOURCE_ENTRY_FIELDS)) {
+      const allowedFields = [...SOURCE_ENTRY_FIELDS, 'keywords', 'slot_codes'].sort();
+      if (SOURCE_ENTRY_FIELDS.some((field) => !fields.includes(field)) ||
+          fields.some((field) => !allowedFields.includes(field))) {
         throw new Error(`${relative(repoRoot, manifestPath)} fields must exactly match the v1 source entry contract`);
       }
       entries.push(normalizeEntry(category, organization, artifact, source));
@@ -279,10 +303,13 @@ function runtimeEntries(repoRoot) {
       .filter((artifact) => artifact.signature)
       .map((artifact) => `${artifact.signature.algorithm}:${artifact.signature.key_id}`));
     const description = plugin.i18n_summary?.bundles?.en_US?.plugin?.description || '';
-    return [normalizeEntry('runtime-extensions', 'taichuy', plugin.provider_code, {
+    assertString(plugin.publisher_namespace, `${plugin.provider_code}.publisher_namespace`);
+    return [normalizeEntry('runtime-extensions', plugin.publisher_namespace, plugin.provider_code, {
       name: plugin.display_name,
       version: plugin.latest_version,
       description,
+      slot_codes: plugin.slot_codes,
+      keywords: plugin.keywords,
       host_version_requirement: `>=${plugin.minimum_host_version}`,
       source: {
         kind: 'runtime_extension_manifest',
@@ -388,6 +415,40 @@ export function buildCategoryCatalog({
     });
   }
 
+  const pageByNumber = new Map(pageDocuments.map((page) => [page.page, page]));
+  const searchIndexDocument = {
+    schema_version: CATALOG_SEARCH_SCHEMA_VERSION,
+    category,
+    generated_at: generatedAt,
+    source_fingerprint: fingerprint,
+    entries: entries.map((entry) => {
+      const page = stateEntries[entry.id].page;
+      const pageDocument = pageByNumber.get(page);
+      return {
+        id: entry.id,
+        name: normalizeSearchText(entry.name),
+        category: entry.category,
+        organization: normalizeSearchText(entry.organization),
+        artifact: normalizeSearchText(entry.artifact),
+        version: entry.version,
+        description: normalizeSearchText(entry.description),
+        host_version_requirement: entry.host_version_requirement,
+        source: entry.source,
+        signature: entry.signature,
+        checksum: entry.checksum,
+        slot_codes: entry.slot_codes,
+        keywords: normalizeSearchList(entry.keywords),
+        catalog_page: {
+          page,
+          cursor: pageDocument.cursor,
+          checksum: pageDocument.checksum,
+          locator: pageDocument.locator,
+        },
+      };
+    }),
+  };
+  const searchIndexBytes = json(searchIndexDocument);
+
   const indexDocument = {
     schema_version: CATALOG_SCHEMA_VERSION,
     category,
@@ -398,6 +459,12 @@ export function buildCategoryCatalog({
       page: 1,
       cursor: 'start',
       locator: pageDocuments[0].locator,
+    },
+    search_index: {
+      schema_version: CATALOG_SEARCH_SCHEMA_VERSION,
+      entry_count: entries.length,
+      checksum: sha256(searchIndexBytes),
+      locator: rawUrl(rawBaseUrl, `${category}/catalog/v1/search-index.json`),
     },
     pages: pageDocuments.map(({ page, cursor, entry_count, checksum, locator }) => ({
       page, cursor, entry_count, checksum, locator,
@@ -411,12 +478,13 @@ export function buildCategoryCatalog({
     source_fingerprint: fingerprint,
     entries: stateEntries,
   };
-  return { paths, indexDocument, pageDocuments, stateDocument };
+  return { paths, indexDocument, pageDocuments, searchIndexDocument, searchIndexBytes, stateDocument };
 }
 
 function expectedFiles(catalog) {
   return new Map([
     [catalog.paths.indexPath, json(catalog.indexDocument)],
+    [catalog.paths.searchIndexPath, catalog.searchIndexBytes],
     ...catalog.pageDocuments.map((page) => [page.filePath, page.bytes]),
     [catalog.paths.statePath, json(catalog.stateDocument)],
   ]);

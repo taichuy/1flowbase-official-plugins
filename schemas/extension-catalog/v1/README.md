@@ -4,10 +4,14 @@ Every official extension category publishes the same static contract:
 
 - `<category>/catalog/v1/index.json`
 - `<category>/catalog/v1/pages/<page>.json`
+- `<category>/catalog/v1/search-index.json`
 - `<category>/_maintenance/catalog-state.json`
 
 `index.json` and numbered pages are the client contract described by
-`catalog.schema.json`. `_maintenance/catalog-state.json` is generator state only;
+`catalog.schema.json`. `search-index.json`, described by `search-index.schema.json`,
+contains normalized list metadata and verified page locators so consumers can filter
+the complete snapshot before applying pagination. `_maintenance/catalog-state.json`
+is generator state only;
 clients must not fetch or depend on it.
 
 New sources use `<category>/@<organization>/<artifact>/catalog-entry.json` and the
@@ -15,8 +19,17 @@ New sources use `<category>/@<organization>/<artifact>/catalog-entry.json` and t
 `organization`, `artifact`, and `catalog_page` from the source path and pagination.
 Canonical entries override an equally identified legacy publication entry.
 
+Every page entry exposes `slot_codes` and `keywords` arrays. Canonical source entries
+may omit them and receive empty arrays. Runtime entries instead project both arrays
+from the runtime manifest through `official-registry.json`. Runtime identity is
+`publisher_namespace/provider_code`; repository ownership and the display/legal
+`vendor` field never determine catalog identity.
+
 The generator sorts by `id`, uses deterministic page numbers and cursors, and keeps
 `generated_at` stable while the source fingerprint and page size are unchanged.
+The search index uses the same ordering and source fingerprint, and each search record
+names its page cursor, checksum, and locator. `index.json.search_index` checksums the
+entire search index.
 Empty categories still publish page 1 so every category has the same traversal
 contract.
 

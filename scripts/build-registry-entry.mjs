@@ -17,6 +17,39 @@ function nullableField(content, fieldName) {
   return value || null;
 }
 
+function readListField(content, fieldName) {
+  const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lines = content.split(/\r?\n/);
+  const fieldPattern = new RegExp(`^${escapedField}:\\s*(.*)$`);
+  const fieldIndex = lines.findIndex((line) => fieldPattern.test(line));
+  if (fieldIndex < 0) return [];
+  const inline = lines[fieldIndex].match(fieldPattern)?.[1]?.trim();
+  if (inline) {
+    if (!inline.startsWith('[') || !inline.endsWith(']')) {
+      throw new Error(`${fieldName} must be a YAML list`);
+    }
+    return normalizeList(inline.slice(1, -1).split(','));
+  }
+  const values = [];
+  for (let index = fieldIndex + 1; index < lines.length; index += 1) {
+    const match = lines[index].match(/^\s{2}-\s+(.+?)\s*$/);
+    if (!match) break;
+    values.push(match[1]);
+  }
+  return normalizeList(values);
+}
+
+function normalizeList(values) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+    .sort(compareText);
+}
+
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function parseManifestMetadata(content) {
   const lines = content.split(/\r?\n/);
   const metadata = {
@@ -197,6 +230,10 @@ function resolveRegistryIcon(pluginDir, manifestIcon) {
 
 export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts }) {
   const manifest = fs.readFileSync(path.join(pluginDir, 'manifest.yaml'), 'utf8');
+  const publisherNamespace = readField(manifest, 'publisher_namespace', '');
+  if (!publisherNamespace) {
+    throw new Error('manifest publisher_namespace must be a non-empty string');
+  }
   const pluginType = readField(manifest, 'plugin_type', 'model_provider');
   const manifestMetadata = parseManifestMetadata(manifest);
   const icon = resolveRegistryIcon(pluginDir, readField(manifest, 'icon', ''));
@@ -208,9 +245,12 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
   );
 
   return {
-    plugin_id: `1flowbase.${providerCode}`,
+    plugin_id: `${publisherNamespace}.${providerCode}`,
     plugin_type: pluginType,
+    publisher_namespace: publisherNamespace,
     provider_code: providerCode,
+    slot_codes: readListField(manifest, 'slot_codes'),
+    keywords: readListField(manifest, 'keywords'),
     display_name:
       readField(providerYaml, 'display_name', '') ||
       i18nSummary.bundles[i18nSummary.default_locale]?.provider?.label ||
