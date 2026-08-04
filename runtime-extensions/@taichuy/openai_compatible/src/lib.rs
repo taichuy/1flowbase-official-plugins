@@ -261,6 +261,10 @@ pub enum ProviderInvocationCapability {
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    #[serde(rename = "message_blocks.reasoning_history.v1")]
+    MessageBlocksReasoningHistoryV1,
+    #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
+    MessageBlocksRedactedReasoningHistoryV1,
     ProtocolContext,
 }
 
@@ -1235,7 +1239,7 @@ fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
     })
 }
 
-fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
+fn build_invocation_messages(input: &ProviderInvocationInput) -> Result<Vec<Value>> {
     let mut messages = Vec::new();
     if let Some(system) = input.system_text() {
         messages.push(json!({
@@ -1252,16 +1256,14 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
             ProviderMessageRole::Tool => "tool",
         };
         item.insert("role".to_string(), Value::String(role.to_string()));
-        item.insert(
-            "content".to_string(),
-            Value::String(
-                message
-                    .content_blocks
-                    .as_ref()
-                    .map(normalize_message_content)
-                    .unwrap_or_else(|| message.content.clone()),
-            ),
-        );
+        let (content, reasoning_content) = lower_message_content(message)?;
+        item.insert("content".to_string(), Value::String(content));
+        if let Some(reasoning_content) = reasoning_content {
+            item.insert(
+                "reasoning_content".to_string(),
+                Value::String(reasoning_content),
+            );
+        }
         if let Some(name) = message
             .name
             .as_deref()
@@ -1284,7 +1286,7 @@ fn build_invocation_messages(input: &ProviderInvocationInput) -> Vec<Value> {
         }
         messages.push(Value::Object(item));
     }
-    messages
+    Ok(messages)
 }
 
 fn openai_chat_tool_calls(tool_calls: &Value) -> Value {
@@ -1345,6 +1347,48 @@ fn normalize_message_content(content: &Value) -> String {
         Value::Null => String::new(),
         other => other.to_string(),
     }
+}
+
+fn lower_message_content(message: &ProviderMessage) -> Result<(String, Option<String>)> {
+    let Some(content_blocks) = message.content_blocks.as_ref() else {
+        return Ok((message.content.clone(), None));
+    };
+    let blocks = content_blocks
+        .as_array()
+        .ok_or_else(|| anyhow!("canonical content_blocks must be an array"))?;
+    let mut reasoning_text = Vec::new();
+    for (index, block) in blocks.iter().enumerate() {
+        let block_type = block
+            .as_object()
+            .and_then(|object| object.get("type"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow!("canonical content_blocks[{index}].type must be a string"))?;
+        match block_type {
+            "reasoning" => {
+                if message.role != ProviderMessageRole::Assistant {
+                    bail!("canonical reasoning history is only valid on assistant messages")
+                }
+                let text = block
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .filter(|text| !text.is_empty())
+                    .ok_or_else(|| anyhow!("canonical reasoning block must contain string text"))?;
+                reasoning_text.push(text);
+            }
+            "reasoning_redacted" => {
+                bail!("OpenAI-compatible Chat cannot lower redacted reasoning history")
+            }
+            _ => {}
+        }
+    }
+    let content = normalize_message_content(content_blocks);
+    let content = if content.is_empty() {
+        message.content.clone()
+    } else {
+        content
+    };
+    let reasoning_content = (!reasoning_text.is_empty()).then(|| reasoning_text.join("\n"));
+    Ok((content, reasoning_content))
 }
 
 fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> {
@@ -1439,20 +1483,21 @@ where
 }
 
 fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
-    if input
-        .required_capabilities
-        .iter()
-        .any(|capability| *capability != ProviderInvocationCapability::ProtocolContext)
-        || input.system.iter().any(|block| {
-            matches!(
-                block,
-                NativePromptBlock::Text {
-                    cache_control: Some(_),
-                    ..
-                }
-            )
-        })
-        || input.request_context.end_user_reference.is_some()
+    if input.required_capabilities.iter().any(|capability| {
+        !matches!(
+            capability,
+            ProviderInvocationCapability::ProtocolContext
+                | ProviderInvocationCapability::MessageBlocksReasoningHistoryV1
+        )
+    }) || input.system.iter().any(|block| {
+        matches!(
+            block,
+            NativePromptBlock::Text {
+                cache_control: Some(_),
+                ..
+            }
+        )
+    }) || input.request_context.end_user_reference.is_some()
     {
         bail!("OpenAI Compatible Generate does not support the requested semantic capabilities");
     }
@@ -1468,7 +1513,7 @@ fn build_typed_chat_completion_body(input: &ProviderInvocationInput) -> Result<V
     body.insert("model".to_string(), Value::String(model.to_string()));
     body.insert(
         "messages".to_string(),
-        Value::Array(build_invocation_messages(&input)),
+        Value::Array(build_invocation_messages(input)?),
     );
     body.insert("stream".to_string(), Value::Bool(true));
     body.insert(
@@ -3184,7 +3229,11 @@ mod tests {
             .nth(1)
             .and_then(|section| section.split("  limits:\n").next())
             .expect("runtime capabilities section");
-        for capability in ["count_tokens", "protocol_context.restore.openai_chat.v1"] {
+        for capability in [
+            "count_tokens",
+            "message_blocks.reasoning_history.v1",
+            "protocol_context.restore.openai_chat.v1",
+        ] {
             assert!(capabilities
                 .lines()
                 .any(|line| line.trim() == format!("- {capability}")));
@@ -3194,13 +3243,76 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            2
+            3
         );
         assert!(!manifest
             .lines()
             .any(|line| line.trim() == "- protocol_context"));
         assert_eq!(manifest.matches("protocol_context.restore.").count(), 1);
         assert!(!manifest.contains("protocol_context.consume."));
+    }
+
+    #[test]
+    fn root_1534_ac_013_reasoning_history_lowers_to_reasoning_content() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai_compatible",
+            "protocol": "openai_compatible",
+            "model": "deepseek-v4-flash",
+            "messages": [
+                { "role": "user", "content": "first turn" },
+                {
+                    "role": "assistant",
+                    "content": "visible answer",
+                    "content_blocks": [
+                        { "type": "reasoning", "text": "private reasoning", "signature": "" },
+                        { "type": "text", "text": "visible answer" }
+                    ],
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "name": "lookup",
+                        "arguments": { "query": "refund" }
+                    }]
+                },
+                {
+                    "role": "tool",
+                    "content": "tool result",
+                    "tool_call_id": "call_1"
+                }
+            ],
+            "required_capabilities": ["message_blocks.reasoning_history.v1"]
+        }))
+        .expect("reasoning-history capability must be part of the Provider contract");
+
+        let body = build_typed_chat_completion_body(&input)
+            .expect("canonical reasoning history must lower to compatible Chat wire");
+
+        assert_eq!(
+            body["messages"],
+            json!([
+                { "role": "user", "content": "first turn" },
+                {
+                    "role": "assistant",
+                    "content": "visible answer",
+                    "reasoning_content": "private reasoning",
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "lookup",
+                            "arguments": "{\"query\":\"refund\"}"
+                        }
+                    }]
+                },
+                {
+                    "role": "tool",
+                    "content": "tool result",
+                    "tool_call_id": "call_1"
+                }
+            ])
+        );
+        assert!(!body["messages"].to_string().contains("content_blocks"));
     }
 
     #[test]
