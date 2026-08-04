@@ -8,6 +8,9 @@ function normalizeRegistryEntry(entry) {
   if (typeof entry?.manifest_locator !== 'string' || entry.manifest_locator.length === 0) {
     throw new Error('manifest_locator must be a non-empty string');
   }
+  if (typeof entry?.provider_code !== 'string' || entry.provider_code.length === 0) {
+    throw new Error('provider_code must be a non-empty string');
+  }
   return {
     ...entry,
     plugin_type: entry?.plugin_type || 'model_provider',
@@ -37,6 +40,10 @@ function compareText(left, right) {
   return 0;
 }
 
+function registryIdentityKey(entry) {
+  return `${entry?.publisher_namespace || ''}\u0000${entry?.provider_code || ''}`;
+}
+
 export function upsertRegistryEntry(registry, entry) {
   const plugins = Array.isArray(registry?.plugins) ? registry.plugins : [];
   const normalizedEntry = normalizeRegistryEntry(entry);
@@ -45,9 +52,9 @@ export function upsertRegistryEntry(registry, entry) {
     version: 1,
     generated_at: new Date().toISOString(),
     plugins: [
-      ...plugins.filter((item) => item?.provider_code !== normalizedEntry.provider_code),
+      ...plugins.filter((item) => registryIdentityKey(item) !== registryIdentityKey(normalizedEntry)),
       normalizedEntry,
-    ].sort((left, right) => compareText(left.provider_code, right.provider_code)),
+    ].sort((left, right) => compareText(registryIdentityKey(left), registryIdentityKey(right))),
   };
 }
 

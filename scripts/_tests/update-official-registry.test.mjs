@@ -63,13 +63,15 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   assert.equal(next.plugins[0].artifacts.length, 1);
 });
 
-test('upsertRegistryEntry replaces one provider entry and preserves artifacts array', () => {
+test('upsertRegistryEntry replaces one publisher-scoped provider entry and preserves artifacts array', () => {
   const registry = {
     version: 1,
     generated_at: '2026-04-19T00:00:00Z',
     plugins: [
       {
-        plugin_id: 'legacy.openai_compatible',
+        plugin_id: '1flowbase.openai_compatible',
+        publisher_namespace: '1flowbase',
+        manifest_locator: 'runtime-extensions/@old-source/openai_compatible/manifest.yaml',
         provider_code: 'openai_compatible',
         latest_version: '0.2.0',
         artifacts: [
@@ -141,4 +143,43 @@ test('upsertRegistryEntry replaces one provider entry and preserves artifacts ar
   assert.equal(next.plugins[0].latest_version, '0.2.1');
   assert.equal(next.plugins[0].i18n_summary.default_locale, 'en_US');
   assert.equal(next.plugins[0].artifacts.length, 2);
+});
+
+test('upsertRegistryEntry preserves two publishers sharing the same provider code', () => {
+  const registry = {
+    version: 1,
+    generated_at: '2026-08-04T00:00:00Z',
+    plugins: [
+      {
+        plugin_id: 'acme.shared',
+        publisher_namespace: 'acme',
+        manifest_locator: 'runtime-extensions/@acme-source/shared/manifest.yaml',
+        provider_code: 'shared',
+        latest_version: '1.0.0',
+      },
+      {
+        plugin_id: '1flowbase.shared',
+        publisher_namespace: '1flowbase',
+        manifest_locator: 'runtime-extensions/@official-source/shared/manifest.yaml',
+        provider_code: 'shared',
+        latest_version: '1.0.0',
+      },
+    ],
+  };
+
+  const next = upsertRegistryEntry(registry, {
+    plugin_id: 'acme.shared',
+    publisher_namespace: 'acme',
+    manifest_locator: 'runtime-extensions/@acme-source/shared/manifest.yaml',
+    provider_code: 'shared',
+    latest_version: '2.0.0',
+  });
+
+  assert.deepEqual(
+    next.plugins.map((entry) => [entry.publisher_namespace, entry.provider_code, entry.latest_version]),
+    [
+      ['1flowbase', 'shared', '1.0.0'],
+      ['acme', 'shared', '2.0.0'],
+    ],
+  );
 });
