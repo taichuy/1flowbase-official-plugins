@@ -1,7 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { detectVersionReleases } from '../detect-version-releases.mjs';
+
+const repoRoot = path.resolve(import.meta.dirname, '..', '..');
+
+test('publisher cutover releases keep an explicit publisher namespace', () => {
+  const providerCodes = [
+    'aliyun_bailian',
+    'anthropic',
+    'deepseek',
+    'gemini',
+    'openai',
+    'openai_compatible',
+  ];
+
+  for (const providerCode of providerCodes) {
+    const manifest = fs.readFileSync(
+      path.join(
+        repoRoot,
+        'runtime-extensions',
+        '@taichuy',
+        providerCode,
+        'manifest.yaml'
+      ),
+      'utf8'
+    );
+    assert.match(
+      manifest,
+      /^publisher_namespace:\s*1flowbase$/m,
+      `${providerCode} must publish an explicit canonical identity`
+    );
+  }
+});
 
 test('detectVersionReleases returns release metadata when a provider version changes', () => {
   const releases = detectVersionReleases([
