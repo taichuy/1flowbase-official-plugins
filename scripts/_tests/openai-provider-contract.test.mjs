@@ -67,11 +67,25 @@ test('openai provider exposes responses parameters in order', () => {
     'response_format',
     'tool_choice',
     'store',
+    'use_responses_websocket',
   ]);
 
   for (const field of ['n', 'max_tokens', 'max_completion_tokens', 'presence_penalty', 'frequency_penalty', 'stop']) {
     assert.doesNotMatch(provider, new RegExp(`^\\s+- key: ${field}$`, 'm'));
   }
+});
+
+test('openai provider registers a node-level Responses WebSocket switch', () => {
+  const provider = read('provider/openai.yaml');
+  const match = provider.match(/- key: use_responses_websocket\n[\s\S]*?(?=\n  - key:|\nconfig_schema:)/);
+
+  assert.ok(match, 'use_responses_websocket parameter field should be declared');
+  assert.match(match[0], /^    label: parameters\.use_responses_websocket\.label$/m);
+  assert.match(match[0], /^    description: parameters\.use_responses_websocket\.description$/m);
+  assert.match(match[0], /^    type: boolean$/m);
+  assert.match(match[0], /^    control: switch$/m);
+  assert.match(match[0], /^    send_mode: always$/m);
+  assert.match(match[0], /^    default_value: false$/m);
 });
 
 test('openai provider exposes current reasoning effort choices', () => {

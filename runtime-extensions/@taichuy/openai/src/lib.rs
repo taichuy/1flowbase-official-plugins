@@ -915,6 +915,21 @@ fn normalize_transport_mode(value: Option<&Value>) -> Result<OpenAiTransportMode
     }
 }
 
+/// Resolves the Responses transport declared by this LLM node. A missing node
+/// option preserves the provider-instance setting so existing published flows
+/// keep their transport behavior after the provider upgrade.
+fn resolve_responses_node_transport(
+    config: &ProviderConfig,
+    input: &ProviderInvocationInput,
+) -> Result<OpenAiTransportMode> {
+    match input.model_parameters.get("use_responses_websocket") {
+        None => Ok(config.transport_mode),
+        Some(Value::Bool(true)) => Ok(OpenAiTransportMode::ResponsesWebsocket),
+        Some(Value::Bool(false)) => Ok(OpenAiTransportMode::HttpSse),
+        Some(_) => bail!("use_responses_websocket must be a boolean"),
+    }
+}
+
 fn require_text(value: Option<&Value>, field: &str) -> Result<String> {
     let text = value
         .map(value_to_string)
@@ -1219,7 +1234,7 @@ impl OpenAiProviderRuntime {
         let transport_mode = if native_passthrough || request.protocol == OpenAiWireProtocol::Chat {
             OpenAiTransportMode::HttpSse
         } else {
-            config.transport_mode
+            resolve_responses_node_transport(&config, &input)?
         };
         let mut output = match transport_mode {
             OpenAiTransportMode::HttpSse => {
@@ -5900,6 +5915,48 @@ mod tests {
         .unwrap();
 
         assert_eq!(config.transport_mode, OpenAiTransportMode::Auto);
+    }
+
+    #[test]
+    fn node_websocket_switch_overrides_provider_transport_default() {
+        let config = normalize_provider_config(&json!({
+            "api_key": "sk-test",
+            "transport_mode": "http_sse"
+        }))
+        .unwrap();
+        let input = ProviderInvocationInput {
+            model_parameters: BTreeMap::from([(
+                "use_responses_websocket".to_string(),
+                json!(true),
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            resolve_responses_node_transport(&config, &input).unwrap(),
+            OpenAiTransportMode::ResponsesWebsocket
+        );
+    }
+
+    #[test]
+    fn node_websocket_switch_off_forces_http_sse() {
+        let config = normalize_provider_config(&json!({
+            "api_key": "sk-test",
+            "transport_mode": "responses_websocket"
+        }))
+        .unwrap();
+        let input = ProviderInvocationInput {
+            model_parameters: BTreeMap::from([(
+                "use_responses_websocket".to_string(),
+                json!(false),
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            resolve_responses_node_transport(&config, &input).unwrap(),
+            OpenAiTransportMode::HttpSse
+        );
     }
 
     #[test]
