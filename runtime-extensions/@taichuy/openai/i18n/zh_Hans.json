@@ -125,11 +125,11 @@
     },
     "store": {
       "label": "存储响应",
-      "description": "控制是否按 API 请求选项允许 OpenAI 存储响应。"
+      "description": "开启后允许 OpenAI 持久保存响应，可在后续请求中通过 previous_response_id 延续上下文。关闭后不持久保存；同一 Responses WebSocket 连接内仍可短暂续接，但连接断开后不能依赖该响应 ID。此设置不影响 1flowbase 运行日志，也不代表允许用于模型训练。"
     },
     "use_responses_websocket": {
       "label": "使用 Responses WebSocket",
-      "description": "对此 LLM 节点使用 OpenAI Responses WebSocket 传输；关闭时使用 HTTP SSE。"
+      "description": "开启后对此 LLM 节点使用 OpenAI Responses WebSocket；关闭时使用 HTTP SSE。WebSocket 适合连续工具调用，并可在连接内通过 previous_response_id 续接；连接重建后的续接能力还受“存储响应”设置影响。"
     }
   }
 }

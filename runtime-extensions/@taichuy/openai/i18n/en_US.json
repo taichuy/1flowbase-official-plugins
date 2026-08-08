@@ -125,11 +125,11 @@
     },
     "store": {
       "label": "Store",
-      "description": "Controls whether OpenAI may store the response according to the API request option."
+      "description": "When enabled, OpenAI may persist the response so later requests can continue from it with previous_response_id. When disabled, the response is not persisted; the same Responses WebSocket connection may still continue temporarily, but the response ID cannot be relied on after disconnecting. This setting does not affect 1flowbase run logs and does not grant permission for model training."
     },
     "use_responses_websocket": {
       "label": "Use Responses WebSocket",
-      "description": "Use the OpenAI Responses WebSocket transport for this LLM node. Turn it off to use HTTP SSE."
+      "description": "When enabled, this LLM node uses OpenAI Responses WebSocket; when disabled, it uses HTTP SSE. WebSocket is suited to continuous tool calls and can continue with previous_response_id within the connection. Continuation after reconnecting also depends on the Store response setting."
     }
   }
 }
