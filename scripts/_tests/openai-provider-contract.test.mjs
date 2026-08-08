@@ -88,6 +88,35 @@ test('openai provider registers a node-level Responses WebSocket switch', () => 
   assert.match(match[0], /^    default_value: false$/m);
 });
 
+test('openai provider registers response storage as an explicit default-on switch', () => {
+  const provider = read('provider/openai.yaml');
+  const match = provider.match(/- key: store\n[\s\S]*?(?=\n  - key:|\nconfig_schema:)/);
+
+  assert.ok(match, 'store parameter field should be declared');
+  assert.match(match[0], /^    label: parameters\.store\.label$/m);
+  assert.match(match[0], /^    description: parameters\.store\.description$/m);
+  assert.match(match[0], /^    type: boolean$/m);
+  assert.match(match[0], /^    control: switch$/m);
+  assert.match(match[0], /^    send_mode: always$/m);
+  assert.match(match[0], /^    default_value: true$/m);
+});
+
+test('openai provider explains response storage and WebSocket continuation boundaries', () => {
+  const zhHans = JSON.parse(read('i18n/zh_Hans.json'));
+  const enUs = JSON.parse(read('i18n/en_US.json'));
+
+  for (const catalog of [zhHans, enUs]) {
+    assert.match(catalog.parameters.store.description, /previous_response_id/);
+    assert.match(catalog.parameters.store.description, /1flowbase/);
+    assert.match(catalog.parameters.use_responses_websocket.description, /previous_response_id/);
+  }
+
+  assert.match(zhHans.parameters.store.description, /模型训练/);
+  assert.match(zhHans.parameters.use_responses_websocket.description, /HTTP SSE/);
+  assert.match(enUs.parameters.store.description, /model training/i);
+  assert.match(enUs.parameters.use_responses_websocket.description, /HTTP SSE/);
+});
+
 test('openai provider exposes current reasoning effort choices', () => {
   const provider = read('provider/openai.yaml');
   const match = provider.match(/- key: reasoning_effort\n[\s\S]*?(?=\n  - key: temperature)/);
