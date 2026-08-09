@@ -50,9 +50,16 @@ jobs:
           node-version: 22
       - name: Bind tag, catalog version, and digest
         id: release
+        env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
         shell: bash
         run: |
           set -euo pipefail
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" ] || [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" ]; then
+            echo "Official Ed25519 signing key and key id are required." >&2
+            exit 1
+          fi
           version="$(node -p 'JSON.parse(require("fs").readFileSync("i18n/catalog.json", "utf8")).catalog_version')"
           expected_tag="i18n-catalog-v${version}"
           if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
@@ -62,8 +69,15 @@ jobs:
           node scripts/i18n-catalog-publisher.mjs --check
           asset="i18n-catalog-seed-v${version}.json"
           cp i18n/dist/catalog-seed.json "${asset}"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > i18n-signing-key.pem
+          node scripts/i18n-release.mjs build \
+            --private-key-pem-file i18n-signing-key.pem \
+            --key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" \
+            --record i18n-release-record.json
           digest="$(sha256sum "${asset}" | awk '{print $1}')"
           printf '%s  %s\n' "${digest}" "${asset}" > "${asset}.sha256"
+          node -p 'JSON.parse(require("fs").readFileSync("i18n-release-record.json", "utf8")).signature' \
+            > "${asset}.sig"
           echo "asset=${asset}" >> "${GITHUB_OUTPUT}"
           echo "digest=sha256:${digest}" >> "${GITHUB_OUTPUT}"
       - name: Publish immutable source release
@@ -75,11 +89,39 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "Immutable i18n catalog release already exists: ${GITHUB_REF_NAME}" >&2
-            exit 1
+            repair_dir="$(mktemp -d)"
+            gh release download "${GITHUB_REF_NAME}" --pattern "${ASSET}" --dir "${repair_dir}"
+            cmp "${ASSET}" "${repair_dir}/${ASSET}"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              "${ASSET}" "${ASSET}.sha256" "${ASSET}.sig" i18n-release-record.json \
+              --target "${GITHUB_SHA}" \
+              --title "Official i18n catalog ${GITHUB_REF_NAME}" \
+              --notes "Canonical Seed digest: ${DIGEST}"
           fi
-          gh release create "${GITHUB_REF_NAME}" \
-            "${ASSET}" "${ASSET}.sha256" \
-            --target "${GITHUB_SHA}" \
-            --title "Official i18n catalog ${GITHUB_REF_NAME}" \
-            --notes "Canonical Seed digest: ${DIGEST}"
+      - name: Publish verified release evidence to the extension catalog
+        env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_worktree="$(mktemp -d)"
+          trap 'git worktree remove --force "${publish_worktree}" >/dev/null 2>&1 || true' EXIT
+          git fetch origin main
+          git worktree add --detach "${publish_worktree}" origin/main
+          cp i18n-release-record.json "${publish_worktree}/i18n-release-record.json"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > "${publish_worktree}/i18n-signing-key.pem"
+          cd "${publish_worktree}"
+          node scripts/i18n-catalog-publisher.mjs --check
+          node scripts/i18n-release.mjs register \
+            --private-key-pem-file i18n-signing-key.pem \
+            --record i18n-release-record.json
+          node scripts/update-extension-catalog.mjs --category i18n
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add i18n/releases/v1/catalog.json i18n/catalog/v1 i18n/_maintenance/catalog-state.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(i18n): publish signed ${GITHUB_REF_NAME} catalog evidence"
+          git push origin HEAD:main

@@ -255,28 +255,36 @@ function mcpEntries(repoRoot) {
 }
 
 function i18nEntries(repoRoot) {
-  const catalogPath = path.join(repoRoot, 'i18n', 'catalog.json');
-  const seedPath = path.join(repoRoot, 'i18n', 'dist', 'catalog-seed.json');
   const sourceRoot = path.join(repoRoot, 'i18n', '@taichuy', 'platform');
-  if (!fs.existsSync(sourceRoot) || !fs.existsSync(catalogPath) || !fs.existsSync(seedPath)) return [];
-  const catalog = readJson(catalogPath);
-  const seedBytes = fs.readFileSync(seedPath);
-  const version = catalog.catalog_version;
+  const releaseCatalog = readJsonIfExists(path.join(repoRoot, 'i18n', 'releases', 'v1', 'catalog.json'));
+  if (!fs.existsSync(sourceRoot) || !releaseCatalog) return [];
+  if (releaseCatalog.schema_version !== '1flowbase.i18n-release-catalog/v1' ||
+      !Array.isArray(releaseCatalog.releases)) {
+    throw new Error('invalid signed i18n release catalog');
+  }
+  const latest = [...releaseCatalog.releases]
+    .sort((left, right) => right.version.localeCompare(left.version, undefined, { numeric: true }))[0];
+  if (!latest) return [];
   return [normalizeEntry('i18n', 'taichuy', 'platform', {
     name: '1flowbase platform translations',
-    version,
+    version: latest.version,
     description: 'Official 1flowbase platform translation catalog',
     host_version_requirement: '*',
     source: {
       kind: 'i18n_source_tree',
       locator: 'i18n/@taichuy/platform',
-      publisher_registry: 'i18n/catalog.json',
+      publisher_registry: 'i18n/releases/v1/catalog.json',
+      release_tag: latest.release_tag,
     },
-    signature: null,
-    checksum: sha256(seedBytes),
+    signature: {
+      algorithm: latest.algorithm,
+      key_id: latest.key_id,
+      signature: latest.signature,
+    },
+    checksum: latest.checksum,
     download_locator: {
       kind: 'release_asset',
-      locator: `https://github.com/taichuy/1flowbase-official-plugins/releases/download/i18n-catalog-v${version}/i18n-catalog-seed-v${version}.json`,
+      locator: latest.download_url,
     },
   })];
 }

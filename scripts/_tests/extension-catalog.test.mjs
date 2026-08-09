@@ -285,10 +285,50 @@ test('AC-003 MCP discovery projects the latest signed v2 history record', () => 
   assert.equal(entry.source.exported_from_system_version, '0.3.1');
 });
 
+test('AC-I18N-RELEASE only exposes a successfully registered signed release', () => {
+  const repoRoot = fixtureRepo();
+  const sourceRoot = path.join(repoRoot, 'i18n', '@taichuy', 'platform', 'common');
+  const releaseRoot = path.join(repoRoot, 'i18n', 'releases', 'v1');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  fs.mkdirSync(path.join(repoRoot, 'i18n', 'dist'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'i18n', 'catalog.json'), JSON.stringify({ catalog_version: '2.0.4' }));
+  fs.writeFileSync(path.join(repoRoot, 'i18n', 'dist', 'catalog-seed.json'), '{}\n');
+
+  assert.deepEqual(discoverCatalogEntries({ repoRoot, category: 'i18n' }), []);
+
+  fs.mkdirSync(releaseRoot, { recursive: true });
+  fs.writeFileSync(path.join(releaseRoot, 'catalog.json'), JSON.stringify({
+    schema_version: '1flowbase.i18n-release-catalog/v1',
+    releases: [{
+      version: '2.0.4',
+      release_tag: 'i18n-catalog-v2.0.4',
+      download_url: 'https://example.test/i18n-catalog-seed-v2.0.4.json',
+      checksum: `sha256:${'a'.repeat(64)}`,
+      algorithm: 'ed25519',
+      key_id: 'official-key-2026-04',
+      signature: 'fixture-signature',
+    }],
+  }));
+
+  const [entry] = discoverCatalogEntries({ repoRoot, category: 'i18n' });
+  assert.equal(entry.version, '2.0.4');
+  assert.equal(entry.checksum, `sha256:${'a'.repeat(64)}`);
+  assert.deepEqual(entry.signature, {
+    algorithm: 'ed25519',
+    key_id: 'official-key-2026-04',
+    signature: 'fixture-signature',
+  });
+  assert.equal(entry.download_locator.locator, 'https://example.test/i18n-catalog-seed-v2.0.4.json');
+});
+
 test('AC-CAT-1 source locators resolve independently from publisher-based runtime identity', () => {
+  const releaseCatalogPath = path.join(repositoryRoot, 'i18n', 'releases', 'v1', 'catalog.json');
+  const publishedI18nCount = fs.existsSync(releaseCatalogPath)
+    ? JSON.parse(fs.readFileSync(releaseCatalogPath, 'utf8')).releases.length > 0 ? 1 : 0
+    : 0;
   const expectedCounts = new Map([
     ['agent-flow', 2],
-    ['i18n', 1],
+    ['i18n', publishedI18nCount],
     ['mcp', 1],
     ['runtime-extensions', 6],
   ]);
@@ -342,5 +382,11 @@ test('AC-CAT-4 and AC-CAT-5 workflows detect drift, rebuild, and invoke publishe
   assert.match(agentFlowWorkflow, /--category agent-flow/);
   assert.match(mcpWorkflow, /--category mcp/);
   assert.match(i18nWorkflow, /--category i18n --check/);
+  assert.match(i18nWorkflow, /node scripts\/i18n-release\.mjs build/);
+  assert.match(i18nWorkflow, /node scripts\/i18n-release\.mjs register/);
+  assert.ok(
+    i18nWorkflow.indexOf('gh release create') < i18nWorkflow.indexOf('node scripts/i18n-release.mjs register'),
+    'the public catalog must be updated only after the immutable release exists',
+  );
   assert.match(providerWorkflow, /--category runtime-extensions/);
 });
