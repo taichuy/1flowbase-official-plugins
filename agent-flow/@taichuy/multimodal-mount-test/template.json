@@ -3,9 +3,9 @@
   "applications": [
     {
       "template_id": "019f5443-5b8e-74b2-90e3-c867dbddd37b",
-      "release_version": 1,
-      "exported_from_system_version": "0.3.1",
-      "exported_at": "2026-08-02T06:41:17.687421973Z",
+      "release_version": 3,
+      "exported_from_system_version": "0.3.4",
+      "exported_at": "2026-08-13T15:11:48.498212314Z",
       "application": {
         "application_type": "agent_flow",
         "workflow_trigger_type": null,
@@ -161,12 +161,8 @@
                   "schema_version": "1.0.0"
                 },
                 "model_provider": {
-                  "model_id": "deepseek-v4-pro",
-                  "protocol": "openai_compatible",
-                  "model_label": "deepseek-v4-pro",
-                  "provider_code": "deepseek",
-                  "provider_label": "DeepSeek",
-                  "schema_fetched_at": "2026-06-21T06:35:49.903Z"
+                  "model_id": "deepseek-v4-flash",
+                  "provider_code": "deepseek"
                 },
                 "response_format": {
                   "mode": "text"
@@ -184,53 +180,33 @@
                     "input_schema": {
                       "type": "object",
                       "required": [
-                        "task"
+                        "task",
+                        "media_refs"
                       ],
                       "properties": {
                         "task": {
                           "type": "string",
+                          "minLength": 1,
                           "description": "给多模态模型的任务指示提示词"
                         },
-                        "media": {
+                        "media_refs": {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "required": [
-                              "kind",
-                              "path",
-                              "source"
-                            ],
-                            "properties": {
-                              "kind": {
-                                "enum": [
-                                  "image"
-                                ],
-                                "type": "string",
-                                "description": "媒体类型"
-                              },
-                              "path": {
-                                "type": "string",
-                                "description": "工作区内图片路径，例如 uploads/image_aionui_1781014667000.png"
-                              },
-                              "source": {
-                                "enum": [
-                                  "workspace_path"
-                                ],
-                                "type": "string",
-                                "description": "媒体来源"
-                              }
-                            }
+                            "type": "string"
                           },
-                          "description": "需要交给多模态模型处理的媒体引用"
+                          "minItems": 1,
+                          "description": "需要交给多模态模型处理的媒体引用。只能使用当前会话媒体提示中提供的引用，不得填写文件路径、URL、base64 数据或自行构造引用。",
+                          "uniqueItems": true
                         }
-                      }
+                      },
+                      "additionalProperties": false
                     },
                     "preconditions": [
                       {
                         "kind": "media_content_available",
                         "media_kind": "image",
                         "argument_path": [
-                          "media"
+                          "media_refs"
                         ]
                       }
                     ],
@@ -262,7 +238,7 @@
                       "role": "system",
                       "content": {
                         "kind": "templated_text",
-                        "value": "{{node-start.system}}\n用户询问你是谁或者什么大模型，你只能回复你是 RJLLM"
+                        "value": "{{node-start.system}}\n## 沟通风格（仅适用于对话交互）\n- 作为平等的工程协作者提供独立、基于证据的判断；不迎合，不作服从式汇报，有分歧时直接说明。\n- 检查前提、因果和边界条件。对关键结论 C 与前提 P：P ⇒ C 表示充分条件，C ⇒ P 表示必要条件，P ⇔ C 表示充分必要条件。无法建立相应推导时，直接指出缺失条件、反例或逻辑矛盾，不擅自补全或自圆其说，并给出最小修正建议。\n- 现状，需求分析，可行方向（保守，平衡，激进），最终建议\n- 第一性原理，奥卡姆剃刀（Occam's Razor），通俗易懂"
                       }
                     },
                     {
@@ -445,9 +421,9 @@
         },
         "editor": {
           "viewport": {
-            "x": -13.367291435294192,
-            "y": 38.48122972934869,
-            "zoom": 1.0000000000000009
+            "x": 212.6553205302132,
+            "y": 75.15140759739728,
+            "zoom": 0.8705505632961241
           },
           "annotations": [],
           "activeContainerPath": []
@@ -495,7 +471,7 @@
           "node_type": "llm",
           "config_version": 1,
           "provider_code": "deepseek",
-          "model_id": "deepseek-v4-pro",
+          "model_id": "deepseek-v4-flash",
           "plugin_id": null,
           "plugin_version": null,
           "contribution_code": null,
