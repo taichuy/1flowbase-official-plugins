@@ -61,18 +61,36 @@ version: 0.2.0
   ]);
 });
 
-test('detectVersionReleases ignores manifest changes when version is unchanged', () => {
-  const releases = detectVersionReleases([
-    {
-      path: 'runtime-extensions/@taichuy/openai_compatible/manifest.yaml',
-      beforeContent: `plugin_code: openai_compatible
+test('detectVersionReleases rejects provider changes when version is unchanged', () => {
+  assert.throws(
+    () =>
+      detectVersionReleases([
+        {
+          path: 'runtime-extensions/@taichuy/openai_compatible/src/main.rs',
+        },
+        {
+          path: 'runtime-extensions/@taichuy/openai_compatible/manifest.yaml',
+          beforeContent: `plugin_code: openai_compatible
 display_name: OpenAI-Compatible API Provider
 version: 0.1.0
 `,
-      afterContent: `plugin_code: openai_compatible
+          afterContent: `plugin_code: openai_compatible
 display_name: OpenAI-Compatible API Provider Updated
 version: 0.1.0
 `,
+        },
+      ]),
+    /provider_version_bump_required: openai_compatible changed without updating manifest version 0\.1\.0/
+  );
+});
+
+test('detectVersionReleases ignores documentation and test-only provider changes', () => {
+  const releases = detectVersionReleases([
+    {
+      path: 'runtime-extensions/@taichuy/openai_compatible/readme/README_en_US.md',
+    },
+    {
+      path: 'runtime-extensions/@taichuy/openai_compatible/tests/stdio_worker.rs',
     },
   ]);
 

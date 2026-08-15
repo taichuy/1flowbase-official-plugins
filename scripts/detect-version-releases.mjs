@@ -2,6 +2,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const MANIFEST_PATH_PATTERN = /^runtime-extensions\/@taichuy\/([^/]+)\/manifest\.yaml$/;
+const PROVIDER_PATH_PATTERN = /^runtime-extensions\/@taichuy\/([^/]+)\/(.+)$/;
+const NON_PACKAGE_PATH_PATTERN = /^(?:readme|demo|tests|target)\//;
+
+function providerPackageInput(path) {
+  const match = path.match(PROVIDER_PATH_PATTERN);
+  return match && !NON_PACKAGE_PATH_PATTERN.test(match[2]);
+}
 
 export function parseManifestVersion(content) {
   if (!content) {
@@ -12,20 +19,34 @@ export function parseManifestVersion(content) {
   return match ? match[1].trim() : '';
 }
 
-export function detectVersionReleases(manifestChanges) {
-  return manifestChanges
-    .flatMap(({ path, beforeContent = '', afterContent = '' }) => {
-      const match = path.match(MANIFEST_PATH_PATTERN);
-      if (!match) {
-        return [];
-      }
+export function detectVersionReleases(changes) {
+  const affectedProviders = new Set(
+    changes.flatMap(({ path }) => {
+      const match = path.match(PROVIDER_PATH_PATTERN);
+      return match && providerPackageInput(path) ? [match[1]] : [];
+    })
+  );
+  const manifestChanges = new Map(
+    changes.flatMap((change) => {
+      const match = change.path.match(MANIFEST_PATH_PATTERN);
+      return match ? [[match[1], change]] : [];
+    })
+  );
 
-      const providerCode = match[1];
+  return [...affectedProviders]
+    .flatMap((providerCode) => {
+      const { beforeContent = '', afterContent = '' } =
+        manifestChanges.get(providerCode) ?? {};
       const previousVersion = parseManifestVersion(beforeContent);
       const nextVersion = parseManifestVersion(afterContent);
 
-      if (!nextVersion || previousVersion === nextVersion) {
+      if (!nextVersion) {
         return [];
+      }
+      if (previousVersion === nextVersion) {
+        throw new Error(
+          `provider_version_bump_required: ${providerCode} changed without updating manifest version ${nextVersion}`
+        );
       }
 
       return [
@@ -57,16 +78,16 @@ function refExists(ref) {
   }
 }
 
-function listManifestPaths(baseRef, headRef) {
+function listChangedProviderPaths(baseRef, headRef) {
   if (refExists(baseRef)) {
     const output = runGit([
       'diff',
       '--name-only',
-      '--diff-filter=AMRT',
+      '--diff-filter=ACMRTD',
       baseRef,
       headRef,
       '--',
-      'runtime-extensions/@taichuy/*/manifest.yaml',
+      'runtime-extensions/@taichuy',
     ]);
 
     return output ? output.split('\n').filter(Boolean) : [];
@@ -82,7 +103,7 @@ function listManifestPaths(baseRef, headRef) {
   ]);
   return output
     .split('\n')
-    .filter((path) => MANIFEST_PATH_PATTERN.test(path));
+    .filter((path) => providerPackageInput(path));
 }
 
 function readFileAtRef(ref, path) {
@@ -98,13 +119,26 @@ function readFileAtRef(ref, path) {
 }
 
 export function detectVersionReleasesBetweenRefs(baseRef, headRef) {
-  const manifestChanges = listManifestPaths(baseRef, headRef).map((path) => ({
-    path,
-    beforeContent: readFileAtRef(baseRef, path),
-    afterContent: readFileAtRef(headRef, path),
-  }));
+  const changedPaths = listChangedProviderPaths(baseRef, headRef);
+  const providerCodes = new Set(
+    changedPaths.flatMap((path) => {
+      const match = path.match(PROVIDER_PATH_PATTERN);
+      return match && providerPackageInput(path) ? [match[1]] : [];
+    })
+  );
+  const manifestChanges = [...providerCodes].map((providerCode) => {
+    const path = `runtime-extensions/@taichuy/${providerCode}/manifest.yaml`;
+    return {
+      path,
+      beforeContent: readFileAtRef(baseRef, path),
+      afterContent: readFileAtRef(headRef, path),
+    };
+  });
 
-  return detectVersionReleases(manifestChanges);
+  return detectVersionReleases([
+    ...changedPaths.map((path) => ({ path })),
+    ...manifestChanges,
+  ]);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

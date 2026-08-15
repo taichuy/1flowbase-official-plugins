@@ -17,6 +17,28 @@ on:
         type: string
 
 jobs:
+  release-contract:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout official plugins repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Verify immutable provider version contract
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_REF: ${{ github.sha }}
+        run: |
+          node --test scripts/_tests/detect-version-releases.test.mjs
+          node scripts/detect-version-releases.mjs "${BASE_REF}" "${HEAD_REF}"
+
   detect-package-targets:
     runs-on: ubuntu-latest
     outputs:
