@@ -349,7 +349,18 @@ pub enum ProviderFinishReason {
     Length,
     ToolCall,
     ContentFilter,
+    Error,
     Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderOutputProtocolFailure {
+    pub protocol: String,
+    pub error_code: String,
+    pub message: String,
+    pub retry_feedback: String,
+    #[serde(default)]
+    pub provider_details: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -371,12 +382,28 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
-    TextDelta { delta: String },
-    ReasoningDelta { delta: String },
-    ToolCallDelta { call_id: String, delta: Value },
-    ToolCallCommit { call: ProviderToolCall },
-    UsageSnapshot { usage: ProviderUsage },
-    Finish { reason: ProviderFinishReason },
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    OutputProtocolFailure {
+        failure: ProviderOutputProtocolFailure,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -1198,14 +1225,16 @@ where
             usage: usage.clone(),
         });
     }
-    let finish_reason = if dsml_outcome == Some(dsml::DsmlParsingOutcome::Parsed) {
-        ProviderFinishReason::ToolCall
-    } else {
-        finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls))
+    let finish_reason = match dsml_outcome {
+        Some(dsml::DsmlParsingOutcome::Parsed) => ProviderFinishReason::ToolCall,
+        Some(dsml::DsmlParsingOutcome::InvalidProtocol) => ProviderFinishReason::Error,
+        _ => finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls)),
     };
-    events.push(ProviderStreamEvent::Finish {
-        reason: finish_reason.clone(),
-    });
+    if dsml_outcome != Some(dsml::DsmlParsingOutcome::InvalidProtocol) {
+        events.push(ProviderStreamEvent::Finish {
+            reason: finish_reason.clone(),
+        });
+    }
     emit_new_events(&events, final_event_start, on_event)?;
     let mut provider_metadata = json!({
         "request_model": request_model,
@@ -1251,6 +1280,22 @@ fn finalize_dsml_stream(
 ) -> Option<dsml::DsmlParsingOutcome> {
     let decoder = decoder?;
     let resolution = decoder.finish(structured_tool_calls_seen);
+    if let Some(failure) = resolution.protocol_failure.as_ref() {
+        let candidate_preview = failure.candidate.chars().take(1_000).collect::<String>();
+        events.push(ProviderStreamEvent::OutputProtocolFailure {
+            failure: ProviderOutputProtocolFailure {
+                protocol: "dsml".to_string(),
+                error_code: failure.error_code.to_string(),
+                message: "DeepSeek returned malformed DSML tool-call markup".to_string(),
+                retry_feedback: "Your previous tool-call markup was malformed. Emit one complete tool call, or answer normally without tool-call markup.".to_string(),
+                provider_details: json!({
+                    "candidate_preview": candidate_preview,
+                    "candidate_chars": failure.candidate.chars().count(),
+                    "candidate_truncated": failure.candidate.chars().count() > 1_000,
+                }),
+            },
+        });
+    }
     if tool_calls.is_empty() && !resolution.tool_calls.is_empty() {
         let response_id = response_id.as_str().unwrap_or("response");
         *tool_calls = resolution
