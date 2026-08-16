@@ -364,6 +364,16 @@ pub struct ProviderOutputProtocolFailure {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderRuntimeError {
+    pub kind: String,
+    pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderInvocationResult {
     pub final_content: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -403,6 +413,9 @@ pub enum ProviderStreamEvent {
     },
     OutputProtocolFailure {
         failure: ProviderOutputProtocolFailure,
+    },
+    Error {
+        error: ProviderRuntimeError,
     },
 }
 
@@ -1141,7 +1154,30 @@ where
             .with_context(|| "provider error response was not readable")?;
         let payload = serde_json::from_str::<Value>(&text).unwrap_or(Value::Null);
         let message = provider_error_message(&payload).replace(api_key, "***");
-        bail!("{} {}: {}", status.as_u16(), status, message);
+        let error = ProviderStreamEvent::Error {
+            error: ProviderRuntimeError {
+                kind: "provider_upstream_error".to_string(),
+                message,
+                provider_summary: None,
+                provider_details: Some(json!({
+                    "status_code": status.as_u16(),
+                    "error_type": provider_error_type(&payload),
+                })),
+            },
+        };
+        on_event(&error)?;
+        return Ok(RuntimeInvocationEnvelope {
+            events: vec![error],
+            result: ProviderInvocationResult {
+                final_content: None,
+                response_id: None,
+                tool_calls: Vec::new(),
+                mcp_calls: Vec::new(),
+                usage: ProviderUsage::default(),
+                finish_reason: Some(ProviderFinishReason::Error),
+                provider_metadata: json!({}),
+            },
+        });
     }
 
     let mut stream = response.bytes_stream();
@@ -1603,6 +1639,14 @@ fn provider_error_message(payload: &Value) -> String {
         .unwrap_or_else(|| "provider upstream request failed".to_string())
 }
 
+fn provider_error_type(payload: &Value) -> Option<&str> {
+    payload
+        .get("error")
+        .and_then(|value| value.get("type"))
+        .and_then(Value::as_str)
+        .or_else(|| payload.get("type").and_then(Value::as_str))
+}
+
 fn sanitize_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
     anyhow!(sanitize_text(error.to_string(), config))
 }
@@ -1728,12 +1772,13 @@ mod tests {
             let _ = stream.read(&mut buffer);
             let body = json!({
                 "error": {
-                    "message": "bad test-key"
+                    "message": "bad test-key: reasoning_content is required",
+                    "type": "invalid_request_error"
                 }
             })
             .to_string();
             let response = format!(
-                "HTTP/1.1 401 Unauthorized\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                "HTTP/1.1 400 Bad Request\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
                 body.len(),
                 body
             );
@@ -2445,7 +2490,8 @@ mod tests {
     async fn chat_streaming_error_sanitizes_api_key() {
         let base_url = start_error_chat_server();
 
-        let error = handle_invoke_request_streaming(
+        let mut events = Vec::new();
+        let result = handle_invoke_request_streaming(
             json!({
                 "contract_version": "1flowbase.provider/v2",
                 "provider_instance_id": "provider-test",
@@ -2461,14 +2507,30 @@ mod tests {
                     "content": "hello"
                 }]
             }),
-            |_| Ok(()),
+            |event| {
+                events.push(event.clone());
+                Ok(())
+            },
         )
         .await
-        .expect_err("provider error should fail");
-        let message = error.to_string();
+        .expect("upstream errors should use the typed stream contract");
+        let error = events
+            .iter()
+            .find_map(|event| match event {
+                ProviderStreamEvent::Error { error } => Some(error),
+                _ => None,
+            })
+            .expect("typed upstream error should be emitted");
 
-        assert!(!message.contains("test-key"));
-        assert!(message.contains("***"));
+        assert!(!error.message.contains("test-key"));
+        assert!(error.message.contains("***"));
+        assert_eq!(error.kind, "provider_upstream_error");
+        assert_eq!(error.provider_details.as_ref().unwrap()["status_code"], 400);
+        assert_eq!(
+            error.provider_details.as_ref().unwrap()["error_type"],
+            "invalid_request_error"
+        );
+        assert_eq!(result.finish_reason, Some(ProviderFinishReason::Error));
     }
 
     #[test]
