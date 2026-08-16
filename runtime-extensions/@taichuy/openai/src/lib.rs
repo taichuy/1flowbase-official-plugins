@@ -5399,6 +5399,8 @@ mod tests {
             "responses.native_passthrough",
             "protocol_context.restore.openai_chat.v1",
             "protocol_context.restore.openai_responses.v1",
+            "reasoning_output_supported",
+            "native_continuation_supported",
         ] {
             assert!(capabilities
                 .lines()
@@ -5409,7 +5411,7 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            6
+            8
         );
         assert!(!manifest
             .lines()
