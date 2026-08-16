@@ -280,15 +280,23 @@ pub struct NativeModelRequestContext {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderInvocationCapability {
+    CountTokens,
     #[serde(rename = "compact.responses_compact")]
     CompactResponsesCompact,
     #[serde(rename = "compact.responses_compaction_v2")]
     CompactResponsesCompactionV2,
     #[serde(rename = "responses.native_passthrough")]
     ResponsesNativePassthrough,
+    ReasoningOutputSupported,
+    ReasoningHistoryInputSupported,
+    NativeContinuationSupported,
     SystemPromptBlocks,
     SystemPromptCacheControl,
     EndUserReference,
+    #[serde(rename = "message_blocks.reasoning_history.v1")]
+    MessageBlocksReasoningHistoryV1,
+    #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
+    MessageBlocksRedactedReasoningHistoryV1,
     ProtocolContext,
 }
 
@@ -459,6 +467,7 @@ struct PreparedOpenAiRequest {
     body: Value,
     protocol_context: RestoredProtocolContext,
     model_intent: OpenAiModelIntent,
+    translation_decisions: Vec<&'static str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1320,6 +1329,10 @@ impl OpenAiProviderRuntime {
             }
         }?;
         attach_openai_model_intent(&mut output, &request.model_intent);
+        append_request_translation_decisions(
+            &mut output.result.provider_metadata,
+            request.translation_decisions.iter().copied(),
+        )?;
         attach_foreign_protocol_context_decision(
             &mut output.result.provider_metadata,
             input.client_protocol_envelope.as_ref(),
@@ -1592,6 +1605,7 @@ fn prepare_openai_request(
     pathname: &'static str,
     typed_body: Value,
 ) -> Result<PreparedOpenAiRequest> {
+    let translation_decisions = openai_wire_lowering_decisions(input)?;
     let (body, protocol_context) = restore_protocol_context(
         protocol,
         typed_body,
@@ -1603,6 +1617,7 @@ fn prepare_openai_request(
         body,
         protocol_context,
         model_intent: openai_model_intent(input)?,
+        translation_decisions,
     })
 }
 
@@ -1682,10 +1697,7 @@ fn build_chat_messages(input: &ProviderInvocationInput) -> Vec<Value> {
             "role".to_string(),
             Value::String(chat_role(message.role).to_string()),
         );
-        mapped.insert(
-            "content".to_string(),
-            chat_message_content(message).unwrap_or_else(|| Value::String(message.content.clone())),
-        );
+        mapped.insert("content".to_string(), chat_message_content(message));
         if let Some(name) = message.name.as_ref() {
             mapped.insert("name".to_string(), Value::String(name.clone()));
         }
@@ -1712,14 +1724,18 @@ fn chat_role(role: ProviderMessageRole) -> &'static str {
     }
 }
 
-fn chat_message_content(message: &ProviderMessage) -> Option<Value> {
-    let items = responses_content_items_from_value(message.content_blocks.as_ref()?);
-    if !responses_content_items_contain_media(&items) {
-        return None;
+fn chat_message_content(message: &ProviderMessage) -> Value {
+    let Some(content_blocks) = message.content_blocks.as_ref() else {
+        return Value::String(message.content.clone());
+    };
+    let items = responses_content_items_from_value(content_blocks);
+    if content_blocks_contain_reasoning(content_blocks) {
+        return Value::Array(items.into_iter().filter_map(chat_content_item).collect());
     }
-    Some(Value::Array(
-        items.into_iter().filter_map(chat_content_item).collect(),
-    ))
+    if !responses_content_items_contain_media(&items) {
+        return Value::String(message.content.clone());
+    }
+    Value::Array(items.into_iter().filter_map(chat_content_item).collect())
 }
 
 fn chat_content_item(item: Value) -> Option<Value> {
@@ -2004,10 +2020,18 @@ fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
 }
 
 fn responses_message_content(message: &ProviderMessage) -> Option<Value> {
+    if let Some(content_blocks) = message
+        .content_blocks
+        .as_ref()
+        .filter(|blocks| content_blocks_contain_reasoning(blocks))
+    {
+        let items = responses_content_items_from_value(content_blocks);
+        return (!items.is_empty()).then(|| Value::Array(items));
+    }
     let structured = message
         .content_blocks
         .as_ref()
-        .and_then(responses_structured_content);
+        .and_then(|content_blocks| responses_structured_content(content_blocks));
     if structured.is_some() {
         return structured;
     }
@@ -2042,6 +2066,61 @@ fn responses_content_items_from_value(content: &Value) -> Vec<Value> {
         Value::String(text) => responses_text_content_item(text).into_iter().collect(),
         _ => Vec::new(),
     }
+}
+
+fn content_blocks_contain_reasoning(content_blocks: &Value) -> bool {
+    let parts = match content_blocks {
+        Value::Array(parts) => parts.as_slice(),
+        Value::Object(object) => object
+            .get("parts")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_else(|| std::slice::from_ref(content_blocks)),
+        _ => return false,
+    };
+    parts.iter().any(|part| {
+        matches!(
+            part.get("type").and_then(Value::as_str),
+            Some("reasoning" | "reasoning_redacted")
+        )
+    })
+}
+
+fn openai_wire_lowering_decisions(input: &ProviderInvocationInput) -> Result<Vec<&'static str>> {
+    if input.native_transport.is_some() {
+        return Ok(Vec::new());
+    }
+    let mut omitted_reasoning = false;
+    for (message_index, message) in input.messages.iter().enumerate() {
+        let Some(content_blocks) = message.content_blocks.as_ref() else {
+            continue;
+        };
+        if !content_blocks_contain_reasoning(content_blocks) {
+            continue;
+        }
+        if message.role != ProviderMessageRole::Assistant {
+            bail!(
+                "OpenAI wire cannot lower reasoning in non-assistant message at messages[{message_index}]"
+            );
+        }
+        omitted_reasoning = true;
+        let has_visible_content = !responses_content_items_from_value(content_blocks).is_empty();
+        let has_tool_calls = message
+            .tool_calls
+            .as_ref()
+            .and_then(Value::as_array)
+            .is_some_and(|calls| !calls.is_empty());
+        if message.role == ProviderMessageRole::Assistant && !has_visible_content && !has_tool_calls
+        {
+            bail!(
+                "OpenAI wire cannot lower reasoning-only assistant message at messages[{message_index}]"
+            );
+        }
+    }
+    Ok(omitted_reasoning
+        .then_some("omitted_reasoning_history")
+        .into_iter()
+        .collect())
 }
 
 fn responses_content_item(part: &Value) -> Option<Value> {
@@ -2334,16 +2413,32 @@ fn attach_foreign_protocol_context_decision(
     ) {
         return Ok(());
     }
+    append_request_translation_decisions(provider_metadata, ["omitted_foreign_protocol_context"])
+}
+
+fn append_request_translation_decisions(
+    provider_metadata: &mut Value,
+    decisions: impl IntoIterator<Item = &'static str>,
+) -> Result<()> {
+    let decisions = decisions.into_iter().collect::<Vec<_>>();
+    if decisions.is_empty() {
+        return Ok(());
+    }
     let metadata = provider_metadata
         .as_object_mut()
         .context("OpenAI provider metadata must be an object")?;
-    if metadata.contains_key("provider_request_translation") {
-        bail!("OpenAI provider metadata contains reserved request translation receipt");
-    }
-    metadata.insert(
-        "provider_request_translation".to_string(),
-        json!({ "decisions": ["omitted_foreign_protocol_context"] }),
-    );
+    let receipt = metadata
+        .entry("provider_request_translation".to_string())
+        .or_insert_with(|| json!({ "decisions": [] }));
+    let receipt = receipt
+        .as_object_mut()
+        .context("OpenAI provider request translation receipt must be an object")?;
+    let recorded = receipt
+        .entry("decisions".to_string())
+        .or_insert_with(|| json!([]))
+        .as_array_mut()
+        .context("OpenAI provider request translation decisions must be an array")?;
+    recorded.extend(decisions.into_iter().map(|decision| json!(decision)));
     Ok(())
 }
 
@@ -3840,6 +3935,214 @@ mod tests {
         assert!(metadata.to_string().len() <= 512);
     }
 
+    #[test]
+    fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("version: 0.2.28"));
+        assert!(manifest.contains("- reasoning_output_supported"));
+        assert!(manifest.contains("- native_continuation_supported"));
+        assert!(!manifest.contains("- reasoning_history_input_supported"));
+    }
+
+    #[test]
+    fn issue_1743_provider_capabilities_deserialize_frozen_reasoning_schema() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "required_capabilities": [
+                "reasoning_output_supported",
+                "reasoning_history_input_supported",
+                "native_continuation_supported",
+                "message_blocks.reasoning_history.v1",
+                "message_blocks.redacted_reasoning_history.v1"
+            ]
+        }))
+        .expect("the provider must accept every frozen reasoning capability spelling");
+
+        assert!(input
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::ReasoningOutputSupported));
+        assert!(input
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::ReasoningHistoryInputSupported));
+        assert!(input
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::NativeContinuationSupported));
+    }
+
+    #[test]
+    fn issue_1743_host_projected_reasoning_omission_preserves_visible_assistant_text() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "messages": [{
+                "role": "assistant",
+                "content": "visible answer",
+                "content_blocks": [
+                    {"type": "text", "text": "visible answer"}
+                ]
+            }]
+        }))
+        .expect("host-projected invocation should deserialize");
+
+        let request = build_openai_generate_request(&input)
+            .expect("visible assistant text should remain a valid Responses input");
+
+        assert_eq!(request.body["input"][0]["content"], "visible answer");
+        assert!(request.translation_decisions.is_empty());
+    }
+
+    #[test]
+    fn issue_1743_openai_lowering_omits_raw_signed_and_redacted_reasoning() {
+        const RAW: &str = "raw-reasoning-canary";
+        const SIGNED: &str = "signed-reasoning-canary";
+        const SIGNATURE: &str = "reasoning-signature-canary";
+        const REDACTED: &str = "redacted-reasoning-canary";
+        for protocol in ["openai_chat", "openai_responses"] {
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-openai",
+                "provider_code": "openai",
+                "protocol": protocol,
+                "model": "gpt-5.4-mini",
+                "messages": [{
+                    "role": "assistant",
+                    "content": "visible answer",
+                    "content_blocks": [
+                        {"type": "reasoning", "text": RAW},
+                        {"type": "reasoning", "text": SIGNED, "signature": SIGNATURE},
+                        {"type": "reasoning_redacted", "data": REDACTED},
+                        {"type": "text", "text": "visible answer"}
+                    ]
+                }]
+            }))
+            .expect("provider-bound canonical invocation should deserialize");
+
+            let request = build_openai_generate_request(&input)
+                .expect("OpenAI lowering should retain only visible content");
+            let wire = request.body.to_string();
+
+            assert!(wire.contains("visible answer"), "protocol={protocol}");
+            for secret in [RAW, SIGNED, SIGNATURE, REDACTED] {
+                assert!(!wire.contains(secret), "protocol={protocol}");
+            }
+            assert_eq!(
+                request.translation_decisions,
+                vec!["omitted_reasoning_history"],
+                "protocol={protocol}"
+            );
+        }
+    }
+
+    #[test]
+    fn issue_1743_non_assistant_reasoning_with_visible_text_fails_closed_on_all_wires() {
+        for protocol in ["openai_chat", "openai_responses"] {
+            for role in ["user", "system", "tool"] {
+                for block_type in ["reasoning", "reasoning_redacted"] {
+                    let input: ProviderInvocationInput = serde_json::from_value(json!({
+                        "contract_version": "1flowbase.provider/v2",
+                        "provider_instance_id": "provider-openai",
+                        "provider_code": "openai",
+                        "protocol": protocol,
+                        "model": "gpt-5.4-mini",
+                        "messages": [
+                            {"role": "user", "content": "first message"},
+                            {
+                                "role": role,
+                                "content": "visible answer",
+                                "tool_call_id": (role == "tool").then_some("call_1"),
+                                "content_blocks": [
+                                    {"type": block_type, "text": "must-not-be-omitted"},
+                                    {"type": "text", "text": "visible answer"}
+                                ]
+                            }
+                        ]
+                    }))
+                    .expect("non-assistant reasoning fixture should deserialize");
+
+                    let error = build_openai_generate_request(&input)
+                        .expect_err("non-assistant reasoning must never be omitted");
+                    let message = error.to_string();
+
+                    assert!(message.contains("non-assistant message"));
+                    assert!(message.contains("messages[1]"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn issue_1743_reasoning_only_assistant_input_fails_closed() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "messages": [{
+                "role": "assistant",
+                "content": "must-not-be-disguised-as-visible-text",
+                "content_blocks": [
+                    {"type": "reasoning", "text": "reasoning-only-canary"}
+                ]
+            }]
+        }))
+        .expect("bypassed provider invocation should deserialize before lowering");
+
+        let error = build_openai_generate_request(&input)
+            .expect_err("reasoning-only assistant input must not become empty OpenAI input");
+
+        assert!(error
+            .to_string()
+            .contains("reasoning-only assistant message"));
+    }
+
+    #[test]
+    fn issue_1743_native_continuation_keeps_previous_response_id() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "previous_response_id": "resp_previous",
+            "required_capabilities": ["native_continuation_supported"],
+            "messages": [{"role": "user", "content": "continue"}]
+        }))
+        .expect("native continuation capability should deserialize");
+
+        let body = build_responses_body(&input).expect("native continuation should render");
+
+        assert_eq!(body["previous_response_id"], "resp_previous");
+    }
+
+    #[test]
+    fn issue_1743_translation_decisions_share_the_existing_receipt() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "anthropic_messages".to_string(),
+            ..ProtocolContextEnvelope::default()
+        };
+        let mut metadata = json!({"provider": "openai"});
+
+        append_request_translation_decisions(&mut metadata, ["omitted_reasoning_history"]).unwrap();
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&envelope)).unwrap();
+
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!([
+                "omitted_reasoning_history",
+                "omitted_foreign_protocol_context"
+            ])
+        );
+    }
+
     #[tokio::test]
     async fn ac_005_validate_redacts_configured_proxy_url() {
         let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
@@ -5096,6 +5399,8 @@ mod tests {
             "responses.native_passthrough",
             "protocol_context.restore.openai_chat.v1",
             "protocol_context.restore.openai_responses.v1",
+            "reasoning_output_supported",
+            "native_continuation_supported",
         ] {
             assert!(capabilities
                 .lines()
@@ -5106,7 +5411,7 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            6
+            8
         );
         assert!(!manifest
             .lines()
@@ -5625,7 +5930,7 @@ mod tests {
     }
 
     #[test]
-    fn response_stream_maps_reasoning_and_custom_tool_delta() {
+    fn issue_1743_reasoning_output_parser_regression_maps_reasoning_and_custom_tool_delta() {
         let mut events = Vec::new();
         let mut text = String::new();
         let mut tool_calls = ResponseToolCalls::default();
