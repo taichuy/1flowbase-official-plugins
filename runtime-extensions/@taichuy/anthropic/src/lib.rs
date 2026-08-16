@@ -3207,7 +3207,8 @@ mod tests {
                                 "properties": {"command": {"type": "string"}},
                                 "required": ["command"]
                             },
-                            "cache_control": {"type": "ephemeral"}
+                            "cache_control": {"type": "ephemeral"},
+                            "eager_input_streaming": true
                         }]
                     }
                 }
@@ -3230,6 +3231,7 @@ mod tests {
             restoration.body["tools"][0]["cache_control"]["type"],
             "ephemeral"
         );
+        assert_eq!(restoration.body["tools"][0]["eager_input_streaming"], true);
         assert_eq!(restoration.body["system"].as_array().map(Vec::len), Some(2));
         assert!(restoration
             .receipt
