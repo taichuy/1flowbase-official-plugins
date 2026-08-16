@@ -2098,6 +2098,11 @@ fn openai_wire_lowering_decisions(input: &ProviderInvocationInput) -> Result<Vec
         if !content_blocks_contain_reasoning(content_blocks) {
             continue;
         }
+        if message.role != ProviderMessageRole::Assistant {
+            bail!(
+                "OpenAI wire cannot lower reasoning in non-assistant message at messages[{message_index}]"
+            );
+        }
         omitted_reasoning = true;
         let has_visible_content = !responses_content_items_from_value(content_blocks).is_empty();
         let has_tool_calls = message
@@ -4000,37 +4005,77 @@ mod tests {
         const SIGNED: &str = "signed-reasoning-canary";
         const SIGNATURE: &str = "reasoning-signature-canary";
         const REDACTED: &str = "redacted-reasoning-canary";
-        let input: ProviderInvocationInput = serde_json::from_value(json!({
-            "contract_version": "1flowbase.provider/v2",
-            "provider_instance_id": "provider-openai",
-            "provider_code": "openai",
-            "protocol": "openai_responses",
-            "model": "gpt-5.4-mini",
-            "messages": [{
-                "role": "assistant",
-                "content": "visible answer",
-                "content_blocks": [
-                    {"type": "reasoning", "text": RAW},
-                    {"type": "reasoning", "text": SIGNED, "signature": SIGNATURE},
-                    {"type": "reasoning_redacted", "data": REDACTED},
-                    {"type": "text", "text": "visible answer"}
-                ]
-            }]
-        }))
-        .expect("provider-bound canonical invocation should deserialize");
+        for protocol in ["openai_chat", "openai_responses"] {
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-openai",
+                "provider_code": "openai",
+                "protocol": protocol,
+                "model": "gpt-5.4-mini",
+                "messages": [{
+                    "role": "assistant",
+                    "content": "visible answer",
+                    "content_blocks": [
+                        {"type": "reasoning", "text": RAW},
+                        {"type": "reasoning", "text": SIGNED, "signature": SIGNATURE},
+                        {"type": "reasoning_redacted", "data": REDACTED},
+                        {"type": "text", "text": "visible answer"}
+                    ]
+                }]
+            }))
+            .expect("provider-bound canonical invocation should deserialize");
 
-        let request = build_openai_generate_request(&input)
-            .expect("OpenAI lowering should retain only visible content");
-        let wire = request.body.to_string();
+            let request = build_openai_generate_request(&input)
+                .expect("OpenAI lowering should retain only visible content");
+            let wire = request.body.to_string();
 
-        assert!(wire.contains("visible answer"));
-        for secret in [RAW, SIGNED, SIGNATURE, REDACTED] {
-            assert!(!wire.contains(secret));
+            assert!(wire.contains("visible answer"), "protocol={protocol}");
+            for secret in [RAW, SIGNED, SIGNATURE, REDACTED] {
+                assert!(!wire.contains(secret), "protocol={protocol}");
+            }
+            assert_eq!(
+                request.translation_decisions,
+                vec!["omitted_reasoning_history"],
+                "protocol={protocol}"
+            );
         }
-        assert_eq!(
-            request.translation_decisions,
-            vec!["omitted_reasoning_history"]
-        );
+    }
+
+    #[test]
+    fn issue_1743_non_assistant_reasoning_with_visible_text_fails_closed_on_all_wires() {
+        for protocol in ["openai_chat", "openai_responses"] {
+            for role in ["user", "system", "tool"] {
+                for block_type in ["reasoning", "reasoning_redacted"] {
+                    let input: ProviderInvocationInput = serde_json::from_value(json!({
+                        "contract_version": "1flowbase.provider/v2",
+                        "provider_instance_id": "provider-openai",
+                        "provider_code": "openai",
+                        "protocol": protocol,
+                        "model": "gpt-5.4-mini",
+                        "messages": [
+                            {"role": "user", "content": "first message"},
+                            {
+                                "role": role,
+                                "content": "visible answer",
+                                "tool_call_id": (role == "tool").then_some("call_1"),
+                                "content_blocks": [
+                                    {"type": block_type, "text": "must-not-be-omitted"},
+                                    {"type": "text", "text": "visible answer"}
+                                ]
+                            }
+                        ]
+                    }))
+                    .expect("non-assistant reasoning fixture should deserialize");
+
+                    let error = build_openai_generate_request(&input)
+                        .expect_err("non-assistant reasoning must never be omitted");
+                    let message = error.to_string();
+
+                    assert!(message.contains("non-assistant message"));
+                    assert!(message.contains("messages[1]"));
+                }
+            }
+        }
     }
 
     #[test]
