@@ -32,6 +32,7 @@ The plugin declares DeepSeek-specific request parameters in the host-visible ord
 - `response_format`
 - `stop`
 - `tool_choice`
+- `parse_dsml_tool_calls` (local response handling; never forwarded upstream)
 - `logprobs`
 - `top_logprobs`
 - `user_id`
