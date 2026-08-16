@@ -43,7 +43,7 @@ test('deepseek provider declares dedicated identity and defaults', () => {
   assert.match(manifest, /^  - model_provider$/m);
   assert.match(manifest, /^trust_level: verified_official$/m);
   assert.match(manifest, /^consumption_kind: runtime_extension$/m);
-  assert.match(manifest, /^version: 0\.1\.20$/m);
+  assert.match(manifest, /^version: 0\.1\.21$/m);
   assert.match(manifest, /^    - message_blocks\.reasoning_history\.v1$/m);
 
   assert.match(provider, /^provider_code: deepseek$/m);
@@ -63,6 +63,7 @@ test('deepseek provider exposes only the requested deepseek parameter fields in 
     'response_format',
     'stop',
     'tool_choice',
+    'parse_dsml_tool_calls',
     'logprobs',
     'top_logprobs',
     'user_id',

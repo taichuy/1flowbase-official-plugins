@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 mod count_tokens;
+mod dsml;
+
+#[cfg(test)]
+mod _tests;
 
 const PROVIDER_CODE: &str = "deepseek";
 const DEFAULT_BASE_URL: &str = "https://api.deepseek.com";
@@ -694,6 +698,7 @@ where
 {
     let config = normalize_provider_config(&input.provider_config)?;
     let body = build_chat_completion_body(&input)?;
+    let parse_dsml_tool_calls = parse_dsml_tool_calls_enabled(&input)?;
     let client = build_http_client(&config)?;
     let response = client
         .request(
@@ -713,11 +718,20 @@ where
         response,
         input.model.clone(),
         &config.api_key,
+        parse_dsml_tool_calls,
         &mut on_event,
     )
     .await?;
     attach_reasoning_translation_decisions(&mut output.result.provider_metadata, &input)?;
     Ok(output)
+}
+
+fn parse_dsml_tool_calls_enabled(input: &ProviderInvocationInput) -> Result<bool> {
+    match input.model_parameters.get("parse_dsml_tool_calls") {
+        None => Ok(false),
+        Some(Value::Bool(enabled)) => Ok(*enabled),
+        Some(_) => bail!("parse_dsml_tool_calls must be a boolean"),
+    }
 }
 
 fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> {
@@ -1086,6 +1100,7 @@ async fn read_streaming_chat_completion<F>(
     response: reqwest::Response,
     request_model: String,
     api_key: &str,
+    parse_dsml_tool_calls: bool,
     on_event: &mut F,
 ) -> Result<RuntimeInvocationEnvelope>
 where
@@ -1106,6 +1121,7 @@ where
     let mut buffer = String::new();
     let mut events = Vec::new();
     let mut text = String::new();
+    let mut dsml_decoder = parse_dsml_tool_calls.then(dsml::DsmlStreamDecoder::default);
     let mut tool_call_builders: Vec<ToolCallBuilder> = Vec::new();
     let mut usage = ProviderUsage::default();
     let mut finish_reason: Option<ProviderFinishReason> = None;
@@ -1128,6 +1144,7 @@ where
                 &line,
                 &mut events,
                 &mut text,
+                &mut dsml_decoder,
                 &mut tool_call_builders,
                 &mut usage,
                 &mut finish_reason,
@@ -1147,6 +1164,7 @@ where
             &line,
             &mut events,
             &mut text,
+            &mut dsml_decoder,
             &mut tool_call_builders,
             &mut usage,
             &mut finish_reason,
@@ -1159,10 +1177,19 @@ where
     }
 
     let final_event_start = events.len();
-    let tool_calls = tool_call_builders
+    let structured_tool_calls_seen = !tool_call_builders.is_empty();
+    let mut tool_calls = tool_call_builders
         .into_iter()
         .filter_map(ToolCallBuilder::into_tool_call)
         .collect::<Vec<_>>();
+    let dsml_outcome = finalize_dsml_stream(
+        dsml_decoder,
+        &response_id,
+        structured_tool_calls_seen,
+        &mut text,
+        &mut events,
+        &mut tool_calls,
+    );
     for call in &tool_calls {
         events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
     }
@@ -1171,11 +1198,35 @@ where
             usage: usage.clone(),
         });
     }
-    let finish_reason = finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls));
+    let finish_reason = if dsml_outcome == Some(dsml::DsmlParsingOutcome::Parsed) {
+        ProviderFinishReason::ToolCall
+    } else {
+        finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls))
+    };
     events.push(ProviderStreamEvent::Finish {
         reason: finish_reason.clone(),
     });
     emit_new_events(&events, final_event_start, on_event)?;
+    let mut provider_metadata = json!({
+        "request_model": request_model,
+        "response_model": response_model,
+        "response_id": response_id,
+        "created": created,
+        "system_fingerprint": system_fingerprint,
+    });
+    if let Some(outcome) = dsml_outcome {
+        provider_metadata
+            .as_object_mut()
+            .expect("provider metadata is a static JSON object")
+            .insert(
+                "dsml_tool_call_parsing".to_string(),
+                json!({
+                    "enabled": true,
+                    "outcome": outcome.as_str(),
+                }),
+            );
+    }
+
     Ok(RuntimeInvocationEnvelope {
         events,
         result: ProviderInvocationResult {
@@ -1185,15 +1236,54 @@ where
             mcp_calls: Vec::new(),
             usage,
             finish_reason: Some(finish_reason),
-            provider_metadata: json!({
-                "request_model": request_model,
-                "response_model": response_model,
-                "response_id": response_id,
-                "created": created,
-                "system_fingerprint": system_fingerprint,
-            }),
+            provider_metadata,
         },
     })
+}
+
+fn finalize_dsml_stream(
+    decoder: Option<dsml::DsmlStreamDecoder>,
+    response_id: &Value,
+    structured_tool_calls_seen: bool,
+    text: &mut String,
+    events: &mut Vec<ProviderStreamEvent>,
+    tool_calls: &mut Vec<ProviderToolCall>,
+) -> Option<dsml::DsmlParsingOutcome> {
+    let decoder = decoder?;
+    let resolution = decoder.finish(structured_tool_calls_seen);
+    if tool_calls.is_empty() && !resolution.tool_calls.is_empty() {
+        let response_id = response_id.as_str().unwrap_or("response");
+        *tool_calls = resolution
+            .tool_calls
+            .into_iter()
+            .enumerate()
+            .map(|(index, call)| ProviderToolCall {
+                id: format!("call_dsml_{response_id}_{}", index + 1),
+                name: call.name,
+                arguments: call.arguments,
+            })
+            .collect();
+        for (index, call) in tool_calls.iter().enumerate() {
+            events.push(ProviderStreamEvent::ToolCallDelta {
+                call_id: call.id.clone(),
+                delta: json!({
+                    "index": index,
+                    "id": call.id,
+                    "function": {
+                        "name": call.name,
+                        "arguments": call.arguments.to_string(),
+                    }
+                }),
+            });
+        }
+    }
+    if !resolution.trailing_text.is_empty() {
+        text.push_str(&resolution.trailing_text);
+        events.push(ProviderStreamEvent::TextDelta {
+            delta: resolution.trailing_text,
+        });
+    }
+    Some(resolution.outcome)
 }
 
 fn emit_new_events<F>(events: &[ProviderStreamEvent], start: usize, on_event: &mut F) -> Result<()>
@@ -1211,6 +1301,7 @@ fn process_sse_line(
     line: &str,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
+    dsml_decoder: &mut Option<dsml::DsmlStreamDecoder>,
     tool_call_builders: &mut Vec<ToolCallBuilder>,
     usage: &mut ProviderUsage,
     finish_reason: &mut Option<ProviderFinishReason>,
@@ -1233,6 +1324,7 @@ fn process_sse_line(
         &payload,
         events,
         text,
+        dsml_decoder,
         tool_call_builders,
         usage,
         finish_reason,
@@ -1249,6 +1341,7 @@ fn process_stream_payload(
     payload: &Value,
     events: &mut Vec<ProviderStreamEvent>,
     text: &mut String,
+    dsml_decoder: &mut Option<dsml::DsmlStreamDecoder>,
     tool_call_builders: &mut Vec<ToolCallBuilder>,
     usage: &mut ProviderUsage,
     finish_reason: &mut Option<ProviderFinishReason>,
@@ -1297,8 +1390,16 @@ fn process_stream_payload(
         events.push(ProviderStreamEvent::ReasoningDelta { delta: reasoning });
     }
     if let Some(content) = extract_content(delta.get("content")).filter(|value| !value.is_empty()) {
-        text.push_str(&content);
-        events.push(ProviderStreamEvent::TextDelta { delta: content });
+        let visible_content = match dsml_decoder {
+            Some(decoder) => decoder.push(&content),
+            None => Some(content),
+        };
+        if let Some(visible_content) = visible_content {
+            text.push_str(&visible_content);
+            events.push(ProviderStreamEvent::TextDelta {
+                delta: visible_content,
+            });
+        }
     }
     merge_tool_call_deltas(delta.get("tool_calls"), tool_call_builders, events);
 }
@@ -2329,6 +2430,7 @@ mod tests {
     fn stream_payload_commits_complete_tool_calls() {
         let mut events = Vec::new();
         let mut text = String::new();
+        let mut dsml_decoder = None;
         let mut builders = Vec::new();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = None;
@@ -2355,6 +2457,7 @@ mod tests {
             }),
             &mut events,
             &mut text,
+            &mut dsml_decoder,
             &mut builders,
             &mut usage,
             &mut finish_reason,
