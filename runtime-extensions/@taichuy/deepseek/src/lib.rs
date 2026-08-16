@@ -1230,9 +1230,11 @@ where
         Some(dsml::DsmlParsingOutcome::InvalidProtocol) => ProviderFinishReason::Error,
         _ => finish_reason.unwrap_or_else(|| normalize_finish_reason(None, &tool_calls)),
     };
-    events.push(ProviderStreamEvent::Finish {
-        reason: finish_reason.clone(),
-    });
+    if dsml_outcome != Some(dsml::DsmlParsingOutcome::InvalidProtocol) {
+        events.push(ProviderStreamEvent::Finish {
+            reason: finish_reason.clone(),
+        });
+    }
     emit_new_events(&events, final_event_start, on_event)?;
     let mut provider_metadata = json!({
         "request_model": request_model,
