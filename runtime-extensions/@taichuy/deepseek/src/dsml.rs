@@ -18,7 +18,7 @@ pub(crate) struct DsmlToolCall {
 pub(crate) enum DsmlParsingOutcome {
     Parsed,
     NoMatchPassthrough,
-    InvalidPassthrough,
+    InvalidProtocol,
     StructuredToolCallsPrecedence,
 }
 
@@ -27,7 +27,7 @@ impl DsmlParsingOutcome {
         match self {
             Self::Parsed => "parsed",
             Self::NoMatchPassthrough => "no_match_passthrough",
-            Self::InvalidPassthrough => "invalid_passthrough",
+            Self::InvalidProtocol => "invalid_protocol",
             Self::StructuredToolCallsPrecedence => "structured_tool_calls_precedence",
         }
     }
@@ -38,6 +38,13 @@ pub(crate) struct DsmlStreamResolution {
     pub(crate) trailing_text: String,
     pub(crate) tool_calls: Vec<DsmlToolCall>,
     pub(crate) outcome: DsmlParsingOutcome,
+    pub(crate) protocol_failure: Option<DsmlProtocolFailure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DsmlProtocolFailure {
+    pub(crate) error_code: &'static str,
+    pub(crate) candidate: String,
 }
 
 #[derive(Debug, Default)]
@@ -54,7 +61,7 @@ impl DsmlStreamDecoder {
         }
 
         self.pending.push_str(delta);
-        if let Some(marker_start) = self.pending.find(DSML_TOOL_CALLS_OPEN) {
+        if let Some(marker_start) = find_dsml_marker_start(&self.pending) {
             let candidate_start = if self.pending[..marker_start].ends_with("\n\n") {
                 marker_start - 2
             } else {
@@ -78,6 +85,7 @@ impl DsmlStreamDecoder {
                 trailing_text: self.pending,
                 tool_calls: Vec::new(),
                 outcome: DsmlParsingOutcome::NoMatchPassthrough,
+                protocol_failure: None,
             };
         };
 
@@ -86,6 +94,7 @@ impl DsmlStreamDecoder {
                 trailing_text: candidate,
                 tool_calls: Vec::new(),
                 outcome: DsmlParsingOutcome::StructuredToolCallsPrecedence,
+                protocol_failure: None,
             };
         }
 
@@ -94,11 +103,16 @@ impl DsmlStreamDecoder {
                 trailing_text,
                 tool_calls,
                 outcome: DsmlParsingOutcome::Parsed,
+                protocol_failure: None,
             },
             None => DsmlStreamResolution {
-                trailing_text: candidate,
+                trailing_text: String::new(),
                 tool_calls: Vec::new(),
-                outcome: DsmlParsingOutcome::InvalidPassthrough,
+                outcome: DsmlParsingOutcome::InvalidProtocol,
+                protocol_failure: Some(DsmlProtocolFailure {
+                    error_code: classify_invalid_candidate(&candidate),
+                    candidate,
+                }),
             },
         }
     }
@@ -109,7 +123,7 @@ fn take_non_empty(value: &mut String) -> Option<String> {
 }
 
 fn longest_candidate_prefix_suffix(text: &str) -> usize {
-    [DSML_ENVELOPE_PREFIX, DSML_TOOL_CALLS_OPEN]
+    let exact_prefix = [DSML_ENVELOPE_PREFIX, DSML_TOOL_CALLS_OPEN]
         .into_iter()
         .flat_map(|prefix| {
             prefix
@@ -124,7 +138,37 @@ fn longest_candidate_prefix_suffix(text: &str) -> usize {
                 })
         })
         .max()
-        .unwrap_or(0)
+        .unwrap_or(0);
+    let incomplete_marker = text
+        .rfind('<')
+        .filter(|start| !text[*start..].contains('>'))
+        .map(|start| text.len() - start)
+        .unwrap_or(0);
+    exact_prefix.max(incomplete_marker)
+}
+
+fn find_dsml_marker_start(text: &str) -> Option<usize> {
+    text.match_indices('<').find_map(|(start, _)| {
+        let marker = &text[start..];
+        let end = marker.find('>')?;
+        marker[..=end]
+            .to_ascii_uppercase()
+            .contains("DSML")
+            .then_some(start)
+    })
+}
+
+fn classify_invalid_candidate(candidate: &str) -> &'static str {
+    let envelope = candidate.strip_prefix("\n\n").unwrap_or(candidate);
+    if !envelope.starts_with(DSML_TOOL_CALLS_OPEN) {
+        "invalid_marker"
+    } else if envelope.matches(DSML_TOOL_CALLS_OPEN).count() > 1 {
+        "ambiguous_envelope"
+    } else if !envelope.contains(DSML_TOOL_CALLS_CLOSE) {
+        "incomplete_envelope"
+    } else {
+        "invalid_envelope"
+    }
 }
 
 fn parse_complete_envelope(candidate: &str) -> Option<(Vec<DsmlToolCall>, String)> {

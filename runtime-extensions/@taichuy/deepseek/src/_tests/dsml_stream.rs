@@ -40,29 +40,47 @@ fn ac_003_complete_dsml_split_at_every_character_becomes_tool_calls() {
 }
 
 #[test]
-fn ac_002_malformed_dsml_is_returned_byte_for_byte() {
+fn ac_005_malformed_dsml_becomes_output_protocol_failure() {
     let malformed = "<think>inspect schema</think><think>inspect schema</｜｜DSML｜｜parameter>\n</invoke>\n</｜｜DSML｜｜tool_calls>";
     let mut decoder = DsmlStreamDecoder::default();
-    let mut visible = decoder.push(malformed).unwrap_or_default();
+    let mut visible = String::new();
+    for character in malformed.chars() {
+        if let Some(delta) = decoder.push(&character.to_string()) {
+            visible.push_str(&delta);
+        }
+    }
     let resolution = decoder.finish(false);
     visible.push_str(&resolution.trailing_text);
 
-    assert_eq!(visible, malformed);
-    assert_eq!(resolution.outcome, DsmlParsingOutcome::NoMatchPassthrough);
+    assert_eq!(
+        visible,
+        "<think>inspect schema</think><think>inspect schema"
+    );
+    assert_eq!(resolution.outcome, DsmlParsingOutcome::InvalidProtocol);
     assert!(resolution.tool_calls.is_empty());
+    assert_eq!(
+        resolution.protocol_failure.unwrap().error_code,
+        "invalid_marker"
+    );
 }
 
 #[test]
-fn ac_002_truncated_matching_envelope_is_returned_byte_for_byte() {
+fn ac_005_truncated_matching_envelope_becomes_output_protocol_failure() {
     let truncated = "answer\n\n<｜DSML｜tool_calls>\n<｜DSML｜invoke name=\"lookup\">\n";
     let mut decoder = DsmlStreamDecoder::default();
     let mut visible = decoder.push(truncated).unwrap_or_default();
     let resolution = decoder.finish(false);
     visible.push_str(&resolution.trailing_text);
 
-    assert_eq!(visible, truncated);
-    assert_eq!(resolution.outcome, DsmlParsingOutcome::InvalidPassthrough);
+    assert_eq!(visible, "answer");
+    assert_eq!(resolution.outcome, DsmlParsingOutcome::InvalidProtocol);
     assert!(resolution.tool_calls.is_empty());
+    let failure = resolution.protocol_failure.unwrap();
+    assert_eq!(failure.error_code, "incomplete_envelope");
+    assert_eq!(
+        failure.candidate,
+        "\n\n<｜DSML｜tool_calls>\n<｜DSML｜invoke name=\"lookup\">\n"
+    );
 }
 
 #[test]
@@ -141,16 +159,20 @@ fn ac_003_mixed_text_preserves_suffix_after_the_canonical_tool_delta() {
 }
 
 #[test]
-fn ac_002_multiple_dsml_envelopes_are_ambiguous_and_pass_through() {
+fn ac_005_multiple_dsml_envelopes_are_an_ambiguous_protocol_failure() {
     let input = format!("{COMPLETE_DSML}{COMPLETE_DSML}");
     let mut decoder = DsmlStreamDecoder::default();
     let mut visible = decoder.push(&input).unwrap_or_default();
     let resolution = decoder.finish(false);
     visible.push_str(&resolution.trailing_text);
 
-    assert_eq!(visible, input);
-    assert_eq!(resolution.outcome, DsmlParsingOutcome::InvalidPassthrough);
+    assert!(visible.is_empty());
+    assert_eq!(resolution.outcome, DsmlParsingOutcome::InvalidProtocol);
     assert!(resolution.tool_calls.is_empty());
+    assert_eq!(
+        resolution.protocol_failure.unwrap().error_code,
+        "ambiguous_envelope"
+    );
 }
 
 #[test]
@@ -252,6 +274,40 @@ fn ac_003_parsed_dsml_emits_canonical_delta_and_tool_call_finish() {
         ProviderStreamEvent::ToolCallDelta { call_id, .. }
             if call_id == "call_dsml_resp_1_1"
     ));
+}
+
+#[test]
+fn ac_005_invalid_dsml_emits_typed_failure_and_error_finish() {
+    let mut decoder = DsmlStreamDecoder::default();
+    let mut text = decoder
+        .push("prefix</｜｜DSML｜｜tool_calls>")
+        .unwrap_or_default();
+    let mut events = Vec::new();
+    let mut tool_calls = Vec::new();
+
+    let outcome = finalize_dsml_stream(
+        Some(decoder),
+        &json!("resp_invalid"),
+        false,
+        &mut text,
+        &mut events,
+        &mut tool_calls,
+    );
+    let finish_reason = match outcome {
+        Some(DsmlParsingOutcome::InvalidProtocol) => ProviderFinishReason::Error,
+        _ => ProviderFinishReason::Stop,
+    };
+
+    assert_eq!(text, "prefix");
+    assert!(tool_calls.is_empty());
+    assert!(matches!(
+        events.as_slice(),
+        [ProviderStreamEvent::OutputProtocolFailure { failure }]
+            if failure.protocol == "dsml"
+                && failure.error_code == "invalid_marker"
+                && failure.provider_details["candidate_preview"] == "</｜｜DSML｜｜tool_calls>"
+    ));
+    assert_eq!(finish_reason, ProviderFinishReason::Error);
 }
 
 fn provider_input(model_parameters: serde_json::Value) -> ProviderInvocationInput {
