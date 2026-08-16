@@ -1,7 +1,8 @@
 use crate::dsml::{DsmlParsingOutcome, DsmlStreamDecoder, DsmlToolCall};
 use crate::{
-    build_chat_completion_body, finalize_dsml_stream, parse_dsml_tool_calls_enabled,
-    ProviderFinishReason, ProviderInvocationInput, ProviderStreamEvent,
+    build_chat_completion_body, finalize_dsml_stream, merge_tool_call_deltas,
+    parse_dsml_tool_calls_enabled, ProviderFinishReason, ProviderInvocationInput,
+    ProviderStreamEvent, ToolCallBuilder,
 };
 use serde_json::json;
 
@@ -120,6 +121,7 @@ fn ac_003_mixed_text_preserves_suffix_after_the_canonical_tool_delta() {
     let outcome = finalize_dsml_stream(
         Some(decoder),
         &json!("resp_mixed"),
+        false,
         &mut text,
         &mut events,
         &mut tool_calls,
@@ -152,6 +154,50 @@ fn ac_002_multiple_dsml_envelopes_are_ambiguous_and_pass_through() {
 }
 
 #[test]
+fn ac_004_incomplete_standard_tool_call_delta_still_blocks_dsml_parsing() {
+    let mut decoder = DsmlStreamDecoder::default();
+    let mut text = decoder.push(COMPLETE_DSML).unwrap_or_default();
+    let mut events = Vec::new();
+    let mut builders = Vec::new();
+    merge_tool_call_deltas(
+        Some(&json!([{
+            "index": 0,
+            "id": "call_incomplete"
+        }])),
+        &mut builders,
+        &mut events,
+    );
+    let structured_tool_calls_seen = !builders.is_empty();
+    let mut tool_calls = builders
+        .into_iter()
+        .filter_map(ToolCallBuilder::into_tool_call)
+        .collect::<Vec<_>>();
+
+    let outcome = finalize_dsml_stream(
+        Some(decoder),
+        &json!("resp_precedence"),
+        structured_tool_calls_seen,
+        &mut text,
+        &mut events,
+        &mut tool_calls,
+    );
+
+    assert_eq!(
+        outcome,
+        Some(DsmlParsingOutcome::StructuredToolCallsPrecedence)
+    );
+    assert_eq!(text, COMPLETE_DSML);
+    assert!(tool_calls.is_empty());
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, ProviderStreamEvent::ToolCallDelta { .. }))
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn ac_001_model_parameter_is_local_only_and_defaults_off() {
     let disabled = provider_input(json!({}));
     assert!(!parse_dsml_tool_calls_enabled(&disabled).expect("default should be valid"));
@@ -181,6 +227,7 @@ fn ac_003_parsed_dsml_emits_canonical_delta_and_tool_call_finish() {
     let outcome = finalize_dsml_stream(
         Some(decoder),
         &json!("resp_1"),
+        false,
         &mut text,
         &mut events,
         &mut tool_calls,

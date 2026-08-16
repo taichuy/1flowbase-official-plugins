@@ -1177,6 +1177,7 @@ where
     }
 
     let final_event_start = events.len();
+    let structured_tool_calls_seen = !tool_call_builders.is_empty();
     let mut tool_calls = tool_call_builders
         .into_iter()
         .filter_map(ToolCallBuilder::into_tool_call)
@@ -1184,6 +1185,7 @@ where
     let dsml_outcome = finalize_dsml_stream(
         dsml_decoder,
         &response_id,
+        structured_tool_calls_seen,
         &mut text,
         &mut events,
         &mut tool_calls,
@@ -1242,12 +1244,13 @@ where
 fn finalize_dsml_stream(
     decoder: Option<dsml::DsmlStreamDecoder>,
     response_id: &Value,
+    structured_tool_calls_seen: bool,
     text: &mut String,
     events: &mut Vec<ProviderStreamEvent>,
     tool_calls: &mut Vec<ProviderToolCall>,
 ) -> Option<dsml::DsmlParsingOutcome> {
     let decoder = decoder?;
-    let resolution = decoder.finish(!tool_calls.is_empty());
+    let resolution = decoder.finish(structured_tool_calls_seen);
     if tool_calls.is_empty() && !resolution.tool_calls.is_empty() {
         let response_id = response_id.as_str().unwrap_or("response");
         *tool_calls = resolution
