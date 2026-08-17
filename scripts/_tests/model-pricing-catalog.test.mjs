@@ -45,7 +45,7 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes a zero-cost default for every official static LLM model', () => {
+test('publishes one provider-independent zero-cost fallback', () => {
   const repositoryRoot = path.resolve(import.meta.dirname, '../..');
   const published = JSON.parse(
     fs.readFileSync(
@@ -54,32 +54,12 @@ test('publishes a zero-cost default for every official static LLM model', () => 
     )
   );
   assert.equal(verifyModelPricingCatalog(published), true);
-  const expected = [];
-  const providersRoot = path.join(
-    repositoryRoot,
-    'runtime-extensions/@taichuy'
-  );
-  for (const providerCode of fs.readdirSync(providersRoot)) {
-    const modelsRoot = path.join(providersRoot, providerCode, 'models/llm');
-    if (!fs.existsSync(modelsRoot)) continue;
-    for (const filename of fs.readdirSync(modelsRoot)) {
-      if (!filename.endsWith('.yaml')) continue;
-      const source = fs.readFileSync(path.join(modelsRoot, filename), 'utf8');
-      const modelId = source.match(/^model:\s*(\S+)\s*$/m)?.[1];
-      if (modelId) expected.push(`${providerCode}\0${modelId}`);
-    }
-  }
-  const actual = new Map(
-    published.rules.map((rule) => [
-      `${rule.provider_code}\0${rule.upstream_model_id}`,
-      rule
-    ])
-  );
-  assert.deepEqual([...actual.keys()].sort(), expected.sort());
-  for (const rule of actual.values()) {
-    assert.equal(rule.input_token_unit_price, '0');
-    assert.equal(rule.output_token_unit_price, '0');
-    assert.equal(rule.cache_hit_token_unit_price, '0');
-    assert.equal(rule.extensions.pricing_policy, 'official_zero_default');
-  }
+  assert.equal(published.rules.length, 1);
+  const [rule] = published.rules;
+  assert.equal(rule.provider_code, 'zero');
+  assert.equal(rule.upstream_model_id, 'any');
+  assert.equal(rule.input_token_unit_price, '0');
+  assert.equal(rule.output_token_unit_price, '0');
+  assert.equal(rule.cache_hit_token_unit_price, '0');
+  assert.equal(rule.extensions.pricing_policy, 'global_zero_fallback');
 });
