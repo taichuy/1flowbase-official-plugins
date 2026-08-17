@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/model-pricing/v1/rule.schema.json",
+  "title": "1flowbase model pricing rule v1",
+  "type": "object",
+  "required": ["id", "provider_code", "upstream_model_id", "input_token_unit_size", "input_token_unit_price", "output_token_unit_size", "output_token_unit_price", "cache_hit_token_unit_size", "cache_hit_token_unit_price", "currency_code", "effective_from", "timezone", "weekday_mask", "priority", "enabled", "source_kind", "source_catalog_id", "source_version", "source_checksum", "extensions"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "provider_code": { "type": "string", "minLength": 1 },
+    "upstream_model_id": { "type": "string", "minLength": 1 },
+    "input_token_unit_size": { "type": "integer", "minimum": 1 },
+    "input_token_unit_price": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,18})?$" },
+    "output_token_unit_size": { "type": "integer", "minimum": 1 },
+    "output_token_unit_price": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,18})?$" },
+    "cache_hit_token_unit_size": { "type": "integer", "minimum": 1 },
+    "cache_hit_token_unit_price": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,18})?$" },
+    "currency_code": { "const": "USD" },
+    "effective_from": { "type": "string", "format": "date-time" },
+    "effective_to": { "type": ["string", "null"], "format": "date-time" },
+    "timezone": { "type": "string", "minLength": 1 },
+    "weekday_mask": { "type": "integer", "minimum": 1, "maximum": 127 },
+    "local_time_start": { "type": ["string", "null"], "format": "time" },
+    "local_time_end": { "type": ["string", "null"], "format": "time" },
+    "priority": { "type": "integer", "minimum": 0 },
+    "enabled": { "type": "boolean" },
+    "source_kind": { "const": "official" },
+    "source_catalog_id": { "type": "string", "minLength": 1 },
+    "source_version": { "type": "string", "minLength": 1 },
+    "source_checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "extensions": { "type": "object" }
+  },
+  "additionalProperties": false
+}

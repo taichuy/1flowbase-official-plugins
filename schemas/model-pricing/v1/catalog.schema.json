@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/model-pricing/v1/catalog.schema.json",
+  "title": "1flowbase model pricing catalog v1",
+  "type": "object",
+  "required": ["schema_version", "catalog_version", "generated_at", "currency_code", "rules_checksum", "rules"],
+  "properties": {
+    "schema_version": { "const": "1flowbase.model-pricing/v1" },
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "currency_code": { "const": "USD" },
+    "rules_checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["algorithm", "key_id", "signature"],
+          "properties": {
+            "algorithm": { "const": "ed25519" },
+            "key_id": { "type": "string", "minLength": 1 },
+            "signature": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "rule.schema.json" }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,76 @@
+name: model-pricing-catalog-release
+
+on:
+  pull_request:
+    paths:
+      - 'model-pricing/**'
+      - 'schemas/model-pricing/**'
+      - 'scripts/model-pricing-catalog.mjs'
+      - 'scripts/_tests/model-pricing-catalog.test.mjs'
+      - '.github/workflows/model-pricing-catalog-release.yml'
+  push:
+    branches: [main]
+    tags: ['model-pricing-v*']
+    paths:
+      - 'model-pricing/**'
+      - 'schemas/model-pricing/**'
+      - 'scripts/model-pricing-catalog.mjs'
+      - 'scripts/_tests/model-pricing-catalog.test.mjs'
+      - '.github/workflows/model-pricing-catalog-release.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: model-pricing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node --test scripts/_tests/model-pricing-catalog.test.mjs
+      - run: node scripts/model-pricing-catalog.mjs --check
+
+  immutable-release:
+    if: startsWith(github.ref, 'refs/tags/model-pricing-v')
+    needs: source-contract
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Build signed catalog
+        env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p 'JSON.parse(require("fs").readFileSync("model-pricing/catalog/v1/catalog.json", "utf8")).catalog_version')"
+          test "${GITHUB_REF_NAME}" = "model-pricing-v${version}"
+          test -n "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}"
+          test -n "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}"
+          asset="model-pricing-catalog-v${version}.json"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > model-pricing-signing-key.pem
+          node scripts/model-pricing-catalog.mjs \
+            --private-key-pem-file model-pricing-signing-key.pem \
+            --key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" \
+            --output "${asset}"
+          sha256sum "${asset}" > "${asset}.sha256"
+          echo "ASSET=${asset}" >> "${GITHUB_ENV}"
+      - name: Publish immutable catalog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "${ASSET}" "${ASSET}.sha256" \
+            --target "${GITHUB_SHA}" \
+            --title "Official model pricing catalog ${GITHUB_REF_NAME}" \
+            --notes "Signed USD model pricing catalog"
