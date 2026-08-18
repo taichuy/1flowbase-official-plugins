@@ -1188,13 +1188,54 @@ where
     let mut tool_call_builders: Vec<ToolCallBuilder> = Vec::new();
     let mut usage = ProviderUsage::default();
     let mut finish_reason: Option<ProviderFinishReason> = None;
+    let mut raw_finish_reason: Option<String> = None;
+    let mut stream_termination = StreamTermination::Eof;
     let mut response_model = Value::Null;
     let mut response_id = Value::Null;
     let mut created = Value::Null;
     let mut system_fingerprint = Value::Null;
 
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(_) => {
+                let stream_termination = build_stream_termination_metadata(
+                    raw_finish_reason.as_deref(),
+                    StreamTermination::Error,
+                );
+                let error = ProviderStreamEvent::Error {
+                    error: ProviderRuntimeError {
+                        kind: "provider_transport_unavailable".to_string(),
+                        message: "provider streaming response ended with transport error"
+                            .to_string(),
+                        provider_summary: None,
+                        provider_details: Some(json!({
+                            "stream_termination": stream_termination,
+                        })),
+                    },
+                };
+                on_event(&error)?;
+                return Ok(RuntimeInvocationEnvelope {
+                    events: vec![error],
+                    result: ProviderInvocationResult {
+                        final_content: None,
+                        response_id: None,
+                        tool_calls: Vec::new(),
+                        mcp_calls: Vec::new(),
+                        usage,
+                        finish_reason: Some(ProviderFinishReason::Error),
+                        provider_metadata: json!({
+                            "request_model": request_model,
+                            "response_model": response_model,
+                            "response_id": response_id,
+                            "created": created,
+                            "system_fingerprint": system_fingerprint,
+                            "stream_termination": stream_termination,
+                        }),
+                    },
+                });
+            }
+        };
         buffer.push_str(&String::from_utf8_lossy(&chunk));
         while let Some(line_end) = buffer.find('\n') {
             let mut line = buffer[..line_end].to_string();
@@ -1202,6 +1243,9 @@ where
                 line.pop();
             }
             buffer.drain(..=line_end);
+            if is_sse_done_line(&line) {
+                stream_termination = StreamTermination::Done;
+            }
             let event_start = events.len();
             process_sse_line(
                 &line,
@@ -1211,6 +1255,7 @@ where
                 &mut tool_call_builders,
                 &mut usage,
                 &mut finish_reason,
+                &mut raw_finish_reason,
                 &mut response_model,
                 &mut response_id,
                 &mut created,
@@ -1222,6 +1267,9 @@ where
 
     if !buffer.trim().is_empty() {
         let line = std::mem::take(&mut buffer);
+        if is_sse_done_line(&line) {
+            stream_termination = StreamTermination::Done;
+        }
         let event_start = events.len();
         process_sse_line(
             &line,
@@ -1231,6 +1279,7 @@ where
             &mut tool_call_builders,
             &mut usage,
             &mut finish_reason,
+            &mut raw_finish_reason,
             &mut response_model,
             &mut response_id,
             &mut created,
@@ -1278,6 +1327,10 @@ where
         "response_id": response_id,
         "created": created,
         "system_fingerprint": system_fingerprint,
+        "stream_termination": build_stream_termination_metadata(
+            raw_finish_reason.as_deref(),
+            stream_termination,
+        ),
     });
     if let Some(outcome) = dsml_outcome {
         provider_metadata
@@ -1386,6 +1439,7 @@ fn process_sse_line(
     tool_call_builders: &mut Vec<ToolCallBuilder>,
     usage: &mut ProviderUsage,
     finish_reason: &mut Option<ProviderFinishReason>,
+    raw_finish_reason: &mut Option<String>,
     response_model: &mut Value,
     response_id: &mut Value,
     created: &mut Value,
@@ -1409,6 +1463,7 @@ fn process_sse_line(
         tool_call_builders,
         usage,
         finish_reason,
+        raw_finish_reason,
         response_model,
         response_id,
         created,
@@ -1426,6 +1481,7 @@ fn process_stream_payload(
     tool_call_builders: &mut Vec<ToolCallBuilder>,
     usage: &mut ProviderUsage,
     finish_reason: &mut Option<ProviderFinishReason>,
+    raw_finish_reason: &mut Option<String>,
     response_model: &mut Value,
     response_id: &mut Value,
     created: &mut Value,
@@ -1462,6 +1518,7 @@ fn process_stream_payload(
         return;
     };
     if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
+        *raw_finish_reason = Some(reason.to_string());
         *finish_reason = Some(normalize_finish_reason(Some(reason), &[]));
     }
     let Some(delta) = choice.get("delta") else {
@@ -1617,7 +1674,7 @@ fn normalize_finish_reason(
     finish_reason: Option<&str>,
     tool_calls: &[ProviderToolCall],
 ) -> ProviderFinishReason {
-    if !tool_calls.is_empty() || finish_reason == Some("tool_calls") {
+    if !tool_calls.is_empty() || matches!(finish_reason, Some("tool_calls" | "tool_call")) {
         return ProviderFinishReason::ToolCall;
     }
 
@@ -1625,8 +1682,50 @@ fn normalize_finish_reason(
         Some("stop") => ProviderFinishReason::Stop,
         Some("length") => ProviderFinishReason::Length,
         Some("content_filter") => ProviderFinishReason::ContentFilter,
+        Some("error") => ProviderFinishReason::Error,
         _ => ProviderFinishReason::Unknown,
     }
+}
+
+fn is_sse_done_line(line: &str) -> bool {
+    line.trim()
+        .strip_prefix("data:")
+        .is_some_and(|data| data.trim() == "[DONE]")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StreamTermination {
+    Done,
+    Eof,
+    Error,
+}
+
+impl StreamTermination {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Done => "done",
+            Self::Eof => "eof",
+            Self::Error => "error",
+        }
+    }
+}
+
+fn build_stream_termination_metadata(
+    raw_finish_reason: Option<&str>,
+    transport_termination: StreamTermination,
+) -> Value {
+    let raw_finish_reason_status = match raw_finish_reason {
+        Some("stop" | "length" | "tool_calls" | "tool_call" | "content_filter" | "error") => {
+            "recognized"
+        }
+        Some(_) => "unrecognized",
+        None => "missing",
+    };
+    json!({
+        "raw_finish_reason": raw_finish_reason,
+        "raw_finish_reason_status": raw_finish_reason_status,
+        "transport_termination": transport_termination.as_str(),
+    })
 }
 
 fn provider_error_message(payload: &Value) -> String {
@@ -2478,6 +2577,14 @@ mod tests {
             json!("chatcmpl_test")
         );
         assert_eq!(
+            result.provider_metadata["stream_termination"]["raw_finish_reason"],
+            json!("stop")
+        );
+        assert_eq!(
+            result.provider_metadata["stream_termination"]["transport_termination"],
+            json!("done")
+        );
+        assert_eq!(
             result.provider_metadata["provider_request_translation"]["decisions"],
             json!(["omitted_reasoning_mode_adaptive"])
         );
@@ -2541,6 +2648,7 @@ mod tests {
         let mut builders = Vec::new();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = None;
+        let mut raw_finish_reason = None;
         let mut response_model = Value::Null;
         let mut response_id = Value::Null;
         let mut created = Value::Null;
@@ -2568,6 +2676,7 @@ mod tests {
             &mut builders,
             &mut usage,
             &mut finish_reason,
+            &mut raw_finish_reason,
             &mut response_model,
             &mut response_id,
             &mut created,
@@ -2589,6 +2698,7 @@ mod tests {
         assert_eq!(calls[0].name, "lookup");
         assert_eq!(calls[0].arguments, json!({ "query": "refund" }));
         assert_eq!(finish_reason, Some(ProviderFinishReason::ToolCall));
+        assert_eq!(raw_finish_reason.as_deref(), Some("tool_calls"));
     }
 
     #[test]
