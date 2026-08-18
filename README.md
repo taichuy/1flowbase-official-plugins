@@ -23,6 +23,8 @@
 - `agent-flow/@<organization>/<workflow_id>/`：官方 AgentFlow 工作流模板
 - `mcp/@<organization>/<bundle_id>/`：按组织维护的整套 MCP 配置包源码
 - `mcp/catalog.json`：官方 MCP 配置包签名版本历史目录（`1flowbase.mcp-catalog/v2`）
+- `model-pricing/@<provider_code>/<model-key>/pricing.json`：按厂家维护的模型计费源
+- `model-pricing/catalog/v1/`：自动生成的计费索引、分页、搜索索引和兼容快照
 - `official-registry.json`：已发布插件目录元数据
 - `scripts/`：注册表与发布辅助脚本
 - `.github/workflows/`：CI 与发布自动化

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/model-pricing/v1/page.schema.json",
+  "title": "1flowbase model pricing page v1",
+  "type": "object",
+  "required": ["schema_version", "catalog_version", "currency_code", "page", "cursor", "next_cursor", "next_page_locator", "rules"],
+  "properties": {
+    "schema_version": { "const": "1flowbase.model-pricing-page/v1" },
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "currency_code": { "const": "USD" },
+    "page": { "type": "integer", "minimum": 1 },
+    "cursor": { "type": "string" },
+    "next_cursor": { "type": ["string", "null"] },
+    "next_page_locator": { "type": ["string", "null"] },
+    "rules": { "type": "array", "items": { "$ref": "rule.schema.json" } }
+  },
+  "additionalProperties": false
+}

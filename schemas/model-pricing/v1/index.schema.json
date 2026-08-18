@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/model-pricing/v1/index.schema.json",
+  "title": "1flowbase model pricing index v1",
+  "type": "object",
+  "required": ["schema_version", "catalog_version", "generated_at", "currency_code", "page_size", "total_rules", "first_page", "search_index", "pages"],
+  "properties": {
+    "schema_version": { "const": "1flowbase.model-pricing-index/v1" },
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "currency_code": { "const": "USD" },
+    "page_size": { "type": "integer", "minimum": 1 },
+    "total_rules": { "type": "integer", "minimum": 0 },
+    "first_page": { "$ref": "#/$defs/pageReference" },
+    "search_index": { "type": "object" },
+    "pages": { "type": "array", "items": { "$ref": "#/$defs/pageReference" } }
+  },
+  "$defs": {
+    "pageReference": {
+      "type": "object",
+      "required": ["page", "cursor", "locator"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "cursor": { "type": "string" },
+        "rule_count": { "type": "integer", "minimum": 0 },
+        "checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "locator": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -27,14 +27,29 @@ jobs:
   source-contract:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 22
       - run: node --test scripts/_tests/model-pricing-catalog.test.mjs
-      - run: node scripts/model-pricing-catalog.mjs --check
+      - name: Generate model pricing catalog
+        run: node scripts/model-pricing-catalog.mjs
+      - name: Detect generated catalog drift
+        if: github.event_name != 'workflow_dispatch'
+        run: git diff --exit-code -- model-pricing/catalog model-pricing/dist model-pricing/_maintenance
+      - name: Commit manually rebuilt model pricing catalog
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- model-pricing/catalog model-pricing/dist model-pricing/_maintenance
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: rebuild model pricing catalog"
+          git push
 
   immutable-release:
     if: startsWith(github.ref, 'refs/tags/model-pricing-v')

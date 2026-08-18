@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/model-pricing/v1/search-index.schema.json",
+  "title": "1flowbase model pricing search index v1",
+  "type": "object",
+  "required": ["schema_version", "catalog_version", "generated_at", "source_fingerprint", "entries"],
+  "properties": {
+    "schema_version": { "const": "1flowbase.model-pricing-search/v1" },
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source_fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "provider_code", "upstream_model_id", "effective_from", "effective_to", "priority", "enabled", "catalog_page"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "provider_code": { "type": "string", "minLength": 1 },
+          "upstream_model_id": { "type": "string", "minLength": 1 },
+          "effective_from": { "type": "string", "format": "date-time" },
+          "effective_to": { "type": ["string", "null"], "format": "date-time" },
+          "priority": { "type": "integer", "minimum": 0 },
+          "enabled": { "type": "boolean" },
+          "catalog_page": {
+            "type": "object",
+            "required": ["page", "cursor", "checksum", "locator"],
+            "properties": {
+              "page": { "type": "integer", "minimum": 1 },
+              "cursor": { "type": "string" },
+              "checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+              "locator": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
