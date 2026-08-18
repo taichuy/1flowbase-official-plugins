@@ -14,7 +14,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "input_token_unit_size", "input_token_unit_price", "output_token_unit_size", "output_token_unit_price", "cache_hit_token_unit_size", "cache_hit_token_unit_price", "effective_from", "effective_to", "timezone", "weekday_mask", "local_time_start", "local_time_end", "priority", "enabled", "extensions"],
+        "required": ["id", "input_token_unit_size", "input_token_unit_price", "output_token_unit_size", "output_token_unit_price", "cache_hit_token_unit_size", "cache_hit_token_unit_price", "effective_from", "effective_to", "timezone", "weekday_mask", "local_time_start", "local_time_end", "priority", "enabled", "rating_policy_enabled", "rating_policy", "extensions"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "input_token_unit_size": { "type": "integer", "minimum": 1 },
@@ -31,6 +31,8 @@
           "local_time_end": { "type": ["string", "null"], "format": "time" },
           "priority": { "type": "integer", "minimum": 0 },
           "enabled": { "type": "boolean" },
+          "rating_policy_enabled": { "type": "boolean" },
+          "rating_policy": { "$ref": "rating-policy.schema.json" },
           "extensions": { "type": "object" }
         },
         "additionalProperties": false

@@ -19,6 +19,11 @@ merely because a later catalog omits them. The initial catalog contains one `zer
 global fallback. Reviewed vendor prices are added as exact provider/model rules and take
 precedence over the fallback; prices must not be guessed.
 
+Time-of-day prices remain separate physical rules selected by effective range, timezone,
+weekday, and local window. Conditional standard API prices use the versioned
+`rating_policy`; v1 only permits deterministic input-token tiers. Coding plans, credits,
+subscriptions, and unpublished prices are not part of this USD catalog.
+
 Run `node scripts/model-pricing-catalog.mjs` after editing a source and
 `node scripts/model-pricing-catalog.mjs --check` before review. Immutable signed
 releases are created from tags named `model-pricing-v<catalog_version>`; the release

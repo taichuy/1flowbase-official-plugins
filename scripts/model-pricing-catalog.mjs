@@ -34,6 +34,38 @@ function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function validateRatingPolicy(rule, context) {
+  if (typeof rule.rating_policy_enabled !== 'boolean' ||
+      rule.rating_policy === null || typeof rule.rating_policy !== 'object' ||
+      Array.isArray(rule.rating_policy)) {
+    throw new Error(`${context} has an invalid rating policy`);
+  }
+  if (!rule.rating_policy_enabled) return;
+  const policy = rule.rating_policy;
+  if (policy.schema_version !== '1flowbase.model-rating-policy/v1' ||
+      policy.type !== 'input_token_tiers' || !Array.isArray(policy.tiers) ||
+      policy.tiers.length === 0) {
+    throw new Error(`${context} has an unsupported rating policy`);
+  }
+  let previousThreshold = -1;
+  for (const tier of policy.tiers) {
+    const threshold = tier?.when?.value;
+    if (!['gt', 'gte'].includes(tier?.when?.operator) ||
+        !Number.isSafeInteger(threshold) || threshold < 0 || threshold <= previousThreshold) {
+      throw new Error(`${context} rating policy tiers must be strictly ascending`);
+    }
+    previousThreshold = threshold;
+    for (const meter of ['input', 'output', 'cache_hit']) {
+      const rate = tier?.rates?.[meter];
+      if (!Number.isSafeInteger(rate?.unit_size) || rate.unit_size < 1 ||
+          typeof rate.unit_price !== 'string' ||
+          !/^[0-9]+(\.[0-9]{1,18})?$/.test(rate.unit_price)) {
+        throw new Error(`${context} has an invalid ${meter} tier rate`);
+      }
+    }
+  }
+}
+
 function rawUrl(rawBaseUrl, relativePath) {
   return `${rawBaseUrl.replace(/\/+$/, '')}/${relativePath}`;
 }
@@ -101,6 +133,7 @@ export function discoverModelPricingRules(repoRoot) {
           throw new Error('model pricing rule ids must be unique');
         }
         ids.add(sourceRule.id);
+        validateRatingPolicy(sourceRule, path.relative(repoRoot, sourcePath));
         const sourceChecksum = sha256(json({
           provider_code: providerCode,
           upstream_model_id: source.upstream_model_id,
@@ -143,6 +176,7 @@ export function verifyModelPricingCatalog(catalog) {
     if (rule.currency_code !== 'USD' || rule.source_kind !== 'official') {
       throw new Error('official model pricing rules must use USD and source_kind=official');
     }
+    validateRatingPolicy(rule, `catalog rule ${rule.id}`);
   }
   return true;
 }

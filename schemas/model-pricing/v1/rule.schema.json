@@ -3,7 +3,7 @@
   "$id": "https://1flowbase.com/schemas/model-pricing/v1/rule.schema.json",
   "title": "1flowbase model pricing rule v1",
   "type": "object",
-  "required": ["id", "provider_code", "upstream_model_id", "input_token_unit_size", "input_token_unit_price", "output_token_unit_size", "output_token_unit_price", "cache_hit_token_unit_size", "cache_hit_token_unit_price", "currency_code", "effective_from", "timezone", "weekday_mask", "priority", "enabled", "source_kind", "source_catalog_id", "source_version", "source_checksum", "extensions"],
+  "required": ["id", "provider_code", "upstream_model_id", "input_token_unit_size", "input_token_unit_price", "output_token_unit_size", "output_token_unit_price", "cache_hit_token_unit_size", "cache_hit_token_unit_price", "currency_code", "effective_from", "timezone", "weekday_mask", "priority", "enabled", "rating_policy_enabled", "rating_policy", "source_kind", "source_catalog_id", "source_version", "source_checksum", "extensions"],
   "properties": {
     "id": { "type": "string", "format": "uuid" },
     "provider_code": { "type": "string", "minLength": 1 },
@@ -23,6 +23,8 @@
     "local_time_end": { "type": ["string", "null"], "format": "time" },
     "priority": { "type": "integer", "minimum": 0 },
     "enabled": { "type": "boolean" },
+    "rating_policy_enabled": { "type": "boolean" },
+    "rating_policy": { "$ref": "rating-policy.schema.json" },
     "source_kind": { "const": "official" },
     "source_catalog_id": { "type": "string", "minLength": 1 },
     "source_version": { "type": "string", "minLength": 1 },

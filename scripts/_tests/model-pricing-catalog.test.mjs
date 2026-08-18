@@ -48,7 +48,7 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes one provider-independent zero-cost fallback', () => {
+test('publishes standard USD API prices with one provider-independent zero-cost fallback', () => {
   const repositoryRoot = path.resolve(import.meta.dirname, '../..');
   const published = JSON.parse(
     fs.readFileSync(
@@ -57,14 +57,30 @@ test('publishes one provider-independent zero-cost fallback', () => {
     )
   );
   assert.equal(verifyModelPricingCatalog(published), true);
-  assert.equal(published.rules.length, 1);
-  const [rule] = published.rules;
+  assert.equal(published.rules.length, 30);
+  const fallbackRules = published.rules.filter(
+    (candidate) => candidate.provider_code === 'zero' && candidate.upstream_model_id === 'any'
+  );
+  assert.equal(fallbackRules.length, 1);
+  const [rule] = fallbackRules;
   assert.equal(rule.provider_code, 'zero');
   assert.equal(rule.upstream_model_id, 'any');
   assert.equal(rule.input_token_unit_price, '0');
   assert.equal(rule.output_token_unit_price, '0');
   assert.equal(rule.cache_hit_token_unit_price, '0');
   assert.equal(rule.extensions.pricing_policy, 'global_zero_fallback');
+  assert.equal(
+    published.rules.filter((candidate) => candidate.rating_policy_enabled).length,
+    6
+  );
+  assert.equal(
+    published.rules.filter((candidate) => candidate.provider_code === 'deepseek').length,
+    10
+  );
+  assert.equal(
+    published.rules.some((candidate) => candidate.upstream_model_id === 'glm-5.3'),
+    false
+  );
 });
 
 function sourceFixture() {
@@ -100,6 +116,8 @@ function sourceFixture() {
           local_time_end: null,
           priority: 0,
           enabled: true,
+          rating_policy_enabled: false,
+          rating_policy: {},
           extensions: {}
         }]
       })
@@ -163,4 +181,18 @@ test('AC-002 check mode detects generated catalog drift without rewriting it', (
   fs.writeFileSync(indexPath, '{}\n');
   assert.throws(() => updateModelPricingCatalog({ repoRoot, check: true }), /catalog drift/);
   assert.equal(fs.readFileSync(indexPath, 'utf8'), '{}\n');
+});
+
+test('rejects unsupported executable rating policies at the catalog boundary', () => {
+  const repoRoot = sourceFixture();
+  const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  source.rules[0].rating_policy_enabled = true;
+  source.rules[0].rating_policy = {
+    schema_version: '1flowbase.model-rating-policy/v1',
+    type: 'arbitrary_expression',
+    expression: 'input_tokens * 2'
+  };
+  fs.writeFileSync(sourcePath, JSON.stringify(source));
+  assert.throws(() => discoverModelPricingRules(repoRoot), /unsupported rating policy/);
 });
