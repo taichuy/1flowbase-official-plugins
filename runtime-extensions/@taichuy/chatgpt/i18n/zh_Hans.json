@@ -1,0 +1,57 @@
+{
+  "plugin": {
+    "label": "ChatGPT 订阅",
+    "description": "用于 ChatGPT 订阅的 ChatGPT Codex Responses 模型供应商运行时扩展。"
+  },
+  "provider": {
+    "label": "ChatGPT 订阅"
+  },
+  "fields": {
+    "base_url": { "label": "ChatGPT Codex API 地址" },
+    "auth_base_url": { "label": "OAuth 授权服务地址" },
+    "pkce_redirect_uri": { "label": "PKCE 回调地址" },
+    "proxy_url": { "label": "HTTPS 代理地址" },
+    "transport_mode": {
+      "label": "默认 Responses 传输方式",
+      "options": {
+        "http_sse": { "label": "HTTP 服务端事件" },
+        "responses_websocket": { "label": "Responses WebSocket" }
+      }
+    }
+  },
+  "parameters": {
+    "title": "ChatGPT Responses 参数",
+    "description": "ChatGPT Codex Responses 后端支持的供应商级请求参数。",
+    "reasoning_effort": {
+      "label": "推理强度",
+      "options": {
+        "minimal": { "label": "极低" },
+        "low": { "label": "低" },
+        "medium": { "label": "中" },
+        "high": { "label": "高" },
+        "xhigh": { "label": "极高" }
+      }
+    },
+    "temperature": { "label": "温度" },
+    "top_p": { "label": "Top P" },
+    "max_output_tokens": { "label": "最大输出 Token 数" },
+    "tool_choice": {
+      "label": "工具选择",
+      "options": {
+        "auto": { "label": "自动" },
+        "required": { "label": "必须" },
+        "none": { "label": "不使用" }
+      }
+    },
+    "use_responses_websocket": {
+      "label": "使用 Responses WebSocket",
+      "description": "覆盖此 LLM 节点使用的供应商实例默认传输方式。"
+    }
+  },
+  "auth": {
+    "actions": {
+      "device_code": { "label": "通过设备代码登录" },
+      "pkce_callback": { "label": "粘贴 OAuth 回调地址" }
+    }
+  }
+}

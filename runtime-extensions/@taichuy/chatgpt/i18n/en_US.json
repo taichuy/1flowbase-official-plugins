@@ -1,0 +1,57 @@
+{
+  "plugin": {
+    "label": "ChatGPT Subscription",
+    "description": "ChatGPT Codex Responses provider runtime extension for ChatGPT subscriptions."
+  },
+  "provider": {
+    "label": "ChatGPT Subscription"
+  },
+  "fields": {
+    "base_url": { "label": "ChatGPT Codex API URL" },
+    "auth_base_url": { "label": "OAuth authority URL" },
+    "pkce_redirect_uri": { "label": "PKCE redirect URI" },
+    "proxy_url": { "label": "HTTPS proxy URL" },
+    "transport_mode": {
+      "label": "Default Responses transport",
+      "options": {
+        "http_sse": { "label": "HTTP Server-Sent Events" },
+        "responses_websocket": { "label": "Responses WebSocket" }
+      }
+    }
+  },
+  "parameters": {
+    "title": "ChatGPT Responses Parameters",
+    "description": "Provider-level request parameters for the ChatGPT Codex Responses backend.",
+    "reasoning_effort": {
+      "label": "Reasoning effort",
+      "options": {
+        "minimal": { "label": "Minimal" },
+        "low": { "label": "Low" },
+        "medium": { "label": "Medium" },
+        "high": { "label": "High" },
+        "xhigh": { "label": "Extra high" }
+      }
+    },
+    "temperature": { "label": "Temperature" },
+    "top_p": { "label": "Top P" },
+    "max_output_tokens": { "label": "Maximum output tokens" },
+    "tool_choice": {
+      "label": "Tool choice",
+      "options": {
+        "auto": { "label": "Automatic" },
+        "required": { "label": "Required" },
+        "none": { "label": "None" }
+      }
+    },
+    "use_responses_websocket": {
+      "label": "Use Responses WebSocket",
+      "description": "Overrides the provider instance transport for this LLM node."
+    }
+  },
+  "auth": {
+    "actions": {
+      "device_code": { "label": "Sign in with Device Code" },
+      "pkce_callback": { "label": "Paste OAuth callback URL" }
+    }
+  }
+}

@@ -1,0 +1,146 @@
+provider_code: chatgpt
+display_name: ChatGPT Subscription
+protocol: openai_responses
+help_url: https://help.openai.com/en/articles/9793128-codex
+default_base_url: https://chatgpt.com/backend-api/codex
+model_discovery: dynamic
+supports_model_fetch_without_credentials: false
+
+parameter_form:
+  schema_version: 1.0.0
+  title: parameters.title
+  description: parameters.description
+  fields:
+    - key: reasoning_effort
+      label: parameters.reasoning_effort.label
+      type: enum
+      order: 10
+      send_mode: optional
+      enabled_by_default: false
+      control: select
+      options:
+        - label: parameters.reasoning_effort.options.minimal.label
+          value: minimal
+        - label: parameters.reasoning_effort.options.low.label
+          value: low
+        - label: parameters.reasoning_effort.options.medium.label
+          value: medium
+        - label: parameters.reasoning_effort.options.high.label
+          value: high
+        - label: parameters.reasoning_effort.options.xhigh.label
+          value: xhigh
+    - key: temperature
+      label: parameters.temperature.label
+      type: number
+      control: slider
+      order: 20
+      send_mode: optional
+      enabled_by_default: false
+      min: 0
+      max: 2
+      step: 0.1
+    - key: top_p
+      label: parameters.top_p.label
+      type: number
+      control: slider
+      order: 30
+      send_mode: optional
+      enabled_by_default: false
+      min: 0
+      max: 1
+      step: 0.01
+    - key: max_output_tokens
+      label: parameters.max_output_tokens.label
+      type: integer
+      control: number
+      order: 40
+      send_mode: optional
+      enabled_by_default: false
+      min: 1
+      step: 1
+    - key: tool_choice
+      label: parameters.tool_choice.label
+      type: enum
+      control: select
+      order: 50
+      send_mode: optional
+      enabled_by_default: false
+      options:
+        - label: parameters.tool_choice.options.auto.label
+          value: auto
+        - label: parameters.tool_choice.options.required.label
+          value: required
+        - label: parameters.tool_choice.options.none.label
+          value: none
+    - key: use_responses_websocket
+      label: parameters.use_responses_websocket.label
+      description: parameters.use_responses_websocket.description
+      type: boolean
+      control: switch
+      order: 60
+      send_mode: always
+      default_value: false
+
+config_schema:
+  - key: base_url
+    label: fields.base_url.label
+    type: string
+    required: false
+    default_value: https://chatgpt.com/backend-api/codex
+    advanced: true
+  - key: auth_base_url
+    label: fields.auth_base_url.label
+    type: string
+    required: false
+    default_value: https://auth.openai.com
+    advanced: true
+  - key: pkce_redirect_uri
+    label: fields.pkce_redirect_uri.label
+    type: string
+    required: false
+    default_value: http://localhost:1455/auth/callback
+    advanced: true
+  - key: proxy_url
+    label: fields.proxy_url.label
+    type: secret
+    required: false
+    advanced: true
+  - key: transport_mode
+    label: fields.transport_mode.label
+    type: enum
+    control: select
+    required: false
+    advanced: true
+    default_value: http_sse
+    options:
+      - label: fields.transport_mode.options.http_sse.label
+        value: http_sse
+      - label: fields.transport_mode.options.responses_websocket.label
+        value: responses_websocket
+
+auth:
+  actions:
+    - code: device_code
+      label: auth.actions.device_code.label
+      user_action_kinds:
+        - device_code
+    - code: pkce_callback
+      label: auth.actions.pkce_callback.label
+      user_action_kinds:
+        - paste_callback_url
+  managed_secret_keys:
+    - access_token
+    - refresh_token
+    - id_token
+    - expires_at
+    - chatgpt_account_id
+    - device_auth_id
+    - device_user_code
+    - device_expires_at
+    - device_poll_interval
+    - device_verification_url
+    - device_code_verifier
+    - pkce_state
+    - pkce_code_verifier
+    - pkce_redirect_uri
+    - instance_cookie_key

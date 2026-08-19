@@ -1,0 +1,6974 @@
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    fmt,
+    sync::{Arc, Mutex, OnceLock},
+    time::{Duration, Instant},
+};
+
+use anyhow::{anyhow, bail, Context, Result};
+use base64::Engine;
+use eventsource_stream::Eventsource;
+use futures_util::{SinkExt, StreamExt};
+use reqwest::{
+    cookie::{CookieStore, Jar},
+    header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    Method, Url,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Map, Value};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio_tungstenite::{
+    client_async_tls_with_config, connect_async,
+    tungstenite::{
+        client::IntoClientRequest,
+        handshake::client::{
+            Request as ClientHandshakeRequest, Response as ClientHandshakeResponse,
+        },
+        Error as WebSocketError, Message,
+    },
+    MaybeTlsStream, WebSocketStream,
+};
+
+mod auth;
+mod count_tokens;
+mod protocol_context;
+mod sse_codec;
+
+pub use protocol_context::ProtocolContextEnvelope;
+use protocol_context::{
+    append_protocol_headers, append_protocol_query, restore_protocol_context, ChatGptWireProtocol,
+    RestoredProtocolContext,
+};
+use sse_codec::SseEventSizeGuard;
+
+const PROVIDER_CODE: &str = "chatgpt";
+const DEFAULT_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
+const DEFAULT_VALIDATE_MODEL: bool = true;
+const STREAM_IDLE_TIMEOUT: Duration = Duration::from_millis(300_000);
+const MODEL_CACHE_TTL: Duration = Duration::from_secs(60);
+const WEBSOCKET_CURSOR_RECONNECT_ATTEMPTS: usize = 3;
+const RESPONSES_WEBSOCKETS_BETA: &str = "responses_websockets=2026-02-06";
+const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
+const PASSTHROUGH_RESPONSE_PARAMETERS: &[&str] = &[
+    "temperature",
+    "top_p",
+    "max_output_tokens",
+    "tool_choice",
+    "store",
+    "parallel_tool_calls",
+    "include",
+    "service_tier",
+    "prompt_cache_key",
+    "metadata",
+];
+const PASSTHROUGH_CHAT_PARAMETERS: &[&str] = &[
+    "temperature",
+    "top_p",
+    "tool_choice",
+    "store",
+    "parallel_tool_calls",
+    "service_tier",
+    "metadata",
+];
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProviderStdioRequest {
+    pub method: String,
+    #[serde(default)]
+    pub input: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderStdioError {
+    pub kind: String,
+    pub message: String,
+    #[serde(default)]
+    pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderStdioResponse {
+    pub ok: bool,
+    #[serde(default)]
+    pub result: Value,
+    #[serde(default)]
+    pub error: Option<ProviderStdioError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ProviderAuthOperation {
+    Begin { action: String },
+    Poll,
+    Submit { value: String },
+    Cancel,
+    Maintain,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderAuthRuntimeInput {
+    #[serde(default)]
+    pub provider_config: Value,
+    pub operation: ProviderAuthOperation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderAuthStatus {
+    Pending,
+    Authorized,
+    Failed,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderAuthUserActionKind {
+    DeviceCode,
+    PasteCallbackUrl,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderAuthUserAction {
+    pub kind: ProviderAuthUserActionKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub open_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub poll_interval_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderAuthResult {
+    pub status: ProviderAuthStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_action: Option<ProviderAuthUserAction>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub managed_secret_patch: BTreeMap<String, Value>,
+}
+
+impl ProviderStdioResponse {
+    pub fn ok(result: Value) -> Self {
+        Self {
+            ok: true,
+            result,
+            error: None,
+        }
+    }
+
+    pub fn error(kind: &str, message: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            result: Value::Null,
+            error: Some(ProviderStdioError {
+                kind: kind.to_string(),
+                message: message.into(),
+                provider_summary: None,
+                provider_details: None,
+            }),
+        }
+    }
+
+    pub fn runtime_error(error: ProviderRuntimeError) -> Self {
+        let kind = serde_json::to_value(&error.kind)
+            .ok()
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| "provider_invalid_response".to_string());
+        Self {
+            ok: false,
+            result: Value::Null,
+            error: Some(ProviderStdioError {
+                kind,
+                message: error.message,
+                provider_summary: error.provider_summary,
+                provider_details: error.provider_details,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct ProviderConfig {
+    base_url: String,
+    access_token: String,
+    chatgpt_account_id: Option<String>,
+    instance_cookie_key: Option<String>,
+    organization: Option<String>,
+    project: Option<String>,
+    validate_model: bool,
+    transport_mode: ChatGptTransportMode,
+    proxy_url: Option<String>,
+}
+
+impl fmt::Debug for ProviderConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ProviderConfig")
+            .field("base_url", &self.base_url)
+            .field("access_token", &"***")
+            .field(
+                "chatgpt_account_id",
+                &self.chatgpt_account_id.as_ref().map(|_| "***"),
+            )
+            .field(
+                "instance_cookie_key",
+                &self.instance_cookie_key.as_ref().map(|_| "***"),
+            )
+            .field("organization", &self.organization)
+            .field("project", &self.project)
+            .field("validate_model", &self.validate_model)
+            .field("transport_mode", &self.transport_mode)
+            .field("proxy_url", &self.proxy_url.as_ref().map(|_| "***"))
+            .finish()
+    }
+}
+
+#[derive(Debug, Default)]
+struct CloudflareCookieStore {
+    jar: Jar,
+}
+
+impl CookieStore for CloudflareCookieStore {
+    fn set_cookies(&self, cookie_headers: &mut dyn Iterator<Item = &HeaderValue>, url: &Url) {
+        if !is_chatgpt_cookie_url(url) {
+            return;
+        }
+        let mut allowed = cookie_headers.filter(is_allowed_cloudflare_set_cookie_header);
+        self.jar.set_cookies(&mut allowed, url);
+    }
+
+    fn cookies(&self, url: &Url) -> Option<HeaderValue> {
+        is_chatgpt_cookie_url(url)
+            .then(|| self.jar.cookies(url))
+            .flatten()
+            .and_then(only_cloudflare_cookies)
+    }
+}
+
+static INSTANCE_CLOUDFLARE_COOKIE_STORES: OnceLock<
+    Mutex<HashMap<String, Arc<CloudflareCookieStore>>>,
+> = OnceLock::new();
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChatGptTransportMode {
+    Auto,
+    HttpSse,
+    ResponsesWebsocket,
+}
+
+impl ChatGptTransportMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::HttpSse => "http_sse",
+            Self::ResponsesWebsocket => "responses_websocket",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ProviderUsage {
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub reasoning_tokens: Option<u64>,
+    pub cache_read_tokens: Option<u64>,
+    pub cache_write_tokens: Option<u64>,
+    pub total_tokens: Option<u64>,
+}
+
+impl ProviderUsage {
+    fn has_any_value(&self) -> bool {
+        self.input_tokens.is_some()
+            || self.output_tokens.is_some()
+            || self.reasoning_tokens.is_some()
+            || self.cache_read_tokens.is_some()
+            || self.cache_write_tokens.is_some()
+            || self.total_tokens.is_some()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProviderModelDescriptor {
+    model_id: String,
+    display_name: String,
+    source: String,
+    supports_streaming: bool,
+    supports_tool_call: bool,
+    supports_multimodal: bool,
+    context_window: Option<u64>,
+    max_output_tokens: Option<u64>,
+    provider_metadata: Value,
+}
+
+#[derive(Debug, Clone)]
+struct ModelCatalogCache {
+    key: String,
+    models: Vec<ProviderModelDescriptor>,
+    etag: Option<String>,
+    fresh_until: Instant,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderMessage {
+    pub role: ProviderMessageRole,
+    pub content: String,
+    #[serde(default)]
+    pub content_blocks: Option<Value>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub tool_call_id: Option<String>,
+    #[serde(default)]
+    pub is_error: Option<bool>,
+    #[serde(default)]
+    pub tool_calls: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMessageRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum ProviderInvocationContractVersion {
+    #[serde(rename = "1flowbase.provider/v2")]
+    #[default]
+    Current,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NativePromptBlock {
+    Text {
+        text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_control: Option<NativePromptCacheControl>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativePromptCacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: NativePromptCacheControlType,
+    #[serde(default)]
+    pub ttl: Option<NativePromptCacheTtl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativePromptCacheControlType {
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum NativePromptCacheTtl {
+    #[serde(rename = "5m")]
+    FiveMinutes,
+    #[serde(rename = "1h")]
+    OneHour,
+}
+
+impl NativePromptBlock {
+    fn text_content(&self) -> &str {
+        match self {
+            Self::Text { text, .. } => text,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct NativeModelRequestContext {
+    #[serde(default)]
+    pub end_user_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderInvocationCapability {
+    CountTokens,
+    #[serde(rename = "compact.responses_compact")]
+    CompactResponsesCompact,
+    #[serde(rename = "compact.responses_compaction_v2")]
+    CompactResponsesCompactionV2,
+    #[serde(rename = "responses.native_passthrough")]
+    ResponsesNativePassthrough,
+    ReasoningOutputSupported,
+    ReasoningHistoryInputSupported,
+    NativeContinuationSupported,
+    SystemPromptBlocks,
+    SystemPromptCacheControl,
+    EndUserReference,
+    #[serde(rename = "message_blocks.reasoning_history.v1")]
+    MessageBlocksReasoningHistoryV1,
+    #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
+    MessageBlocksRedactedReasoningHistoryV1,
+    ProtocolContext,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct ProviderNativeTransport {
+    pub protocol: String,
+    pub wire_body: Value,
+    pub digest: String,
+    pub size_bytes: u64,
+}
+
+impl std::fmt::Debug for ProviderNativeTransport {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProviderNativeTransport")
+            .field("protocol", &self.protocol)
+            .field("digest", &self.digest)
+            .field("size_bytes", &self.size_bytes)
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderCompactProfile {
+    ResponsesCompact,
+    ResponsesCompactionV2,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderWireOperation {
+    #[default]
+    Generate,
+    CountTokens,
+    Compact,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderInvocationInput {
+    #[serde(default)]
+    pub operation: ProviderWireOperation,
+    pub contract_version: ProviderInvocationContractVersion,
+    #[serde(default)]
+    pub profile: Option<ProviderCompactProfile>,
+    pub provider_instance_id: String,
+    pub provider_code: String,
+    pub protocol: String,
+    pub model: String,
+    #[serde(default)]
+    pub previous_response_id: Option<String>,
+    #[serde(default)]
+    pub provider_config: Value,
+    #[serde(default)]
+    pub messages: Vec<ProviderMessage>,
+    #[serde(default)]
+    pub system: Vec<NativePromptBlock>,
+    #[serde(default)]
+    pub request_context: NativeModelRequestContext,
+    #[serde(default)]
+    pub required_capabilities: BTreeSet<ProviderInvocationCapability>,
+    #[serde(default)]
+    pub tools: Vec<Value>,
+    #[serde(default)]
+    pub mcp_bindings: Vec<Value>,
+    #[serde(default)]
+    pub response_format: Option<Value>,
+    #[serde(default)]
+    pub model_parameters: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub trace_context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub run_context: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
+    #[serde(default)]
+    pub native_transport: Option<ProviderNativeTransport>,
+}
+
+impl ProviderInvocationInput {
+    fn system_text(&self) -> Option<String> {
+        let text = self
+            .system
+            .iter()
+            .map(NativePromptBlock::text_content)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        (!text.is_empty()).then_some(text)
+    }
+
+    fn ensure_generate_operation(&self) -> Result<()> {
+        if self.operation != ProviderWireOperation::Generate {
+            bail!("Generate input must declare operation=generate");
+        }
+        if self.profile.is_some() {
+            bail!("Generate input must not declare a compact profile");
+        }
+        Ok(())
+    }
+
+    fn compact_profile(&self) -> Result<ProviderCompactProfile> {
+        if self.operation != ProviderWireOperation::Compact {
+            bail!("Compact input must declare operation=compact");
+        }
+        self.profile
+            .ok_or_else(|| anyhow!("Compact input must declare a compact profile"))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChatGptReasoningMode {
+    Adaptive,
+    Enabled,
+    Disabled,
+}
+
+impl ChatGptReasoningMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Adaptive => "adaptive",
+            Self::Enabled => "enabled",
+            Self::Disabled => "disabled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ChatGptReasoningIntent {
+    mode: Option<ChatGptReasoningMode>,
+    effort: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ChatGptModelIntent {
+    requested_context_window: Option<u64>,
+    reasoning: Option<ChatGptReasoningIntent>,
+}
+
+impl ChatGptModelIntent {
+    fn provider_metadata(&self) -> Value {
+        let mut metadata = Map::new();
+        if let Some(requested_context_window) = self.requested_context_window {
+            metadata.insert(
+                "requested_context_window".to_string(),
+                Value::Number(requested_context_window.into()),
+            );
+        }
+        if let Some(reasoning) = &self.reasoning {
+            let mut value = Map::new();
+            if let Some(mode) = reasoning.mode {
+                value.insert("mode".to_string(), Value::String(mode.as_str().to_string()));
+            }
+            if let Some(effort) = &reasoning.effort {
+                value.insert("effort".to_string(), Value::String(effort.clone()));
+            }
+            metadata.insert("reasoning".to_string(), Value::Object(value));
+        }
+        Value::Object(metadata)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PreparedChatGptRequest {
+    protocol: ChatGptWireProtocol,
+    pathname: &'static str,
+    body: Value,
+    protocol_context: RestoredProtocolContext,
+    model_intent: ChatGptModelIntent,
+    translation_decisions: Vec<&'static str>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderToolCall {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub arguments: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderMcpCall {
+    pub id: String,
+    pub server: String,
+    pub method: String,
+    #[serde(default)]
+    pub arguments: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderFinishReason {
+    Stop,
+    Length,
+    ToolCall,
+    ContentFilter,
+    Error,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderInvocationResult {
+    pub final_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub tool_calls: Vec<ProviderToolCall>,
+    #[serde(default)]
+    pub mcp_calls: Vec<ProviderMcpCall>,
+    #[serde(default)]
+    pub usage: ProviderUsage,
+    pub finish_reason: Option<ProviderFinishReason>,
+    #[serde(default)]
+    pub provider_metadata: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ProviderStreamEvent {
+    NativeEvent {
+        protocol: String,
+        event: Value,
+    },
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
+    OutputItem {
+        phase: ProviderOutputItemPhase,
+        output_index: usize,
+        item: Value,
+    },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    Error {
+        error: ProviderRuntimeError,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderOutputItemPhase {
+    Added,
+    Done,
+}
+
+#[derive(Debug, Default)]
+struct ResponseToolCalls {
+    calls: Vec<ProviderToolCall>,
+    item_id_to_call_id: HashMap<String, String>,
+}
+
+impl std::ops::Deref for ResponseToolCalls {
+    type Target = [ProviderToolCall];
+
+    fn deref(&self) -> &Self::Target {
+        &self.calls
+    }
+}
+
+impl ResponseToolCalls {
+    fn into_vec(self) -> Vec<ProviderToolCall> {
+        self.calls
+    }
+
+    fn upsert_from_added_item(&mut self, item: Option<&Value>) {
+        let Some(item) = item else {
+            return;
+        };
+        let has_stable_tool_identity = item
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty());
+        if has_stable_tool_identity {
+            self.upsert_from_item(Some(item));
+        }
+    }
+
+    fn upsert_from_item(&mut self, item: Option<&Value>) {
+        let item_id = response_item_id(item);
+        if let Some(call) = provider_tool_call_from_response_item(item) {
+            self.upsert(call, item_id);
+        }
+    }
+
+    fn upsert(&mut self, mut call: ProviderToolCall, item_id: Option<String>) {
+        if let Some(item_id) = item_id.filter(|value| !value.is_empty()) {
+            if item_id != call.id {
+                if let Some(position) = self
+                    .calls
+                    .iter()
+                    .position(|existing| existing.id == item_id)
+                {
+                    let previous = self.calls.remove(position);
+                    merge_tool_call_fields(&mut call, previous);
+                }
+            }
+            self.item_id_to_call_id.insert(item_id, call.id.clone());
+        }
+        upsert_tool_call(&mut self.calls, call);
+    }
+
+    fn find_by_id_or_item_id(&self, id: &str) -> Option<&ProviderToolCall> {
+        let resolved_id = self
+            .item_id_to_call_id
+            .get(id)
+            .map(String::as_str)
+            .unwrap_or(id);
+        self.calls.iter().find(|call| call.id == resolved_id)
+    }
+
+    fn call_id_for_item_id(&self, item_id: &str) -> Option<&str> {
+        self.item_id_to_call_id.get(item_id).map(String::as_str)
+    }
+}
+
+fn merge_tool_call_fields(call: &mut ProviderToolCall, previous: ProviderToolCall) {
+    if call.name == "unknown_tool" && previous.name != "unknown_tool" {
+        call.name = previous.name;
+    }
+    if tool_call_arguments_empty(&call.arguments) && !tool_call_arguments_empty(&previous.arguments)
+    {
+        call.arguments = previous.arguments;
+    }
+}
+
+fn tool_call_arguments_empty(arguments: &Value) -> bool {
+    match arguments {
+        Value::Null => true,
+        Value::Object(map) => map.is_empty(),
+        Value::String(text) => text.is_empty(),
+        _ => false,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RuntimeInvocationEnvelope {
+    pub events: Vec<ProviderStreamEvent>,
+    pub result: ProviderInvocationResult,
+}
+
+/// Compact never reuses the Generate envelope. V2 carries only the opaque
+/// provider-produced encrypted value after its completed-response checks.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "result_type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ProviderCompactResult {
+    ResponseItems {
+        operation: ProviderWireOperation,
+        profile: ProviderCompactProfile,
+        response_items: Vec<Value>,
+    },
+    CompletedOpaqueCompactionItem {
+        operation: ProviderWireOperation,
+        profile: ProviderCompactProfile,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        response_id: Option<String>,
+        compaction_item: Value,
+        encrypted_content: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeErrorKind {
+    AuthFailed,
+    EndpointUnreachable,
+    ModelNotFound,
+    RateLimited,
+    ProviderUpstreamError,
+    ProviderInvalidResponse,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProviderRuntimeError {
+    pub kind: ProviderRuntimeErrorKind,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<Value>,
+}
+
+impl ProviderRuntimeError {
+    pub fn normalize<M>(code: &str, message: M, provider_summary: Option<&str>) -> Self
+    where
+        M: Into<String>,
+    {
+        let message = message.into();
+        let haystack = format!("{code} {message}").to_ascii_lowercase();
+        let kind = if haystack.contains("auth")
+            || haystack.contains("access_token")
+            || haystack.contains("unauthorized")
+            || haystack.contains("forbidden")
+            || haystack.contains("401")
+        {
+            ProviderRuntimeErrorKind::AuthFailed
+        } else if haystack.contains("rate")
+            || haystack.contains("quota")
+            || haystack.contains("too_many")
+            || haystack.contains("429")
+        {
+            ProviderRuntimeErrorKind::RateLimited
+        } else if (haystack.contains("model") && haystack.contains("not found"))
+            || haystack.contains("unknown_model")
+            || haystack.contains("model_not_found")
+        {
+            ProviderRuntimeErrorKind::ModelNotFound
+        } else if haystack.contains("timeout")
+            || haystack.contains("connect")
+            || haystack.contains("unreachable")
+            || haystack.contains("refused")
+            || haystack.contains("dns")
+            || haystack.contains("503")
+        {
+            ProviderRuntimeErrorKind::EndpointUnreachable
+        } else {
+            ProviderRuntimeErrorKind::ProviderInvalidResponse
+        };
+
+        Self {
+            kind,
+            message,
+            provider_summary: provider_summary.map(ToOwned::to_owned),
+            provider_details: None,
+        }
+    }
+}
+
+impl fmt::Display for ProviderRuntimeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.provider_summary {
+            Some(summary) => write!(formatter, "{:?}: {} ({summary})", self.kind, self.message),
+            None => write!(formatter, "{:?}: {}", self.kind, self.message),
+        }
+    }
+}
+
+impl std::error::Error for ProviderRuntimeError {}
+
+#[derive(Debug, Default)]
+pub struct ChatGptProviderRuntime {
+    model_catalog_cache: Option<ModelCatalogCache>,
+    websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
+    websocket_response_ids_seen: HashSet<String>,
+    websocket_turn_states_by_response_id: HashMap<String, String>,
+    websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
+}
+
+impl ChatGptProviderRuntime {
+    pub async fn handle_request(
+        &mut self,
+        request: ProviderStdioRequest,
+    ) -> Result<ProviderStdioResponse> {
+        match request.method.as_str() {
+            "auth" => {
+                let input: ProviderAuthRuntimeInput = serde_json::from_value(request.input)?;
+                Ok(ProviderStdioResponse::ok(serde_json::to_value(
+                    auth::authenticate(input).await?,
+                )?))
+            }
+            "validate" => {
+                let config = normalize_provider_config(&request.input)?;
+                let model_count = if config.validate_model {
+                    self.list_models(&config).await?.len()
+                } else {
+                    0
+                };
+                Ok(ProviderStdioResponse::ok(json!({
+                    "ok": true,
+                    "provider_code": PROVIDER_CODE,
+                    "sanitized": {
+                        "base_url": config.base_url,
+                        "access_token": "***",
+                        "organization": config.organization,
+                        "project": config.project,
+                        "transport_mode": config.transport_mode.as_str(),
+                        "proxy_url": config.proxy_url.as_ref().map(|_| "***"),
+                    },
+                    "model_count": model_count,
+                })))
+            }
+            "list_models" => {
+                let config = normalize_provider_config(&request.input)?;
+                Ok(ProviderStdioResponse::ok(json!(
+                    self.list_models(&config).await?
+                )))
+            }
+            "invoke" => {
+                if request.input.get("operation").and_then(Value::as_str) == Some("count_tokens") {
+                    return Ok(ProviderStdioResponse::ok(count_tokens_result(
+                        request.input,
+                    )));
+                }
+                let input: ProviderInvocationInput = serde_json::from_value(request.input)?;
+                let output = match input.operation {
+                    ProviderWireOperation::Generate => {
+                        serde_json::to_value(self.invoke_response(input).await?)?
+                    }
+                    ProviderWireOperation::Compact => {
+                        serde_json::to_value(self.invoke_compact_response(input).await?)?
+                    }
+                    ProviderWireOperation::CountTokens => unreachable!("handled above"),
+                };
+                Ok(ProviderStdioResponse::ok(output))
+            }
+            other => Ok(ProviderStdioResponse::error(
+                "provider_invalid_response",
+                format!("unsupported method: {other}"),
+            )),
+        }
+    }
+
+    pub async fn handle_invoke_request_streaming<F>(
+        &mut self,
+        input: Value,
+        on_event: F,
+    ) -> Result<ProviderInvocationResult>
+    where
+        F: FnMut(&ProviderStreamEvent) -> Result<()>,
+    {
+        let input: ProviderInvocationInput = serde_json::from_value(input)?;
+        input.ensure_generate_operation()?;
+        let output = self
+            .invoke_response_with_event_sink(input, on_event)
+            .await?;
+        Ok(output.result)
+    }
+
+    async fn invoke_response(
+        &mut self,
+        input: ProviderInvocationInput,
+    ) -> Result<RuntimeInvocationEnvelope> {
+        self.invoke_response_with_event_sink(input, |_| Ok(()))
+            .await
+    }
+
+    async fn invoke_compact_response(
+        &mut self,
+        input: ProviderInvocationInput,
+    ) -> Result<ProviderCompactResult> {
+        let profile = input.compact_profile()?;
+        let config = normalize_provider_config(&input.provider_config)?;
+        let pathname = match profile {
+            ProviderCompactProfile::ResponsesCompact => "/responses/compact",
+            ProviderCompactProfile::ResponsesCompactionV2 => "/responses",
+        };
+        let request = prepare_openai_request(
+            &input,
+            ChatGptWireProtocol::Responses,
+            pathname,
+            build_compact_body(&input, profile)?,
+        )?;
+        let payload = request_json_with_protocol_context(
+            &config,
+            request.pathname,
+            Method::POST,
+            Some(request.body),
+            &request.protocol_context,
+        )
+        .await?;
+        compact_result_from_upstream(profile, payload)
+    }
+
+    async fn list_models(
+        &mut self,
+        config: &ProviderConfig,
+    ) -> Result<Vec<ProviderModelDescriptor>> {
+        let key = model_catalog_key(config);
+        let now = Instant::now();
+        if let Some(cache) = self
+            .model_catalog_cache
+            .as_ref()
+            .filter(|cache| cache.key == key && cache.fresh_until > now)
+        {
+            return Ok(cache.models.clone());
+        }
+
+        let stale = self
+            .model_catalog_cache
+            .as_ref()
+            .filter(|cache| cache.key == key)
+            .cloned();
+        match fetch_model_catalog(
+            config,
+            stale.as_ref().and_then(|cache| cache.etag.as_deref()),
+        )
+        .await
+        {
+            Ok(ModelCatalogFetch::NotModified) => {
+                let Some(mut cache) = stale else {
+                    bail!("ChatGPT model catalog returned 304 without a local cache");
+                };
+                cache.fresh_until = Instant::now() + MODEL_CACHE_TTL;
+                let models = cache.models.clone();
+                self.model_catalog_cache = Some(cache);
+                Ok(models)
+            }
+            Ok(ModelCatalogFetch::Fresh { models, etag }) => {
+                self.model_catalog_cache = Some(ModelCatalogCache {
+                    key,
+                    models: models.clone(),
+                    etag,
+                    fresh_until: Instant::now() + MODEL_CACHE_TTL,
+                });
+                Ok(models)
+            }
+            Err(error) if stale.is_some() && model_catalog_failure_is_transient(&error) => {
+                Ok(stale.expect("stale cache checked above").models)
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+pub async fn handle_request(request: ProviderStdioRequest) -> Result<ProviderStdioResponse> {
+    ChatGptProviderRuntime::default()
+        .handle_request(request)
+        .await
+}
+
+pub async fn handle_invoke_request_streaming<F>(
+    input: Value,
+    on_event: F,
+) -> Result<ProviderInvocationResult>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    ChatGptProviderRuntime::default()
+        .handle_invoke_request_streaming(input, on_event)
+        .await
+}
+
+fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
+    let config = input
+        .as_object()
+        .ok_or_else(|| anyhow!("provider_config must be an object"))?;
+    Ok(ProviderConfig {
+        base_url: optional_text(config.get("base_url"))
+            .unwrap_or_else(|| DEFAULT_BASE_URL.to_string()),
+        access_token: require_text(config.get("access_token"), "access_token")?,
+        chatgpt_account_id: optional_text(config.get("chatgpt_account_id")),
+        instance_cookie_key: optional_text(config.get("instance_cookie_key")),
+        organization: optional_text(config.get("organization")),
+        project: optional_text(config.get("project")),
+        validate_model: config
+            .get("validate_model")
+            .and_then(Value::as_bool)
+            .unwrap_or(DEFAULT_VALIDATE_MODEL),
+        transport_mode: normalize_transport_mode(config.get("transport_mode"))?,
+        proxy_url: normalize_proxy_url(config.get("proxy_url"))?,
+    })
+}
+
+fn normalize_transport_mode(value: Option<&Value>) -> Result<ChatGptTransportMode> {
+    let Some(value) = value else {
+        return Ok(ChatGptTransportMode::HttpSse);
+    };
+    let text = value_to_string(value).trim().to_ascii_lowercase();
+    match text.as_str() {
+        "" | "auto" => Ok(ChatGptTransportMode::Auto),
+        "http_sse" | "sse" | "http" => Ok(ChatGptTransportMode::HttpSse),
+        "responses_websocket" | "websocket" | "ws" => Ok(ChatGptTransportMode::ResponsesWebsocket),
+        other => bail!("unsupported transport_mode: {other}"),
+    }
+}
+
+/// Resolves the Responses transport declared by this LLM node. A missing node
+/// option preserves the provider-instance setting so existing published flows
+/// keep their transport behavior after the provider upgrade.
+fn resolve_responses_node_transport(
+    config: &ProviderConfig,
+    input: &ProviderInvocationInput,
+) -> Result<ChatGptTransportMode> {
+    match input.model_parameters.get("use_responses_websocket") {
+        None => Ok(config.transport_mode),
+        Some(Value::Bool(true)) => Ok(ChatGptTransportMode::ResponsesWebsocket),
+        Some(Value::Bool(false)) => Ok(ChatGptTransportMode::HttpSse),
+        Some(_) => bail!("use_responses_websocket must be a boolean"),
+    }
+}
+
+fn require_text(value: Option<&Value>, field: &str) -> Result<String> {
+    let text = value
+        .map(value_to_string)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if text.is_empty() {
+        bail!("{field} is required");
+    }
+    Ok(text)
+}
+
+fn optional_text(value: Option<&Value>) -> Option<String> {
+    let text = value
+        .map(value_to_string)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    (!text.is_empty()).then_some(text)
+}
+
+fn normalize_proxy_url(value: Option<&Value>) -> Result<Option<String>> {
+    let Some(proxy_url) = optional_text(value) else {
+        return Ok(None);
+    };
+    let parsed = Url::parse(&proxy_url).with_context(|| "invalid proxy_url")?;
+    if parsed.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    Ok(Some(parsed.to_string()))
+}
+
+fn chatgpt_instance_cookie_store(config: &ProviderConfig) -> Option<Arc<CloudflareCookieStore>> {
+    let cookie_key = config.instance_cookie_key.as_deref()?;
+    let base_url = Url::parse(&config.base_url).ok()?;
+    if !is_chatgpt_cookie_url(&base_url) {
+        return None;
+    }
+    let stores = INSTANCE_CLOUDFLARE_COOKIE_STORES.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut stores = stores
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    Some(
+        stores
+            .entry(cookie_key.to_string())
+            .or_insert_with(|| Arc::new(CloudflareCookieStore::default()))
+            .clone(),
+    )
+}
+
+fn is_chatgpt_cookie_url(url: &Url) -> bool {
+    url.scheme() == "https" && url.host_str().is_some_and(is_allowed_chatgpt_host)
+}
+
+fn is_allowed_chatgpt_host(host: &str) -> bool {
+    matches!(
+        host,
+        "chatgpt.com" | "chat.openai.com" | "chatgpt-staging.com"
+    ) || host.ends_with(".chatgpt.com")
+        || host.ends_with(".chatgpt-staging.com")
+}
+
+fn is_allowed_cloudflare_set_cookie_header(header: &&HeaderValue) -> bool {
+    header
+        .to_str()
+        .ok()
+        .and_then(set_cookie_name)
+        .is_some_and(is_allowed_cloudflare_cookie_name)
+}
+
+fn set_cookie_name(header: &str) -> Option<&str> {
+    let (name, _) = header.split_once('=')?;
+    let name = name.trim();
+    (!name.is_empty()).then_some(name)
+}
+
+fn only_cloudflare_cookies(header: HeaderValue) -> Option<HeaderValue> {
+    let header = header.to_str().ok()?;
+    let cookies = header
+        .split(';')
+        .filter_map(|cookie| {
+            let cookie = cookie.trim();
+            let name = cookie.split_once('=')?.0.trim();
+            is_allowed_cloudflare_cookie_name(name).then_some(cookie)
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    (!cookies.is_empty())
+        .then(|| HeaderValue::from_str(&cookies).ok())
+        .flatten()
+}
+
+fn is_allowed_cloudflare_cookie_name(name: &str) -> bool {
+    matches!(
+        name,
+        "__cf_bm"
+            | "__cflb"
+            | "__cfruid"
+            | "__cfseq"
+            | "__cfwaitingroom"
+            | "_cfuvid"
+            | "cf_clearance"
+            | "cf_ob_info"
+            | "cf_use_ob"
+    ) || name.starts_with("cf_chl_")
+}
+
+fn value_to_string(value: &Value) -> String {
+    match value {
+        Value::Null => String::new(),
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
+}
+
+fn build_json_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<HeaderMap> {
+    build_headers(
+        config,
+        include_json_body,
+        "application/json",
+        protocol_context,
+    )
+}
+
+fn build_stream_headers(
+    config: &ProviderConfig,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<HeaderMap> {
+    build_headers(config, true, "text/event-stream", protocol_context)
+}
+
+fn build_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    accept: &'static str,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<HeaderMap> {
+    let mut headers = build_base_headers(config, include_json_body, accept)?;
+    append_protocol_headers(&mut headers, protocol_context)?;
+    inject_provider_auth(&mut headers, config)?;
+    Ok(headers)
+}
+
+fn build_base_headers(
+    config: &ProviderConfig,
+    include_json_body: bool,
+    accept: &'static str,
+) -> Result<HeaderMap> {
+    let mut headers = HeaderMap::new();
+    headers.insert(ACCEPT, HeaderValue::from_static(accept));
+    if include_json_body {
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    }
+    headers.insert(
+        HeaderName::from_static("originator"),
+        HeaderValue::from_static("codex_cli_rs"),
+    );
+    headers.insert(
+        HeaderName::from_static("user-agent"),
+        HeaderValue::from_static("codex_cli_rs/0.1.0"),
+    );
+    if let Some(organization) = &config.organization {
+        headers.insert(
+            HeaderName::from_static("openai-organization"),
+            HeaderValue::from_str(organization).context("invalid organization header")?,
+        );
+    }
+    if let Some(project) = &config.project {
+        headers.insert(
+            HeaderName::from_static("openai-project"),
+            HeaderValue::from_str(project).context("invalid project header")?,
+        );
+    }
+    Ok(headers)
+}
+
+fn inject_provider_auth(headers: &mut HeaderMap, config: &ProviderConfig) -> Result<()> {
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", config.access_token))
+            .context("invalid access_token for authorization header")?,
+    );
+    if let Some(account_id) = &config.chatgpt_account_id {
+        headers.insert(
+            HeaderName::from_static("chatgpt-account-id"),
+            HeaderValue::from_str(account_id).context("invalid chatgpt_account_id header")?,
+        );
+    }
+    Ok(())
+}
+
+fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(300))
+        .gzip(true)
+        .brotli(true)
+        .deflate(true);
+    if let Some(cookie_store) = chatgpt_instance_cookie_store(config) {
+        builder = builder.cookie_provider(cookie_store);
+    }
+    if let Some(proxy_url) = &config.proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
+    }
+    builder.build().context("building ChatGPT HTTP client")
+}
+
+fn sanitize_reqwest_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
+    anyhow!(redact_config_secrets(config, &error.to_string()))
+}
+
+fn redact_config_secrets(config: &ProviderConfig, message: &str) -> String {
+    let mut sanitized = message.replace(&config.access_token, "***");
+    if let Some(proxy_url) = &config.proxy_url {
+        sanitized = sanitized.replace(proxy_url, "***");
+    }
+    sanitized
+}
+
+fn build_url_with_protocol_context(
+    config: &ProviderConfig,
+    pathname: &str,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<String> {
+    let base_url = config.base_url.trim_end_matches('/');
+    let mut url = Url::parse(&format!("{base_url}{pathname}"))
+        .with_context(|| format!("invalid base_url: {}", config.base_url))?;
+    append_protocol_query(&mut url, protocol_context)?;
+    Ok(url.to_string())
+}
+
+enum ModelCatalogFetch {
+    NotModified,
+    Fresh {
+        models: Vec<ProviderModelDescriptor>,
+        etag: Option<String>,
+    },
+}
+
+async fn fetch_model_catalog(
+    config: &ProviderConfig,
+    known_etag: Option<&str>,
+) -> Result<ModelCatalogFetch> {
+    let client = build_http_client(config)?;
+    let mut request = client
+        .get(build_url_with_protocol_context(
+            config,
+            "/models",
+            &RestoredProtocolContext::default(),
+        )?)
+        .headers(build_json_headers(
+            config,
+            false,
+            &RestoredProtocolContext::default(),
+        )?);
+    if let Some(etag) = known_etag {
+        request = request.header("if-none-match", etag);
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
+    if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+        return Ok(ModelCatalogFetch::NotModified);
+    }
+    if !response.status().is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
+    let etag = response
+        .headers()
+        .get("etag")
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned);
+    let payload = parse_json_response_text(&response.text().await?)?;
+    Ok(ModelCatalogFetch::Fresh {
+        models: normalize_model_entries(&payload)?,
+        etag,
+    })
+}
+
+fn model_catalog_key(config: &ProviderConfig) -> String {
+    format!(
+        "{}\u{1f}{}\u{1f}{}",
+        config.base_url.trim_end_matches('/'),
+        config.chatgpt_account_id.as_deref().unwrap_or_default(),
+        config.instance_cookie_key.as_deref().unwrap_or_default()
+    )
+}
+
+fn model_catalog_failure_is_transient(error: &anyhow::Error) -> bool {
+    if let Some(runtime_error) = error.downcast_ref::<ProviderRuntimeError>() {
+        return runtime_error
+            .provider_details
+            .as_ref()
+            .and_then(|details| details.get("status"))
+            .and_then(Value::as_u64)
+            .is_some_and(|status| status == 429 || status >= 500);
+    }
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("timeout")
+        || message.contains("connection")
+        || message.contains("connect")
+        || message.contains("dns")
+}
+
+async fn request_json_with_protocol_context(
+    config: &ProviderConfig,
+    pathname: &str,
+    method: Method,
+    body: Option<Value>,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<Value> {
+    let client = build_http_client(config)?;
+    let mut request = client
+        .request(
+            method,
+            build_url_with_protocol_context(config, pathname, protocol_context)?,
+        )
+        .headers(build_json_headers(
+            config,
+            body.is_some(),
+            protocol_context,
+        )?);
+    if let Some(body) = body {
+        request = request.json(&body);
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
+    let text = response.text().await?;
+    parse_json_response_text(&text)
+}
+
+fn parse_json_response_text(text: &str) -> Result<Value> {
+    if text.trim().is_empty() {
+        return Ok(json!({}));
+    }
+    serde_json::from_str(text).with_context(|| "provider returned invalid JSON")
+}
+
+async fn provider_upstream_error_from_response(
+    response: reqwest::Response,
+) -> Result<ProviderRuntimeError> {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let raw_body = response.text().await?;
+    Ok(provider_upstream_error_from_parts(
+        status, &headers, raw_body,
+    ))
+}
+
+fn provider_upstream_error_from_parts(
+    status: reqwest::StatusCode,
+    headers: &HeaderMap,
+    raw_body: String,
+) -> ProviderRuntimeError {
+    let message = upstream_error_body_message(status, &raw_body);
+    let mut provider_details = Map::new();
+    provider_details.insert("status".to_string(), json!(status.as_u16()));
+    if let Some(request_id) = response_request_id(headers) {
+        provider_details.insert("request_id".to_string(), json!(request_id));
+    }
+    ProviderRuntimeError {
+        kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
+        message: message.clone(),
+        provider_summary: Some(message),
+        provider_details: Some(Value::Object(provider_details)),
+    }
+}
+
+fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
+    if raw_body.is_empty() {
+        format!("HTTP {status}")
+    } else if let Some(message) = mixed_json_sse_error_message(raw_body) {
+        message
+    } else {
+        raw_body.to_string()
+    }
+}
+
+fn mixed_json_sse_error_message(raw_body: &str) -> Option<String> {
+    let (json_prefix, trailing) = raw_body.split_once('\n')?;
+    if !trailing.trim_start().starts_with("data:") {
+        return None;
+    }
+    serde_json::from_str::<Value>(json_prefix)
+        .ok()?
+        .get("error")?
+        .get("message")?
+        .as_str()
+        .map(str::to_string)
+}
+
+fn response_request_id(headers: &HeaderMap) -> Option<String> {
+    ["x-request-id", "request-id", "openai-request-id", "cf-ray"]
+        .iter()
+        .find_map(|name| {
+            headers
+                .get(*name)
+                .and_then(|value| value.to_str().ok())
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| value.chars().take(128).collect())
+        })
+}
+
+fn normalize_model_entries(raw: &Value) -> Result<Vec<ProviderModelDescriptor>> {
+    let entries = raw
+        .get("models")
+        .or_else(|| raw.get("data"))
+        .unwrap_or(raw)
+        .as_array()
+        .ok_or_else(|| anyhow!("model list response must contain models or data array"))?;
+    entries.iter().map(normalize_model_entry).collect()
+}
+
+fn normalize_model_entry(entry: &Value) -> Result<ProviderModelDescriptor> {
+    let model_id = entry
+        .get("slug")
+        .or_else(|| entry.get("id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow!("model id is required"))?
+        .to_string();
+    Ok(ProviderModelDescriptor {
+        display_name: entry
+            .get("display_name")
+            .or_else(|| entry.get("name"))
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(&model_id)
+            .to_string(),
+        model_id,
+        source: "dynamic".to_string(),
+        supports_streaming: true,
+        supports_tool_call: true,
+        supports_multimodal: true,
+        context_window: None,
+        max_output_tokens: None,
+        provider_metadata: entry.clone(),
+    })
+}
+
+impl ChatGptProviderRuntime {
+    async fn invoke_response_with_event_sink<F>(
+        &mut self,
+        input: ProviderInvocationInput,
+        mut on_event: F,
+    ) -> Result<RuntimeInvocationEnvelope>
+    where
+        F: FnMut(&ProviderStreamEvent) -> Result<()>,
+    {
+        input.ensure_generate_operation()?;
+        let config = normalize_provider_config(&input.provider_config)?;
+        let request = build_openai_generate_request(&input)?;
+        let body = request.body.clone();
+        let native_passthrough = input.native_transport.is_some();
+        let transport_mode = if native_passthrough || request.protocol == ChatGptWireProtocol::Chat
+        {
+            ChatGptTransportMode::HttpSse
+        } else {
+            resolve_responses_node_transport(&config, &input)?
+        };
+        let mut output = match transport_mode {
+            ChatGptTransportMode::HttpSse => {
+                invoke_openai_http_sse(
+                    &config,
+                    request.protocol,
+                    request.pathname,
+                    body,
+                    input.model.clone(),
+                    &mut on_event,
+                    native_passthrough,
+                    &request.protocol_context,
+                )
+                .await
+            }
+            ChatGptTransportMode::ResponsesWebsocket => {
+                let requires_websocket_cursor =
+                    self.responses_body_uses_websocket_response_cursor(&body);
+                match self
+                    .invoke_response_websocket_with_cursor_retry(
+                        &config,
+                        &input,
+                        body.clone(),
+                        &request.protocol_context,
+                        &mut on_event,
+                    )
+                    .await
+                {
+                    Ok(output) => Ok(output),
+                    Err(error)
+                        if error.fallback_allowed
+                            && !requires_websocket_cursor
+                            && can_fallback_to_http(&error.source) =>
+                    {
+                        invoke_openai_http_sse(
+                            &config,
+                            request.protocol,
+                            request.pathname,
+                            body,
+                            input.model.clone(),
+                            &mut on_event,
+                            native_passthrough,
+                            &request.protocol_context,
+                        )
+                        .await
+                    }
+                    Err(error) => Err(error.source),
+                }
+            }
+            ChatGptTransportMode::Auto => {
+                let requires_websocket_cursor =
+                    self.responses_body_uses_websocket_response_cursor(&body);
+                match self
+                    .invoke_response_websocket_with_cursor_retry(
+                        &config,
+                        &input,
+                        body.clone(),
+                        &request.protocol_context,
+                        &mut on_event,
+                    )
+                    .await
+                {
+                    Ok(output) => Ok(output),
+                    Err(error)
+                        if error.fallback_allowed
+                            && !requires_websocket_cursor
+                            && can_fallback_to_http(&error.source) =>
+                    {
+                        invoke_openai_http_sse(
+                            &config,
+                            request.protocol,
+                            request.pathname,
+                            body,
+                            input.model.clone(),
+                            &mut on_event,
+                            native_passthrough,
+                            &request.protocol_context,
+                        )
+                        .await
+                    }
+                    Err(error) => Err(error.source),
+                }
+            }
+        }?;
+        attach_openai_model_intent(&mut output, &request.model_intent);
+        append_request_translation_decisions(
+            &mut output.result.provider_metadata,
+            request.translation_decisions.iter().copied(),
+        )?;
+        attach_foreign_protocol_context_decision(
+            &mut output.result.provider_metadata,
+            input.client_protocol_envelope.as_ref(),
+        )?;
+        Ok(output)
+    }
+
+    async fn invoke_response_websocket_with_cursor_retry<F>(
+        &mut self,
+        config: &ProviderConfig,
+        input: &ProviderInvocationInput,
+        body: Value,
+        protocol_context: &RestoredProtocolContext,
+        on_event: &mut F,
+    ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
+    where
+        F: FnMut(&ProviderStreamEvent) -> Result<()>,
+    {
+        let mut retry_body = body;
+        let mut reconnect_attempts = 0;
+        let mut full_context_retry_used = false;
+        loop {
+            let retry_response_id =
+                responses_body_previous_response_id(&retry_body).map(ToOwned::to_owned);
+            match self
+                .invoke_response_websocket(
+                    config,
+                    input,
+                    retry_body.clone(),
+                    protocol_context,
+                    on_event,
+                )
+                .await
+            {
+                Ok(output) => return Ok(output),
+                Err(error)
+                    if retry_response_id.is_some()
+                        && !full_context_retry_used
+                        && (error.reconnect_allowed || error.fallback_allowed)
+                        && websocket_previous_response_unavailable(&error.source) =>
+                {
+                    let Some(full_context_body) =
+                        retry_response_id.as_deref().and_then(|response_id| {
+                            self.websocket_full_context_retry_body(response_id, &retry_body)
+                        })
+                    else {
+                        return Err(error);
+                    };
+                    retry_body = full_context_body;
+                    reconnect_attempts = 0;
+                    full_context_retry_used = true;
+                    continue;
+                }
+                Err(error)
+                    if retry_response_id.is_some()
+                        && error.reconnect_allowed
+                        && reconnect_attempts < WEBSOCKET_CURSOR_RECONNECT_ATTEMPTS =>
+                {
+                    reconnect_attempts += 1;
+                    if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
+                        if let Some(response_id) = retry_response_id.as_deref() {
+                            self.websocket_turn_states_by_response_id
+                                .remove(response_id);
+                        }
+                    }
+                    continue;
+                }
+                Err(error)
+                    if retry_response_id.is_some()
+                        && error.reconnect_allowed
+                        && !full_context_retry_used =>
+                {
+                    let Some(full_context_body) =
+                        retry_response_id.as_deref().and_then(|response_id| {
+                            self.websocket_full_context_retry_body(response_id, &retry_body)
+                        })
+                    else {
+                        return Err(error);
+                    };
+                    retry_body = full_context_body;
+                    reconnect_attempts = 0;
+                    full_context_retry_used = true;
+                    continue;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    async fn invoke_response_websocket<F>(
+        &mut self,
+        config: &ProviderConfig,
+        input: &ProviderInvocationInput,
+        body: Value,
+        protocol_context: &RestoredProtocolContext,
+        on_event: &mut F,
+    ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
+    where
+        F: FnMut(&ProviderStreamEvent) -> Result<()>,
+    {
+        let session_key = websocket_session_key(config, input);
+        if !self.websocket_sessions.contains_key(&session_key) {
+            let turn_state = responses_body_previous_response_id(&body)
+                .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
+                .map(String::as_str);
+            let session = connect_responses_websocket(config, turn_state, protocol_context)
+                .await
+                .map_err(WebsocketInvocationError::fallback_allowed)?;
+            self.websocket_sessions.insert(session_key.clone(), session);
+        }
+
+        let session = self
+            .websocket_sessions
+            .get_mut(&session_key)
+            .expect("websocket session should be initialized");
+        let mut request_body = build_websocket_response_create_body(body.clone());
+        let result =
+            read_websocket_response(session, &mut request_body, input.model.clone(), on_event)
+                .await;
+
+        match result {
+            Ok(response) => {
+                let output = response.envelope;
+                let turn_state = self
+                    .websocket_sessions
+                    .get(&session_key)
+                    .and_then(|session| session.turn_state.clone());
+                if let Some(response_id) = output
+                    .result
+                    .response_id
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                {
+                    self.websocket_response_ids_seen
+                        .insert(response_id.to_string());
+                    if let Some(turn_state) = turn_state.as_deref() {
+                        self.websocket_turn_states_by_response_id
+                            .insert(response_id.to_string(), turn_state.to_string());
+                    }
+                    self.record_websocket_response_chain(response_id, &body, &output.result);
+                }
+                if !response.session_reusable {
+                    self.websocket_sessions.remove(&session_key);
+                }
+                Ok(output)
+            }
+            Err(error) => {
+                self.websocket_sessions.remove(&session_key);
+                Err(error)
+            }
+        }
+    }
+
+    fn responses_body_uses_websocket_response_cursor(&self, body: &Value) -> bool {
+        responses_body_previous_response_id(body)
+            .is_some_and(|response_id| self.websocket_response_ids_seen.contains(response_id))
+    }
+
+    fn websocket_full_context_retry_body(
+        &self,
+        previous_response_id: &str,
+        body: &Value,
+    ) -> Option<Value> {
+        let previous_chain_inputs = self
+            .websocket_chain_inputs_by_response_id
+            .get(previous_response_id)?;
+        let mut retry_body = body.clone();
+        let object = retry_body.as_object_mut()?;
+        object.remove("previous_response_id");
+        let mut full_input = previous_chain_inputs.clone();
+        full_input.extend(responses_body_input_items(body));
+        object.insert("input".to_string(), Value::Array(full_input));
+        Some(retry_body)
+    }
+
+    fn record_websocket_response_chain(
+        &mut self,
+        response_id: &str,
+        request_body: &Value,
+        result: &ProviderInvocationResult,
+    ) {
+        let previous_response_id = responses_body_previous_response_id(request_body);
+        let mut chain_inputs = match previous_response_id {
+            Some(previous_response_id) => {
+                let Some(previous_inputs) = self
+                    .websocket_chain_inputs_by_response_id
+                    .get(previous_response_id)
+                else {
+                    return;
+                };
+                previous_inputs.clone()
+            }
+            None => Vec::new(),
+        };
+        chain_inputs.extend(responses_body_input_items(request_body));
+        chain_inputs.extend(response_output_input_items(result));
+        self.websocket_chain_inputs_by_response_id
+            .insert(response_id.to_string(), chain_inputs);
+    }
+}
+
+async fn invoke_openai_http_sse<F>(
+    config: &ProviderConfig,
+    protocol: ChatGptWireProtocol,
+    pathname: &str,
+    body: Value,
+    request_model: String,
+    on_event: &mut F,
+    native_passthrough: bool,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let response = build_http_client(config)?
+        .request(
+            Method::POST,
+            build_url_with_protocol_context(config, pathname, protocol_context)?,
+        )
+        .headers(build_stream_headers(config, protocol_context)?)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| sanitize_reqwest_error(error, config))?;
+    match protocol {
+        ChatGptWireProtocol::Chat => {
+            read_chat_streaming_response(response, request_model, on_event).await
+        }
+        ChatGptWireProtocol::Responses => {
+            read_streaming_response(response, request_model, on_event, native_passthrough).await
+        }
+    }
+}
+
+#[cfg(test)]
+fn build_responses_body(input: &ProviderInvocationInput) -> Result<Value> {
+    Ok(build_openai_generate_request(input)?.body)
+}
+
+fn build_openai_generate_request(
+    input: &ProviderInvocationInput,
+) -> Result<PreparedChatGptRequest> {
+    input.ensure_generate_operation()?;
+    let protocol = openai_wire_protocol(input)?;
+    let model_intent = openai_model_intent(input)?;
+    let mut typed_body = match (protocol, input.native_transport.as_ref()) {
+        (ChatGptWireProtocol::Chat, Some(_)) => {
+            bail!("native Responses transport cannot render an OpenAI Chat request")
+        }
+        (ChatGptWireProtocol::Chat, None) => build_chat_request_body(input, &model_intent)?,
+        (ChatGptWireProtocol::Responses, Some(transport)) => {
+            build_native_responses_request_body(input, transport)?
+        }
+        (ChatGptWireProtocol::Responses, None) => {
+            build_responses_typed_request_body(input, &model_intent)?
+        }
+    };
+    typed_body
+        .as_object_mut()
+        .expect("typed OpenAI request body must be an object")
+        .insert("stream".to_string(), Value::Bool(true));
+    let pathname = match protocol {
+        ChatGptWireProtocol::Chat => "/chat/completions",
+        ChatGptWireProtocol::Responses => "/responses",
+    };
+    prepare_openai_request(input, protocol, pathname, typed_body)
+}
+
+fn prepare_openai_request(
+    input: &ProviderInvocationInput,
+    protocol: ChatGptWireProtocol,
+    pathname: &'static str,
+    typed_body: Value,
+) -> Result<PreparedChatGptRequest> {
+    let translation_decisions = openai_wire_lowering_decisions(input)?;
+    let (body, protocol_context) = restore_protocol_context(
+        protocol,
+        typed_body,
+        input.client_protocol_envelope.as_ref(),
+    )?;
+    Ok(PreparedChatGptRequest {
+        protocol,
+        pathname,
+        body,
+        protocol_context,
+        model_intent: openai_model_intent(input)?,
+        translation_decisions,
+    })
+}
+
+fn openai_wire_protocol(input: &ProviderInvocationInput) -> Result<ChatGptWireProtocol> {
+    if input.native_transport.is_some() {
+        return Ok(ChatGptWireProtocol::Responses);
+    }
+    if let Some(envelope) = input.client_protocol_envelope.as_ref() {
+        match envelope.source_protocol.as_str() {
+            "openai_chat" => return Ok(ChatGptWireProtocol::Chat),
+            "openai_responses" => return Ok(ChatGptWireProtocol::Responses),
+            _ => {}
+        }
+    }
+    match input.protocol.as_str() {
+        "openai_chat" => Ok(ChatGptWireProtocol::Chat),
+        "openai_responses" => Ok(ChatGptWireProtocol::Responses),
+        protocol => bail!("unsupported OpenAI provider protocol: {protocol}"),
+    }
+}
+
+fn build_chat_request_body(
+    input: &ProviderInvocationInput,
+    model_intent: &ChatGptModelIntent,
+) -> Result<Value> {
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+    ensure_openai_semantic_capabilities(input)?;
+    let mut body = Map::new();
+    body.insert(
+        "model".to_string(),
+        Value::String(input.model.trim().to_string()),
+    );
+    body.insert(
+        "messages".to_string(),
+        Value::Array(build_chat_messages(input)),
+    );
+    if !input.tools.is_empty() {
+        body.insert("tools".to_string(), Value::Array(input.tools.clone()));
+    }
+    if let Some(response_format) = input
+        .response_format
+        .clone()
+        .and_then(normalize_response_text_format)
+        .or_else(|| {
+            parameter_value(input, "response_format").and_then(normalize_response_text_format)
+        })
+    {
+        body.insert("response_format".to_string(), response_format);
+    }
+    if let Some(max_output_tokens) = parameter_value(input, "max_output_tokens") {
+        body.insert("max_completion_tokens".to_string(), max_output_tokens);
+    }
+    if let Some(reasoning_effort) = openai_reasoning_effort(input, model_intent)? {
+        body.insert(
+            "reasoning_effort".to_string(),
+            Value::String(reasoning_effort),
+        );
+    }
+    for key in PASSTHROUGH_CHAT_PARAMETERS {
+        if let Some(value) = parameter_value(input, key) {
+            body.insert((*key).to_string(), value);
+        }
+    }
+    Ok(Value::Object(body))
+}
+
+fn build_chat_messages(input: &ProviderInvocationInput) -> Vec<Value> {
+    let mut messages = Vec::new();
+    if let Some(system) = input.system_text() {
+        messages.push(json!({"role": "developer", "content": system}));
+    }
+    for message in &input.messages {
+        let mut mapped = Map::new();
+        mapped.insert(
+            "role".to_string(),
+            Value::String(chat_role(message.role).to_string()),
+        );
+        mapped.insert("content".to_string(), chat_message_content(message));
+        if let Some(name) = message.name.as_ref() {
+            mapped.insert("name".to_string(), Value::String(name.clone()));
+        }
+        if let Some(tool_call_id) = message.tool_call_id.as_ref() {
+            mapped.insert(
+                "tool_call_id".to_string(),
+                Value::String(tool_call_id.clone()),
+            );
+        }
+        if let Some(tool_calls) = message.tool_calls.as_ref() {
+            mapped.insert("tool_calls".to_string(), tool_calls.clone());
+        }
+        messages.push(Value::Object(mapped));
+    }
+    messages
+}
+
+fn chat_role(role: ProviderMessageRole) -> &'static str {
+    match role {
+        ProviderMessageRole::System => "system",
+        ProviderMessageRole::User => "user",
+        ProviderMessageRole::Assistant => "assistant",
+        ProviderMessageRole::Tool => "tool",
+    }
+}
+
+fn chat_message_content(message: &ProviderMessage) -> Value {
+    let Some(content_blocks) = message.content_blocks.as_ref() else {
+        return Value::String(message.content.clone());
+    };
+    let items = responses_content_items_from_value(content_blocks);
+    if content_blocks_contain_reasoning(content_blocks) {
+        return Value::Array(items.into_iter().filter_map(chat_content_item).collect());
+    }
+    if !responses_content_items_contain_media(&items) {
+        return Value::String(message.content.clone());
+    }
+    Value::Array(items.into_iter().filter_map(chat_content_item).collect())
+}
+
+fn chat_content_item(item: Value) -> Option<Value> {
+    match item.get("type").and_then(Value::as_str) {
+        Some("input_text") => Some(json!({
+            "type": "text",
+            "text": item.get("text")?.clone(),
+        })),
+        Some("input_image") => {
+            let mut image_url = Map::new();
+            image_url.insert("url".to_string(), item.get("image_url")?.clone());
+            if let Some(detail) = item.get("detail") {
+                image_url.insert("detail".to_string(), detail.clone());
+            }
+            Some(json!({
+                "type": "image_url",
+                "image_url": image_url,
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn build_native_responses_request_body(
+    input: &ProviderInvocationInput,
+    transport: &ProviderNativeTransport,
+) -> Result<Value> {
+    if transport.protocol != "openai_responses" {
+        bail!("native transport protocol must be openai_responses");
+    }
+    if !input
+        .required_capabilities
+        .contains(&ProviderInvocationCapability::ResponsesNativePassthrough)
+    {
+        bail!("native Responses transport requires responses.native_passthrough");
+    }
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+    let mut body = transport
+        .wire_body
+        .as_object()
+        .cloned()
+        .ok_or_else(|| anyhow!("native Responses transport body must be an object"))?;
+    body.insert(
+        "model".to_string(),
+        Value::String(input.model.trim().to_string()),
+    );
+    Ok(Value::Object(body))
+}
+
+fn build_compact_body(
+    input: &ProviderInvocationInput,
+    profile: ProviderCompactProfile,
+) -> Result<Value> {
+    if input.compact_profile()? != profile {
+        bail!("Compact input profile does not match the requested Compact renderer");
+    }
+    let mut body = build_responses_request_body(input)?;
+    if profile == ProviderCompactProfile::ResponsesCompactionV2 {
+        let input_items = body
+            .get_mut("input")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| anyhow!("Compact request input must be an array"))?;
+        input_items.push(json!({ "type": "compaction_trigger" }));
+    }
+    Ok(body)
+}
+
+fn build_responses_request_body(input: &ProviderInvocationInput) -> Result<Value> {
+    build_responses_typed_request_body(input, &openai_model_intent(input)?)
+}
+
+fn build_responses_typed_request_body(
+    input: &ProviderInvocationInput,
+    model_intent: &ChatGptModelIntent,
+) -> Result<Value> {
+    if input.model.trim().is_empty() {
+        bail!("model is required");
+    }
+    ensure_openai_semantic_capabilities(input)?;
+    let mut body = Map::new();
+    body.insert(
+        "model".to_string(),
+        Value::String(input.model.trim().to_string()),
+    );
+    body.insert(
+        "input".to_string(),
+        Value::Array(build_responses_input(input)),
+    );
+    if let Some(previous_response_id) = input
+        .previous_response_id
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        body.insert(
+            "previous_response_id".to_string(),
+            Value::String(previous_response_id.to_string()),
+        );
+    }
+    if let Some(system) = input.system_text() {
+        body.insert("instructions".to_string(), Value::String(system));
+    }
+    if !input.tools.is_empty() {
+        body.insert(
+            "tools".to_string(),
+            Value::Array(build_response_tools(&input.tools)),
+        );
+    }
+    if let Some(response_format) = input
+        .response_format
+        .clone()
+        .and_then(normalize_response_text_format)
+        .or_else(|| {
+            parameter_value(input, "response_format").and_then(normalize_response_text_format)
+        })
+    {
+        body.insert("text".to_string(), json!({ "format": response_format }));
+    }
+    if let Some(reasoning_effort) = openai_reasoning_effort(input, model_intent)? {
+        body.insert(
+            "reasoning".to_string(),
+            json!({ "effort": reasoning_effort }),
+        );
+    }
+    for key in PASSTHROUGH_RESPONSE_PARAMETERS {
+        if let Some(value) = parameter_value(input, key) {
+            body.insert((*key).to_string(), value);
+        }
+    }
+    Ok(Value::Object(body))
+}
+
+fn ensure_openai_semantic_capabilities(input: &ProviderInvocationInput) -> Result<()> {
+    if input.required_capabilities.iter().any(|capability| {
+        matches!(
+            capability,
+            ProviderInvocationCapability::SystemPromptBlocks
+                | ProviderInvocationCapability::SystemPromptCacheControl
+                | ProviderInvocationCapability::EndUserReference
+        )
+    }) || input.system.iter().any(|block| {
+        matches!(
+            block,
+            NativePromptBlock::Text {
+                cache_control: Some(_),
+                ..
+            }
+        )
+    }) || input.request_context.end_user_reference.is_some()
+    {
+        bail!("OpenAI does not support the requested semantic capabilities");
+    }
+    Ok(())
+}
+
+fn compact_result_from_upstream(
+    profile: ProviderCompactProfile,
+    payload: Value,
+) -> Result<ProviderCompactResult> {
+    match profile {
+        ProviderCompactProfile::ResponsesCompact => {
+            let response_items = payload
+                .as_array()
+                .cloned()
+                .ok_or_else(|| anyhow!("Responses Compact must return a response item array"))?;
+            if !response_items.iter().all(Value::is_object) {
+                bail!("Responses Compact response items must be objects");
+            }
+            Ok(ProviderCompactResult::ResponseItems {
+                operation: ProviderWireOperation::Compact,
+                profile,
+                response_items,
+            })
+        }
+        ProviderCompactProfile::ResponsesCompactionV2 => {
+            let response = payload
+                .as_object()
+                .ok_or_else(|| anyhow!("Responses Compaction V2 must return a response object"))?;
+            if response.get("status").and_then(Value::as_str) != Some("completed") {
+                bail!("Responses Compaction V2 requires a completed response");
+            }
+            let output = response
+                .get("output")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    anyhow!("Responses Compaction V2 completed response must contain output")
+                })?;
+            if output.len() != 1 {
+                bail!("Responses Compaction V2 requires exactly one compaction output item");
+            }
+            let compaction = output[0]
+                .as_object()
+                .ok_or_else(|| anyhow!("Responses Compaction V2 output item must be an object"))?;
+            if compaction.get("type").and_then(Value::as_str) != Some("compaction") {
+                bail!("Responses Compaction V2 output item must be a compaction item");
+            }
+            let encrypted_content = compaction
+                .get("encrypted_content")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Responses Compaction V2 compaction item must contain encrypted_content"
+                    )
+                })?
+                .to_string();
+            let compaction_item = output[0].clone();
+            let response_id = match response.get("id") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(value)) => Some(value.clone()),
+                Some(_) => bail!("Responses Compaction V2 response id must be text"),
+            };
+            Ok(ProviderCompactResult::CompletedOpaqueCompactionItem {
+                operation: ProviderWireOperation::Compact,
+                profile,
+                response_id,
+                compaction_item,
+                encrypted_content,
+            })
+        }
+    }
+}
+
+fn responses_body_previous_response_id(body: &Value) -> Option<&str> {
+    body.get("previous_response_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+}
+
+fn responses_body_input_items(body: &Value) -> Vec<Value> {
+    body.get("input")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn response_output_input_items(result: &ProviderInvocationResult) -> Vec<Value> {
+    let mut items = Vec::new();
+    if let Some(content) = result
+        .final_content
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
+        items.push(json!({
+            "role": "assistant",
+            "content": content,
+        }));
+    }
+    for call in &result.tool_calls {
+        items.push(json!({
+            "type": "function_call",
+            "call_id": call.id,
+            "name": call.name,
+            "arguments": response_tool_arguments(&call.arguments),
+        }));
+    }
+    items
+}
+
+fn build_responses_input(input: &ProviderInvocationInput) -> Vec<Value> {
+    let mut items = Vec::new();
+    for message in &input.messages {
+        if message.role == ProviderMessageRole::Tool {
+            if let Some(call_id) = message.tool_call_id.as_deref() {
+                items.push(json!({
+                    "type": "function_call_output",
+                    "call_id": call_id,
+                    "output": responses_tool_output(message),
+                }));
+            }
+            continue;
+        }
+        if let Some(content) = responses_message_content(message) {
+            items.push(json!({
+                "role": responses_role(message.role),
+                "content": content,
+            }));
+        }
+        append_response_function_calls(&mut items, message.tool_calls.as_ref());
+    }
+    items
+}
+
+fn responses_message_content(message: &ProviderMessage) -> Option<Value> {
+    if let Some(content_blocks) = message
+        .content_blocks
+        .as_ref()
+        .filter(|blocks| content_blocks_contain_reasoning(blocks))
+    {
+        let items = responses_content_items_from_value(content_blocks);
+        return (!items.is_empty()).then(|| Value::Array(items));
+    }
+    let structured = message
+        .content_blocks
+        .as_ref()
+        .and_then(|content_blocks| responses_structured_content(content_blocks));
+    if structured.is_some() {
+        return structured;
+    }
+    (!message.content.is_empty()).then(|| Value::String(message.content.clone()))
+}
+
+fn responses_tool_output(message: &ProviderMessage) -> Value {
+    message
+        .content_blocks
+        .as_ref()
+        .and_then(responses_structured_content)
+        .unwrap_or_else(|| Value::String(message.content.clone()))
+}
+
+fn responses_structured_content(content_blocks: &Value) -> Option<Value> {
+    let items = responses_content_items_from_value(content_blocks);
+    if !responses_content_items_contain_media(&items) {
+        return None;
+    }
+    Some(Value::Array(items))
+}
+
+fn responses_content_items_from_value(content: &Value) -> Vec<Value> {
+    match content {
+        Value::Array(parts) => parts.iter().filter_map(responses_content_item).collect(),
+        Value::Object(object) => {
+            if let Some(parts) = object.get("parts").and_then(Value::as_array) {
+                return parts.iter().filter_map(responses_content_item).collect();
+            }
+            responses_content_item(content).into_iter().collect()
+        }
+        Value::String(text) => responses_text_content_item(text).into_iter().collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn content_blocks_contain_reasoning(content_blocks: &Value) -> bool {
+    let parts = match content_blocks {
+        Value::Array(parts) => parts.as_slice(),
+        Value::Object(object) => object
+            .get("parts")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_else(|| std::slice::from_ref(content_blocks)),
+        _ => return false,
+    };
+    parts.iter().any(|part| {
+        matches!(
+            part.get("type").and_then(Value::as_str),
+            Some("reasoning" | "reasoning_redacted")
+        )
+    })
+}
+
+fn openai_wire_lowering_decisions(input: &ProviderInvocationInput) -> Result<Vec<&'static str>> {
+    if input.native_transport.is_some() {
+        return Ok(Vec::new());
+    }
+    let mut omitted_reasoning = false;
+    for (message_index, message) in input.messages.iter().enumerate() {
+        let Some(content_blocks) = message.content_blocks.as_ref() else {
+            continue;
+        };
+        if !content_blocks_contain_reasoning(content_blocks) {
+            continue;
+        }
+        if message.role != ProviderMessageRole::Assistant {
+            bail!(
+                "OpenAI wire cannot lower reasoning in non-assistant message at messages[{message_index}]"
+            );
+        }
+        omitted_reasoning = true;
+        let has_visible_content = !responses_content_items_from_value(content_blocks).is_empty();
+        let has_tool_calls = message
+            .tool_calls
+            .as_ref()
+            .and_then(Value::as_array)
+            .is_some_and(|calls| !calls.is_empty());
+        if message.role == ProviderMessageRole::Assistant && !has_visible_content && !has_tool_calls
+        {
+            bail!(
+                "OpenAI wire cannot lower reasoning-only assistant message at messages[{message_index}]"
+            );
+        }
+    }
+    Ok(omitted_reasoning
+        .then_some("omitted_reasoning_history")
+        .into_iter()
+        .collect())
+}
+
+fn responses_content_item(part: &Value) -> Option<Value> {
+    match part {
+        Value::String(text) => responses_text_content_item(text),
+        Value::Object(object) => {
+            let part_type = object
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            match part_type.as_str() {
+                "text" | "input_text" => object
+                    .get("text")
+                    .or_else(|| object.get("content"))
+                    .and_then(Value::as_str)
+                    .and_then(responses_text_content_item),
+                "image" | "image_url" | "input_image" => responses_image_content_item(object),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+fn responses_text_content_item(text: &str) -> Option<Value> {
+    let trimmed = text.trim();
+    (!trimmed.is_empty()).then(|| json!({ "type": "input_text", "text": text }))
+}
+
+fn responses_image_content_item(object: &Map<String, Value>) -> Option<Value> {
+    let image_url = object
+        .get("source")
+        .and_then(responses_image_source_url)
+        .or_else(|| object.get("image_url").and_then(responses_image_url))
+        .or_else(|| object.get("image").and_then(responses_image_url))
+        .or_else(|| object.get("url").and_then(responses_image_url))?;
+    let mut item = Map::new();
+    item.insert("type".to_string(), Value::String("input_image".to_string()));
+    item.insert("image_url".to_string(), Value::String(image_url));
+    if let Some(detail) = object
+        .get("detail")
+        .or_else(|| {
+            object
+                .get("image_url")
+                .and_then(|value| value.get("detail"))
+        })
+        .cloned()
+    {
+        item.insert("detail".to_string(), detail);
+    }
+    Some(Value::Object(item))
+}
+
+fn responses_image_source_url(source: &Value) -> Option<String> {
+    let object = source.as_object()?;
+    match object.get("type").and_then(Value::as_str) {
+        Some("base64") | None => responses_base64_image_source_url(object),
+        Some("url") => object
+            .get("url")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        _ => None,
+    }
+}
+
+fn responses_base64_image_source_url(object: &Map<String, Value>) -> Option<String> {
+    let media_type = object
+        .get("media_type")
+        .and_then(Value::as_str)
+        .unwrap_or("image/png");
+    let data = object.get("data").and_then(Value::as_str)?;
+    Some(format!("data:{media_type};base64,{data}"))
+}
+
+fn responses_image_url(value: &Value) -> Option<String> {
+    value.as_str().map(ToOwned::to_owned).or_else(|| {
+        value
+            .get("url")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn responses_content_items_contain_media(items: &[Value]) -> bool {
+    items.iter().any(|item| {
+        item.get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|item_type| item_type == "input_image" || item_type == "input_file")
+    })
+}
+
+fn responses_role(role: ProviderMessageRole) -> &'static str {
+    match role {
+        ProviderMessageRole::System => "developer",
+        ProviderMessageRole::Assistant => "assistant",
+        ProviderMessageRole::User => "user",
+        ProviderMessageRole::Tool => "tool",
+    }
+}
+
+fn append_response_function_calls(items: &mut Vec<Value>, tool_calls: Option<&Value>) {
+    let Some(calls) = tool_calls.and_then(Value::as_array) else {
+        return;
+    };
+    for (index, call) in calls.iter().enumerate() {
+        if let Some(function_call) = response_function_call_from_native(call, index) {
+            items.push(function_call);
+        }
+    }
+}
+
+fn response_function_call_from_native(tool_call: &Value, index: usize) -> Option<Value> {
+    let object = tool_call.as_object()?;
+    let function = object.get("function").and_then(Value::as_object);
+    let name = function
+        .and_then(|value| value.get("name"))
+        .or_else(|| object.get("name"))
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())?;
+    let arguments = function
+        .and_then(|value| value.get("arguments"))
+        .or_else(|| object.get("arguments"))
+        .map(response_tool_arguments)
+        .unwrap_or_else(|| "{}".to_string());
+    let call_id = object
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| format!("call_{index}"));
+    Some(json!({
+        "type": "function_call",
+        "call_id": call_id,
+        "name": name,
+        "arguments": arguments,
+    }))
+}
+
+fn build_response_tools(tools: &[Value]) -> Vec<Value> {
+    tools.iter().map(build_response_tool).collect()
+}
+
+fn build_response_tool(tool: &Value) -> Value {
+    if tool.get("type").and_then(Value::as_str) != Some("function") {
+        return tool.clone();
+    }
+    let function = tool.get("function").and_then(Value::as_object);
+    let Some(function) = function else {
+        return tool.clone();
+    };
+    let mut mapped = Map::new();
+    mapped.insert("type".to_string(), Value::String("function".to_string()));
+    if let Some(name) = function.get("name") {
+        mapped.insert("name".to_string(), name.clone());
+    }
+    if let Some(description) = function.get("description") {
+        mapped.insert("description".to_string(), description.clone());
+    }
+    if let Some(parameters) = function.get("parameters") {
+        mapped.insert("parameters".to_string(), parameters.clone());
+    }
+    if let Some(strict) = function.get("strict") {
+        mapped.insert("strict".to_string(), strict.clone());
+    }
+    Value::Object(mapped)
+}
+
+fn parameter_value(input: &ProviderInvocationInput, key: &str) -> Option<Value> {
+    input
+        .model_parameters
+        .get(key)
+        .cloned()
+        .and_then(normalize_scalar_parameter)
+}
+
+fn openai_model_intent(input: &ProviderInvocationInput) -> Result<ChatGptModelIntent> {
+    let requested_context_window = match input.model_parameters.get("requested_context_window") {
+        Some(Value::Null) | None => None,
+        Some(value) => Some(
+            value
+                .as_u64()
+                .filter(|value| *value > 0)
+                .ok_or_else(|| anyhow!("requested_context_window must be a positive integer"))?,
+        ),
+    };
+    let reasoning = match input.model_parameters.get("reasoning") {
+        Some(Value::Null) | None => None,
+        Some(Value::Object(object)) => {
+            let unknown = object
+                .keys()
+                .filter(|name| !matches!(name.as_str(), "mode" | "effort" | "budget_tokens"))
+                .cloned()
+                .collect::<Vec<_>>();
+            if !unknown.is_empty() {
+                bail!(
+                    "unsupported OpenAI reasoning fields: {}",
+                    unknown.join(", ")
+                );
+            }
+            if object
+                .get("budget_tokens")
+                .is_some_and(|value| !value.is_null())
+            {
+                bail!("OpenAI wire does not support reasoning budget_tokens");
+            }
+            let mode = match object.get("mode") {
+                Some(Value::Null) | None => None,
+                Some(Value::String(mode)) => Some(match mode.as_str() {
+                    "adaptive" => ChatGptReasoningMode::Adaptive,
+                    "enabled" => ChatGptReasoningMode::Enabled,
+                    "disabled" => ChatGptReasoningMode::Disabled,
+                    mode => bail!("unsupported OpenAI reasoning mode: {mode}"),
+                }),
+                Some(_) => bail!("OpenAI reasoning mode must be text"),
+            };
+            let effort = match object.get("effort") {
+                Some(Value::Null) | None => None,
+                Some(Value::String(effort))
+                    if !effort.is_empty() && effort.trim().len() == effort.len() =>
+                {
+                    Some(effort.clone())
+                }
+                Some(_) => bail!("OpenAI reasoning effort must be non-empty text"),
+            };
+            Some(ChatGptReasoningIntent { mode, effort })
+        }
+        Some(_) => bail!("OpenAI reasoning parameters must be an object"),
+    };
+    Ok(ChatGptModelIntent {
+        requested_context_window,
+        reasoning,
+    })
+}
+
+fn openai_reasoning_effort(
+    input: &ProviderInvocationInput,
+    model_intent: &ChatGptModelIntent,
+) -> Result<Option<String>> {
+    let legacy_effort = match parameter_value(input, "reasoning_effort") {
+        Some(Value::String(effort)) => Some(effort),
+        Some(_) => bail!("reasoning_effort must be text"),
+        None => None,
+    };
+    let Some(reasoning) = model_intent.reasoning.as_ref() else {
+        return Ok(legacy_effort);
+    };
+    if legacy_effort.is_some() {
+        bail!("reasoning and reasoning_effort have conflicting typed owners");
+    }
+    match reasoning.mode {
+        Some(ChatGptReasoningMode::Disabled) => {
+            if reasoning.effort.is_some() {
+                bail!("disabled OpenAI reasoning cannot also declare an effort");
+            }
+            Ok(Some("none".to_string()))
+        }
+        Some(ChatGptReasoningMode::Adaptive | ChatGptReasoningMode::Enabled) | None => {
+            Ok(reasoning.effort.clone())
+        }
+    }
+}
+
+fn attach_openai_model_intent(
+    output: &mut RuntimeInvocationEnvelope,
+    model_intent: &ChatGptModelIntent,
+) {
+    let intent = model_intent.provider_metadata();
+    let Some(intent) = intent.as_object().filter(|value| !value.is_empty()) else {
+        return;
+    };
+    if let Some(metadata) = output.result.provider_metadata.as_object_mut() {
+        metadata.insert(
+            "request_model_parameters".to_string(),
+            Value::Object(intent.clone()),
+        );
+    }
+}
+
+fn attach_foreign_protocol_context_decision(
+    provider_metadata: &mut Value,
+    envelope: Option<&ProtocolContextEnvelope>,
+) -> Result<()> {
+    let Some(envelope) = envelope else {
+        return Ok(());
+    };
+    if matches!(
+        envelope.source_protocol.as_str(),
+        "openai_chat" | "openai_responses"
+    ) {
+        return Ok(());
+    }
+    append_request_translation_decisions(provider_metadata, ["omitted_foreign_protocol_context"])
+}
+
+fn append_request_translation_decisions(
+    provider_metadata: &mut Value,
+    decisions: impl IntoIterator<Item = &'static str>,
+) -> Result<()> {
+    let decisions = decisions.into_iter().collect::<Vec<_>>();
+    if decisions.is_empty() {
+        return Ok(());
+    }
+    let metadata = provider_metadata
+        .as_object_mut()
+        .context("OpenAI provider metadata must be an object")?;
+    let receipt = metadata
+        .entry("provider_request_translation".to_string())
+        .or_insert_with(|| json!({ "decisions": [] }));
+    let receipt = receipt
+        .as_object_mut()
+        .context("OpenAI provider request translation receipt must be an object")?;
+    let recorded = receipt
+        .entry("decisions".to_string())
+        .or_insert_with(|| json!([]))
+        .as_array_mut()
+        .context("OpenAI provider request translation decisions must be an array")?;
+    recorded.extend(decisions.into_iter().map(|decision| json!(decision)));
+    Ok(())
+}
+
+fn normalize_scalar_parameter(value: Value) -> Option<Value> {
+    match value {
+        Value::Null => None,
+        Value::String(text) => {
+            let trimmed = text.trim();
+            (!trimmed.is_empty()).then_some(Value::String(trimmed.to_string()))
+        }
+        other => Some(other),
+    }
+}
+
+fn normalize_response_text_format(value: Value) -> Option<Value> {
+    match normalize_scalar_parameter(value)? {
+        Value::Object(object) if object.contains_key("type") => Some(Value::Object(object)),
+        Value::String(text) => serde_json::from_str::<Value>(&text)
+            .ok()
+            .filter(|value| value.get("type").is_some())
+            .or_else(|| Some(json!({ "type": text }))),
+        other => Some(json!({ "type": other })),
+    }
+}
+
+fn response_tool_arguments(arguments: &Value) -> String {
+    match arguments {
+        Value::String(value) => value.clone(),
+        other => other.to_string(),
+    }
+}
+
+#[derive(Debug)]
+struct ResponsesWebsocketSession {
+    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    turn_state: Option<String>,
+}
+
+#[derive(Debug)]
+struct WebsocketResponseOutput {
+    envelope: RuntimeInvocationEnvelope,
+    session_reusable: bool,
+}
+
+#[derive(Debug)]
+struct WebsocketInvocationError {
+    source: anyhow::Error,
+    fallback_allowed: bool,
+    reconnect_allowed: bool,
+}
+
+impl WebsocketInvocationError {
+    fn fallback_allowed(source: anyhow::Error) -> Self {
+        Self {
+            source,
+            fallback_allowed: true,
+            reconnect_allowed: false,
+        }
+    }
+
+    fn fallback_blocked(source: anyhow::Error) -> Self {
+        Self {
+            source,
+            fallback_allowed: false,
+            reconnect_allowed: false,
+        }
+    }
+
+    fn from_stream_state(source: anyhow::Error, fallback_blocked: bool) -> Self {
+        if fallback_blocked {
+            Self::fallback_blocked(source)
+        } else {
+            Self::fallback_allowed(source)
+        }
+    }
+
+    fn reconnect_allowed(source: anyhow::Error) -> Self {
+        Self {
+            source,
+            fallback_allowed: true,
+            reconnect_allowed: true,
+        }
+    }
+
+    fn from_reconnectable_stream_state(source: anyhow::Error, fallback_blocked: bool) -> Self {
+        if fallback_blocked {
+            Self::fallback_blocked(source)
+        } else {
+            Self::reconnect_allowed(source)
+        }
+    }
+}
+
+async fn connect_responses_websocket(
+    config: &ProviderConfig,
+    turn_state: Option<&str>,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<ResponsesWebsocketSession> {
+    let url = build_websocket_url(config, protocol_context)?;
+    let mut request = url
+        .as_str()
+        .into_client_request()
+        .map_err(|error| anyhow!("failed to build websocket request: {error}"))?;
+    request.headers_mut().extend(build_websocket_headers(
+        config,
+        turn_state,
+        protocol_context,
+    )?);
+    let (stream, response) = if config.proxy_url.is_some() {
+        connect_responses_websocket_through_proxy(config, &url, request).await
+    } else {
+        connect_async(request)
+            .await
+            .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))
+    }?;
+    // Codex turn state is first-writer-wins within a turn; continuation handshakes
+    // must not rotate the sticky routing token for later tool callbacks.
+    let turn_state = turn_state.map(ToOwned::to_owned).or_else(|| {
+        response
+            .headers()
+            .get(X_CODEX_TURN_STATE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .filter(|value| !value.trim().is_empty())
+            .map(ToOwned::to_owned)
+    });
+    Ok(ResponsesWebsocketSession { stream, turn_state })
+}
+
+async fn connect_responses_websocket_through_proxy(
+    config: &ProviderConfig,
+    url: &Url,
+    request: ClientHandshakeRequest,
+) -> Result<(
+    WebSocketStream<MaybeTlsStream<TcpStream>>,
+    ClientHandshakeResponse,
+)> {
+    let proxy_url = config
+        .proxy_url
+        .as_deref()
+        .ok_or_else(|| anyhow!("proxy_url is required"))?;
+    let target = proxy_connect_target(url)?;
+    let stream = connect_http_proxy_tunnel(proxy_url, &target).await?;
+    client_async_tls_with_config(request, stream, None, None)
+        .await
+        .map_err(|error| anyhow!("failed to connect Responses websocket through proxy: {error}"))
+}
+
+fn proxy_connect_target(url: &Url) -> Result<String> {
+    let host = url
+        .host_str()
+        .ok_or_else(|| anyhow!("websocket url missing host"))?;
+    let port = url
+        .port_or_known_default()
+        .ok_or_else(|| anyhow!("websocket url missing port"))?;
+    Ok(format!("{}:{port}", format_authority_host(host)))
+}
+
+async fn connect_http_proxy_tunnel(proxy_url: &str, target: &str) -> Result<TcpStream> {
+    let proxy = Url::parse(proxy_url).with_context(|| "invalid proxy_url")?;
+    if proxy.scheme() != "http" {
+        bail!("proxy_url must use http scheme");
+    }
+    let proxy_host = proxy
+        .host_str()
+        .ok_or_else(|| anyhow!("proxy_url missing host"))?;
+    let proxy_port = proxy
+        .port_or_known_default()
+        .ok_or_else(|| anyhow!("proxy_url missing port"))?;
+    let proxy_address = format!("{}:{proxy_port}", format_authority_host(proxy_host));
+    let mut stream = TcpStream::connect(&proxy_address)
+        .await
+        .with_context(|| format!("connecting proxy {proxy_address}"))?;
+
+    let mut request = format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n");
+    if let Some(proxy_authorization) = proxy_authorization_header(&proxy) {
+        request.push_str(&proxy_authorization);
+        request.push_str("\r\n");
+    }
+    request.push_str("\r\n");
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .context("writing proxy CONNECT request")?;
+
+    let mut response = Vec::new();
+    let mut chunk = [0_u8; 1024];
+    while !response.windows(4).any(|window| window == b"\r\n\r\n") {
+        if response.len() > 8192 {
+            bail!("proxy CONNECT response headers exceeded 8192 bytes");
+        }
+        let read = stream
+            .read(&mut chunk)
+            .await
+            .context("reading proxy CONNECT response")?;
+        if read == 0 {
+            bail!("proxy closed before CONNECT response");
+        }
+        response.extend_from_slice(&chunk[..read]);
+    }
+
+    let response_text = String::from_utf8_lossy(&response);
+    let status_line = response_text.lines().next().unwrap_or_default();
+    let status = status_line.split_whitespace().nth(1).unwrap_or_default();
+    if status != "200" {
+        bail!("proxy CONNECT failed: {status_line}");
+    }
+    Ok(stream)
+}
+
+fn proxy_authorization_header(proxy: &Url) -> Option<String> {
+    let username = proxy.username();
+    if username.is_empty() {
+        return None;
+    }
+    let password = proxy.password().unwrap_or_default();
+    let credentials = format!("{username}:{password}");
+    let encoded = base64::engine::general_purpose::STANDARD.encode(credentials);
+    Some(format!("Proxy-Authorization: Basic {encoded}"))
+}
+
+fn format_authority_host(host: &str) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]")
+    } else {
+        host.to_string()
+    }
+}
+
+fn build_websocket_url(
+    config: &ProviderConfig,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<Url> {
+    let mut url = Url::parse(&build_url_with_protocol_context(
+        config,
+        "/responses",
+        protocol_context,
+    )?)
+    .with_context(|| format!("invalid base_url: {}", config.base_url))?;
+    let websocket_scheme = match url.scheme() {
+        "https" => "wss",
+        "http" => "ws",
+        other => bail!("unsupported websocket base_url scheme: {other}"),
+    };
+    url.set_scheme(websocket_scheme)
+        .map_err(|_| anyhow!("unsupported websocket base_url scheme"))?;
+    Ok(url)
+}
+
+fn build_websocket_headers(
+    config: &ProviderConfig,
+    turn_state: Option<&str>,
+    protocol_context: &RestoredProtocolContext,
+) -> Result<HeaderMap> {
+    let mut headers = build_base_headers(config, false, "application/json")?;
+    if let Some(turn_state) = turn_state.filter(|value| !value.trim().is_empty()) {
+        headers.insert(
+            HeaderName::from_static(X_CODEX_TURN_STATE_HEADER),
+            HeaderValue::from_str(turn_state).context("invalid x-codex-turn-state header")?,
+        );
+    }
+    headers.insert(
+        HeaderName::from_static("openai-beta"),
+        HeaderValue::from_static(RESPONSES_WEBSOCKETS_BETA),
+    );
+    append_protocol_headers(&mut headers, protocol_context)?;
+    inject_provider_auth(&mut headers, config)?;
+    Ok(headers)
+}
+
+fn build_websocket_response_create_body(mut body: Value) -> Value {
+    let mut object = Map::new();
+    object.insert(
+        "type".to_string(),
+        Value::String("response.create".to_string()),
+    );
+    if let Value::Object(body_object) = &mut body {
+        for (key, value) in std::mem::take(body_object) {
+            object.insert(key, value);
+        }
+    }
+    Value::Object(object)
+}
+
+fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
+    format!(
+        "{}\n{}\n{}\n{}\n{}\n{}",
+        input.provider_instance_id,
+        config.base_url,
+        config.access_token,
+        config.organization.as_deref().unwrap_or_default(),
+        config.project.as_deref().unwrap_or_default(),
+        serde_json::to_string(&input.client_protocol_envelope).unwrap_or_default(),
+    )
+}
+
+fn can_fallback_to_http(error: &anyhow::Error) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    !(message.contains("401")
+        || message.contains("403")
+        || message.contains("unauthorized")
+        || message.contains("forbidden")
+        || message.contains("invalid_access_token"))
+}
+
+fn websocket_proxy_failure_requires_fresh_turn_state(error: &anyhow::Error) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("upstream websocket proxy failed")
+}
+
+fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("previous_response_id")
+        && (message.contains("no longer available")
+            || message.contains("not available")
+            || message.contains("unavailable"))
+}
+
+async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
+    let payload = serde_json::to_string(body)?;
+    session
+        .stream
+        .send(Message::Text(payload.into()))
+        .await
+        .map_err(map_websocket_error)
+}
+
+async fn send_websocket_response_processed(
+    session: &mut ResponsesWebsocketSession,
+    response_id: &str,
+) -> Result<()> {
+    send_websocket_json(
+        session,
+        &json!({
+            "type": "response.processed",
+            "response_id": response_id,
+        }),
+    )
+    .await
+}
+
+async fn read_websocket_response<F>(
+    session: &mut ResponsesWebsocketSession,
+    request_body: &mut Value,
+    request_model: String,
+    on_event: &mut F,
+) -> Result<WebsocketResponseOutput, WebsocketInvocationError>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    send_websocket_json(session, request_body)
+        .await
+        .map_err(WebsocketInvocationError::reconnect_allowed)?;
+
+    let mut events = Vec::new();
+    let mut all_events = Vec::new();
+    let mut text = String::new();
+    let mut tool_calls = ResponseToolCalls::default();
+    let mut usage = ProviderUsage::default();
+    let mut finish_reason = ProviderFinishReason::Unknown;
+    let mut response_id = Value::Null;
+    let mut visible_output_started = false;
+    let mut semantic_terminal_failure_seen = false;
+    let mut session_reusable = true;
+
+    loop {
+        let next_message =
+            match tokio::time::timeout(STREAM_IDLE_TIMEOUT, session.stream.next()).await {
+                Ok(message) => message,
+                Err(_) => {
+                    let error = anyhow!("idle timeout waiting for Responses websocket");
+                    return Err(WebsocketInvocationError::from_reconnectable_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    ));
+                }
+            };
+        let Some(message) = next_message else {
+            if !tool_calls.is_empty() && !response_id.is_null() {
+                finish_reason = ProviderFinishReason::ToolCall;
+                session_reusable = false;
+                break;
+            }
+            let error = anyhow!("websocket closed before response.completed");
+            return Err(WebsocketInvocationError::from_reconnectable_stream_state(
+                error,
+                visible_output_started || semantic_terminal_failure_seen,
+            ));
+        };
+        let message = message.map_err(|error| {
+            WebsocketInvocationError::from_reconnectable_stream_state(
+                map_websocket_error(error),
+                visible_output_started || semantic_terminal_failure_seen,
+            )
+        })?;
+
+        match message {
+            Message::Text(payload) => {
+                let payload = payload.as_str();
+                if let Some(message) = websocket_error_message(payload) {
+                    let error = anyhow!(message);
+                    return Err(WebsocketInvocationError::from_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    ));
+                }
+                semantic_terminal_failure_seen |= websocket_payload_blocks_http_fallback(payload);
+                process_response_sse_payload(
+                    payload,
+                    &mut events,
+                    &mut text,
+                    &mut tool_calls,
+                    &mut usage,
+                    &mut finish_reason,
+                    &mut response_id,
+                )
+                .map_err(|error| {
+                    WebsocketInvocationError::from_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    )
+                })?;
+                if !events.is_empty() {
+                    emit_new_events(&events, on_event)
+                        .map_err(WebsocketInvocationError::fallback_blocked)?;
+                    visible_output_started = true;
+                    all_events.append(&mut events);
+                }
+                if response_stream_finished(&finish_reason) {
+                    break;
+                }
+            }
+            Message::Ping(payload) => {
+                session
+                    .stream
+                    .send(Message::Pong(payload))
+                    .await
+                    .map_err(|error| {
+                        WebsocketInvocationError::from_reconnectable_stream_state(
+                            map_websocket_error(error),
+                            visible_output_started || semantic_terminal_failure_seen,
+                        )
+                    })?;
+            }
+            Message::Pong(_) => {}
+            Message::Close(frame) => {
+                if !tool_calls.is_empty() && !response_id.is_null() {
+                    finish_reason = ProviderFinishReason::ToolCall;
+                    session_reusable = false;
+                    break;
+                }
+                let error = websocket_closed_before_completed_error(frame);
+                return Err(WebsocketInvocationError::from_reconnectable_stream_state(
+                    error,
+                    visible_output_started || semantic_terminal_failure_seen,
+                ));
+            }
+            Message::Binary(_) | Message::Frame(_) => {}
+        }
+    }
+
+    if response_id.is_null() {
+        return Err(WebsocketInvocationError::from_stream_state(
+            anyhow!("websocket closed before response.completed"),
+            visible_output_started || semantic_terminal_failure_seen,
+        ));
+    }
+    if matches!(finish_reason, ProviderFinishReason::Unknown) {
+        return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
+            "websocket closed before response.completed"
+        )));
+    }
+
+    let output = finalize_response_stream(
+        all_events,
+        text,
+        tool_calls.into_vec(),
+        usage,
+        finish_reason,
+        response_id,
+        json!({
+            "request_model": request_model,
+            "transport": "responses_websocket",
+        }),
+        on_event,
+    )
+    .map_err(WebsocketInvocationError::fallback_blocked)?;
+    if let Some(response_id) = output
+        .result
+        .response_id
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
+        if send_websocket_response_processed(session, response_id)
+            .await
+            .is_err()
+        {
+            session_reusable = false;
+        }
+    }
+    Ok(WebsocketResponseOutput {
+        envelope: output,
+        session_reusable,
+    })
+}
+
+fn map_websocket_error(error: WebSocketError) -> anyhow::Error {
+    anyhow!("Responses websocket error: {error}")
+}
+
+fn websocket_closed_before_completed_error(
+    frame: Option<tokio_tungstenite::tungstenite::protocol::CloseFrame>,
+) -> anyhow::Error {
+    let Some(frame) = frame else {
+        return anyhow!("websocket closed by server before response.completed");
+    };
+    if frame.reason.is_empty() {
+        anyhow!(
+            "websocket closed by server before response.completed (code: {})",
+            frame.code
+        )
+    } else {
+        anyhow!(
+            "websocket closed by server before response.completed (code: {}, reason: {})",
+            frame.code,
+            frame.reason
+        )
+    }
+}
+
+fn websocket_error_message(payload: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(payload).ok()?;
+    if value.get("type").and_then(Value::as_str) != Some("error") {
+        return None;
+    }
+    let status = value
+        .get("status")
+        .or_else(|| value.get("status_code"))
+        .map(value_to_string);
+    let message = value
+        .get("error")
+        .and_then(|error| error.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or("Responses websocket error");
+    let code = value
+        .get("error")
+        .and_then(|error| error.get("code"))
+        .and_then(Value::as_str);
+    Some(match (status, code) {
+        (Some(status), Some(code)) => format!("{status} {code}: {message}"),
+        (Some(status), None) => format!("{status}: {message}"),
+        (None, Some(code)) => format!("{code}: {message}"),
+        (None, None) => message.to_string(),
+    })
+}
+
+fn websocket_payload_blocks_http_fallback(payload: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<Value>(payload) else {
+        return false;
+    };
+    match value.get("type").and_then(Value::as_str) {
+        Some("response.failed") | Some("response.incomplete") => true,
+        Some("response.completed") | Some("response.done") => value
+            .get("response")
+            .is_some_and(response_status_blocks_http_fallback),
+        _ => false,
+    }
+}
+
+fn response_status_blocks_http_fallback(response: &Value) -> bool {
+    response
+        .get("status")
+        .and_then(Value::as_str)
+        .is_some_and(|status| matches!(status, "failed" | "incomplete" | "cancelled"))
+}
+
+fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
+    !matches!(finish_reason, ProviderFinishReason::Unknown)
+}
+
+#[derive(Debug, Default)]
+struct ChatToolCallState {
+    id: Option<String>,
+    name: String,
+    arguments: String,
+}
+
+impl ChatToolCallState {
+    fn into_provider_call(self, index: usize) -> ProviderToolCall {
+        let arguments = if self.arguments.is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&self.arguments).unwrap_or_else(|_| Value::String(self.arguments))
+        };
+        ProviderToolCall {
+            id: self.id.unwrap_or_else(|| format!("call_{index}")),
+            name: if self.name.is_empty() {
+                "unknown_tool".to_string()
+            } else {
+                self.name
+            },
+            arguments,
+        }
+    }
+}
+
+async fn read_chat_streaming_response<F>(
+    response: reqwest::Response,
+    request_model: String,
+    on_event: &mut F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let status = response.status();
+    if !status.is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
+    let headers = response.headers().clone();
+    let upstream_request_id = header_text(&headers, "x-request-id");
+    let upstream_model =
+        header_text(&headers, "openai-model").or_else(|| header_text(&headers, "x-openai-model"));
+    let models_etag = header_text(&headers, "x-models-etag");
+    let mut all_events = Vec::new();
+    let mut events = Vec::new();
+    let mut text = String::new();
+    let mut tool_calls = BTreeMap::new();
+    let mut usage = ProviderUsage::default();
+    let mut finish_reason = ProviderFinishReason::Unknown;
+    let mut response_id = Value::Null;
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+        .await
+        .context("idle timeout waiting for Chat Completions SSE")?
+    {
+        let event = match event {
+            Ok(event) => event,
+            Err(_) if response_stream_finished(&finish_reason) => break,
+            Err(error) => return Err(anyhow!("invalid Chat Completions SSE stream: {error}")),
+        };
+        process_chat_sse_data(
+            &event.data,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )?;
+        emit_new_events(&events, on_event)?;
+        all_events.append(&mut events);
+    }
+    if response_id.is_null() || !response_stream_finished(&finish_reason) {
+        bail!("stream closed before Chat Completions finished");
+    }
+    let tool_calls = tool_calls
+        .into_iter()
+        .map(|(index, call)| call.into_provider_call(index))
+        .collect::<Vec<_>>();
+    if usage.has_any_value() {
+        events.push(ProviderStreamEvent::UsageSnapshot {
+            usage: usage.clone(),
+        });
+    }
+    for call in &tool_calls {
+        events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
+    }
+    events.push(ProviderStreamEvent::Finish {
+        reason: finish_reason.clone(),
+    });
+    emit_new_events(&events, on_event)?;
+    all_events.extend(events);
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
+    Ok(RuntimeInvocationEnvelope {
+        events: all_events,
+        result: ProviderInvocationResult {
+            final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
+            tool_calls,
+            mcp_calls: Vec::new(),
+            usage,
+            finish_reason: Some(finish_reason),
+            provider_metadata: json!({
+                "request_model": request_model,
+                "transport": "http_sse",
+                "protocol": "openai_chat",
+                "response_id": response_id,
+                "upstream_request_id": upstream_request_id,
+                "upstream_model": upstream_model,
+                "models_etag": models_etag,
+            }),
+        },
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_chat_sse_data(
+    data: &str,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_calls: &mut BTreeMap<usize, ChatToolCallState>,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut ProviderFinishReason,
+    response_id: &mut Value,
+) -> Result<()> {
+    if data.is_empty() || data == "[DONE]" {
+        return Ok(());
+    }
+    let payload: Value = serde_json::from_str(data)?;
+    if let Some(error) = payload.get("error") {
+        let message = error
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("Chat Completions stream error");
+        bail!("{message}");
+    }
+    if let Some(id) = payload.get("id") {
+        *response_id = id.clone();
+    }
+    if let Some(raw_usage) = payload.get("usage") {
+        *usage = normalize_chat_usage(raw_usage);
+    }
+    let Some(choices) = payload.get("choices").and_then(Value::as_array) else {
+        return Ok(());
+    };
+    for choice in choices {
+        if let Some(delta) = choice.get("delta").and_then(Value::as_object) {
+            if let Some(content) = delta.get("content").and_then(Value::as_str) {
+                text.push_str(content);
+                events.push(ProviderStreamEvent::TextDelta {
+                    delta: content.to_string(),
+                });
+            }
+            if let Some(reasoning) = delta
+                .get("reasoning_content")
+                .or_else(|| delta.get("reasoning"))
+                .and_then(Value::as_str)
+            {
+                events.push(ProviderStreamEvent::ReasoningDelta {
+                    delta: reasoning.to_string(),
+                });
+            }
+            if let Some(calls) = delta.get("tool_calls").and_then(Value::as_array) {
+                for (fallback_index, call) in calls.iter().enumerate() {
+                    let index = call
+                        .get("index")
+                        .and_then(Value::as_u64)
+                        .and_then(|value| usize::try_from(value).ok())
+                        .unwrap_or(fallback_index);
+                    let state = tool_calls.entry(index).or_default();
+                    if let Some(id) = call.get("id").and_then(Value::as_str) {
+                        state.id = Some(id.to_string());
+                    }
+                    if let Some(name) = call
+                        .get("function")
+                        .and_then(|function| function.get("name"))
+                        .and_then(Value::as_str)
+                    {
+                        state.name.push_str(name);
+                    }
+                    let arguments = call
+                        .get("function")
+                        .and_then(|function| function.get("arguments"))
+                        .and_then(Value::as_str)
+                        .unwrap_or_default();
+                    state.arguments.push_str(arguments);
+                    events.push(ProviderStreamEvent::ToolCallDelta {
+                        call_id: state.id.clone().unwrap_or_else(|| format!("call_{index}")),
+                        delta: Value::String(arguments.to_string()),
+                    });
+                }
+            }
+        }
+        if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
+            *finish_reason = chat_finish_reason(reason);
+        }
+    }
+    Ok(())
+}
+
+fn chat_finish_reason(reason: &str) -> ProviderFinishReason {
+    match reason {
+        "stop" => ProviderFinishReason::Stop,
+        "length" => ProviderFinishReason::Length,
+        "tool_calls" | "function_call" => ProviderFinishReason::ToolCall,
+        "content_filter" => ProviderFinishReason::ContentFilter,
+        _ => ProviderFinishReason::Unknown,
+    }
+}
+
+fn normalize_chat_usage(raw: &Value) -> ProviderUsage {
+    ProviderUsage {
+        input_tokens: raw.get("prompt_tokens").and_then(Value::as_u64),
+        output_tokens: raw.get("completion_tokens").and_then(Value::as_u64),
+        reasoning_tokens: raw
+            .get("completion_tokens_details")
+            .and_then(|value| value.get("reasoning_tokens"))
+            .and_then(Value::as_u64),
+        cache_read_tokens: raw
+            .get("prompt_tokens_details")
+            .and_then(|value| value.get("cached_tokens"))
+            .and_then(Value::as_u64),
+        cache_write_tokens: None,
+        total_tokens: raw.get("total_tokens").and_then(Value::as_u64),
+    }
+}
+
+async fn read_streaming_response<F>(
+    response: reqwest::Response,
+    request_model: String,
+    on_event: &mut F,
+    native_passthrough: bool,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    let status = response.status();
+    if !status.is_success() {
+        return Err(provider_upstream_error_from_response(response)
+            .await?
+            .into());
+    }
+    let headers = response.headers().clone();
+    let upstream_request_id = header_text(&headers, "x-request-id");
+    let upstream_model =
+        header_text(&headers, "openai-model").or_else(|| header_text(&headers, "x-openai-model"));
+    let models_etag = header_text(&headers, "x-models-etag");
+    let mut events = Vec::new();
+    let mut all_events = Vec::new();
+    let mut text = String::new();
+    let mut tool_calls = ResponseToolCalls::default();
+    let mut usage = ProviderUsage::default();
+    let mut finish_reason = ProviderFinishReason::Unknown;
+    let mut response_id = Value::Null;
+    let mut size_guard = SseEventSizeGuard::default();
+    let raw_stream = response.bytes_stream().map(move |chunk| {
+        let chunk = chunk.map_err(anyhow::Error::from)?;
+        size_guard.observe(&chunk)?;
+        Ok::<_, anyhow::Error>(chunk)
+    });
+    let mut stream = raw_stream.eventsource();
+    while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
+        .await
+        .context("idle timeout waiting for Responses SSE")?
+    {
+        let event = match event {
+            Ok(event) => event,
+            Err(_) if response_stream_finished(&finish_reason) => break,
+            Err(error) => return Err(anyhow!("invalid Responses SSE stream: {error}")),
+        };
+        if native_passthrough {
+            emit_native_response_sse_data(&event.data, on_event)?;
+        }
+        process_response_sse_payload(
+            &event.data,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )?;
+        emit_new_events(&events, on_event)?;
+        all_events.append(&mut events);
+    }
+    if response_id.is_null() || !response_stream_finished(&finish_reason) {
+        bail!("stream closed before response.completed");
+    }
+    if usage.has_any_value() {
+        events.push(ProviderStreamEvent::UsageSnapshot {
+            usage: usage.clone(),
+        });
+    }
+    for call in tool_calls.iter() {
+        events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
+    }
+    events.push(ProviderStreamEvent::Finish {
+        reason: finish_reason.clone(),
+    });
+    emit_new_events(&events, on_event)?;
+    all_events.extend(events);
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
+    Ok(RuntimeInvocationEnvelope {
+        events: all_events,
+        result: ProviderInvocationResult {
+            final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
+            tool_calls: tool_calls.into_vec(),
+            mcp_calls: Vec::new(),
+            usage,
+            finish_reason: Some(finish_reason),
+            provider_metadata: json!({
+                "request_model": request_model,
+                "transport": "http_sse",
+                "response_id": response_id,
+                "upstream_request_id": upstream_request_id,
+                "upstream_model": upstream_model,
+                "models_etag": models_etag,
+            }),
+        },
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finalize_response_stream<F>(
+    mut all_events: Vec<ProviderStreamEvent>,
+    text: String,
+    tool_calls: Vec<ProviderToolCall>,
+    usage: ProviderUsage,
+    finish_reason: ProviderFinishReason,
+    response_id: Value,
+    mut provider_metadata: Value,
+    on_event: &mut F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    if response_id.is_null() {
+        bail!("stream closed before response.completed");
+    }
+    let mut events = Vec::new();
+    if usage.has_any_value() {
+        events.push(ProviderStreamEvent::UsageSnapshot {
+            usage: usage.clone(),
+        });
+    }
+    for call in &tool_calls {
+        events.push(ProviderStreamEvent::ToolCallCommit { call: call.clone() });
+    }
+    events.push(ProviderStreamEvent::Finish {
+        reason: finish_reason.clone(),
+    });
+    emit_new_events(&events, on_event)?;
+    all_events.extend(events);
+    let native_response_id = response_id.as_str().map(ToOwned::to_owned);
+
+    if let Some(metadata) = provider_metadata.as_object_mut() {
+        metadata.insert("response_id".to_string(), response_id.clone());
+    }
+
+    Ok(RuntimeInvocationEnvelope {
+        events: all_events,
+        result: ProviderInvocationResult {
+            final_content: (!text.is_empty()).then_some(text),
+            response_id: native_response_id,
+            tool_calls,
+            mcp_calls: Vec::new(),
+            usage,
+            finish_reason: Some(finish_reason),
+            provider_metadata,
+        },
+    })
+}
+
+fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn emit_native_response_sse_data<F>(data: &str, on_event: &mut F) -> Result<()>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    if data.is_empty() || data == "[DONE]" {
+        return Ok(());
+    }
+    let event = ProviderStreamEvent::NativeEvent {
+        protocol: "openai_responses".to_string(),
+        event: serde_json::from_str(data)?,
+    };
+    on_event(&event)
+}
+
+#[cfg(test)]
+fn process_response_sse_data(
+    data: &str,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_calls: &mut ResponseToolCalls,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut ProviderFinishReason,
+    response_id: &mut Value,
+) -> Result<()> {
+    process_response_sse_payload(
+        data,
+        events,
+        text,
+        tool_calls,
+        usage,
+        finish_reason,
+        response_id,
+    )
+}
+
+fn process_response_sse_payload(
+    data: &str,
+    events: &mut Vec<ProviderStreamEvent>,
+    text: &mut String,
+    tool_calls: &mut ResponseToolCalls,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut ProviderFinishReason,
+    response_id: &mut Value,
+) -> Result<()> {
+    if data.is_empty() || data == "[DONE]" {
+        return Ok(());
+    }
+    let payload: Value = serde_json::from_str(data)?;
+    capture_response_id(&payload, response_id);
+    let event_type = payload
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    match event_type {
+        "response.created" => {
+            if let Some(id) = payload
+                .get("response")
+                .and_then(|response| response.get("id"))
+            {
+                *response_id = id.clone();
+            }
+        }
+        "response.output_text.delta" => {
+            if let Some(delta) = payload.get("delta").and_then(Value::as_str) {
+                text.push_str(delta);
+                events.push(ProviderStreamEvent::TextDelta {
+                    delta: delta.to_string(),
+                });
+            }
+        }
+        "response.reasoning_summary_text.delta" | "response.reasoning_text.delta" => {
+            if let Some(delta) = payload.get("delta").and_then(Value::as_str) {
+                events.push(ProviderStreamEvent::ReasoningDelta {
+                    delta: delta.to_string(),
+                });
+            }
+        }
+        "response.function_call_arguments.delta" | "response.custom_tool_call_input.delta" => {
+            let call_id = payload
+                .get("item_id")
+                .or_else(|| payload.get("call_id"))
+                .map(value_to_string)
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "tool_call_1".to_string());
+            events.push(ProviderStreamEvent::ToolCallDelta {
+                call_id,
+                delta: payload.get("delta").cloned().unwrap_or(Value::Null),
+            });
+        }
+        "response.output_item.added" => {
+            tool_calls.upsert_from_added_item(payload.get("item"));
+            if let Some(event) =
+                typed_response_output_item(&payload, ProviderOutputItemPhase::Added)?
+            {
+                events.push(event);
+            }
+        }
+        "response.function_call_arguments.done" => {
+            if let Some(call) = provider_tool_call_from_function_call_arguments_done(
+                &payload,
+                tool_calls,
+                ResponseToolCallKind::Function,
+            ) {
+                tool_calls.upsert(call, response_item_id_from_payload(&payload));
+            }
+        }
+        "response.custom_tool_call_input.done" => {
+            if let Some(call) = provider_tool_call_from_function_call_arguments_done(
+                &payload,
+                tool_calls,
+                ResponseToolCallKind::Custom,
+            ) {
+                tool_calls.upsert(call, response_item_id_from_payload(&payload));
+            }
+        }
+        "response.output_item.done" => {
+            tool_calls.upsert_from_item(payload.get("item"));
+            if let Some(event) =
+                typed_response_output_item(&payload, ProviderOutputItemPhase::Done)?
+            {
+                events.push(event);
+            }
+            if text.is_empty() {
+                if let Some(item_text) = response_item_text(payload.get("item")) {
+                    text.push_str(&item_text);
+                }
+            }
+        }
+        "response.failed" => {
+            bail!("{}", response_failed_message(payload.get("response")));
+        }
+        "response.incomplete" => {
+            bail!("{}", response_incomplete_message(payload.get("response")));
+        }
+        "response.completed" | "response.done" => {
+            process_terminal_response_event(
+                &payload,
+                text,
+                tool_calls,
+                usage,
+                finish_reason,
+                response_id,
+            )?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn typed_response_output_item(
+    payload: &Value,
+    phase: ProviderOutputItemPhase,
+) -> Result<Option<ProviderStreamEvent>> {
+    let Some(item) = payload.get("item") else {
+        return Ok(None);
+    };
+    if !matches!(
+        item.get("type").and_then(Value::as_str),
+        Some(
+            "tool_search_call"
+                | "tool_search_output"
+                | "additional_tools"
+                | "file_search_call"
+                | "program"
+                | "shell_call"
+                | "mcp_list_tools"
+                | "mcp_call"
+                | "mcp_approval_request"
+        )
+    ) {
+        return Ok(None);
+    }
+    let output_index = payload
+        .get("output_index")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| anyhow!("typed Responses output item omitted output_index"))?;
+    Ok(Some(ProviderStreamEvent::OutputItem {
+        phase,
+        output_index,
+        item: item.clone(),
+    }))
+}
+
+fn capture_response_id(payload: &Value, response_id: &mut Value) {
+    if !response_id.is_null() {
+        return;
+    }
+    if let Some(id) = payload
+        .get("response_id")
+        .or_else(|| payload.get("item").and_then(|item| item.get("response_id")))
+        .or_else(|| {
+            payload
+                .get("response")
+                .and_then(|response| response.get("id"))
+        })
+    {
+        *response_id = id.clone();
+    }
+}
+
+fn process_terminal_response_event(
+    payload: &Value,
+    text: &mut String,
+    tool_calls: &mut ResponseToolCalls,
+    usage: &mut ProviderUsage,
+    finish_reason: &mut ProviderFinishReason,
+    response_id: &mut Value,
+) -> Result<()> {
+    let Some(response) = payload.get("response") else {
+        return Ok(());
+    };
+    if let Some(status) = response.get("status").and_then(Value::as_str) {
+        match status {
+            "failed" => bail!("{}", response_failed_message(Some(response))),
+            "incomplete" => bail!("{}", response_incomplete_message(Some(response))),
+            "cancelled" => bail!("response.cancelled"),
+            _ => {}
+        }
+    }
+    if let Some(id) = response.get("id") {
+        *response_id = id.clone();
+    }
+    *usage = normalize_usage(response.get("usage").unwrap_or(&Value::Null));
+    if let Some(items) = response.get("output").and_then(Value::as_array) {
+        for item in items {
+            tool_calls.upsert_from_item(Some(item));
+        }
+    }
+    if text.is_empty() {
+        if let Some(output_text) = response
+            .get("output")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| response_item_text(Some(item)))
+                    .collect::<Vec<_>>()
+                    .join("")
+            })
+            .filter(|value| !value.is_empty())
+        {
+            text.push_str(&output_text);
+        }
+    }
+    *finish_reason = if tool_calls.is_empty() {
+        ProviderFinishReason::Stop
+    } else {
+        ProviderFinishReason::ToolCall
+    };
+    Ok(())
+}
+
+fn response_failed_message(response: Option<&Value>) -> String {
+    let Some(error) = response.and_then(|value| value.get("error")) else {
+        return "response.failed event received".to_string();
+    };
+    let message = error
+        .get("message")
+        .and_then(Value::as_str)
+        .unwrap_or("response.failed event received");
+    let code = error.get("code").and_then(Value::as_str);
+    let error_type = error.get("type").and_then(Value::as_str);
+    match (code, error_type) {
+        (Some(code), Some(error_type)) => format!("{code} ({error_type}): {message}"),
+        (Some(code), None) => format!("{code}: {message}"),
+        (None, Some(error_type)) => format!("{error_type}: {message}"),
+        (None, None) => message.to_string(),
+    }
+}
+
+fn response_incomplete_message(response: Option<&Value>) -> String {
+    let reason = response
+        .and_then(|value| value.get("incomplete_details"))
+        .and_then(|value| value.get("reason"))
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    format!("response.incomplete: {reason}")
+}
+
+fn upsert_tool_call(tool_calls: &mut Vec<ProviderToolCall>, call: ProviderToolCall) {
+    if let Some(existing) = tool_calls
+        .iter_mut()
+        .find(|existing| existing.id == call.id)
+    {
+        *existing = call;
+    } else {
+        tool_calls.push(call);
+    }
+}
+
+fn provider_tool_call_from_response_item(item: Option<&Value>) -> Option<ProviderToolCall> {
+    let item = item?;
+    let item_type = item.get("type").and_then(Value::as_str)?;
+    let arguments = match item_type {
+        "function_call" => item
+            .get("arguments")
+            .and_then(Value::as_str)
+            .and_then(|value| serde_json::from_str::<Value>(value).ok())
+            .unwrap_or_else(|| json!({})),
+        "custom_tool_call" => item
+            .get("input")
+            .cloned()
+            .map(normalize_custom_tool_input)
+            .unwrap_or_else(|| json!({})),
+        _ => return None,
+    };
+    Some(ProviderToolCall {
+        id: item
+            .get("call_id")
+            .or_else(|| item.get("id"))
+            .map(value_to_string)
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "tool_call_1".to_string()),
+        name: item
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown_tool")
+            .to_string(),
+        arguments,
+    })
+}
+
+fn response_item_id(item: Option<&Value>) -> Option<String> {
+    item.and_then(|item| item.get("id"))
+        .map(value_to_string)
+        .filter(|value| !value.is_empty())
+}
+
+fn response_item_id_from_payload(payload: &Value) -> Option<String> {
+    payload
+        .get("item_id")
+        .map(value_to_string)
+        .filter(|value| !value.is_empty())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResponseToolCallKind {
+    Function,
+    Custom,
+}
+
+fn provider_tool_call_from_function_call_arguments_done(
+    payload: &Value,
+    tool_calls: &ResponseToolCalls,
+    kind: ResponseToolCallKind,
+) -> Option<ProviderToolCall> {
+    let call_id = payload
+        .get("call_id")
+        .map(value_to_string)
+        .filter(|value| !value.is_empty());
+    let item_id = response_item_id_from_payload(payload);
+    let id = call_id
+        .clone()
+        .or_else(|| {
+            item_id
+                .as_deref()
+                .and_then(|id| tool_calls.call_id_for_item_id(id))
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| item_id.clone())?;
+    let existing = tool_calls.find_by_id_or_item_id(&id);
+    let name = payload
+        .get("name")
+        .or_else(|| payload.get("item").and_then(|item| item.get("name")))
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            existing
+                .filter(|call| call.name != "unknown_tool")
+                .map(|call| call.name.clone())
+        });
+    let name = name?;
+    let arguments = match kind {
+        ResponseToolCallKind::Function => payload
+            .get("arguments")
+            .map(function_call_arguments_value)
+            .or_else(|| existing.map(|call| call.arguments.clone()))
+            .unwrap_or_else(|| json!({})),
+        ResponseToolCallKind::Custom => payload
+            .get("input")
+            .cloned()
+            .map(normalize_custom_tool_input)
+            .or_else(|| existing.map(|call| call.arguments.clone()))
+            .unwrap_or_else(|| json!({})),
+    };
+
+    Some(ProviderToolCall {
+        id,
+        name,
+        arguments,
+    })
+}
+
+fn function_call_arguments_value(value: &Value) -> Value {
+    match value {
+        Value::String(text) => serde_json::from_str::<Value>(text).unwrap_or_else(|_| json!({})),
+        Value::Null => json!({}),
+        other => other.clone(),
+    }
+}
+
+fn normalize_custom_tool_input(input: Value) -> Value {
+    match input {
+        Value::String(text) => {
+            serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({ "input": text }))
+        }
+        Value::Null => json!({}),
+        other => other,
+    }
+}
+
+fn response_item_text(item: Option<&Value>) -> Option<String> {
+    let item = item?;
+    if item.get("type").and_then(Value::as_str) != Some("message") {
+        return None;
+    }
+    let content = item.get("content")?.as_array()?;
+    let text = content
+        .iter()
+        .filter_map(|part| {
+            if part.get("type").and_then(Value::as_str) != Some("output_text") {
+                return None;
+            }
+            part.get("text").and_then(Value::as_str)
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    (!text.is_empty()).then_some(text)
+}
+
+fn normalize_usage(raw: &Value) -> ProviderUsage {
+    ProviderUsage {
+        input_tokens: raw.get("input_tokens").and_then(Value::as_u64),
+        output_tokens: raw.get("output_tokens").and_then(Value::as_u64),
+        total_tokens: raw.get("total_tokens").and_then(Value::as_u64),
+        reasoning_tokens: raw
+            .get("output_tokens_details")
+            .and_then(|value| value.get("reasoning_tokens"))
+            .and_then(Value::as_u64),
+        cache_read_tokens: raw
+            .get("input_tokens_details")
+            .and_then(|value| value.get("cached_tokens"))
+            .and_then(Value::as_u64),
+        cache_write_tokens: None,
+    }
+}
+
+fn emit_new_events<F>(events: &[ProviderStreamEvent], on_event: &mut F) -> Result<()>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    for event in events {
+        on_event(event)?;
+    }
+    Ok(())
+}
+
+fn count_tokens_result(input: Value) -> Value {
+    let mut generate_input = input.clone();
+    if let Some(object) = generate_input.as_object_mut() {
+        object.insert(
+            "operation".to_string(),
+            Value::String("generate".to_string()),
+        );
+        object.remove("profile");
+        if let Some(Value::Array(capabilities)) = object.get_mut("required_capabilities") {
+            capabilities.retain(|capability| capability.as_str() != Some("count_tokens"));
+        }
+    }
+    let wire_body = serde_json::from_value::<ProviderInvocationInput>(generate_input)
+        .ok()
+        .and_then(|input| {
+            build_openai_generate_request(&input)
+                .ok()
+                .map(|request| request.body)
+        })
+        .unwrap_or_else(|| count_tokens_fallback_body(&input));
+    count_tokens::provider_estimate(wire_body)
+}
+
+fn count_tokens_fallback_body(input: &Value) -> Value {
+    let mut body = Map::new();
+    for key in ["model", "messages", "system", "tools", "response_format"] {
+        if let Some(value) = input.get(key) {
+            body.insert(key.to_string(), value.clone());
+        }
+    }
+    Value::Object(body)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        io::{Read, Write},
+        net::{TcpListener, TcpStream},
+        sync::mpsc,
+        thread,
+        time::Duration,
+    };
+    use tokio_tungstenite::tungstenite::{
+        accept_hdr,
+        handshake::server::{
+            Request as ServerHandshakeRequest, Response as ServerHandshakeResponse,
+        },
+    };
+
+    #[test]
+    fn wp_r3_foreign_context_receipt_is_bounded_and_contains_no_raw_values() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "anthropic_messages".to_string(),
+            body: BTreeMap::from([("raw-canary".to_string(), json!("must-not-leak"))]),
+            ..ProtocolContextEnvelope::default()
+        };
+        let mut metadata = json!({ "provider": "openai" });
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&envelope)).unwrap();
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!(["omitted_foreign_protocol_context"])
+        );
+        assert!(!metadata.to_string().contains("raw-canary"));
+        assert!(!metadata.to_string().contains("must-not-leak"));
+        assert!(metadata.to_string().len() <= 512);
+    }
+
+    #[test]
+    fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
+        let manifest = include_str!("../manifest.yaml");
+
+        assert!(manifest.contains("plugin_id: chatgpt"));
+        assert!(manifest.contains("version: 0.1.0"));
+        assert!(manifest.contains("- reasoning_output_supported"));
+        assert!(manifest.contains("- native_continuation_supported"));
+        assert!(!manifest.contains("- reasoning_history_input_supported"));
+    }
+
+    #[test]
+    fn issue_1743_provider_capabilities_deserialize_frozen_reasoning_schema() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "required_capabilities": [
+                "reasoning_output_supported",
+                "reasoning_history_input_supported",
+                "native_continuation_supported",
+                "message_blocks.reasoning_history.v1",
+                "message_blocks.redacted_reasoning_history.v1"
+            ]
+        }))
+        .expect("the provider must accept every frozen reasoning capability spelling");
+
+        assert!(input
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::ReasoningOutputSupported));
+        assert!(input
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::ReasoningHistoryInputSupported));
+        assert!(input
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::NativeContinuationSupported));
+    }
+
+    #[test]
+    fn issue_1743_host_projected_reasoning_omission_preserves_visible_assistant_text() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "messages": [{
+                "role": "assistant",
+                "content": "visible answer",
+                "content_blocks": [
+                    {"type": "text", "text": "visible answer"}
+                ]
+            }]
+        }))
+        .expect("host-projected invocation should deserialize");
+
+        let request = build_openai_generate_request(&input)
+            .expect("visible assistant text should remain a valid Responses input");
+
+        assert_eq!(request.body["input"][0]["content"], "visible answer");
+        assert!(request.translation_decisions.is_empty());
+    }
+
+    #[test]
+    fn issue_1743_openai_lowering_omits_raw_signed_and_redacted_reasoning() {
+        const RAW: &str = "raw-reasoning-canary";
+        const SIGNED: &str = "signed-reasoning-canary";
+        const SIGNATURE: &str = "reasoning-signature-canary";
+        const REDACTED: &str = "redacted-reasoning-canary";
+        for protocol in ["openai_chat", "openai_responses"] {
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-openai",
+                "provider_code": "openai",
+                "protocol": protocol,
+                "model": "gpt-5.4-mini",
+                "messages": [{
+                    "role": "assistant",
+                    "content": "visible answer",
+                    "content_blocks": [
+                        {"type": "reasoning", "text": RAW},
+                        {"type": "reasoning", "text": SIGNED, "signature": SIGNATURE},
+                        {"type": "reasoning_redacted", "data": REDACTED},
+                        {"type": "text", "text": "visible answer"}
+                    ]
+                }]
+            }))
+            .expect("provider-bound canonical invocation should deserialize");
+
+            let request = build_openai_generate_request(&input)
+                .expect("OpenAI lowering should retain only visible content");
+            let wire = request.body.to_string();
+
+            assert!(wire.contains("visible answer"), "protocol={protocol}");
+            for secret in [RAW, SIGNED, SIGNATURE, REDACTED] {
+                assert!(!wire.contains(secret), "protocol={protocol}");
+            }
+            assert_eq!(
+                request.translation_decisions,
+                vec!["omitted_reasoning_history"],
+                "protocol={protocol}"
+            );
+        }
+    }
+
+    #[test]
+    fn issue_1743_non_assistant_reasoning_with_visible_text_fails_closed_on_all_wires() {
+        for protocol in ["openai_chat", "openai_responses"] {
+            for role in ["user", "system", "tool"] {
+                for block_type in ["reasoning", "reasoning_redacted"] {
+                    let input: ProviderInvocationInput = serde_json::from_value(json!({
+                        "contract_version": "1flowbase.provider/v2",
+                        "provider_instance_id": "provider-openai",
+                        "provider_code": "openai",
+                        "protocol": protocol,
+                        "model": "gpt-5.4-mini",
+                        "messages": [
+                            {"role": "user", "content": "first message"},
+                            {
+                                "role": role,
+                                "content": "visible answer",
+                                "tool_call_id": (role == "tool").then_some("call_1"),
+                                "content_blocks": [
+                                    {"type": block_type, "text": "must-not-be-omitted"},
+                                    {"type": "text", "text": "visible answer"}
+                                ]
+                            }
+                        ]
+                    }))
+                    .expect("non-assistant reasoning fixture should deserialize");
+
+                    let error = build_openai_generate_request(&input)
+                        .expect_err("non-assistant reasoning must never be omitted");
+                    let message = error.to_string();
+
+                    assert!(message.contains("non-assistant message"));
+                    assert!(message.contains("messages[1]"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn issue_1743_reasoning_only_assistant_input_fails_closed() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "messages": [{
+                "role": "assistant",
+                "content": "must-not-be-disguised-as-visible-text",
+                "content_blocks": [
+                    {"type": "reasoning", "text": "reasoning-only-canary"}
+                ]
+            }]
+        }))
+        .expect("bypassed provider invocation should deserialize before lowering");
+
+        let error = build_openai_generate_request(&input)
+            .expect_err("reasoning-only assistant input must not become empty OpenAI input");
+
+        assert!(error
+            .to_string()
+            .contains("reasoning-only assistant message"));
+    }
+
+    #[test]
+    fn issue_1743_native_continuation_keeps_previous_response_id() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "previous_response_id": "resp_previous",
+            "required_capabilities": ["native_continuation_supported"],
+            "messages": [{"role": "user", "content": "continue"}]
+        }))
+        .expect("native continuation capability should deserialize");
+
+        let body = build_responses_body(&input).expect("native continuation should render");
+
+        assert_eq!(body["previous_response_id"], "resp_previous");
+    }
+
+    #[test]
+    fn issue_1743_translation_decisions_share_the_existing_receipt() {
+        let envelope = ProtocolContextEnvelope {
+            source_protocol: "anthropic_messages".to_string(),
+            ..ProtocolContextEnvelope::default()
+        };
+        let mut metadata = json!({"provider": "openai"});
+
+        append_request_translation_decisions(&mut metadata, ["omitted_reasoning_history"]).unwrap();
+        attach_foreign_protocol_context_decision(&mut metadata, Some(&envelope)).unwrap();
+
+        assert_eq!(
+            metadata["provider_request_translation"]["decisions"],
+            json!([
+                "omitted_reasoning_history",
+                "omitted_foreign_protocol_context"
+            ])
+        );
+    }
+
+    #[tokio::test]
+    async fn ac_005_validate_redacts_configured_proxy_url() {
+        let proxy_url = "http://proxy-user:proxy-pass@127.0.0.1:8080";
+        let response = handle_request(ProviderStdioRequest {
+            method: "validate".to_string(),
+            input: json!({
+                "access_token": "provider-secret",
+                "validate_model": false,
+                "proxy_url": proxy_url
+            }),
+        })
+        .await
+        .unwrap();
+
+        assert!(response.ok);
+        assert_eq!(response.result["sanitized"]["proxy_url"], "***");
+        assert!(!response.result.to_string().contains(proxy_url));
+    }
+
+    fn read_http_request_with_body(stream: &mut TcpStream) -> String {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("request read timeout");
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        loop {
+            let read = stream
+                .read(&mut buffer)
+                .expect("request should be readable");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+            let Some(header_end) = request.windows(4).position(|part| part == b"\r\n\r\n") else {
+                continue;
+            };
+            let headers = String::from_utf8_lossy(&request[..header_end]);
+            let content_length = headers
+                .lines()
+                .find_map(|line| {
+                    line.split_once(':').and_then(|(name, value)| {
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().ok())
+                            .flatten()
+                    })
+                })
+                .unwrap_or(0);
+            if request.len() >= header_end + 4 + content_length {
+                break;
+            }
+        }
+        String::from_utf8(request).expect("request should be utf8")
+    }
+
+    fn start_generate_sse_server() -> (String, mpsc::Receiver<String>) {
+        start_generate_sse_server_with_body(concat!(
+            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_generate\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2},\"output\":[]}}\n\n"
+        ))
+    }
+
+    fn start_generate_sse_server_with_body(
+        body: impl Into<String>,
+    ) -> (String, mpsc::Receiver<String>) {
+        start_generate_http_server("200 OK", "text/event-stream", body, None)
+    }
+
+    fn start_generate_http_server(
+        status: &str,
+        content_type: &str,
+        body: impl Into<String>,
+        declared_content_length: Option<usize>,
+    ) -> (String, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("generate listener should bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (request_tx, request_rx) = mpsc::channel();
+        let status = status.to_string();
+        let content_type = content_type.to_string();
+        let body = body.into();
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("generate request should connect");
+            let request = read_http_request_with_body(&mut stream);
+            let _ = request_tx.send(request);
+            let content_length = declared_content_length.unwrap_or(body.len());
+            let response = format!(
+                "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {content_length}\r\nconnection: close\r\n\r\n{}",
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("generate response should be writable");
+        });
+
+        (base_url, request_rx)
+    }
+
+    fn start_chunked_sse_server(chunks: Vec<Vec<u8>>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("SSE listener should bind");
+        let address = format!("http://{}", listener.local_addr().expect("listener addr"));
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("SSE request should connect");
+            let _ = read_http_request_with_body(&mut stream);
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n",
+                )
+                .expect("SSE response headers should be writable");
+            for chunk in chunks {
+                write!(stream, "{:x}\r\n", chunk.len()).expect("chunk size should be writable");
+                stream
+                    .write_all(&chunk)
+                    .expect("chunk payload should be writable");
+                stream
+                    .write_all(b"\r\n")
+                    .expect("chunk trailer should be writable");
+                stream.flush().expect("chunk should flush");
+            }
+            stream
+                .write_all(b"0\r\n\r\n")
+                .expect("terminating chunk should be writable");
+        });
+
+        address
+    }
+
+    fn split_chinese_and_emoji_tcp_chunks(body: &str) -> Vec<Vec<u8>> {
+        let bytes = body.as_bytes();
+        let chinese = body
+            .find('中')
+            .expect("fixture should contain Chinese text");
+        let emoji = body.find('🙂').expect("fixture should contain emoji");
+        vec![
+            bytes[..chinese + 1].to_vec(),
+            bytes[chinese + 1..emoji + 2].to_vec(),
+            bytes[emoji + 2..].to_vec(),
+        ]
+    }
+
+    fn start_compact_json_server(
+        status: &str,
+        response_body: Value,
+    ) -> (String, mpsc::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("compact listener should bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("listener addr"));
+        let (request_tx, request_rx) = mpsc::channel();
+        let status = status.to_string();
+
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("compact request should connect");
+            let request = read_http_request_with_body(&mut stream);
+            request_tx
+                .send(request)
+                .expect("compact request should be captured");
+            let body = response_body.to_string();
+            let response = format!(
+                "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("compact response should be writable");
+        });
+
+        (base_url, request_rx)
+    }
+
+    #[allow(clippy::result_large_err)]
+    fn start_websocket_connect_proxy() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("proxy listener should bind");
+        let proxy_url = format!(
+            "http://{}",
+            listener.local_addr().expect("proxy listener addr")
+        );
+        let (request_tx, request_rx) = mpsc::channel();
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener
+                .accept()
+                .expect("websocket should connect to proxy");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("proxy read timeout");
+
+            let mut buffer = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            loop {
+                let read = stream
+                    .read(&mut chunk)
+                    .expect("CONNECT request should be readable");
+                if read == 0 {
+                    panic!("proxy connection closed before CONNECT request");
+                }
+                buffer.extend_from_slice(&chunk[..read]);
+                if buffer.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+
+            let connect_request =
+                String::from_utf8(buffer).expect("CONNECT request should be utf8");
+            request_tx
+                .send(connect_request)
+                .expect("CONNECT request should be observed");
+            stream
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .expect("CONNECT response should be writable");
+
+            let _websocket = accept_hdr(
+                stream,
+                |_request: &ServerHandshakeRequest, mut response: ServerHandshakeResponse| {
+                    response
+                        .headers_mut()
+                        .insert("x-codex-turn-state", "proxy-turn".parse().unwrap());
+                    Ok(response)
+                },
+            )
+            .expect("websocket handshake should succeed through proxy");
+        });
+
+        (proxy_url, request_rx, handle)
+    }
+
+    #[tokio::test]
+    async fn openai_chat_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: message\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"choices\":[{\"delta\":{\"content\":\"中文🙂\"},\"finish_reason\":null}]}\r\n\r\n",
+            "data: {\"id\":\"chatcmpl_split\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\r\n\r\n",
+            "data: [DONE]\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope =
+            read_chat_streaming_response(response, "gpt-5.4".to_string(), &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_sse_preserves_chinese_and_emoji_split_across_tcp_chunks() {
+        let body = concat!(
+            ": keepalive\r\n",
+            "event: response.output_text.delta\r\n",
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_split\",\"delta\":\"中文🙂\"}\r\n\r\n",
+            "event: response.completed\r\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_split\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\r\n\r\n"
+        );
+        let response = reqwest::get(start_chunked_sse_server(
+            split_chinese_and_emoji_tcp_chunks(body),
+        ))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let envelope = read_streaming_response(
+            response,
+            "gpt-5.4".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(envelope.result.final_content.as_deref(), Some("中文🙂"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "中文🙂".to_string(),
+        }));
+    }
+
+    #[tokio::test]
+    async fn openai_chat_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"id\":\"chatcmpl_utf8\",\"choices\":[{\"delta\":{\"content\":\"before\"},\"finish_reason\":null}]}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_chat_streaming_response(response, "gpt-5.4".to_string(), &mut |event| {
+            events.push(event.clone());
+            Ok(())
+        })
+        .await
+        .expect_err("invalid UTF-8 must fail the Chat Completions SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_sse_rejects_invalid_utf8_without_replacing_or_finishing() {
+        let mut invalid_event = b"data: ".to_vec();
+        invalid_event.extend([0xf0, 0x9f]);
+        let response = reqwest::get(start_chunked_sse_server(vec![
+            b"data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_utf8\",\"delta\":\"before\"}\r\n\r\n".to_vec(),
+            invalid_event,
+        ]))
+        .await
+        .unwrap();
+        let mut events = Vec::new();
+
+        let error = read_streaming_response(
+            response,
+            "gpt-5.4".to_string(),
+            &mut |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            false,
+        )
+        .await
+        .expect_err("invalid UTF-8 must fail the Responses SSE stream");
+
+        assert!(error.to_string().to_ascii_lowercase().contains("utf8"));
+        assert!(events.contains(&ProviderStreamEvent::TextDelta {
+            delta: "before".to_string(),
+        }));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })));
+    }
+
+    #[test]
+    fn wp_d3a_unknown_json_plain_html_and_whitespace_error_bodies_remain_exact() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        headers.insert(
+            HeaderName::from_static("x-request-id"),
+            HeaderValue::from_static("req_plain"),
+        );
+        headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer sk-secret"));
+        headers.insert(
+            HeaderName::from_static("set-cookie"),
+            HeaderValue::from_static("session=secret"),
+        );
+        for raw_body in [
+            r#"{"future_error":{"shape":"unknown"}}"#,
+            "plain upstream failure\nwith a trailing newline\n",
+            "<html><body>future provider failure</body></html>",
+            " \r\n\t leading and trailing whitespace \n ",
+            " \r\n\t ",
+        ] {
+            let error = provider_upstream_error_from_parts(
+                reqwest::StatusCode::BAD_REQUEST,
+                &headers,
+                raw_body.to_string(),
+            );
+
+            assert_eq!(error.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+            assert_eq!(error.message, raw_body);
+            assert_eq!(error.provider_summary.as_deref(), Some(raw_body));
+            assert_eq!(
+                error.provider_details,
+                Some(json!({ "status": 400, "request_id": "req_plain" }))
+            );
+            let encoded = serde_json::to_string(&error).unwrap();
+            assert!(!encoded.contains("sk-secret"));
+            assert!(!encoded.contains("session=secret"));
+        }
+
+        let empty = provider_upstream_error_from_parts(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            &headers,
+            String::new(),
+        );
+        assert_eq!(empty.message, "HTTP 503 Service Unavailable");
+        assert_eq!(
+            empty.provider_summary.as_deref(),
+            Some("HTTP 503 Service Unavailable")
+        );
+    }
+
+    #[tokio::test]
+    async fn wp_d3a_chat_and_responses_errors_enter_runtime_error_unchanged() {
+        for (protocol, pathname, content_type, raw_body) in [
+            (
+                "openai_responses",
+                "/responses",
+                "application/problem+json",
+                " \r\n{\"future_error\":{\"shape\":\"unknown\"}}\n ",
+            ),
+            (
+                "openai_chat",
+                "/chat/completions",
+                "text/html",
+                "<html><body>chat upstream failure</body></html>\n",
+            ),
+        ] {
+            let (base_url, request_rx) =
+                start_generate_http_server("400 Bad Request", content_type, raw_body, None);
+            let input: ProviderInvocationInput = serde_json::from_value(json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-openai",
+                "provider_code": "openai",
+                "protocol": protocol,
+                "model": "gpt-5.4-mini",
+                "provider_config": {
+                    "base_url": base_url,
+                    "access_token": "error-fixture-secret",
+                    "transport_mode": "http_sse"
+                },
+                "messages": [{ "role": "user", "content": "fixture" }],
+                "required_capabilities": ["protocol_context"],
+                "client_protocol_envelope": {
+                    "source_protocol": protocol,
+                    "query": {"fixture": ["one", "two"]},
+                    "headers": {"x-client-name": ["wp-d3a"]},
+                    "body": {"future_option": {"mode": "exact"}}
+                }
+            }))
+            .expect("error fixture input should deserialize");
+
+            let error = ChatGptProviderRuntime::default()
+                .invoke_response(input)
+                .await
+                .expect_err("non-success upstream response should fail");
+            let runtime_error = error
+                .downcast_ref::<ProviderRuntimeError>()
+                .expect("upstream response should remain a typed ProviderRuntimeError");
+
+            assert_eq!(
+                runtime_error.kind,
+                ProviderRuntimeErrorKind::ProviderUpstreamError
+            );
+            assert_eq!(runtime_error.message, raw_body);
+            assert_eq!(runtime_error.provider_summary.as_deref(), Some(raw_body));
+
+            let request = request_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("error fixture should capture the request");
+            let (request_head, request_body) = request
+                .split_once("\r\n\r\n")
+                .expect("captured request should contain headers and body");
+            assert!(request_head
+                .starts_with(&format!("POST {pathname}?fixture=one&fixture=two HTTP/1.1")));
+            assert!(request_head
+                .to_ascii_lowercase()
+                .contains("x-client-name: wp-d3a"));
+            let request_body: Value = serde_json::from_str(request_body)
+                .expect("captured request body should remain JSON");
+            assert_eq!(request_body["future_option"]["mode"], "exact");
+        }
+    }
+
+    #[tokio::test]
+    async fn wp_d3a_error_body_transport_failure_is_not_a_provider_runtime_error() {
+        let raw_body = "truncated";
+        let (base_url, _) = start_generate_http_server(
+            "502 Bad Gateway",
+            "text/plain",
+            raw_body,
+            Some(raw_body.len() + 64),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "access_token": "transport-fixture-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "fixture" }]
+        }))
+        .expect("transport failure fixture input should deserialize");
+
+        let error = ChatGptProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("truncated upstream body should remain a transport failure");
+
+        assert!(error.downcast_ref::<ProviderRuntimeError>().is_none());
+        assert!(error.downcast_ref::<reqwest::Error>().is_some());
+    }
+
+    #[test]
+    fn responses_body_maps_native_tool_calls_and_tool_results() {
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            protocol: "openai_responses".to_string(),
+            model: "gpt-5.1".to_string(),
+            required_capabilities: BTreeSet::from([ProviderInvocationCapability::ProtocolContext]),
+            client_protocol_envelope: Some(ProtocolContextEnvelope {
+                source_protocol: "openai_responses".to_string(),
+                ..Default::default()
+            }),
+            previous_response_id: Some("resp_previous".to_string()),
+            messages: vec![
+                ProviderMessage {
+                    role: ProviderMessageRole::Assistant,
+                    content: String::new(),
+                    content_blocks: None,
+                    name: None,
+                    tool_call_id: None,
+                    is_error: None,
+                    tool_calls: Some(
+                        json!([{ "id": "call_1", "name": "lookup", "arguments": { "query": "refund" }}]),
+                    ),
+                },
+                ProviderMessage {
+                    role: ProviderMessageRole::Tool,
+                    content: "found".to_string(),
+                    content_blocks: None,
+                    name: None,
+                    tool_call_id: Some("call_1".to_string()),
+                    is_error: None,
+                    tool_calls: None,
+                },
+            ],
+            tools: vec![json!({
+                "type": "function",
+                "function": {
+                    "name": "lookup",
+                    "description": "Lookup docs",
+                    "parameters": { "type": "object" },
+                    "strict": true
+                }
+            })],
+            model_parameters: BTreeMap::from([
+                ("response_format".to_string(), json!("json_object")),
+                ("reasoning_effort".to_string(), json!("xhigh")),
+                ("tool_choice".to_string(), json!("required")),
+                ("parallel_tool_calls".to_string(), json!(true)),
+                (
+                    "include".to_string(),
+                    json!(["reasoning.encrypted_content"]),
+                ),
+                ("prompt_cache_key".to_string(), json!("thread_1")),
+            ]),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).unwrap();
+        assert_eq!(body["model"], "gpt-5.1");
+        assert_eq!(body["previous_response_id"], "resp_previous");
+        assert_eq!(body["tools"][0]["name"], "lookup");
+        assert_eq!(body["tools"][0]["strict"], true);
+        assert_eq!(body["tool_choice"], "required");
+        assert_eq!(body["reasoning"], json!({ "effort": "xhigh" }));
+        assert_eq!(body["text"]["format"], json!({ "type": "json_object" }));
+        assert_eq!(body["parallel_tool_calls"], true);
+        assert_eq!(body["include"], json!(["reasoning.encrypted_content"]));
+        assert_eq!(body["prompt_cache_key"], "thread_1");
+        assert_eq!(body["input"][0]["type"], "function_call");
+        assert_eq!(body["input"][0]["call_id"], "call_1");
+        assert_eq!(body["input"][0]["arguments"], r#"{"query":"refund"}"#);
+        assert_eq!(body["input"][1]["type"], "function_call_output");
+        assert_eq!(body["input"][1]["call_id"], "call_1");
+    }
+
+    #[test]
+    fn d4_ac_016_native_responses_body_preserves_opaque_fields_and_overrides_route_model() {
+        const SECRET: &str = "Bearer provider-native-secret";
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.4".to_string(),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body: json!({
+                    "model": "1flowbase",
+                    "input": [{"type": "item_reference", "id": "item_1"}],
+                    "tools": [{"type": "mcp", "authorization": SECRET}],
+                    "future_extension": {"opaque": true},
+                    "stream": false
+                }),
+                digest: "sha256:test".to_string(),
+                size_bytes: 256,
+            }),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).expect("native body should render");
+        assert_eq!(body["model"], "gpt-5.4");
+        assert_eq!(body["input"][0]["id"], "item_1");
+        assert_eq!(body["tools"][0]["authorization"], SECRET);
+        assert_eq!(body["future_extension"]["opaque"], true);
+        assert_eq!(body["stream"], true);
+        assert!(!format!("{input:?}").contains(SECRET));
+    }
+
+    #[test]
+    fn d5_ac_001_003_hosted_tool_requests_remain_opaque_in_native_responses_body() {
+        let hosted_tools = json!([
+            {"type": "web_search", "external_web_access": false, "search_context_size": "high"},
+            {"type": "file_search", "vector_store_ids": ["vs_provider_owned"]},
+            {"type": "code_interpreter", "container": {"type": "auto", "file_ids": ["file_provider_owned"]}},
+            {"type": "image_generation", "quality": "high", "output_format": "png"},
+            {"type": "tool_search", "execution": "server", "description": "discover tools"},
+            {"type": "shell", "environment": {"type": "container_auto"}},
+            {"type": "future_hosted_tool", "future": {"opaque": true}}
+        ]);
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.4".to_string(),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body: json!({
+                    "model": "1flowbase",
+                    "input": [{"type": "item_reference", "id": "item_provider_owned"}],
+                    "tools": hosted_tools.clone(),
+                    "tool_choice": {"type": "allowed_tools", "mode": "auto", "tools": hosted_tools},
+                    "parallel_tool_calls": true
+                }),
+                digest: "sha256:hosted".to_string(),
+                size_bytes: 1024,
+            }),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).expect("hosted request should remain opaque");
+        assert_eq!(body["model"], "gpt-5.4");
+        assert_eq!(body["tools"][0]["external_web_access"], false);
+        assert_eq!(body["tools"][1]["vector_store_ids"][0], "vs_provider_owned");
+        assert_eq!(
+            body["tools"][2]["container"]["file_ids"][0],
+            "file_provider_owned"
+        );
+        assert_eq!(body["tools"][3]["output_format"], "png");
+        assert_eq!(body["tools"][4]["execution"], "server");
+        assert_eq!(body["tools"][5]["environment"]["type"], "container_auto");
+        assert_eq!(body["tools"][6]["future"]["opaque"], true);
+        assert_eq!(body["tool_choice"]["type"], "allowed_tools");
+        assert_eq!(body["parallel_tool_calls"], true);
+        assert_eq!(body["stream"], true);
+    }
+
+    #[test]
+    fn d6_ac_001_mcp_definition_choice_and_approval_response_remain_opaque() {
+        const AUTHORIZATION: &str = "Bearer mcp-wire-canary";
+        let input = ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.4".to_string(),
+            previous_response_id: Some("resp_provider_owned".to_string()),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body: json!({
+                    "model": "1flowbase",
+                    "previous_response_id": "resp_provider_owned",
+                    "input": [{
+                        "type": "mcp_approval_response",
+                        "approval_request_id": "approval_provider_owned",
+                        "approve": true,
+                        "future_extension": {"opaque": true}
+                    }],
+                    "tools": [{
+                        "type": "mcp",
+                        "server_label": "orders",
+                        "server_url": "https://127.0.0.1.invalid/mcp",
+                        "connector_id": "connector_provider_owned",
+                        "authorization": AUTHORIZATION,
+                        "headers": {"X-MCP-Key": "mcp-header-canary"},
+                        "allowed_tools": ["lookup"],
+                        "allowed_callers": ["code_interpreter"],
+                        "require_approval": "always",
+                        "defer_loading": true,
+                        "future_extension": {"opaque": true}
+                    }],
+                    "tool_choice": {"type": "mcp", "server_label": "orders"}
+                }),
+                digest: "sha256:mcp".to_string(),
+                size_bytes: 1024,
+            }),
+            ..Default::default()
+        };
+
+        let body = build_responses_body(&input).expect("MCP request should remain opaque");
+        assert_eq!(body["previous_response_id"], "resp_provider_owned");
+        assert_eq!(
+            body["input"][0]["approval_request_id"],
+            "approval_provider_owned"
+        );
+        assert_eq!(body["tools"][0]["authorization"], AUTHORIZATION);
+        assert_eq!(
+            body["tools"][0]["headers"]["X-MCP-Key"],
+            "mcp-header-canary"
+        );
+        assert_eq!(body["tools"][0]["allowed_callers"][0], "code_interpreter");
+        assert_eq!(body["tools"][0]["defer_loading"], true);
+        assert_eq!(body["tools"][0]["future_extension"]["opaque"], true);
+        assert_eq!(body["tool_choice"]["type"], "mcp");
+        assert!(!format!("{input:?}").contains(AUTHORIZATION));
+    }
+
+    #[test]
+    fn d5_ac_002_hosted_output_actions_and_citations_emit_as_one_native_event() {
+        let provider_event = json!({
+            "type": "response.web_search_call.completed",
+            "output_index": 0,
+            "item_id": "ws_provider_owned",
+            "action": {"type": "open_page", "url": "https://example.test/source"},
+            "annotations": [{
+                "type": "url_citation",
+                "url": "https://example.test/source",
+                "title": "Provider citation"
+            }],
+            "future_extension": {"opaque": true}
+        });
+        let mut captured = Vec::new();
+        emit_native_response_sse_data(&provider_event.to_string(), &mut |event| {
+            captured.push(event.clone());
+            Ok(())
+        })
+        .expect("hosted event should parse");
+
+        assert_eq!(
+            captured,
+            vec![ProviderStreamEvent::NativeEvent {
+                protocol: "openai_responses".to_string(),
+                event: provider_event,
+            }]
+        );
+    }
+
+    #[test]
+    fn d6_ac_002_mcp_list_call_and_approval_events_stream_without_projection() {
+        let provider_events = [
+            json!({
+                "type": "response.mcp_list_tools.completed",
+                "item_id": "list_provider_owned",
+                "tools": [{"name": "lookup", "future_extension": {"opaque": true}}]
+            }),
+            json!({
+                "type": "response.mcp_call.arguments.delta",
+                "item_id": "call_provider_owned",
+                "delta": "{\"order_id\":\"A-1\"}"
+            }),
+            json!({
+                "type": "response.output_item.added",
+                "output_index": 0,
+                "item": {
+                    "type": "mcp_approval_request",
+                    "id": "approval_provider_owned",
+                    "server_label": "orders",
+                    "name": "lookup",
+                    "arguments": "{\"order_id\":\"A-1\"}"
+                }
+            }),
+        ];
+        let mut captured = Vec::new();
+        for event in &provider_events {
+            emit_native_response_sse_data(&event.to_string(), &mut |event| {
+                captured.push(event.clone());
+                Ok(())
+            })
+            .expect("MCP event should parse");
+        }
+
+        assert_eq!(captured.len(), provider_events.len());
+        for (captured, expected) in captured.iter().zip(provider_events) {
+            assert_eq!(
+                captured,
+                &ProviderStreamEvent::NativeEvent {
+                    protocol: "openai_responses".to_string(),
+                    event: expected,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn d4_ac_026_native_responses_sse_data_emits_exact_provider_event() {
+        let mut captured = Vec::new();
+        emit_native_response_sse_data(
+            r#"{"type":"response.future.delta","future":{"opaque":true}}"#,
+            &mut |event| {
+                captured.push(event.clone());
+                Ok(())
+            },
+        )
+        .expect("native event should parse");
+
+        assert_eq!(
+            captured,
+            vec![ProviderStreamEvent::NativeEvent {
+                protocol: "openai_responses".to_string(),
+                event: json!({
+                    "type": "response.future.delta",
+                    "future": {"opaque": true}
+                })
+            }]
+        );
+    }
+
+    #[test]
+    fn ac_002_current_generate_input_reaches_responses_renderer_without_projection() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "previous_response_id": null,
+            "provider_config": {},
+            "messages": [{
+                "role": "user",
+                "content": "hello",
+                "name": null,
+                "tool_call_id": null,
+                "is_error": null,
+                "tool_calls": null,
+                "content_blocks": null
+            }],
+            "system": [{
+                "type": "text",
+                "text": "D1 seed instructions"
+            }],
+            "tools": [],
+            "mcp_bindings": [],
+            "response_format": null,
+            "model_parameters": { "max_output_tokens": 512 },
+            "client_protocol_envelope": null,
+            "trace_context": {},
+            "run_context": {}
+        }))
+        .expect("D1 current ProviderInvocationInput must deserialize directly");
+
+        let body = build_responses_body(&input).expect("Responses body should render");
+
+        assert_eq!(body["instructions"], json!("D1 seed instructions"));
+        assert_eq!(body["max_output_tokens"], json!(512));
+        assert!(body.get("max_tokens").is_none());
+    }
+
+    #[tokio::test]
+    async fn ac_002_fake_upstream_receives_exact_openai_generate_wire() {
+        let (base_url, request_rx) = start_generate_sse_server();
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "anthropic_messages",
+                "body": { "foreign_raw_canary": "must-not-reach-openai" }
+            },
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "access_token": "wire-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "wire prompt" }],
+            "system": [{ "type": "text", "text": "wire instructions" }],
+            "model_parameters": { "max_output_tokens": 128 }
+        }))
+        .unwrap();
+
+        ChatGptProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect("current Generate should complete against fake upstream");
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture Generate request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).unwrap();
+
+        assert!(headers.starts_with("POST /responses HTTP/1.1"));
+        assert!(body.get("foreign_raw_canary").is_none());
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("authorization: bearer wire-secret"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "gpt-5.4-mini",
+                "input": [{ "role": "user", "content": "wire prompt" }],
+                "stream": true,
+                "instructions": "wire instructions",
+                "max_output_tokens": 128
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn responses_http_stream_eof_before_completed_is_an_error() {
+        let (base_url, _) = start_generate_sse_server_with_body(concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_truncated\"}}\n\n",
+            "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_truncated\",\"delta\":\"partial\"}\n\n"
+        ));
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": base_url,
+                "access_token": "wire-secret",
+                "transport_mode": "http_sse"
+            },
+            "messages": [{ "role": "user", "content": "wire prompt" }]
+        }))
+        .unwrap();
+
+        let error = ChatGptProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("EOF before response.completed must fail");
+
+        assert!(error.to_string().contains("before response.completed"));
+    }
+
+    #[tokio::test]
+    async fn responses_http_stream_rejects_malformed_sse_without_finish() {
+        let (base_url, _) = start_generate_sse_server_with_body(concat!(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_bad\"}}\n\n",
+            "data: {not-json}\n\n"
+        ));
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "access_token": "wire-secret", "transport_mode": "http_sse" },
+            "messages": [{ "role": "user", "content": "wire prompt" }]
+        }))
+        .unwrap();
+
+        ChatGptProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .expect_err("malformed Responses SSE must fail");
+    }
+
+    #[tokio::test]
+    async fn duplicate_responses_completed_emits_one_finish() {
+        let completed = "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_duplicate\",\"status\":\"completed\",\"output\":[]}}\n\n";
+        let body = format!("{completed}{completed}");
+        let (base_url, _) = start_generate_sse_server_with_body(body);
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "access_token": "wire-secret", "transport_mode": "http_sse" },
+            "messages": [{ "role": "user", "content": "wire prompt" }]
+        }))
+        .unwrap();
+
+        let envelope = ChatGptProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .unwrap();
+        assert_eq!(
+            envelope
+                .events
+                .iter()
+                .filter(|event| matches!(event, ProviderStreamEvent::Finish { .. }))
+                .count(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn k2_legacy_compact_uses_the_dedicated_unary_endpoint_and_response_items() {
+        let response_items = vec![json!({
+            "type": "message",
+            "id": "msg_compact",
+            "role": "assistant",
+            "content": []
+        })];
+        let (base_url, request_rx) =
+            start_compact_json_server("200 OK", Value::Array(response_items.clone()));
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "operation": "compact",
+            "profile": "responses_compact",
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "access_token": "legacy-compact-secret" },
+            "required_capabilities": ["compact.responses_compact", "protocol_context"],
+            "messages": [{ "role": "user", "content": "retain this turn" }]
+        }))
+        .expect("typed legacy Compact input should deserialize");
+
+        let result = ChatGptProviderRuntime::default()
+            .invoke_compact_response(input)
+            .await
+            .expect("legacy Compact should project the upstream response item array");
+        assert!(matches!(
+            result,
+            ProviderCompactResult::ResponseItems {
+                operation: ProviderWireOperation::Compact,
+                profile: ProviderCompactProfile::ResponsesCompact,
+                response_items: items,
+            } if items == response_items
+        ));
+
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture legacy Compact request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).expect("legacy Compact body should be JSON");
+        assert!(headers.starts_with("POST /responses/compact HTTP/1.1"));
+        assert!(headers
+            .to_ascii_lowercase()
+            .contains("authorization: bearer legacy-compact-secret"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "gpt-5.4-mini",
+                "input": [{ "role": "user", "content": "retain this turn" }]
+            })
+        );
+        assert!(body.get("stream").is_none());
+    }
+
+    #[tokio::test]
+    async fn k2_v2_compact_preserves_the_opaque_value_and_emits_the_exact_trigger() {
+        const ENCRYPTED_CONTENT: &str = "opaque-byte-canary:AAECAwQFBgc=";
+        let (base_url, request_rx) = start_compact_json_server(
+            "200 OK",
+            json!({
+                "id": "resp_compact_v2",
+                "status": "completed",
+                "output": [{
+                    "type": "compaction",
+                    "encrypted_content": ENCRYPTED_CONTENT
+                }]
+            }),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "operation": "compact",
+            "profile": "responses_compaction_v2",
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "access_token": "v2-compact-secret" },
+            "required_capabilities": ["compact.responses_compaction_v2", "protocol_context"],
+            "messages": [{ "role": "user", "content": "retain this turn" }]
+        }))
+        .expect("typed V2 Compact input should deserialize");
+
+        let result = ChatGptProviderRuntime::default()
+            .invoke_compact_response(input)
+            .await
+            .expect("V2 Compact should project the provider-produced opaque item");
+        assert!(matches!(
+            result,
+            ProviderCompactResult::CompletedOpaqueCompactionItem {
+                operation: ProviderWireOperation::Compact,
+                profile: ProviderCompactProfile::ResponsesCompactionV2,
+                response_id: Some(response_id),
+                compaction_item,
+                encrypted_content,
+            } if response_id == "resp_compact_v2"
+                && encrypted_content == ENCRYPTED_CONTENT
+                && compaction_item == json!({
+                    "type": "compaction",
+                    "encrypted_content": ENCRYPTED_CONTENT
+                })
+        ));
+
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("fake upstream should capture V2 Compact request");
+        let (headers, body) = request
+            .split_once("\r\n\r\n")
+            .expect("captured request should contain headers and body");
+        let body: Value = serde_json::from_str(body).expect("V2 Compact body should be JSON");
+        assert!(headers.starts_with("POST /responses HTTP/1.1"));
+        assert_eq!(
+            body,
+            json!({
+                "model": "gpt-5.4-mini",
+                "input": [
+                    { "role": "user", "content": "retain this turn" },
+                    { "type": "compaction_trigger" }
+                ]
+            })
+        );
+        assert!(body.get("stream").is_none());
+    }
+
+    #[tokio::test]
+    async fn k2_remote_compact_failure_remains_an_upstream_error_without_generate_fallback() {
+        let (base_url, request_rx) = start_compact_json_server(
+            "503 Service Unavailable",
+            json!({ "error": { "message": "remote compact unavailable" } }),
+        );
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "operation": "compact",
+            "profile": "responses_compaction_v2",
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "client_protocol_envelope": { "source_protocol": "openai_responses" },
+            "model": "gpt-5.4-mini",
+            "provider_config": { "base_url": base_url, "access_token": "remote-failure-secret" },
+            "required_capabilities": ["compact.responses_compaction_v2", "protocol_context"],
+            "messages": [{ "role": "user", "content": "retain this turn" }]
+        }))
+        .expect("typed V2 Compact input should deserialize");
+
+        let error = ChatGptProviderRuntime::default()
+            .invoke_compact_response(input)
+            .await
+            .expect_err("remote Compact failure must not downgrade to a local Generate result");
+        let runtime_error = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("remote Compact failure should retain the typed Provider error");
+        assert_eq!(
+            runtime_error.message,
+            r#"{"error":{"message":"remote compact unavailable"}}"#
+        );
+
+        let request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("remote failure fixture should still receive exactly the Compact request");
+        assert!(request.starts_with("POST /responses HTTP/1.1"));
+    }
+
+    #[test]
+    fn k2_v2_compact_rejects_incomplete_or_non_unique_upstream_shapes() {
+        for payload in [
+            json!({ "status": "incomplete", "output": [] }),
+            json!({ "status": "completed", "output": [] }),
+            json!({
+                "status": "completed",
+                "output": [
+                    { "type": "compaction", "encrypted_content": "opaque" },
+                    { "type": "compaction", "encrypted_content": "second" }
+                ]
+            }),
+            json!({
+                "status": "completed",
+                "output": [{ "type": "message", "content": [] }]
+            }),
+            json!({
+                "status": "completed",
+                "output": [{ "type": "compaction" }]
+            }),
+        ] {
+            assert!(
+                compact_result_from_upstream(
+                    ProviderCompactProfile::ResponsesCompactionV2,
+                    payload
+                )
+                .is_err(),
+                "V2 Compact must not produce a local or synthesized fallback result"
+            );
+        }
+    }
+
+    #[test]
+    fn ac_002_current_generate_input_rejects_missing_legacy_and_unknown_contract_shapes() {
+        let error = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "model": "gpt-5.4-mini",
+            "provider_config": {
+                "base_url": "http://127.0.0.1:9",
+                "access_token": "test-key"
+            },
+            "messages": [{ "role": "user", "content": "hello" }]
+        }))
+        .expect_err("missing current contract must fail before provider invocation");
+
+        assert!(error.to_string().contains("contract_version"));
+
+        let legacy = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "contract_version": "1flowbase.provider/v1",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini"
+        }))
+        .expect_err("legacy provider contract must be rejected");
+        assert!(legacy.to_string().contains("1flowbase.provider/v1"));
+
+        let unknown = serde_json::from_value::<ProviderInvocationInput>(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "raw_body": "must-not-be-accepted"
+        }))
+        .expect_err("unknown current contract fields must be rejected");
+        assert!(unknown.to_string().contains("raw_body"));
+    }
+
+    #[test]
+    fn d4_package_manifest_declares_remote_compact_and_native_responses_capabilities() {
+        let manifest = include_str!("../manifest.yaml");
+        let provider = include_str!("../provider/chatgpt.yaml");
+
+        assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
+        assert!(!manifest.contains("1flowbase.provider/v1"));
+        let capabilities = manifest
+            .split("  capabilities:\n")
+            .nth(1)
+            .and_then(|section| section.split("  limits:\n").next())
+            .expect("runtime capabilities section");
+        for capability in [
+            "count_tokens",
+            "compact.responses_compact",
+            "compact.responses_compaction_v2",
+            "responses.native_passthrough",
+            "protocol_context.restore.openai_chat.v1",
+            "protocol_context.restore.openai_responses.v1",
+            "reasoning_output_supported",
+            "native_continuation_supported",
+        ] {
+            assert!(capabilities
+                .lines()
+                .any(|line| line.trim() == format!("- {capability}")));
+        }
+        assert_eq!(
+            capabilities
+                .lines()
+                .filter(|line| line.trim().starts_with("- "))
+                .count(),
+            8
+        );
+        assert!(!manifest
+            .lines()
+            .any(|line| line.trim() == "- protocol_context"));
+        assert_eq!(manifest.matches("protocol_context.restore.").count(), 2);
+        assert!(!manifest.contains("protocol_context.consume."));
+        assert!(!manifest.contains("system_prompt_blocks"));
+        assert!(provider.contains("model_discovery: dynamic"));
+    }
+
+    #[test]
+    fn ac_002_openai_rejects_undeclared_generate_capabilities_without_projection() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4-mini",
+            "system": [{
+                "type": "text",
+                "text": "must preserve cache policy",
+                "cache_control": { "type": "ephemeral" }
+            }],
+            "required_capabilities": [
+                "system_prompt_blocks",
+                "system_prompt_cache_control"
+            ]
+        }))
+        .unwrap();
+
+        let error = build_responses_body(&input)
+            .expect_err("undeclared Generate capabilities must not be projected away");
+
+        assert!(error.to_string().contains("semantic capabilities"));
+    }
+
+    #[test]
+    fn responses_body_preserves_media_content_blocks() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.1",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Describe image",
+                    "content_blocks": [
+                        {"type": "text", "text": "Describe image"},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "aW1hZ2U="
+                            }
+                        }
+                    ]
+                },
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_read",
+                    "content": "",
+                    "content_blocks": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "cmVzdWx0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let body = build_responses_body(&input).unwrap();
+
+        assert_eq!(body["input"][0]["content"][0]["type"], "input_text");
+        assert_eq!(body["input"][0]["content"][1]["type"], "input_image");
+        assert_eq!(
+            body["input"][0]["content"][1]["image_url"],
+            "data:image/png;base64,aW1hZ2U="
+        );
+        assert_eq!(body["input"][1]["type"], "function_call_output");
+        assert_eq!(body["input"][1]["output"][0]["type"], "input_image");
+        assert_eq!(
+            body["input"][1]["output"][0]["image_url"],
+            "data:image/png;base64,cmVzdWx0"
+        );
+    }
+
+    #[test]
+    fn responses_body_accepts_native_image_source_data_without_type() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.1",
+            "messages": [
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_read",
+                    "content": "",
+                    "content_blocks": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "data": "cmVzdWx0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let body = build_responses_body(&input).unwrap();
+
+        assert_eq!(body["input"][0]["type"], "function_call_output");
+        assert_eq!(body["input"][0]["output"][0]["type"], "input_image");
+        assert_eq!(
+            body["input"][0]["output"][0]["image_url"],
+            "data:image/png;base64,cmVzdWx0"
+        );
+    }
+
+    #[test]
+    fn finalized_response_exposes_native_response_id() {
+        let mut emitted = Vec::new();
+        let envelope = finalize_response_stream(
+            Vec::new(),
+            "hello".to_string(),
+            Vec::new(),
+            ProviderUsage::default(),
+            ProviderFinishReason::Stop,
+            json!("resp_current"),
+            json!({ "transport": "http_sse" }),
+            &mut |event| {
+                emitted.push(event.clone());
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(envelope.result.response_id.as_deref(), Some("resp_current"));
+        assert_eq!(
+            envelope.result.provider_metadata["response_id"],
+            json!("resp_current")
+        );
+        assert!(emitted.iter().any(|event| {
+            matches!(
+                event,
+                ProviderStreamEvent::Finish {
+                    reason: ProviderFinishReason::Stop
+                }
+            )
+        }));
+    }
+
+    #[test]
+    fn response_completed_commits_function_calls() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        process_response_sse_data(
+            r#"{"type":"response.completed","response":{"id":"resp_1","output":[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_1"));
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "lookup");
+        assert_eq!(tool_calls[0].arguments["query"], "refund");
+        assert_eq!(usage.total_tokens, Some(5));
+        assert_eq!(finish_reason, ProviderFinishReason::ToolCall);
+    }
+
+    #[test]
+    fn response_function_arguments_done_merges_output_item_alias() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_data(
+            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "Bash");
+        assert_eq!(tool_calls[0].arguments["command"], "pwd");
+    }
+
+    #[test]
+    fn response_function_arguments_done_without_alias_waits_for_complete_item() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"command\":\"pwd\"}" }"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert!(tool_calls.is_empty());
+
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "Bash");
+        assert_eq!(tool_calls[0].arguments["command"], "pwd");
+    }
+
+    #[test]
+    fn response_output_item_added_without_name_waits_for_stable_identity() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_data(
+            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert!(tool_calls.is_empty());
+
+        process_response_sse_data(
+            r#"{"type":"response.function_call_arguments.done","item_id":"fc_1","call_id":"call_1","arguments":"{\"command\":\"pwd\"}" }"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert!(tool_calls.is_empty());
+
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].name, "Bash");
+    }
+
+    #[test]
+    fn response_done_completes_websocket_stream() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.done","response":{"id":"resp_ws","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_ws"));
+        assert_eq!(text, "OK");
+        assert_eq!(usage.total_tokens, Some(2));
+        assert_eq!(finish_reason, ProviderFinishReason::Stop);
+    }
+
+    #[test]
+    fn responses_mcp_approval_is_emitted_as_typed_output_item() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.output_item.added","output_index":2,"item":{"id":"approval_1","type":"mcp_approval_request","server_label":"fixture_mcp","name":"lookup","arguments":"{}"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(
+            events,
+            vec![ProviderStreamEvent::OutputItem {
+                phase: ProviderOutputItemPhase::Added,
+                output_index: 2,
+                item: json!({
+                    "id": "approval_1",
+                    "type": "mcp_approval_request",
+                    "server_label": "fixture_mcp",
+                    "name": "lookup",
+                    "arguments": "{}"
+                }),
+            }]
+        );
+    }
+
+    #[test]
+    fn response_done_failed_status_returns_provider_error() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        let error = process_response_sse_payload(
+            r#"{"type":"response.done","response":{"id":"resp_ws","status":"failed","error":{"code":"server_error","message":"upstream closed"}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "server_error: upstream closed");
+    }
+
+    #[test]
+    fn response_created_and_text_delta_remains_unfinished_without_terminal_event() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.created","response":{"id":"resp_ws"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        process_response_sse_payload(
+            r#"{"type":"response.output_text.delta","delta":"OK"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_ws"));
+        assert!(!response_stream_finished(&finish_reason));
+        assert_eq!(text, "OK");
+    }
+
+    #[test]
+    fn response_text_delta_captures_top_level_response_id() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.output_text.delta","response_id":"resp_delta","delta":"OK"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_delta"));
+        assert_eq!(text, "OK");
+        assert!(!response_stream_finished(&finish_reason));
+    }
+
+    #[test]
+    fn response_created_without_content_does_not_finalize_on_transport_close() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_payload(
+            r#"{"type":"response.created","response":{"id":"resp_ws"}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(response_id, json!("resp_ws"));
+        assert!(!response_stream_finished(&finish_reason));
+    }
+
+    #[test]
+    fn response_failed_event_returns_error() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        let error = process_response_sse_data(
+            r#"{"type":"response.failed","response":{"error":{"code":"insufficient_quota","message":"quota exceeded"}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("quota exceeded"));
+    }
+
+    #[test]
+    fn issue_1743_reasoning_output_parser_regression_maps_reasoning_and_custom_tool_delta() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_data(
+            r#"{"type":"response.reasoning_text.delta","content_index":0,"delta":"thinking"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+        process_response_sse_data(
+            r#"{"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","delta":"{\"cmd\":\"pwd\"}"}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                ProviderStreamEvent::ReasoningDelta {
+                    delta: "thinking".to_string()
+                },
+                ProviderStreamEvent::ToolCallDelta {
+                    call_id: "call_custom".to_string(),
+                    delta: json!("{\"cmd\":\"pwd\"}")
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn response_incomplete_event_returns_error() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        let error = process_response_sse_data(
+            r#"{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "response.incomplete: max_output_tokens");
+    }
+
+    #[test]
+    fn response_output_item_done_supplies_text_fallback() {
+        let mut events = Vec::new();
+        let mut text = String::new();
+        let mut tool_calls = ResponseToolCalls::default();
+        let mut usage = ProviderUsage::default();
+        let mut finish_reason = ProviderFinishReason::Unknown;
+        let mut response_id = Value::Null;
+
+        process_response_sse_data(
+            r#"{"type":"response.output_item.done","item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
+            &mut events,
+            &mut text,
+            &mut tool_calls,
+            &mut usage,
+            &mut finish_reason,
+            &mut response_id,
+        )
+        .unwrap();
+
+        assert_eq!(text, "Hello world");
+    }
+
+    #[test]
+    fn custom_tool_call_done_maps_to_provider_tool_call() {
+        let call = provider_tool_call_from_response_item(Some(&json!({
+            "type": "custom_tool_call",
+            "call_id": "call_custom",
+            "name": "shell",
+            "input": "{\"cmd\":\"pwd\"}"
+        })))
+        .unwrap();
+
+        assert_eq!(
+            call,
+            ProviderToolCall {
+                id: "call_custom".to_string(),
+                name: "shell".to_string(),
+                arguments: json!({ "cmd": "pwd" })
+            }
+        );
+    }
+
+    #[test]
+    fn stream_headers_request_event_stream() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "sk-test".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::Auto,
+            proxy_url: None,
+        };
+
+        let headers = build_stream_headers(&config, &RestoredProtocolContext::default()).unwrap();
+
+        assert_eq!(
+            headers.get(ACCEPT).and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+    }
+
+    #[test]
+    fn wp_d2c_same_protocol_headers_preserve_repeated_values_and_provider_auth_wins_last() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.1",
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "openai_responses",
+                "headers": {
+                    "x-client-name": ["fixture", "fixture-v2"]
+                },
+                "body": {"future_option": {"mode": "exact"}}
+            }
+        }))
+        .unwrap();
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "sk-provider".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::HttpSse,
+            proxy_url: None,
+        };
+        let request = build_openai_generate_request(&input).unwrap();
+        let headers = build_json_headers(&config, true, &request.protocol_context).unwrap();
+
+        assert_eq!(headers.get(AUTHORIZATION).unwrap(), "Bearer sk-provider");
+        assert!(headers.get("x-api-key").is_none());
+        assert_eq!(
+            headers
+                .get_all("x-client-name")
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["fixture", "fixture-v2"]
+        );
+        assert_eq!(request.body["future_option"]["mode"], "exact");
+    }
+
+    #[test]
+    fn wp_d2c_chat_and_responses_prepare_typed_model_intent_before_residual_restore() {
+        let chat: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4",
+            "messages": [{"role": "user", "content": "hello"}],
+            "model_parameters": {
+                "requested_context_window": 1000000,
+                "reasoning": {"mode": "adaptive", "effort": "max"}
+            },
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "openai_chat",
+                "body": {"future_chat_option": {"mode": "exact"}}
+            }
+        }))
+        .unwrap();
+        let responses: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4",
+            "messages": [{"role": "user", "content": "hello"}],
+            "model_parameters": {
+                "requested_context_window": 1000000,
+                "reasoning": {"mode": "adaptive", "effort": "max"}
+            },
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "openai_responses",
+                "body": {"future_responses_option": {"mode": "exact"}}
+            }
+        }))
+        .unwrap();
+
+        let chat = build_openai_generate_request(&chat).unwrap();
+        let responses = build_openai_generate_request(&responses).unwrap();
+
+        assert_eq!(
+            (
+                chat.protocol,
+                chat.pathname,
+                chat.body["reasoning_effort"].clone()
+            ),
+            (ChatGptWireProtocol::Chat, "/chat/completions", json!("max"))
+        );
+        assert_eq!(
+            (
+                responses.protocol,
+                responses.pathname,
+                responses.body["reasoning"].clone()
+            ),
+            (
+                ChatGptWireProtocol::Responses,
+                "/responses",
+                json!({"effort": "max"})
+            )
+        );
+        assert_eq!(chat.body["future_chat_option"]["mode"], "exact");
+        assert_eq!(responses.body["future_responses_option"]["mode"], "exact");
+        for request in [&chat, &responses] {
+            assert!(request.body.get("requested_context_window").is_none());
+            assert!(request.body.get("context_window").is_none());
+            assert_eq!(
+                request.model_intent.provider_metadata(),
+                json!({
+                    "requested_context_window": 1000000,
+                    "reasoning": {"mode": "adaptive", "effort": "max"}
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn wp_d2c_disabled_reasoning_uses_none_without_defaulting_absent_effort() {
+        let mut input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.4",
+            "messages": [{"role": "user", "content": "hello"}],
+            "model_parameters": {"reasoning": {"mode": "disabled"}}
+        }))
+        .unwrap();
+
+        let disabled = build_openai_generate_request(&input).unwrap();
+        assert_eq!(disabled.body["reasoning"], json!({"effort": "none"}));
+
+        input.model_parameters =
+            BTreeMap::from([("reasoning".to_string(), json!({"mode": "adaptive"}))]);
+        let adaptive = build_openai_generate_request(&input).unwrap();
+        assert!(adaptive.body.get("reasoning").is_none());
+    }
+
+    #[test]
+    fn default_transport_mode_is_http_sse() {
+        let config = normalize_provider_config(&json!({
+            "access_token": "sk-test"
+        }))
+        .unwrap();
+
+        assert_eq!(config.transport_mode, ChatGptTransportMode::HttpSse);
+    }
+
+    #[test]
+    fn explicit_auto_transport_mode_stays_available() {
+        let config = normalize_provider_config(&json!({
+            "access_token": "sk-test",
+            "transport_mode": "auto"
+        }))
+        .unwrap();
+
+        assert_eq!(config.transport_mode, ChatGptTransportMode::Auto);
+    }
+
+    #[test]
+    fn node_websocket_switch_overrides_provider_transport_default() {
+        let config = normalize_provider_config(&json!({
+            "access_token": "sk-test",
+            "transport_mode": "http_sse"
+        }))
+        .unwrap();
+        let input = ProviderInvocationInput {
+            model_parameters: BTreeMap::from([(
+                "use_responses_websocket".to_string(),
+                json!(true),
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            resolve_responses_node_transport(&config, &input).unwrap(),
+            ChatGptTransportMode::ResponsesWebsocket
+        );
+    }
+
+    #[test]
+    fn node_websocket_switch_off_forces_http_sse() {
+        let config = normalize_provider_config(&json!({
+            "access_token": "sk-test",
+            "transport_mode": "responses_websocket"
+        }))
+        .unwrap();
+        let input = ProviderInvocationInput {
+            model_parameters: BTreeMap::from([(
+                "use_responses_websocket".to_string(),
+                json!(false),
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            resolve_responses_node_transport(&config, &input).unwrap(),
+            ChatGptTransportMode::HttpSse
+        );
+    }
+
+    #[test]
+    fn websocket_url_maps_responses_https_to_wss() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "sk-test".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::ResponsesWebsocket,
+            proxy_url: None,
+        };
+
+        assert_eq!(
+            build_websocket_url(&config, &RestoredProtocolContext::default())
+                .unwrap()
+                .as_str(),
+            "wss://chatgpt.com/backend-api/codex/responses"
+        );
+    }
+
+    #[tokio::test]
+    async fn ac_004_websocket_connects_through_configured_proxy_url() {
+        let (proxy_url, request_rx, handle) = start_websocket_connect_proxy();
+        let config = ProviderConfig {
+            base_url: "http://127.0.0.1:9/v1".to_string(),
+            access_token: "sk-test".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::ResponsesWebsocket,
+            proxy_url: Some(proxy_url),
+        };
+
+        let session =
+            connect_responses_websocket(&config, None, &RestoredProtocolContext::default())
+                .await
+                .expect("websocket should connect through configured proxy");
+
+        assert_eq!(session.turn_state.as_deref(), Some("proxy-turn"));
+        drop(session);
+        let connect_request = request_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("proxy should observe CONNECT request");
+        assert!(
+            connect_request.starts_with("CONNECT 127.0.0.1:9 HTTP/1.1"),
+            "proxy should receive CONNECT target, got: {connect_request}"
+        );
+        handle.join().expect("proxy thread should finish");
+    }
+
+    #[test]
+    fn websocket_body_wraps_response_create_and_optional_previous_response() {
+        let body = json!({
+            "model": "gpt-5.1",
+            "stream": true,
+            "input": [],
+            "previous_response_id": "resp_previous"
+        });
+
+        let websocket_body = build_websocket_response_create_body(body);
+
+        assert_eq!(websocket_body["type"], "response.create");
+        assert_eq!(websocket_body["model"], "gpt-5.1");
+        assert_eq!(websocket_body["stream"], true);
+        assert_eq!(websocket_body["previous_response_id"], "resp_previous");
+    }
+
+    #[test]
+    fn websocket_headers_request_responses_beta_without_content_type() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "sk-test".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::ResponsesWebsocket,
+            proxy_url: None,
+        };
+
+        let headers =
+            build_websocket_headers(&config, None, &RestoredProtocolContext::default()).unwrap();
+
+        assert_eq!(
+            headers
+                .get(HeaderName::from_static("openai-beta"))
+                .and_then(|value| value.to_str().ok()),
+            Some(RESPONSES_WEBSOCKETS_BETA)
+        );
+        assert!(headers.get(CONTENT_TYPE).is_none());
+    }
+
+    #[test]
+    fn websocket_headers_replay_turn_state_when_available() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "sk-test".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::ResponsesWebsocket,
+            proxy_url: None,
+        };
+
+        let headers = build_websocket_headers(
+            &config,
+            Some("sticky-turn-1"),
+            &RestoredProtocolContext::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            headers
+                .get(HeaderName::from_static(X_CODEX_TURN_STATE_HEADER))
+                .and_then(|value| value.to_str().ok()),
+            Some("sticky-turn-1")
+        );
+    }
+
+    #[test]
+    fn wp_d2c_websocket_headers_reject_collisions_with_transport_owned_fields() {
+        let input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-openai",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-5.1",
+            "required_capabilities": ["protocol_context"],
+            "client_protocol_envelope": {
+                "source_protocol": "openai_responses",
+                "headers": {
+                    "openai-beta": ["client-beta"],
+                    "x-codex-turn-state": ["client-turn-state"]
+                }
+            }
+        }))
+        .unwrap();
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "sk-provider".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::ResponsesWebsocket,
+            proxy_url: None,
+        };
+        let request = build_openai_generate_request(&input).unwrap();
+
+        let error =
+            build_websocket_headers(&config, Some("sticky-turn-1"), &request.protocol_context)
+                .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "protocol context header collides with an owned field: openai-beta"
+        );
+    }
+
+    #[test]
+    fn websocket_lifecycle_frame_does_not_block_http_fallback() {
+        assert!(!websocket_payload_blocks_http_fallback(
+            r#"{"type":"response.created","response":{"id":"resp_1"}}"#
+        ));
+        assert!(!websocket_payload_blocks_http_fallback(
+            r#"{"type":"error","status":426}"#
+        ));
+        assert!(websocket_payload_blocks_http_fallback(
+            r#"{"type":"response.failed","response":{"error":{"message":"failed"}}}"#
+        ));
+        assert!(websocket_payload_blocks_http_fallback(
+            r#"{"type":"response.done","response":{"status":"failed","error":{"message":"failed"}}}"#
+        ));
+    }
+
+    #[test]
+    fn chatgpt_identity_headers_include_the_subscription_account_without_logging_it() {
+        let config = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "access_fixture".to_string(),
+            chatgpt_account_id: Some("account_fixture".to_string()),
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::HttpSse,
+            proxy_url: None,
+        };
+
+        let headers = build_stream_headers(&config, &RestoredProtocolContext::default()).unwrap();
+        assert_eq!(
+            headers
+                .get("originator")
+                .and_then(|value| value.to_str().ok()),
+            Some("codex_cli_rs")
+        );
+        assert_eq!(
+            headers
+                .get("user-agent")
+                .and_then(|value| value.to_str().ok()),
+            Some("codex_cli_rs/0.1.0")
+        );
+        assert_eq!(
+            headers
+                .get("chatgpt-account-id")
+                .and_then(|value| value.to_str().ok()),
+            Some("account_fixture")
+        );
+        assert!(!format!("{config:?}").contains("access_fixture"));
+    }
+
+    #[test]
+    fn model_catalog_cache_key_keeps_cloudflare_state_with_its_provider_instance() {
+        let first = ProviderConfig {
+            base_url: DEFAULT_BASE_URL.to_string(),
+            access_token: "access_fixture".to_string(),
+            chatgpt_account_id: Some("account_fixture".to_string()),
+            instance_cookie_key: Some("instance_cookie_a".to_string()),
+            organization: None,
+            project: None,
+            validate_model: false,
+            transport_mode: ChatGptTransportMode::HttpSse,
+            proxy_url: None,
+        };
+        let second = ProviderConfig {
+            instance_cookie_key: Some("instance_cookie_b".to_string()),
+            ..first.clone()
+        };
+
+        assert_ne!(model_catalog_key(&first), model_catalog_key(&second));
+    }
+
+    #[test]
+    fn cloudflare_cookie_store_rejects_auth_cookies_and_other_hosts() {
+        let store = CloudflareCookieStore::default();
+        let chatgpt_url = Url::parse("https://chatgpt.com/backend-api/codex/responses").unwrap();
+        let foreign_url = Url::parse("https://api.openai.com/v1/responses").unwrap();
+        let cloudflare = HeaderValue::from_static("__cflb=west; Path=/; Secure; HttpOnly");
+        let auth_cookie = HeaderValue::from_static(
+            "__Secure-next-auth.session-token=must-not-store; Path=/; Secure; HttpOnly",
+        );
+        store.set_cookies(&mut [&cloudflare, &auth_cookie].into_iter(), &chatgpt_url);
+
+        assert_eq!(
+            store
+                .cookies(&chatgpt_url)
+                .and_then(|value| value.to_str().ok().map(str::to_string)),
+            Some("__cflb=west".to_string())
+        );
+        assert_eq!(store.cookies(&foreign_url), None);
+        assert_eq!(
+            store.cookies(&Url::parse("http://chatgpt.com/backend-api/codex").unwrap()),
+            None
+        );
+    }
+
+    #[test]
+    fn managed_cookie_key_scopes_cloudflare_state_to_a_provider_instance() {
+        let first = normalize_provider_config(&json!({
+            "access_token": "access_fixture",
+            "instance_cookie_key": "cookie-instance-a"
+        }))
+        .unwrap();
+        let second = normalize_provider_config(&json!({
+            "access_token": "access_fixture",
+            "instance_cookie_key": "cookie-instance-b"
+        }))
+        .unwrap();
+        let first = chatgpt_instance_cookie_store(&first).expect("first jar should exist");
+        let second = chatgpt_instance_cookie_store(&second).expect("second jar should exist");
+
+        assert!(!Arc::ptr_eq(&first, &second));
+        let url = Url::parse("https://chatgpt.com/backend-api/codex/responses").unwrap();
+        let cookie = HeaderValue::from_static("_cfuvid=first-only; Path=/; Secure");
+        first.set_cookies(&mut std::iter::once(&cookie), &url);
+        assert!(first.cookies(&url).is_some());
+        assert_eq!(second.cookies(&url), None);
+    }
+
+    #[test]
+    fn dynamic_models_keep_the_chatgpt_slug_as_the_model_id() {
+        let models = normalize_model_entries(&json!({
+            "models": [{
+                "slug": "gpt-5.4-codex",
+                "display_name": "GPT-5.4 Codex",
+                "hidden": false
+            }]
+        }))
+        .unwrap();
+
+        assert_eq!(models[0].model_id, "gpt-5.4-codex");
+        assert_eq!(models[0].display_name, "GPT-5.4 Codex");
+        assert_eq!(models[0].provider_metadata["slug"], "gpt-5.4-codex");
+    }
+
+    #[tokio::test]
+    async fn dynamic_model_catalog_uses_etag_and_keeps_stale_models_on_transient_failure() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            for response in [
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\netag: \"models-v1\"\r\ncontent-length: 36\r\nconnection: close\r\n\r\n{\"models\":[{\"slug\":\"gpt-fixture\"}]}",
+                "HTTP/1.1 304 Not Modified\r\nconnection: close\r\n\r\n",
+                "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+            ] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 4096];
+                let size = stream.read(&mut request).unwrap();
+                if response.starts_with("HTTP/1.1 304") || response.starts_with("HTTP/1.1 503") {
+                    assert!(String::from_utf8_lossy(&request[..size])
+                        .to_ascii_lowercase()
+                        .contains("if-none-match: \"models-v1\""));
+                }
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+        let config = ProviderConfig {
+            base_url,
+            access_token: "access_fixture".to_string(),
+            chatgpt_account_id: None,
+            instance_cookie_key: None,
+            organization: None,
+            project: None,
+            validate_model: true,
+            transport_mode: ChatGptTransportMode::HttpSse,
+            proxy_url: None,
+        };
+        let mut runtime = ChatGptProviderRuntime::default();
+
+        assert_eq!(
+            runtime.list_models(&config).await.unwrap()[0].model_id,
+            "gpt-fixture"
+        );
+        runtime.model_catalog_cache.as_mut().unwrap().fresh_until = Instant::now();
+        assert_eq!(
+            runtime.list_models(&config).await.unwrap()[0].model_id,
+            "gpt-fixture"
+        );
+        runtime.model_catalog_cache.as_mut().unwrap().fresh_until = Instant::now();
+        assert_eq!(
+            runtime.list_models(&config).await.unwrap()[0].model_id,
+            "gpt-fixture"
+        );
+        server.join().unwrap();
+    }
+}

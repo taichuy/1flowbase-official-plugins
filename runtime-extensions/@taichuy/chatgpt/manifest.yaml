@@ -1,0 +1,46 @@
+manifest_version: 1
+plugin_id: chatgpt
+publisher_namespace: 1flowbase
+version: 0.1.0
+vendor: 1flowbase
+display_name: ChatGPT Subscription
+description: ChatGPT Codex Responses provider runtime extension for ChatGPT subscriptions
+icon: icon.svg
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: stateful_provider_worker
+slot_codes:
+  - model_provider
+keywords:
+  - chatgpt
+  - codex
+  - responses
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.3.1
+contract_version: 1flowbase.provider/v2
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json_worker
+  entry: bin/chatgpt-provider
+  capabilities:
+    - count_tokens
+    - compact.responses_compact
+    - compact.responses_compaction_v2
+    - responses.native_passthrough
+    - reasoning_output_supported
+    - native_continuation_supported
+    - protocol_context.restore.openai_chat.v1
+    - protocol_context.restore.openai_responses.v1
+  limits:
+    timeout_ms: 30000
+    memory_bytes: 268435456
+node_contributions: []
