@@ -6925,11 +6925,15 @@ mod tests {
     async fn dynamic_model_catalog_uses_etag_and_keeps_stale_models_on_transient_failure() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let model_catalog = r#"{"models":[{"slug":"gpt-fixture"}]}"#;
         let server = thread::spawn(move || {
             for response in [
-                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\netag: \"models-v1\"\r\ncontent-length: 36\r\nconnection: close\r\n\r\n{\"models\":[{\"slug\":\"gpt-fixture\"}]}",
-                "HTTP/1.1 304 Not Modified\r\nconnection: close\r\n\r\n",
-                "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+                format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\netag: \"models-v1\"\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{model_catalog}",
+                    model_catalog.len()
+                ),
+                "HTTP/1.1 304 Not Modified\r\nconnection: close\r\n\r\n".to_string(),
+                "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_string(),
             ] {
                 let (mut stream, _) = listener.accept().unwrap();
                 let mut request = [0_u8; 4096];

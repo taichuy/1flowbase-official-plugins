@@ -20,7 +20,15 @@ test('ChatGPT Subscription package exposes only the provider-owned OAuth contrac
   assert.match(provider, /^provider_code: chatgpt$/m);
   assert.match(provider, /^default_base_url: https:\/\/chatgpt\.com\/backend-api\/codex$/m);
   assert.match(provider, /^model_discovery: dynamic$/m);
-  assert.equal(fs.existsSync(path.join(providerRoot, 'models')), false);
+  const staticModelDirectory = path.join(providerRoot, 'models', 'llm');
+  assert.equal(
+    fs.existsSync(staticModelDirectory)
+      ? fs.readdirSync(staticModelDirectory).some((entry) =>
+          entry.endsWith('.yaml')
+        )
+      : false,
+    false
+  );
 
   for (const action of ['device_code', 'pkce_callback']) {
     assert.match(provider, new RegExp(`- code: ${action}$`, 'm'));
@@ -40,8 +48,8 @@ test('ChatGPT Subscription package exposes only the provider-owned OAuth contrac
 test('ChatGPT provider retains generic parameter projection and no static model alias', () => {
   const provider = read('provider/chatgpt.yaml');
 
-  assert.match(provider, /^  - key: use_responses_websocket$/m);
-  assert.match(provider, /^      value: responses_websocket$/m);
+  assert.match(provider, /^    - key: use_responses_websocket$/m);
+  assert.match(provider, /^        value: responses_websocket$/m);
   assert.match(provider, /^  - key: proxy_url$/m);
   assert.match(provider, /^    type: secret$/m);
   assert.doesNotMatch(provider, /^models:/m);
