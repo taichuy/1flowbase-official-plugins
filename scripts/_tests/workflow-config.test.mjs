@@ -78,18 +78,12 @@ test('provider workflows resolve runtime binary names from manifest metadata', (
     releaseWorkflow,
     /runtime_binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --rust-target "\$\{\{ matrix\.rust_target \}\}" --field runtime_binary_name\)"/
   );
-  assert.match(
-    releaseWorkflow,
-    /manifest_binary_name="\$\(node scripts\/list-provider-package-targets\.mjs --plugin-dir "\$\{PLUGIN_DIR\}" --field binary_name\)"/
-  );
   assert.match(releaseWorkflow, /package_runtime_binary_path="\$\{binary_path\}"/);
-  assert.match(
-    releaseWorkflow,
-    /if \[ "\$\{\{ matrix\.os \}\}" = "windows" \] && \[ "\$\{runtime_binary_name\}" != "\$\{manifest_binary_name\}" \]; then/
-  );
-  assert.match(releaseWorkflow, /"\$\{PLUGIN_DIR\}\/manifest\.yaml" "bin\/\$\{runtime_binary_name\}"/);
-  assert.ok(releaseWorkflow.includes('manifest.replace(/^(\\s*entry:\\s*)[^\\r\\n]+/m'));
+  assert.doesNotMatch(releaseWorkflow, /manifest_binary_name=/);
+  assert.doesNotMatch(releaseWorkflow, /manifest\.replace\(/);
+  assert.doesNotMatch(releaseWorkflow, /writeFileSync\(manifestPath/);
   assert.match(releaseWorkflow, /--runtime-binary "\$\{package_runtime_binary_path\}"/);
+  assert.match(releaseWorkflow, /--target "\$\{\{ matrix\.rust_target \}\}"/);
 });
 
 test('provider workflows call the current host plugin CLI path', () => {
