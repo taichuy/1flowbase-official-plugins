@@ -30,15 +30,14 @@ test('ChatGPT Codex package exposes only the provider-owned OAuth contract', () 
     false
   );
 
-  for (const action of ['device_code', 'pkce_callback']) {
-    assert.match(provider, new RegExp(`- code: ${action}$`, 'm'));
-  }
+  assert.match(provider, /- code: pkce_callback$/m);
+  assert.doesNotMatch(provider, /device_code/);
   for (const secret of [
     'access_token',
     'refresh_token',
     'id_token',
-    'device_auth_id',
     'pkce_code_verifier',
+    'pkce_expires_at',
     'instance_cookie_key'
   ]) {
     assert.match(provider, new RegExp(`^    - ${secret}$`, 'm'));
@@ -59,7 +58,6 @@ test('ChatGPT provider retains generic parameter projection and no static model 
 test('ChatGPT plugin ships localized auth and transport schema labels', () => {
   for (const locale of ['en_US', 'zh_Hans']) {
     const catalog = JSON.parse(read(`i18n/${locale}.json`));
-    assert.equal(typeof catalog.auth.actions.device_code.label, 'string');
     assert.equal(typeof catalog.auth.actions.pkce_callback.label, 'string');
     assert.equal(typeof catalog.parameters.use_responses_websocket.label, 'string');
     assert.equal(typeof catalog.fields.transport_mode.options.http_sse.label, 'string');

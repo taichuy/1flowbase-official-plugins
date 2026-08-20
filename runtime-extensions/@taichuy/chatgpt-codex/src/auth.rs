@@ -17,7 +17,7 @@ use crate::{
 const CHATGPT_OAUTH_AUTHORITY: &str = "https://auth.openai.com";
 const CODEX_OAUTH_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const DEFAULT_PKCE_REDIRECT_URI: &str = "http://localhost:1455/auth/callback";
-const DEVICE_CODE_LIFETIME: Duration = Duration::minutes(15);
+const PKCE_CALLBACK_LIFETIME: Duration = Duration::minutes(15);
 const REFRESH_EARLY_WINDOW: Duration = Duration::seconds(60);
 
 #[derive(Debug, Clone)]
@@ -25,21 +25,6 @@ struct AuthConfig {
     authority: String,
     redirect_uri: String,
     proxy_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeviceCodeResponse {
-    device_auth_id: String,
-    #[serde(alias = "user_code", alias = "usercode")]
-    user_code: String,
-    #[serde(default, deserialize_with = "deserialize_poll_interval")]
-    interval: u64,
-}
-
-#[derive(Debug, Deserialize)]
-struct DevicePollResponse {
-    authorization_code: String,
-    code_verifier: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,11 +42,12 @@ pub(crate) async fn authenticate(input: ProviderAuthRuntimeInput) -> Result<Prov
     let auth = normalize_auth_config(&input.provider_config)?;
     match input.operation {
         ProviderAuthOperation::Begin { action } => match action.as_str() {
-            "device_code" => begin_device_code(&auth, &input.provider_config).await,
             "pkce_callback" => begin_pkce_callback(&auth, &input.provider_config),
             _ => bail!("unsupported ChatGPT authentication action"),
         },
-        ProviderAuthOperation::Poll => poll_device_code(&auth, &input.provider_config).await,
+        ProviderAuthOperation::Poll => Ok(failed_auth(
+            "ChatGPT Codex uses browser callback sign-in; start a new authorization link instead",
+        )),
         ProviderAuthOperation::Submit { value } => {
             submit_pkce_callback(&auth, &input.provider_config, &value).await
         }
@@ -70,120 +56,6 @@ pub(crate) async fn authenticate(input: ProviderAuthRuntimeInput) -> Result<Prov
             maintain_access_token(&auth, &input.provider_config).await
         }
     }
-}
-
-async fn begin_device_code(
-    auth: &AuthConfig,
-    provider_config: &Value,
-) -> Result<ProviderAuthResult> {
-    let client = auth_client(auth)?;
-    let endpoint = authority_path(&auth.authority, "/api/accounts/deviceauth/usercode")?;
-    let response = client
-        .post(endpoint)
-        .json(&json!({ "client_id": CODEX_OAUTH_CLIENT_ID }))
-        .send()
-        .await
-        .context("ChatGPT device-code request failed")?;
-    if !response.status().is_success() {
-        return Ok(failed_auth("ChatGPT device-code login is unavailable"));
-    }
-    let device: DeviceCodeResponse = response
-        .json()
-        .await
-        .context("ChatGPT device-code response is invalid")?;
-    if device.device_auth_id.trim().is_empty() || device.user_code.trim().is_empty() {
-        bail!("ChatGPT device-code response is incomplete");
-    }
-    let expires_at = expires_at_from_now(DEVICE_CODE_LIFETIME)?;
-    let poll_interval_seconds = device.interval.clamp(1, 60);
-    let mut patch = clear_pending_patch();
-    patch.insert("device_auth_id".to_string(), json!(device.device_auth_id));
-    patch.insert("device_user_code".to_string(), json!(device.user_code));
-    patch.insert("device_expires_at".to_string(), json!(expires_at));
-    patch.insert(
-        "device_poll_interval".to_string(),
-        json!(poll_interval_seconds),
-    );
-    patch.insert(
-        "device_verification_url".to_string(),
-        json!(device_verification_url(auth)?),
-    );
-    patch.insert(
-        "instance_cookie_key".to_string(),
-        json!(instance_cookie_key(provider_config)),
-    );
-    Ok(ProviderAuthResult {
-        status: ProviderAuthStatus::Pending,
-        message: None,
-        user_action: Some(ProviderAuthUserAction {
-            kind: ProviderAuthUserActionKind::DeviceCode,
-            open_url: patch
-                .get("device_verification_url")
-                .and_then(Value::as_str)
-                .map(ToOwned::to_owned),
-            user_code: patch
-                .get("device_user_code")
-                .and_then(Value::as_str)
-                .map(ToOwned::to_owned),
-            expires_at: patch
-                .get("device_expires_at")
-                .and_then(Value::as_str)
-                .map(ToOwned::to_owned),
-            poll_interval_seconds: Some(poll_interval_seconds),
-            prompt: Some(
-                "Open the verification URL, sign in to ChatGPT, and enter the device code."
-                    .to_string(),
-            ),
-        }),
-        managed_secret_patch: patch,
-    })
-}
-
-async fn poll_device_code(
-    auth: &AuthConfig,
-    provider_config: &Value,
-) -> Result<ProviderAuthResult> {
-    if pending_device_code_expired(provider_config) {
-        return Ok(ProviderAuthResult {
-            status: ProviderAuthStatus::Failed,
-            message: Some(
-                "The ChatGPT device code expired. Start a new sign-in attempt.".to_string(),
-            ),
-            user_action: None,
-            managed_secret_patch: clear_pending_patch(),
-        });
-    }
-    let device_auth_id = required_secret(provider_config, "device_auth_id")?;
-    let user_code = required_secret(provider_config, "device_user_code")?;
-    let client = auth_client(auth)?;
-    let endpoint = authority_path(&auth.authority, "/api/accounts/deviceauth/token")?;
-    let response = client
-        .post(endpoint)
-        .json(&json!({
-            "device_auth_id": device_auth_id,
-            "user_code": user_code,
-        }))
-        .send()
-        .await
-        .context("ChatGPT device-code poll failed")?;
-    if matches!(response.status().as_u16(), 403 | 404) {
-        return Ok(pending_device_result(provider_config));
-    }
-    if !response.status().is_success() {
-        return Ok(failed_auth("ChatGPT device-code authorization failed"));
-    }
-    let grant: DevicePollResponse = response
-        .json()
-        .await
-        .context("ChatGPT device-code grant is invalid")?;
-    let token = exchange_authorization_code(
-        auth,
-        &grant.authorization_code,
-        &grant.code_verifier,
-        &authority_path(&auth.authority, "/deviceauth/callback")?,
-    )
-    .await?;
-    Ok(authorize_with_tokens(token, provider_config))
 }
 
 fn begin_pkce_callback(auth: &AuthConfig, provider_config: &Value) -> Result<ProviderAuthResult> {
@@ -201,10 +73,12 @@ fn begin_pkce_callback(auth: &AuthConfig, provider_config: &Value) -> Result<Pro
         .append_pair("code_challenge_method", "S256")
         .append_pair("id_token_add_organizations", "true")
         .append_pair("codex_cli_simplified_flow", "true");
+    let expires_at = expires_at_from_now(PKCE_CALLBACK_LIFETIME)?;
     let mut patch = clear_pending_patch();
     patch.insert("pkce_state".to_string(), json!(state));
     patch.insert("pkce_code_verifier".to_string(), json!(verifier));
     patch.insert("pkce_redirect_uri".to_string(), json!(&auth.redirect_uri));
+    patch.insert("pkce_expires_at".to_string(), json!(&expires_at));
     patch.insert(
         "instance_cookie_key".to_string(),
         json!(instance_cookie_key(provider_config)),
@@ -216,7 +90,7 @@ fn begin_pkce_callback(auth: &AuthConfig, provider_config: &Value) -> Result<Pro
             kind: ProviderAuthUserActionKind::PasteCallbackUrl,
             open_url: Some(url.to_string()),
             user_code: None,
-            expires_at: None,
+            expires_at: Some(expires_at),
             poll_interval_seconds: None,
             prompt: Some("Finish the browser sign-in, then paste the complete callback URL or authorization code."
                 .to_string()),
@@ -230,12 +104,17 @@ async fn submit_pkce_callback(
     provider_config: &Value,
     value: &str,
 ) -> Result<ProviderAuthResult> {
+    if pending_pkce_callback_expired(provider_config) {
+        return Ok(failed_auth_and_clear_pending(
+            "The ChatGPT OAuth callback expired. Start a new sign-in attempt.",
+        ));
+    }
     let expected_state = required_secret(provider_config, "pkce_state")?;
     let verifier = required_secret(provider_config, "pkce_code_verifier")?;
     let redirect_uri = required_secret(provider_config, "pkce_redirect_uri")?;
     let (code, callback_state) = parse_callback_submission(value)?;
     if callback_state.as_deref() != Some(expected_state.as_str()) {
-        return Ok(failed_auth(
+        return Ok(failed_auth_and_clear_pending(
             "The OAuth callback state does not match this sign-in attempt",
         ));
     }
@@ -350,26 +229,6 @@ fn authorize_with_tokens(token: TokenResponse, provider_config: &Value) -> Provi
     }
 }
 
-fn pending_device_result(provider_config: &Value) -> ProviderAuthResult {
-    ProviderAuthResult {
-        status: ProviderAuthStatus::Pending,
-        message: None,
-        user_action: Some(ProviderAuthUserAction {
-            kind: ProviderAuthUserActionKind::DeviceCode,
-            open_url: optional_secret(provider_config, "device_verification_url"),
-            user_code: optional_secret(provider_config, "device_user_code"),
-            expires_at: optional_secret(provider_config, "device_expires_at"),
-            poll_interval_seconds: provider_config
-                .get("device_poll_interval")
-                .and_then(Value::as_u64),
-            prompt: Some(
-                "Complete the device-code sign-in in your browser, then keep polling.".to_string(),
-            ),
-        }),
-        managed_secret_patch: BTreeMap::new(),
-    }
-}
-
 fn cancel_pending_auth() -> ProviderAuthResult {
     ProviderAuthResult {
         status: ProviderAuthStatus::Cancelled,
@@ -397,17 +256,19 @@ fn failed_auth(message: &str) -> ProviderAuthResult {
     }
 }
 
+fn failed_auth_and_clear_pending(message: &str) -> ProviderAuthResult {
+    ProviderAuthResult {
+        managed_secret_patch: clear_pending_patch(),
+        ..failed_auth(message)
+    }
+}
+
 fn clear_pending_patch() -> BTreeMap<String, Value> {
     [
-        "device_auth_id",
-        "device_user_code",
-        "device_expires_at",
-        "device_poll_interval",
-        "device_verification_url",
-        "device_code_verifier",
         "pkce_state",
         "pkce_code_verifier",
         "pkce_redirect_uri",
+        "pkce_expires_at",
     ]
     .into_iter()
     .map(|key| (key.to_string(), Value::Null))
@@ -447,10 +308,6 @@ fn auth_client(auth: &AuthConfig) -> Result<Client> {
 fn authority_path(authority: &str, path: &str) -> Result<String> {
     let base = Url::parse(authority).context("invalid ChatGPT auth authority")?;
     Ok(base.join(path)?.to_string())
-}
-
-fn device_verification_url(auth: &AuthConfig) -> Result<String> {
-    authority_path(&auth.authority, "/codex/device")
 }
 
 fn required_secret(provider_config: &Value, key: &str) -> Result<String> {
@@ -498,10 +355,10 @@ fn parse_callback_submission(value: &str) -> Result<(String, Option<String>)> {
     ))
 }
 
-fn pending_device_code_expired(provider_config: &Value) -> bool {
-    optional_secret(provider_config, "device_expires_at")
+fn pending_pkce_callback_expired(provider_config: &Value) -> bool {
+    optional_secret(provider_config, "pkce_expires_at")
         .and_then(|value| OffsetDateTime::parse(&value, &Rfc3339).ok())
-        .is_some_and(|expires_at| expires_at <= OffsetDateTime::now_utc())
+        .map_or(true, |expires_at| expires_at <= OffsetDateTime::now_utc())
 }
 
 fn token_refresh_is_required(provider_config: &Value, access_token: &str) -> bool {
@@ -552,21 +409,6 @@ fn random_secret(bytes: usize) -> Result<String> {
     Ok(URL_SAFE_NO_PAD.encode(value))
 }
 
-fn deserialize_poll_interval<'de, D>(deserializer: D) -> Result<u64, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let value = Value::deserialize(deserializer)?;
-    match value {
-        Value::String(value) => value.trim().parse().map_err(serde::de::Error::custom),
-        Value::Number(value) => value
-            .as_u64()
-            .ok_or_else(|| serde::de::Error::custom("invalid interval")),
-        Value::Null => Ok(5),
-        _ => Err(serde::de::Error::custom("invalid interval")),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -576,7 +418,7 @@ mod tests {
         thread,
     };
 
-    use serde_json::{json, Map, Value};
+    use serde_json::{json, Value};
 
     use super::*;
 
@@ -615,42 +457,54 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn device_code_poll_authorizes_and_clears_transient_grant_material() {
+    async fn pkce_callback_authorizes_and_clears_transient_grant_material() {
         let (base_url, server) = start_auth_server(vec![
-            r#"{"device_auth_id":"device_fixture","user_code":"ABCD-EFGH","interval":3}"#,
-            r#"{"authorization_code":"authorize_fixture","code_verifier":"verifier_fixture"}"#,
             r#"{"access_token":"access_fixture","refresh_token":"refresh_fixture","expires_in":3600}"#,
         ]);
         let config = json!({ "auth_base_url": base_url });
         let begin = authenticate(ProviderAuthRuntimeInput {
             provider_config: config.clone(),
             operation: ProviderAuthOperation::Begin {
-                action: "device_code".to_string(),
+                action: "pkce_callback".to_string(),
             },
         })
         .await
-        .expect("device begin should succeed");
+        .expect("PKCE begin should succeed");
 
         assert_eq!(begin.status, ProviderAuthStatus::Pending);
-        let verification_url = format!("{base_url}/codex/device");
         assert_eq!(
             begin
                 .user_action
                 .as_ref()
-                .and_then(|action| action.open_url.as_deref()),
-            Some(verification_url.as_str())
+                .map(|action| action.kind),
+            Some(ProviderAuthUserActionKind::PasteCallbackUrl)
         );
-        assert_eq!(
-            begin.managed_secret_patch.get("device_user_code"),
-            Some(&json!("ABCD-EFGH"))
-        );
+        assert!(begin
+            .user_action
+            .as_ref()
+            .and_then(|action| action.expires_at.as_ref())
+            .is_some());
+        let open_url = begin
+            .user_action
+            .as_ref()
+            .and_then(|action| action.open_url.as_deref())
+            .expect("PKCE begin should return an authorization URL");
+        let callback_state = Url::parse(open_url)
+            .expect("authorization URL should parse")
+            .query_pairs()
+            .find_map(|(key, value)| (key == "state").then(|| value.into_owned()))
+            .expect("authorization URL should include state");
 
         let authorized = authenticate(ProviderAuthRuntimeInput {
             provider_config: with_patch(config, &begin.managed_secret_patch),
-            operation: ProviderAuthOperation::Poll,
+            operation: ProviderAuthOperation::Submit {
+                value: format!(
+                    "http://localhost:1455/auth/callback?code=authorize_fixture&state={callback_state}"
+                ),
+            },
         })
         .await
-        .expect("device poll should exchange its authorization code");
+        .expect("callback submit should exchange its authorization code");
 
         assert_eq!(authorized.status, ProviderAuthStatus::Authorized);
         assert_eq!(
@@ -658,17 +512,17 @@ mod tests {
             Some(&json!("access_fixture"))
         );
         for key in [
-            "device_auth_id",
-            "device_user_code",
             "pkce_state",
             "pkce_code_verifier",
+            "pkce_redirect_uri",
+            "pkce_expires_at",
         ] {
             assert_eq!(authorized.managed_secret_patch.get(key), Some(&Value::Null));
         }
         assert!(!authorized.managed_secret_patch.values().any(|value| {
             matches!(
                 value.as_str(),
-                Some("authorize_fixture" | "verifier_fixture")
+                Some("authorize_fixture")
             )
         }));
         server.join().expect("auth fixture should finish");
@@ -702,19 +556,52 @@ mod tests {
         server.join().expect("refresh fixture should finish");
     }
 
-    #[test]
-    fn callback_submission_requires_the_original_pkce_state() {
-        let (code, state) = parse_callback_submission(
-            "http://localhost:1455/auth/callback?code=code_fixture&state=state_fixture",
-        )
-        .expect("callback URL should parse");
-        assert_eq!(code, "code_fixture");
-        assert_eq!(state.as_deref(), Some("state_fixture"));
+    #[tokio::test]
+    async fn callback_submission_rejects_mismatched_or_expired_pkce_state() {
+        let future_expiry = (OffsetDateTime::now_utc() + Duration::minutes(1))
+            .format(&Rfc3339)
+            .expect("fixture expiry should format");
+        let mismatch = authenticate(ProviderAuthRuntimeInput {
+            provider_config: json!({
+                "pkce_state": "expected_state",
+                "pkce_code_verifier": "verifier_fixture",
+                "pkce_redirect_uri": "http://localhost:1455/auth/callback",
+                "pkce_expires_at": future_expiry,
+            }),
+            operation: ProviderAuthOperation::Submit {
+                value: "http://localhost:1455/auth/callback?code=code_fixture&state=wrong_state"
+                    .to_string(),
+            },
+        })
+        .await
+        .expect("mismatched callback should return an auth failure");
+        assert_eq!(mismatch.status, ProviderAuthStatus::Failed);
 
-        let config = Map::from_iter([("pkce_state".to_string(), json!("state_fixture"))]);
-        assert_eq!(
-            optional_config_text(config.get("pkce_state")),
-            Some("state_fixture".to_string())
-        );
+        let expired = authenticate(ProviderAuthRuntimeInput {
+            provider_config: json!({
+                "pkce_state": "expected_state",
+                "pkce_code_verifier": "verifier_fixture",
+                "pkce_redirect_uri": "http://localhost:1455/auth/callback",
+                "pkce_expires_at": "2000-01-01T00:00:00Z",
+            }),
+            operation: ProviderAuthOperation::Submit {
+                value: "http://localhost:1455/auth/callback?code=code_fixture&state=expected_state"
+                    .to_string(),
+            },
+        })
+        .await
+        .expect("expired callback should return an auth failure");
+        assert_eq!(expired.status, ProviderAuthStatus::Failed);
+
+        for result in [mismatch, expired] {
+            for key in [
+                "pkce_state",
+                "pkce_code_verifier",
+                "pkce_redirect_uri",
+                "pkce_expires_at",
+            ] {
+                assert_eq!(result.managed_secret_patch.get(key), Some(&Value::Null));
+            }
+        }
     }
 }
