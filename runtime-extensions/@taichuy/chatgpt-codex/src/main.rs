@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, Write};
 
-use chatgpt_provider::{
+use chatgpt_codex_provider::{
     ChatGptProviderRuntime, ProviderFinishReason, ProviderInvocationInput,
     ProviderInvocationResult, ProviderRuntimeError, ProviderStdioRequest, ProviderStdioResponse,
     ProviderUsage, ProviderWireOperation,

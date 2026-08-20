@@ -4,20 +4,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
-const providerRoot = path.join(repoRoot, 'runtime-extensions/@taichuy/chatgpt');
+const providerRoot = path.join(repoRoot, 'runtime-extensions/@taichuy/chatgpt-codex');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(providerRoot, relativePath), 'utf8');
 }
 
-test('ChatGPT Subscription package exposes only the provider-owned OAuth contract', () => {
+test('ChatGPT Codex package exposes only the provider-owned OAuth contract', () => {
   const manifest = read('manifest.yaml');
-  const provider = read('provider/chatgpt.yaml');
+  const provider = read('provider/chatgpt-codex.yaml');
 
-  assert.match(manifest, /^plugin_id: chatgpt$/m);
-  assert.match(manifest, /^display_name: ChatGPT Subscription$/m);
-  assert.match(manifest, /^  entry: bin\/chatgpt-provider$/m);
-  assert.match(provider, /^provider_code: chatgpt$/m);
+  assert.match(manifest, /^plugin_id: chatgpt-codex$/m);
+  assert.match(manifest, /^display_name: ChatGPT Codex$/m);
+  assert.match(manifest, /^  entry: bin\/chatgpt-codex-provider$/m);
+  assert.match(provider, /^provider_code: chatgpt-codex$/m);
   assert.match(provider, /^default_base_url: https:\/\/chatgpt\.com\/backend-api\/codex$/m);
   assert.match(provider, /^model_discovery: dynamic$/m);
   const staticModelDirectory = path.join(providerRoot, 'models', 'llm');
@@ -46,7 +46,7 @@ test('ChatGPT Subscription package exposes only the provider-owned OAuth contrac
 });
 
 test('ChatGPT provider retains generic parameter projection and no static model alias', () => {
-  const provider = read('provider/chatgpt.yaml');
+  const provider = read('provider/chatgpt-codex.yaml');
 
   assert.match(provider, /^    - key: use_responses_websocket$/m);
   assert.match(provider, /^        value: responses_websocket$/m);

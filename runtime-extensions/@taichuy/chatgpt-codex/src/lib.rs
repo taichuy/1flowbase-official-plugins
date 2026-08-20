@@ -42,7 +42,7 @@ use protocol_context::{
 };
 use sse_codec::SseEventSizeGuard;
 
-const PROVIDER_CODE: &str = "chatgpt";
+const PROVIDER_CODE: &str = "chatgpt-codex";
 const DEFAULT_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const STREAM_IDLE_TIMEOUT: Duration = Duration::from_millis(300_000);
@@ -4288,7 +4288,7 @@ mod tests {
     fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
         let manifest = include_str!("../manifest.yaml");
 
-        assert!(manifest.contains("plugin_id: chatgpt"));
+        assert!(manifest.contains("plugin_id: chatgpt-codex"));
         assert!(manifest.contains("version: 0.1.0"));
         assert!(manifest.contains("- reasoning_output_supported"));
         assert!(manifest.contains("- native_continuation_supported"));
@@ -5733,7 +5733,7 @@ mod tests {
     #[test]
     fn d4_package_manifest_declares_remote_compact_and_native_responses_capabilities() {
         let manifest = include_str!("../manifest.yaml");
-        let provider = include_str!("../provider/chatgpt.yaml");
+        let provider = include_str!("../provider/chatgpt-codex.yaml");
 
         assert!(manifest.contains("contract_version: 1flowbase.provider/v2"));
         assert!(!manifest.contains("1flowbase.provider/v1"));

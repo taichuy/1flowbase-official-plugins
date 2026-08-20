@@ -1,6 +1,6 @@
-# ChatGPT Subscription Provider
+# ChatGPT Codex Provider
 
-`chatgpt` is an official 1flowbase model-provider RuntimeExtension for a user's
+`chatgpt-codex` is an official 1flowbase model-provider RuntimeExtension for a user's
 ChatGPT subscription. It uses the ChatGPT Codex backend at
 `https://chatgpt.com/backend-api/codex` and is invoked through the
 `stdio_json_worker` contract.

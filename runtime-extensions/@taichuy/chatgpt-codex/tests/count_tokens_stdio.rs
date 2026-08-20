@@ -1,4 +1,4 @@
-use chatgpt_provider::{ChatGptProviderRuntime, ProviderStdioRequest};
+use chatgpt_codex_provider::{ChatGptProviderRuntime, ProviderStdioRequest};
 use serde_json::json;
 
 #[tokio::test]
@@ -11,7 +11,7 @@ async fn count_tokens_stdio_unknown_model_and_missing_media_asset_is_total() {
                 "operation": "count_tokens",
                 "contract_version": "1flowbase.provider/v2",
                 "provider_instance_id": "fixture",
-                "provider_code": "chatgpt",
+                "provider_code": "chatgpt-codex",
                 "protocol": "openai_chat",
                 "model": "unknown-fixture-model",
                 "provider_config": {},

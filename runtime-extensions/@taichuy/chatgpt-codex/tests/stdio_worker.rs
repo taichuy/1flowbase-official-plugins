@@ -905,7 +905,7 @@ fn next_json_line(reader: &mut impl BufRead) -> Value {
 #[test]
 fn websocket_previous_response_reconnect_replays_turn_state() {
     let (base_url, server) = start_websocket_turn_state_reconnect_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -963,7 +963,7 @@ fn websocket_previous_response_reconnect_replays_turn_state() {
 fn websocket_continuation_reconnect_keeps_original_turn_state() {
     let (base_url, server, observed_turn_states) =
         start_websocket_rotating_turn_state_reconnect_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1055,7 +1055,7 @@ fn websocket_continuation_reconnect_keeps_original_turn_state() {
 #[test]
 fn websocket_continuation_sends_response_processed_before_next_request() {
     let (base_url, server) = start_websocket_same_session_continuation_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1110,7 +1110,7 @@ fn websocket_continuation_sends_response_processed_before_next_request() {
 #[test]
 fn websocket_previous_response_reconnects_instead_of_http_fallback() {
     let (base_url, server) = start_websocket_close_then_reconnect_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1172,7 +1172,7 @@ fn websocket_previous_response_reconnects_instead_of_http_fallback() {
 #[test]
 fn websocket_previous_response_retries_stream_close_without_seen_cursor() {
     let (base_url, server) = start_websocket_unseen_cursor_close_then_reconnect_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1221,7 +1221,7 @@ fn websocket_previous_response_retries_stream_close_without_seen_cursor() {
 #[test]
 fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
     let (base_url, server) = start_websocket_proxy_failure_then_fresh_turn_state_retry_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1285,7 +1285,7 @@ fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
 #[test]
 fn websocket_previous_response_unavailable_retries_with_full_context() {
     let (base_url, server) = start_websocket_previous_response_unavailable_full_context_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1354,7 +1354,7 @@ fn websocket_previous_response_unavailable_retries_with_full_context() {
 #[test]
 fn websocket_previous_response_can_fallback_to_sse_without_prior_websocket_session() {
     let (base_url, server) = start_websocket_reject_then_sse_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1400,7 +1400,7 @@ fn websocket_previous_response_can_fallback_to_sse_without_prior_websocket_sessi
 #[test]
 fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
     let (base_url, server) = start_two_response_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1461,7 +1461,7 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
 #[test]
 fn websocket_transport_falls_back_to_sse_before_response_events() {
     let (base_url, server) = start_websocket_reject_then_sse_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1503,7 +1503,7 @@ fn websocket_transport_falls_back_to_sse_before_response_events() {
 #[test]
 fn websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output() {
     let (base_url, server) = start_websocket_created_close_then_sse_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1545,7 +1545,7 @@ fn websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output() 
 #[test]
 fn websocket_close_after_function_call_done_finalizes_tool_call() {
     let (base_url, server) = start_websocket_function_call_done_then_close_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-provider"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chatgpt-codex-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
