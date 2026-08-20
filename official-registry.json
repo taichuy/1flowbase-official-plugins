@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-08-19T15:24:01.237Z",
+  "generated_at": "2026-08-20T12:53:33.720Z",
   "plugins": [
     {
       "plugin_id": "1flowbase.aliyun_bailian",
@@ -867,6 +867,283 @@
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
           "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-v0.1.0/1flowbase@chatgpt@0.1.0@windows-arm64@dad30e6b2f95edcb749f1953a19d18c3a80fb5aa9c7a3374dd28bb0bec824f65.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        }
+      ]
+    },
+    {
+      "plugin_id": "1flowbase.chatgpt-codex",
+      "plugin_type": "model_provider",
+      "publisher_namespace": "1flowbase",
+      "manifest_locator": "runtime-extensions/@taichuy/chatgpt-codex/manifest.yaml",
+      "provider_code": "chatgpt-codex",
+      "slot_codes": [
+        "model_provider"
+      ],
+      "keywords": [
+        "chatgpt-codex",
+        "codex",
+        "responses"
+      ],
+      "display_name": "ChatGPT Codex",
+      "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/chatgpt-codex/_assets/icon.svg",
+      "protocol": "openai_responses",
+      "latest_version": "0.1.0",
+      "minimum_host_version": "0.3.1",
+      "help_url": "https://help.openai.com/en/articles/9793128-codex",
+      "model_discovery_mode": "dynamic",
+      "i18n_summary": {
+        "default_locale": "en_US",
+        "available_locales": [
+          "en_US",
+          "zh_Hans"
+        ],
+        "bundles": {
+          "en_US": {
+            "plugin": {
+              "label": "ChatGPT Codex",
+              "description": "ChatGPT Codex Responses provider runtime extension."
+            },
+            "provider": {
+              "label": "ChatGPT Codex"
+            },
+            "fields": {
+              "base_url": {
+                "label": "ChatGPT Codex API URL"
+              },
+              "auth_base_url": {
+                "label": "OAuth authority URL"
+              },
+              "pkce_redirect_uri": {
+                "label": "PKCE redirect URI"
+              },
+              "proxy_url": {
+                "label": "HTTPS proxy URL"
+              },
+              "transport_mode": {
+                "label": "Default Responses transport",
+                "options": {
+                  "http_sse": {
+                    "label": "HTTP Server-Sent Events"
+                  },
+                  "responses_websocket": {
+                    "label": "Responses WebSocket"
+                  }
+                }
+              }
+            },
+            "parameters": {
+              "title": "ChatGPT Responses Parameters",
+              "description": "Provider-level request parameters for the ChatGPT Codex Responses backend.",
+              "reasoning_effort": {
+                "label": "Reasoning effort",
+                "options": {
+                  "minimal": {
+                    "label": "Minimal"
+                  },
+                  "low": {
+                    "label": "Low"
+                  },
+                  "medium": {
+                    "label": "Medium"
+                  },
+                  "high": {
+                    "label": "High"
+                  },
+                  "xhigh": {
+                    "label": "Extra high"
+                  }
+                }
+              },
+              "temperature": {
+                "label": "Temperature"
+              },
+              "top_p": {
+                "label": "Top P"
+              },
+              "max_output_tokens": {
+                "label": "Maximum output tokens"
+              },
+              "tool_choice": {
+                "label": "Tool choice",
+                "options": {
+                  "auto": {
+                    "label": "Automatic"
+                  },
+                  "required": {
+                    "label": "Required"
+                  },
+                  "none": {
+                    "label": "None"
+                  }
+                }
+              },
+              "use_responses_websocket": {
+                "label": "Use Responses WebSocket",
+                "description": "Overrides the provider instance transport for this LLM node."
+              }
+            },
+            "auth": {
+              "actions": {
+                "pkce_callback": {
+                  "label": "Paste OAuth callback URL"
+                }
+              }
+            }
+          },
+          "zh_Hans": {
+            "plugin": {
+              "label": "ChatGPT Codex",
+              "description": "ChatGPT Codex Responses 模型供应商运行时扩展。"
+            },
+            "provider": {
+              "label": "ChatGPT Codex"
+            },
+            "fields": {
+              "base_url": {
+                "label": "ChatGPT Codex API 地址"
+              },
+              "auth_base_url": {
+                "label": "OAuth 授权服务地址"
+              },
+              "pkce_redirect_uri": {
+                "label": "PKCE 回调地址"
+              },
+              "proxy_url": {
+                "label": "HTTPS 代理地址"
+              },
+              "transport_mode": {
+                "label": "默认 Responses 传输方式",
+                "options": {
+                  "http_sse": {
+                    "label": "HTTP 服务端事件"
+                  },
+                  "responses_websocket": {
+                    "label": "Responses WebSocket"
+                  }
+                }
+              }
+            },
+            "parameters": {
+              "title": "ChatGPT Responses 参数",
+              "description": "ChatGPT Codex Responses 后端支持的供应商级请求参数。",
+              "reasoning_effort": {
+                "label": "推理强度",
+                "options": {
+                  "minimal": {
+                    "label": "极低"
+                  },
+                  "low": {
+                    "label": "低"
+                  },
+                  "medium": {
+                    "label": "中"
+                  },
+                  "high": {
+                    "label": "高"
+                  },
+                  "xhigh": {
+                    "label": "极高"
+                  }
+                }
+              },
+              "temperature": {
+                "label": "温度"
+              },
+              "top_p": {
+                "label": "Top P"
+              },
+              "max_output_tokens": {
+                "label": "最大输出 Token 数"
+              },
+              "tool_choice": {
+                "label": "工具选择",
+                "options": {
+                  "auto": {
+                    "label": "自动"
+                  },
+                  "required": {
+                    "label": "必须"
+                  },
+                  "none": {
+                    "label": "不使用"
+                  }
+                }
+              },
+              "use_responses_websocket": {
+                "label": "使用 Responses WebSocket",
+                "description": "覆盖此 LLM 节点使用的供应商实例默认传输方式。"
+              }
+            },
+            "auth": {
+              "actions": {
+                "pkce_callback": {
+                  "label": "粘贴 OAuth 回调地址"
+                }
+              }
+            }
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "checksum": "sha256:ac606a577267c00b89b7b6012d557adf4faed8eb524fa56d79affa50b48083d5",
+          "libc": null,
+          "rust_target": "x86_64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-codex-v0.1.0/1flowbase@chatgpt_codex@0.1.0@darwin-amd64@ac606a577267c00b89b7b6012d557adf4faed8eb524fa56d79affa50b48083d5.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "checksum": "sha256:94b6389931e2f0ca4688c8f2b3e0a805f24687f200da4e95c6078cb6a07d78d7",
+          "libc": null,
+          "rust_target": "aarch64-apple-darwin",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-codex-v0.1.0/1flowbase@chatgpt_codex@0.1.0@darwin-arm64@94b6389931e2f0ca4688c8f2b3e0a805f24687f200da4e95c6078cb6a07d78d7.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "amd64",
+          "checksum": "sha256:01569a7dbb11b2fadebcdf2c499beb348022885697733bee87f933d62f61e8f7",
+          "libc": "musl",
+          "rust_target": "x86_64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-codex-v0.1.0/1flowbase@chatgpt_codex@0.1.0@linux-amd64@01569a7dbb11b2fadebcdf2c499beb348022885697733bee87f933d62f61e8f7.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "linux",
+          "arch": "arm64",
+          "checksum": "sha256:1686f90ee20fd1a63388814168c1860f7efcb3d80a88e75b6bf842c665009a1e",
+          "libc": "musl",
+          "rust_target": "aarch64-unknown-linux-musl",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-codex-v0.1.0/1flowbase@chatgpt_codex@0.1.0@linux-arm64@1686f90ee20fd1a63388814168c1860f7efcb3d80a88e75b6bf842c665009a1e.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "amd64",
+          "checksum": "sha256:eedd3a7fc66e40dfdcdf5ca9be5d46ffd0554161294edd1cb6c4b2f99f7fab19",
+          "libc": "msvc",
+          "rust_target": "x86_64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-codex-v0.1.0/1flowbase@chatgpt_codex@0.1.0@windows-amd64@eedd3a7fc66e40dfdcdf5ca9be5d46ffd0554161294edd1cb6c4b2f99f7fab19.1flowbasepkg",
+          "signature_algorithm": "ed25519",
+          "signing_key_id": "official-key-2026-04"
+        },
+        {
+          "os": "windows",
+          "arch": "arm64",
+          "checksum": "sha256:7f92f3ad8e7fbb56c762244bbf01d1282e781a5541b8bf3a8683dd321b6c24fe",
+          "libc": "msvc",
+          "rust_target": "aarch64-pc-windows-msvc",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/chatgpt-codex-v0.1.0/1flowbase@chatgpt_codex@0.1.0@windows-arm64@7f92f3ad8e7fbb56c762244bbf01d1282e781a5541b8bf3a8683dd321b6c24fe.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
