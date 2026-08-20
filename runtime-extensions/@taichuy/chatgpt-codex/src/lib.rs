@@ -5759,6 +5759,8 @@ mod tests {
             .expect("runtime capabilities section");
         for capability in [
             "count_tokens",
+            "usage.rate_limit_windows",
+            "reset_credits",
             "compact.responses_compact",
             "compact.responses_compaction_v2",
             "responses.native_passthrough",
@@ -5776,7 +5778,7 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            8
+            10
         );
         assert!(!manifest
             .lines()
