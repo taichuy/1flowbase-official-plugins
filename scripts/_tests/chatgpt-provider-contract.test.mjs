@@ -17,6 +17,8 @@ test('ChatGPT Codex package exposes only the provider-owned OAuth contract', () 
   assert.match(manifest, /^plugin_id: chatgpt-codex$/m);
   assert.match(manifest, /^display_name: ChatGPT Codex$/m);
   assert.match(manifest, /^  entry: bin\/chatgpt-codex-provider$/m);
+  assert.match(manifest, /^    - usage\.rate_limit_windows$/m);
+  assert.match(manifest, /^    - reset_credits$/m);
   assert.match(provider, /^provider_code: chatgpt-codex$/m);
   assert.match(provider, /^default_base_url: https:\/\/chatgpt\.com\/backend-api\/codex$/m);
   assert.match(provider, /^model_discovery: dynamic$/m);

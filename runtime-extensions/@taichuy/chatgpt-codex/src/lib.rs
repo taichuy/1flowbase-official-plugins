@@ -34,6 +34,7 @@ mod auth;
 mod count_tokens;
 mod protocol_context;
 mod sse_codec;
+mod usage;
 
 pub use protocol_context::ProtocolContextEnvelope;
 use protocol_context::{
@@ -922,6 +923,20 @@ impl ChatGptProviderRuntime {
                 Ok(ProviderStdioResponse::ok(json!(
                     self.list_models(&config).await?
                 )))
+            }
+            "usage" => {
+                let config = normalize_provider_config(&request.input)?;
+                Ok(ProviderStdioResponse::ok(serde_json::to_value(
+                    usage::get_usage_windows(&config).await?,
+                )?))
+            }
+            "reset_credit" => {
+                let input: usage::ProviderResetCreditRuntimeInput =
+                    serde_json::from_value(request.input)?;
+                let config = normalize_provider_config(&input.provider_config)?;
+                Ok(ProviderStdioResponse::ok(serde_json::to_value(
+                    usage::reset_credit(&config, input.operation).await?,
+                )?))
             }
             "invoke" => {
                 if request.input.get("operation").and_then(Value::as_str) == Some("count_tokens") {
