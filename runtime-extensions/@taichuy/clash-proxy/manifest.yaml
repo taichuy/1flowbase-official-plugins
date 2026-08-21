@@ -1,0 +1,38 @@
+manifest_version: 1
+plugin_id: clash-proxy
+publisher_namespace: 1flowbase
+version: 0.1.0
+vendor: 1flowbase
+display_name: Clash / Mihomo Proxy
+description: Loopback-only HTTP forward proxy backed by a private Clash/Mihomo YAML secret
+icon: icon.svg
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: stateful_runtime_worker
+slot_codes:
+  - network_egress_provider
+keywords:
+  - clash
+  - mihomo
+  - network egress
+binding_targets:
+  - workspace
+selection_mode: manual_select
+minimum_host_version: 0.3.1
+contract_version: 1flowbase.network_egress_provider/v1
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json_worker
+  entry: bin/clash-proxy-provider
+  limits:
+    timeout_ms: 10000
+    memory_bytes: 268435456
+node_contributions: []
+

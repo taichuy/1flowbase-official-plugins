@@ -183,6 +183,20 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      - name: Checkout pinned Mihomo Alpha source
+        if: ${{ matrix.provider_code == 'clash-proxy' }}
+        uses: actions/checkout@v6
+        with:
+          repository: MetaCubeX/mihomo
+          ref: dd26c52463d8e6cbb6bc33ad9e2b4a488824e6f4
+          path: dist/mihomo-source
+
+      - name: Setup Go for the bundled Mihomo core
+        if: ${{ matrix.provider_code == 'clash-proxy' }}
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.x'
+
       - name: Install cross
         if: ${{ matrix.runs_on == 'ubuntu-latest' }}
         run: cargo install cross --git https://github.com/cross-rs/cross --locked
@@ -228,12 +242,66 @@ jobs:
           runtime_binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${PLUGIN_DIR}" --rust-target "${{ matrix.rust_target }}" --field runtime_binary_name)"
           binary_path="${PLUGIN_DIR}/target/${{ matrix.rust_target }}/release/${runtime_binary_name}"
           package_runtime_binary_path="${binary_path}"
-          package_output="$(node host/scripts/node/plugin/cli.js package "${PLUGIN_DIR}" --out dist --runtime-binary "${package_runtime_binary_path}" --target "${{ matrix.rust_target }}" --signing-key-pem-file official-plugin-signing-key.pem --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}")"
+          package_args=(
+            package "${PLUGIN_DIR}"
+            --out dist
+            --runtime-binary "${package_runtime_binary_path}"
+            --target "${{ matrix.rust_target }}"
+            --signing-key-pem-file official-plugin-signing-key.pem
+            --signing-key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}"
+          )
+          if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then
+            case "${{ matrix.rust_target }}" in
+              x86_64-unknown-linux-musl) go_os=linux; go_arch=amd64; core_name=1flowbase-runtime-core ;;
+              aarch64-unknown-linux-musl) go_os=linux; go_arch=arm64; core_name=1flowbase-runtime-core ;;
+              x86_64-apple-darwin) go_os=darwin; go_arch=amd64; core_name=1flowbase-runtime-core ;;
+              aarch64-apple-darwin) go_os=darwin; go_arch=arm64; core_name=1flowbase-runtime-core ;;
+              x86_64-pc-windows-msvc) go_os=windows; go_arch=amd64; core_name=1flowbase-runtime-core.exe ;;
+              aarch64-pc-windows-msvc) go_os=windows; go_arch=arm64; core_name=1flowbase-runtime-core.exe ;;
+              *) echo "Unsupported Mihomo target: ${{ matrix.rust_target }}" >&2; exit 1 ;;
+            esac
+            core_path="dist/${core_name}"
+            (
+              cd dist/mihomo-source
+              CGO_ENABLED=0 GOOS="${go_os}" GOARCH="${go_arch}" go build -trimpath -buildvcs=false -o "${GITHUB_WORKSPACE}/${core_path}" .
+            )
+            test -f "${core_path}"
+            package_args+=(
+              --runtime-core-binary "${core_path}"
+              --runtime-core-gpl-license-notice "${PLUGIN_DIR}/LICENSES/Mihomo-GPL-3.0.txt"
+              --runtime-core-corresponding-source "https://github.com/MetaCubeX/mihomo/tree/dd26c52463d8e6cbb6bc33ad9e2b4a488824e6f4"
+            )
+          fi
+          package_output="$(node host/scripts/node/plugin/cli.js "${package_args[@]}")"
           package_file="$(printf '%s\n' "${package_output}" | sed -n 's/.*Plugin package created at //p' | tail -n 1)"
           if [ -z "${package_file}" ] || [ ! -f "${package_file}" ]; then
             echo "Failed to locate generated package file from plugin CLI output." >&2
             printf '%s\n' "${package_output}" >&2
             exit 1
+          fi
+
+          if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then
+            PACKAGE_FILE="${package_file}" SIGNING_KEY_FILE=official-plugin-signing-key.pem node <<'NODE'
+            const assert = require('node:assert/strict');
+            const crypto = require('node:crypto');
+            const fs = require('node:fs');
+            const os = require('node:os');
+            const path = require('node:path');
+            const { execFileSync } = require('node:child_process');
+            const { verifySignedRuntimeCoreRelease } = require('./host/scripts/node/plugin/release.js');
+
+            const root = fs.mkdtempSync(path.join(os.tmpdir(), 'clash-proxy-package-'));
+            try {
+              execFileSync('tar', ['-xzf', process.env.PACKAGE_FILE, '-C', root]);
+              const publicKey = crypto.createPublicKey(fs.readFileSync(process.env.SIGNING_KEY_FILE, 'utf8'));
+              const receipt = verifySignedRuntimeCoreRelease(root, publicKey);
+              const core = path.join(root, ...receipt.runtime_core.artifact_path.split('/'));
+              fs.appendFileSync(core, 'tamper');
+              assert.throws(() => verifySignedRuntimeCoreRelease(root, publicKey), /artifact_sha256/);
+            } finally {
+              fs.rmSync(root, { recursive: true, force: true });
+            }
+            NODE
           fi
 
           package_name="$(basename "${package_file}")"
