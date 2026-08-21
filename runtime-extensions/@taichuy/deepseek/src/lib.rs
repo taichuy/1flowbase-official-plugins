@@ -723,7 +723,10 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     Ok(url.to_string())
 }
 
-fn build_http_client(config: &ProviderConfig, required_proxy_url: Option<&str>) -> Result<reqwest::Client> {
+fn build_http_client(
+    config: &ProviderConfig,
+    required_proxy_url: Option<&str>,
+) -> Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder();
     if let Some(proxy_url) = required_proxy_url.or(config.proxy_url.as_deref()) {
         builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
@@ -816,6 +819,7 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
         !matches!(
             capability,
             ProviderInvocationCapability::MessageBlocksReasoningHistoryV1
+                | ProviderInvocationCapability::NetworkEgressHandoffV1
         )
     }) || input.system.iter().any(|block| {
         matches!(
