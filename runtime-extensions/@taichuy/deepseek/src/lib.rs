@@ -239,6 +239,17 @@ pub enum ProviderInvocationCapability {
     MessageBlocksReasoningHistoryV1,
     #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
     MessageBlocksRedactedReasoningHistoryV1,
+    #[serde(rename = "network_egress_handoff/v1")]
+    NetworkEgressHandoffV1,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NetworkEgressContext {
+    mode: String,
+    http_proxy_url: String,
+    expires_at: String,
+    required: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -278,6 +289,31 @@ pub struct ProviderInvocationInput {
 }
 
 impl ProviderInvocationInput {
+    fn required_network_egress_proxy_url(&self) -> Result<Option<String>> {
+        if !self
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::NetworkEgressHandoffV1)
+        {
+            return Ok(None);
+        }
+        let context = self
+            .run_context
+            .get("network_egress")
+            .ok_or_else(|| anyhow!("required network egress context is missing"))?;
+        let context: NetworkEgressContext = serde_json::from_value(context.clone())
+            .context("required network egress context is invalid")?;
+        if context.mode != "required_http_proxy" || !context.required {
+            bail!("required network egress context is not an HTTP proxy handoff");
+        }
+        let _expires_at = context.expires_at;
+        let proxy = Url::parse(&context.http_proxy_url)
+            .context("network egress HTTP proxy URL is invalid")?;
+        if proxy.scheme() != "http" {
+            bail!("network egress HTTP proxy must use http scheme");
+        }
+        Ok(Some(context.http_proxy_url))
+    }
+
     fn system_text(&self) -> Option<String> {
         let text = self
             .system
@@ -687,16 +723,16 @@ fn build_url(config: &ProviderConfig, pathname: &str) -> Result<String> {
     Ok(url.to_string())
 }
 
-fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+fn build_http_client(config: &ProviderConfig, required_proxy_url: Option<&str>) -> Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder();
-    if let Some(proxy_url) = &config.proxy_url {
+    if let Some(proxy_url) = required_proxy_url.or(config.proxy_url.as_deref()) {
         builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
     }
     builder.build().context("building DeepSeek HTTP client")
 }
 
 async fn request_json(config: &ProviderConfig, pathname: &str, method: Method) -> Result<Value> {
-    let client = build_http_client(config)?;
+    let client = build_http_client(config, None)?;
     let response = client
         .request(method, build_url(config, pathname)?)
         .headers(build_headers(config, None)?)
@@ -739,7 +775,8 @@ where
     let config = normalize_provider_config(&input.provider_config)?;
     let body = build_chat_completion_body(&input)?;
     let parse_dsml_tool_calls = parse_dsml_tool_calls_enabled(&input)?;
-    let client = build_http_client(&config)?;
+    let required_proxy_url = input.required_network_egress_proxy_url()?;
+    let client = build_http_client(&config, required_proxy_url.as_deref())?;
     let response = client
         .request(
             Method::POST,
