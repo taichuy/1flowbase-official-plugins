@@ -94,7 +94,7 @@ test('provider workflows call the current host plugin CLI path', () => {
     ciWorkflow,
     /node dist\/conformance-host\/scripts\/node\/plugin\/cli\.js package/
   );
-  assert.match(releaseWorkflow, /node host\/scripts\/node\/plugin\/cli\.js package/);
+  assert.match(releaseWorkflow, /node host\/scripts\/node\/plugin\/cli\.js "\$\{package_args\[@\]\}"/);
   assert.doesNotMatch(ciWorkflow, /host\/scripts\/node\/plugin\.js/);
   assert.doesNotMatch(releaseWorkflow, /host\/scripts\/node\/plugin\.js/);
 });
@@ -207,7 +207,10 @@ test('provider-release creates release tags once before the package matrix start
 test('provider-release extracts package metadata from plugin CLI output instead of assuming JSON stdout', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 
-  assert.match(workflow, /package_output="\$\(node host\/scripts\/node\/plugin\/cli\.js package/);
+  assert.match(
+    workflow,
+    /package_output="\$\(node host\/scripts\/node\/plugin\/cli\.js "\$\{package_args\[@\]\}"\)"/
+  );
   assert.match(
     workflow,
     /package_file="\$\(printf '%s\\n' "\$\{package_output\}" \| sed -n 's\/\.\*Plugin package created at \/\/p' \| tail -n 1\)"/

@@ -65,8 +65,8 @@ impl FixedYamlV1 {
         if raw.trim().is_empty() || raw.contains("://") || looks_like_base64(raw) {
             bail!("only a fixed Clash/Mihomo YAML v1 document is accepted");
         }
-        let root: serde_yaml::Mapping = serde_yaml::from_str(raw)
-            .context("network egress secret must be a YAML mapping")?;
+        let root: serde_yaml::Mapping =
+            serde_yaml::from_str(raw).context("network egress secret must be a YAML mapping")?;
         if root.len() != 1 || !root.contains_key(serde_yaml::Value::String("proxies".to_owned())) {
             bail!("fixed Clash/Mihomo YAML v1 permits only the top-level proxies field");
         }
@@ -133,7 +133,10 @@ fn parse_proxy(value: &serde_yaml::Value) -> Result<ProxyEntry> {
 
     let allowed = match kind.as_str() {
         "ss" => ["name", "type", "server", "port", "cipher", "password"].as_slice(),
-        "vmess" => ["name", "type", "server", "port", "uuid", "alterId", "cipher"].as_slice(),
+        "vmess" => [
+            "name", "type", "server", "port", "uuid", "alterId", "cipher",
+        ]
+        .as_slice(),
         "vless" => ["name", "type", "server", "port", "uuid", "flow"].as_slice(),
         "trojan" => ["name", "type", "server", "port", "password"].as_slice(),
         _ => bail!("supported proxy types are ss, vmess, vless, and trojan"),
@@ -183,8 +186,13 @@ fn required_safe_text(fields: &BTreeMap<&str, &serde_yaml::Value>, field: &str) 
     optional_safe_text(fields, field)?.ok_or_else(|| anyhow!("{field} must be a non-empty string"))
 }
 
-fn optional_safe_text(fields: &BTreeMap<&str, &serde_yaml::Value>, field: &str) -> Result<Option<String>> {
-    let Some(value) = fields.get(field) else { return Ok(None) };
+fn optional_safe_text(
+    fields: &BTreeMap<&str, &serde_yaml::Value>,
+    field: &str,
+) -> Result<Option<String>> {
+    let Some(value) = fields.get(field) else {
+        return Ok(None);
+    };
     let value = value
         .as_str()
         .map(str::trim)
@@ -194,8 +202,9 @@ fn optional_safe_text(fields: &BTreeMap<&str, &serde_yaml::Value>, field: &str) 
         bail!("{field} has an invalid value");
     }
     if field == "name"
-        && (!value.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.' | ' '))
-            || value.starts_with([' ', '.', '-']))
+        && (!value.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.' | ' ')
+        }) || value.starts_with([' ', '.', '-']))
     {
         bail!("name must be a safe, non-sensitive display identifier");
     }
@@ -203,12 +212,15 @@ fn optional_safe_text(fields: &BTreeMap<&str, &serde_yaml::Value>, field: &str) 
 }
 
 fn looks_like_base64(value: &str) -> bool {
-    let compact: String = value.chars().filter(|character| !character.is_whitespace()).collect();
+    let compact: String = value
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
     compact.len() >= 80
         && compact.len() % 4 == 0
-        && compact
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '+' | '/' | '='))
+        && compact.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '+' | '/' | '=')
+        })
 }
 
 #[derive(Debug)]
@@ -251,12 +263,14 @@ impl Worker {
         match operation {
             "sync_egresses" => {
                 ensure_exact_input(&request, &[])?;
-                Ok(json!({"operation":"sync_egresses","result":{"egresses": self.config.egresses().iter().map(|egress| json!({
+                Ok(
+                    json!({"operation":"sync_egresses","result":{"egresses": self.config.egresses().iter().map(|egress| json!({
                     "provider_egress_key": egress.key,
                     "display_name": egress.display_name,
                     "tags": [egress.proxy.kind],
                     "availability": "available"
-                })).collect::<Vec<_>>()}}))
+                })).collect::<Vec<_>>()}}),
+                )
             }
             "acquire_http_forward_proxy" => {
                 ensure_exact_input(&request, &["provider_egress_key"])?;
@@ -277,7 +291,9 @@ impl Worker {
                 let lease_id = required_input_string(&request, "lease_id")?;
                 let cleanup_token = required_input_string(&request, "cleanup_token")?;
                 self.release(lease_id, cleanup_token)?;
-                Ok(json!({"operation":"release_http_forward_proxy","result":{"lease_id": lease_id}}))
+                Ok(
+                    json!({"operation":"release_http_forward_proxy","result":{"lease_id": lease_id}}),
+                )
             }
             _ => bail!("unsupported network egress operation"),
         }
@@ -285,7 +301,8 @@ impl Worker {
 
     fn acquire(&mut self, key: &str) -> Result<(String, String, String)> {
         let egress = self.config.egress(key)?.clone();
-        let listener = TcpListener::bind("127.0.0.1:0").context("cannot reserve loopback proxy port")?;
+        let listener =
+            TcpListener::bind("127.0.0.1:0").context("cannot reserve loopback proxy port")?;
         let address = listener.local_addr()?.to_string();
         drop(listener);
         let (config_path, config_dir) = write_core_config(&egress.proxy, &address)?;
@@ -296,7 +313,12 @@ impl Worker {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .with_context(|| format!("cannot start bundled Mihomo core at {}", self.core_path.display()))?;
+            .with_context(|| {
+                format!(
+                    "cannot start bundled Mihomo core at {}",
+                    self.core_path.display()
+                )
+            })?;
         if let Err(error) = wait_for_loopback(&address) {
             let _ = child.kill();
             let _ = child.wait();
@@ -367,7 +389,11 @@ fn bundled_core_path() -> Result<PathBuf> {
         .and_then(Path::parent)
         .ok_or_else(|| anyhow!("worker executable has no package root"))?;
     let target = target_triple();
-    let file = if cfg!(windows) { "1flowbase-runtime-core.exe" } else { "1flowbase-runtime-core" };
+    let file = if cfg!(windows) {
+        "1flowbase-runtime-core.exe"
+    } else {
+        "1flowbase-runtime-core"
+    };
     let path = root.join("runtime-core").join(target).join(file);
     if !path.is_file() {
         bail!("bundled Mihomo runtime core is missing");
@@ -414,7 +440,9 @@ fn write_core_config(proxy: &ProxyEntry, address: &str) -> Result<(PathBuf, Path
 }
 
 fn wait_for_loopback(address: &str) -> Result<()> {
-    let socket: SocketAddr = address.parse().context("invalid loopback listener address")?;
+    let socket: SocketAddr = address
+        .parse()
+        .context("invalid loopback listener address")?;
     let deadline = std::time::Instant::now() + CORE_READY_TIMEOUT;
     while std::time::Instant::now() < deadline {
         if TcpStream::connect_timeout(&socket, Duration::from_millis(100)).is_ok() {
@@ -468,10 +496,20 @@ mod tests {
 
     #[test]
     fn nc_06_fixed_yaml_v1_projects_stable_ss_vmess_vless_and_trojan_egresses() {
-        let config = FixedYamlV1::from_yaml(FIXTURE).expect("representative fixed YAML is accepted");
+        let config =
+            FixedYamlV1::from_yaml(FIXTURE).expect("representative fixed YAML is accepted");
         assert_eq!(
-            config.egresses().iter().map(|item| item.key.as_str()).collect::<Vec<_>>(),
-            vec!["clash/ss-us", "clash/trojan-ca", "clash/vless-ap", "clash/vmess-eu"]
+            config
+                .egresses()
+                .iter()
+                .map(|item| item.key.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "clash/ss-us",
+                "clash/trojan-ca",
+                "clash/vless-ap",
+                "clash/vmess-eu"
+            ]
         );
         assert_eq!(config.egress("clash/vmess-eu").unwrap().proxy.kind, "vmess");
         assert_eq!(contract_version(), "1flowbase.network_egress_provider/v1");
@@ -492,13 +530,20 @@ mod tests {
             core_path: PathBuf::from("missing-core"),
             leases: HashMap::new(),
         };
-        assert!(worker.handle(json!({"operation":"sync_egresses","input":{"secret":"no"}})).is_err());
+        assert!(worker
+            .handle(json!({"operation":"sync_egresses","input":{"secret":"no"}}))
+            .is_err());
         assert!(worker.handle(json!({"operation":"acquire_http_forward_proxy","input":{"provider_egress_key":"clash/ss-us","provider_config":{}}})).is_err());
     }
 
     #[test]
     fn nc_06_generates_loopback_only_mihomo_config_without_tun_or_system_proxy() {
-        let proxy = FixedYamlV1::from_yaml(FIXTURE).unwrap().egress("clash/ss-us").unwrap().proxy.clone();
+        let proxy = FixedYamlV1::from_yaml(FIXTURE)
+            .unwrap()
+            .egress("clash/ss-us")
+            .unwrap()
+            .proxy
+            .clone();
         let (path, directory) = write_core_config(&proxy, "127.0.0.1:18080").unwrap();
         let config = fs::read_to_string(&path).unwrap();
         assert!(config.contains("bind-address: 127.0.0.1"));
@@ -512,7 +557,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn nc_06_release_terminates_the_core_and_removes_the_ephemeral_config() {
-        let directory = std::env::temp_dir().join(format!("clash-proxy-cleanup-{}", random_token()));
+        let directory =
+            std::env::temp_dir().join(format!("clash-proxy-cleanup-{}", random_token()));
         fs::create_dir(&directory).unwrap();
         let config_path = directory.join("mihomo.yaml");
         fs::write(&config_path, "mixed-port: 1\n").unwrap();
