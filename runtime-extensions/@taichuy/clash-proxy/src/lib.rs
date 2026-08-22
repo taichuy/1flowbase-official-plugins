@@ -52,17 +52,36 @@ pub struct FixedYamlV1 {
 }
 
 impl FixedYamlV1 {
-    /// The host's startup-only secret carrier is JSON; this provider accepts only a JSON string
-    /// whose content is a fixed Clash/Mihomo YAML v1 document.
+    /// The host's startup-only secret carrier is JSON. The subscription URL is read only by the
+    /// provider, fetched over HTTPS, and constrained to the fixed Clash/Mihomo YAML subset.
     pub fn from_secret_file(path: &Path) -> Result<Self> {
         let raw = fs::read_to_string(path).context("cannot read private network egress config")?;
-        let yaml = serde_json::from_str::<String>(&raw)
-            .context("network egress secret must be a JSON string containing Clash/Mihomo YAML")?;
+        let secret = serde_json::from_str::<serde_json::Value>(&raw)
+            .context("network egress secret must be a JSON object")?;
+        let subscription_url = secret
+            .get("subscription_url")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| value.starts_with("https://") && value.len() <= 2048)
+            .ok_or_else(|| anyhow!("subscription_url must be an HTTPS URL"))?;
+        let mut response = ureq::get(subscription_url)
+            .config()
+            .timeout_global(Some(Duration::from_secs(10)))
+            .build()
+            .call()
+            .context("cannot fetch Clash/Mihomo subscription")?;
+        let yaml = response
+            .body_mut()
+            .read_to_string()
+            .context("cannot read Clash/Mihomo subscription")?;
+        if yaml.len() > 1_048_576 {
+            bail!("Clash/Mihomo subscription exceeds 1 MiB");
+        }
         Self::from_yaml(&yaml)
     }
 
     pub fn from_yaml(raw: &str) -> Result<Self> {
-        if raw.trim().is_empty() || raw.contains("://") || looks_like_base64(raw) {
+        if raw.trim().is_empty() || looks_like_base64(raw) {
             bail!("only a fixed Clash/Mihomo YAML v1 document is accepted");
         }
         let root: serde_yaml::Mapping =
@@ -520,6 +539,15 @@ mod tests {
         for invalid in include_str!("../tests/fixtures/unsupported-inputs.txt").split("\n---\n") {
             assert!(FixedYamlV1::from_yaml(invalid).is_err(), "{invalid}");
         }
+    }
+
+    #[test]
+    fn qf_003_subscription_configuration_requires_https_before_any_network_access() {
+        let path = std::env::temp_dir().join(format!("clash-proxy-secret-{}.json", now_millis()));
+        fs::write(&path, r#"{"subscription_url":"http://127.0.0.1/private"}"#).unwrap();
+        let result = FixedYamlV1::from_secret_file(&path);
+        let _ = fs::remove_file(&path);
+        assert!(result.unwrap_err().to_string().contains("HTTPS URL"));
     }
 
     #[test]
