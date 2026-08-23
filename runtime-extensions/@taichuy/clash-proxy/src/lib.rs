@@ -12,48 +12,54 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use rand::{rngs::OsRng, RngCore};
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 const CONTRACT_VERSION: &str = "1flowbase.network_egress_provider/v1";
 const LEASE_DURATION_MILLIS: u64 = 300_000;
 const CORE_READY_TIMEOUT: Duration = Duration::from_secs(5);
+const SUBSCRIPTION_USER_AGENT: &str = "clash.meta";
+const SUPPORTED_REMOTE_PROXY_TYPES: &[&str] = &[
+    "anytls",
+    "gost-relay",
+    "http",
+    "hysteria",
+    "hysteria2",
+    "mieru",
+    "shadowquic",
+    "snell",
+    "socks5",
+    "ss",
+    "ssr",
+    "trojan",
+    "tuic",
+    "vless",
+    "vmess",
+];
 static NEXT_LEASE: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ProxyEntry {
     pub name: String,
-    #[serde(rename = "type")]
     pub kind: String,
-    pub server: String,
-    pub port: u16,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cipher: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub uuid: Option<String>,
-    #[serde(rename = "alterId", skip_serializing_if = "Option::is_none")]
-    pub alter_id: Option<u16>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub flow: Option<String>,
+    config: Value,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Egress {
     pub key: String,
     pub display_name: String,
     pub proxy: ProxyEntry,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct FixedYamlV1 {
     egresses: Vec<Egress>,
 }
 
 impl FixedYamlV1 {
     /// The host's startup-only secret carrier is JSON. The subscription URL is read only by the
-    /// provider, fetched over HTTPS, and constrained to the fixed Clash/Mihomo YAML subset.
+    /// provider. The provider fetches a Clash-compatible YAML subscription over HTTPS and
+    /// projects only its remote proxy nodes into an isolated Mihomo configuration.
     pub fn from_secret_file(path: &Path) -> Result<Self> {
         let raw = fs::read_to_string(path).context("cannot read private network egress config")?;
         let secret = serde_json::from_str::<serde_json::Value>(&raw)
@@ -65,6 +71,7 @@ impl FixedYamlV1 {
             .filter(|value| value.starts_with("https://") && value.len() <= 2048)
             .ok_or_else(|| anyhow!("subscription_url must be an HTTPS URL"))?;
         let mut response = ureq::get(subscription_url)
+            .header("User-Agent", SUBSCRIPTION_USER_AGENT)
             .config()
             .timeout_global(Some(Duration::from_secs(10)))
             .build()
@@ -82,17 +89,14 @@ impl FixedYamlV1 {
 
     pub fn from_yaml(raw: &str) -> Result<Self> {
         if raw.trim().is_empty() || looks_like_base64(raw) {
-            bail!("only a fixed Clash/Mihomo YAML v1 document is accepted");
+            bail!("only a raw Clash/Mihomo YAML subscription is accepted");
         }
         let root: serde_yaml::Mapping =
             serde_yaml::from_str(raw).context("network egress secret must be a YAML mapping")?;
-        if root.len() != 1 || !root.contains_key(serde_yaml::Value::String("proxies".to_owned())) {
-            bail!("fixed Clash/Mihomo YAML v1 permits only the top-level proxies field");
-        }
         let proxies = root
             .get(serde_yaml::Value::String("proxies".to_owned()))
             .and_then(serde_yaml::Value::as_sequence)
-            .ok_or_else(|| anyhow!("proxies must be a YAML sequence"))?;
+            .ok_or_else(|| anyhow!("Clash/Mihomo subscription proxies must be a YAML sequence"))?;
         if proxies.is_empty() {
             bail!("proxies must not be empty");
         }
@@ -143,62 +147,19 @@ fn parse_proxy(value: &serde_yaml::Value) -> Result<ProxyEntry> {
     if server.contains("://") || server.contains('@') || server.contains('/') {
         bail!("server must be a hostname or IP address, not a URI");
     }
-    let port = fields
+    let _port = fields
         .get("port")
         .and_then(|value| value.as_u64())
         .filter(|port| (1..=65535).contains(port))
         .map(|port| port as u16)
         .ok_or_else(|| anyhow!("port must be an integer between 1 and 65535"))?;
 
-    let allowed = match kind.as_str() {
-        "ss" => ["name", "type", "server", "port", "cipher", "password"].as_slice(),
-        "vmess" => [
-            "name", "type", "server", "port", "uuid", "alterId", "cipher",
-        ]
-        .as_slice(),
-        "vless" => ["name", "type", "server", "port", "uuid", "flow"].as_slice(),
-        "trojan" => ["name", "type", "server", "port", "password"].as_slice(),
-        _ => bail!("supported proxy types are ss, vmess, vless, and trojan"),
-    };
-    if fields.keys().any(|field| !allowed.contains(field)) {
-        bail!("fixed Clash/Mihomo YAML v1 rejects unsupported proxy fields");
+    if !SUPPORTED_REMOTE_PROXY_TYPES.contains(&kind.as_str()) {
+        bail!("unsupported remote Clash/Mihomo proxy type");
     }
-
-    let cipher = optional_safe_text(&fields, "cipher")?;
-    let password = optional_safe_text(&fields, "password")?;
-    let uuid = optional_safe_text(&fields, "uuid")?;
-    let alter_id = fields
-        .get("alterId")
-        .map(|value| {
-            value
-                .as_u64()
-                .filter(|value| *value <= u16::MAX as u64)
-                .map(|value| value as u16)
-                .ok_or_else(|| anyhow!("alterId must be a non-negative integer"))
-        })
-        .transpose()?;
-    let flow = optional_safe_text(&fields, "flow")?;
-
-    match kind.as_str() {
-        "ss" if cipher.is_none() || password.is_none() => {
-            bail!("ss requires cipher and password")
-        }
-        "vmess" if uuid.is_none() => bail!("vmess requires uuid"),
-        "vless" if uuid.is_none() => bail!("vless requires uuid"),
-        "trojan" if password.is_none() => bail!("trojan requires password"),
-        _ => {}
-    }
-    Ok(ProxyEntry {
-        name,
-        kind,
-        server,
-        port,
-        cipher,
-        password,
-        uuid,
-        alter_id,
-        flow,
-    })
+    let config = serde_json::to_value(value)
+        .context("proxy node must contain only JSON-compatible YAML fields")?;
+    Ok(ProxyEntry { name, kind, config })
 }
 
 fn required_safe_text(fields: &BTreeMap<&str, &serde_yaml::Value>, field: &str) -> Result<String> {
@@ -449,7 +410,7 @@ fn write_core_config(proxy: &ProxyEntry, address: &str) -> Result<(PathBuf, Path
         "mode": "global",
         "log-level": "warning",
         "ipv6": false,
-        "proxies": [proxy],
+        "proxies": [proxy.config],
         "proxy-groups": [{"name":"1flowbase-egress", "type":"select", "proxies":[proxy.name]}],
         "rules": ["MATCH,1flowbase-egress"]
     });
@@ -512,6 +473,8 @@ mod tests {
     use super::*;
 
     const FIXTURE: &str = include_str!("../tests/fixtures/representative-v1.yaml");
+    const REALISTIC_SUBSCRIPTION: &str =
+        include_str!("../tests/fixtures/realistic-clash-subscription.yaml");
 
     #[test]
     fn nc_06_fixed_yaml_v1_projects_stable_ss_vmess_vless_and_trojan_egresses() {
@@ -535,10 +498,47 @@ mod tests {
     }
 
     #[test]
-    fn nc_06_rejects_uris_base64_providers_and_non_v1_proxy_fields() {
+    fn nc_07_rejects_uris_base64_provider_only_and_non_remote_proxy_types() {
         for invalid in include_str!("../tests/fixtures/unsupported-inputs.txt").split("\n---\n") {
             assert!(FixedYamlV1::from_yaml(invalid).is_err(), "{invalid}");
         }
+    }
+
+    #[test]
+    fn nc_07_projects_realistic_clash_subscription_nodes_without_its_global_config() {
+        let config = FixedYamlV1::from_yaml(REALISTIC_SUBSCRIPTION)
+            .expect("realistic Clash subscription is accepted");
+        assert_eq!(
+            config
+                .egresses()
+                .iter()
+                .map(|item| item.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["clash/hy2", "clash/trojan-ws", "clash/vless-reality"]
+        );
+        assert_eq!(config.egress("clash/hy2").unwrap().proxy.kind, "hysteria2");
+    }
+
+    #[test]
+    fn nc_07_preserves_supported_node_options_in_the_isolated_mihomo_config() {
+        let proxy = FixedYamlV1::from_yaml(REALISTIC_SUBSCRIPTION)
+            .unwrap()
+            .egress("clash/vless-reality")
+            .unwrap()
+            .proxy
+            .clone();
+        let (path, directory) = write_core_config(&proxy, "127.0.0.1:18080").unwrap();
+        let config = fs::read_to_string(&path).unwrap();
+        assert!(config.contains("reality-opts"));
+        assert!(config.contains("public-key"));
+        assert!(!config.contains("AUTO"));
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(directory).unwrap();
+    }
+
+    #[test]
+    fn nc_07_uses_a_clash_compatible_subscription_user_agent() {
+        assert_eq!(SUBSCRIPTION_USER_AGENT, "clash.meta");
     }
 
     #[test]

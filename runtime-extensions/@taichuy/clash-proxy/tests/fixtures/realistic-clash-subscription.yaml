@@ -1,0 +1,41 @@
+mixed-port: 7890
+allow-lan: true
+mode: rule
+proxies:
+  - name: trojan-ws
+    type: trojan
+    server: trojan.example.test
+    port: 443
+    password: redacted-trojan-password
+    sni: cdn.example.test
+    skip-cert-verify: false
+    network: ws
+    ws-opts:
+      path: /gateway
+      headers:
+        Host: cdn.example.test
+  - name: vless-reality
+    type: vless
+    server: vless.example.test
+    port: 443
+    uuid: 33333333-3333-3333-3333-333333333333
+    flow: xtls-rprx-vision
+    tls: true
+    servername: edge.example.test
+    reality-opts:
+      public-key: redacted-public-key
+      short-id: a1b2c3d4
+  - name: hy2
+    type: hysteria2
+    server: hy2.example.test
+    port: 8443
+    password: redacted-hy2-password
+    sni: edge.example.test
+    alpn:
+      - h3
+proxy-groups:
+  - name: AUTO
+    type: url-test
+    proxies: [trojan-ws, vless-reality, hy2]
+rules:
+  - MATCH,AUTO
