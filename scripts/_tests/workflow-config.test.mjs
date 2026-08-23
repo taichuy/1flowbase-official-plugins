@@ -178,6 +178,16 @@ test('provider-release can reuse an existing tag during repair runs', () => {
   );
 });
 
+test('provider-release keeps the Clash/Mihomo source outside the disposable package output directory', () => {
+  // AC-001: the release package build must not delete the checked-out Mihomo source before Go builds it.
+  const workflow = readRepoFile('.github/workflows/provider-release.yml');
+
+  assert.match(workflow, /path: build\/mihomo-source/);
+  assert.match(workflow, /cd build\/mihomo-source/);
+  assert.doesNotMatch(workflow, /path: dist\/mihomo-source/);
+  assert.doesNotMatch(workflow, /cd dist\/mihomo-source/);
+});
+
 test('provider-release creates release tags once before the package matrix starts', () => {
   const workflow = readRepoFile('.github/workflows/provider-release.yml');
 

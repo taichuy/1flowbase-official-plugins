@@ -189,7 +189,7 @@ jobs:
         with:
           repository: MetaCubeX/mihomo
           ref: dd26c52463d8e6cbb6bc33ad9e2b4a488824e6f4
-          path: dist/mihomo-source
+          path: build/mihomo-source
 
       - name: Setup Go for the bundled Mihomo core
         if: ${{ matrix.provider_code == 'clash-proxy' }}
@@ -262,7 +262,7 @@ jobs:
             esac
             core_path="dist/${core_name}"
             (
-              cd dist/mihomo-source
+              cd build/mihomo-source
               CGO_ENABLED=0 GOOS="${go_os}" GOARCH="${go_arch}" go build -trimpath -buildvcs=false -o "${GITHUB_WORKSPACE}/${core_path}" .
             )
             test -f "${core_path}"
