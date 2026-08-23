@@ -191,6 +191,8 @@ test('provider-release keeps the Clash/Mihomo source outside the disposable pack
     workflow.indexOf('package_name=', workflow.indexOf('if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then'))
   );
   assert.match(verificationBlock, /\n {10}NODE\n/);
+  assert.match(verificationBlock, /process\.platform === 'win32'/);
+  assert.match(verificationBlock, /execFileSync\('cygpath', \['-u', process\.env\.PACKAGE_FILE\]/);
 });
 
 test('provider-release creates release tags once before the package matrix starts', () => {

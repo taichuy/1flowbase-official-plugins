@@ -291,8 +291,11 @@ jobs:
             const { verifySignedRuntimeCoreRelease } = require('./host/scripts/node/plugin/release.js');
 
             const root = fs.mkdtempSync(path.join(os.tmpdir(), 'clash-proxy-package-'));
+            const packageFile = process.platform === 'win32'
+              ? execFileSync('cygpath', ['-u', process.env.PACKAGE_FILE], { encoding: 'utf8' }).trim()
+              : process.env.PACKAGE_FILE;
             try {
-              execFileSync('tar', ['-xzf', process.env.PACKAGE_FILE, '-C', root]);
+              execFileSync('tar', ['-xzf', packageFile, '-C', root]);
               const publicKey = crypto.createPublicKey(fs.readFileSync(process.env.SIGNING_KEY_FILE, 'utf8'));
               const receipt = verifySignedRuntimeCoreRelease(root, publicKey);
               const core = path.join(root, ...receipt.runtime_core.artifact_path.split('/'));
