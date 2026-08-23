@@ -110,11 +110,9 @@ impl FixedYamlV1 {
             .map(str::trim)
             .filter(|value| value.starts_with("https://") && value.len() <= 2048)
             .ok_or_else(subscription_invalid_error)?;
-        let mut response = ureq::get(subscription_url)
+        let mut response = subscription_agent()
+            .get(subscription_url)
             .header("User-Agent", SUBSCRIPTION_USER_AGENT)
-            .config()
-            .timeout_global(Some(Duration::from_secs(10)))
-            .build()
             .call()
             .map_err(|_| subscription_unavailable_error())?;
         let yaml = response
@@ -168,6 +166,15 @@ impl FixedYamlV1 {
             .find(|egress| egress.key == key)
             .ok_or_else(|| anyhow!("provider_egress_key is unavailable"))
     }
+}
+
+fn subscription_agent() -> ureq::Agent {
+    let config = ureq::Agent::config_builder()
+        // A network-egress provider must not recursively depend on the host's ambient proxy.
+        .proxy(None)
+        .timeout_global(Some(Duration::from_secs(10)))
+        .build();
+    ureq::Agent::new_with_config(config)
 }
 
 fn parse_proxy(value: &serde_yaml::Value) -> Result<ProxyEntry> {
@@ -621,6 +628,11 @@ mod tests {
     #[test]
     fn nc_07_uses_a_clash_compatible_subscription_user_agent() {
         assert_eq!(SUBSCRIPTION_USER_AGENT, "clash.meta");
+    }
+
+    #[test]
+    fn nc_09_subscription_fetch_does_not_inherit_the_host_ambient_proxy() {
+        assert!(subscription_agent().config().proxy().is_none());
     }
 
     #[test]
