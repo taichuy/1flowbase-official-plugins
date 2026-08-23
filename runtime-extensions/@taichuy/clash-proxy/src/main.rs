@@ -11,8 +11,8 @@ fn main() {
         eprintln!("clash-proxy requires exactly --network-egress-config-file <private-file>");
         std::process::exit(2);
     }
-    if let Err(error) = clash_proxy_provider::run_stdio(&PathBuf::from(path.unwrap())) {
-        eprintln!("clash-proxy failed: {error:#}");
+    if clash_proxy_provider::run_stdio(&PathBuf::from(path.unwrap())).is_err() {
+        eprintln!("clash-proxy failed to start the provider");
         std::process::exit(1);
     }
 }

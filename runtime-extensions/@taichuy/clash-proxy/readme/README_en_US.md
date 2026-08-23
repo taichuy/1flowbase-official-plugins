@@ -8,6 +8,10 @@ The host passes the secret only at process start as a private config file. Its J
 one `subscription_url`; the provider fetches it over HTTPS with the standard `clash.meta` client
 identifier and projects the YAML document's `proxies` array into isolated egresses. Other
 top-level subscription settings (rules, groups, DNS, listeners, and proxy providers) are ignored.
+Node names may use Unicode or emoji and remain display-only. Each `provider_egress_key` is a
+stable ASCII SHA-256 fingerprint of the complete node configuration, so a subscription reorder
+does not change keys and equally named but differently configured nodes remain distinct. Exact
+duplicate nodes are rejected.
 Supported remote node types are `ss`, `ssr`, `socks5`, `http`, `vmess`, `vless`, `trojan`,
 `hysteria`, `hysteria2`, `tuic`, `snell`, `shadowquic`, `anytls`, `gost-relay`, and `mieru`; their
 Mihomo node options are preserved.
