@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/ui-component/v1/release.schema.json",
+  "title": "1flowbase signed UI component release record v1",
+  "type": "object",
+  "required": ["version", "release_tag", "download_url", "checksum", "seed_schema_version", "total_components", "semantic_sha256", "algorithm", "key_id", "signature"],
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "release_tag": { "type": "string", "minLength": 1 },
+    "download_url": { "type": "string", "minLength": 1 },
+    "checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "seed_schema_version": { "const": "1flowbase.ui-component-catalog-seed/v1" },
+    "total_components": { "type": "integer", "minimum": 0 },
+    "semantic_sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "algorithm": { "const": "ed25519" },
+    "key_id": { "type": "string", "minLength": 1 },
+    "signature": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

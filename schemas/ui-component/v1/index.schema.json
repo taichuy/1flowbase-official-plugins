@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/ui-component/v1/index.schema.json",
+  "title": "1flowbase UI component catalog index v1",
+  "type": "object",
+  "required": ["schema_version", "catalog_version", "generated_at", "page_size", "total_components", "source_fingerprint", "first_page", "search_index", "download", "update", "pages"],
+  "properties": {
+    "schema_version": { "const": "1flowbase.ui-component-catalog-index/v1" },
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "page_size": { "type": "integer", "minimum": 1 },
+    "total_components": { "type": "integer", "minimum": 0 },
+    "source_fingerprint": { "$ref": "#/$defs/sha256" },
+    "first_page": { "$ref": "#/$defs/pageReference" },
+    "search_index": {
+      "type": "object",
+      "required": ["schema_version", "entry_count", "checksum", "locator"],
+      "properties": {
+        "schema_version": { "const": "1flowbase.ui-component-catalog-search/v1" },
+        "entry_count": { "type": "integer", "minimum": 0 },
+        "checksum": { "$ref": "#/$defs/sha256" },
+        "locator": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "download": {
+      "type": "object",
+      "required": ["schema_version", "checksum", "locator", "release_tag", "release_locator", "release_catalog_locator"],
+      "properties": {
+        "schema_version": { "const": "1flowbase.ui-component-catalog-seed/v1" },
+        "checksum": { "$ref": "#/$defs/sha256" },
+        "locator": { "type": "string", "minLength": 1 },
+        "release_tag": { "type": "string", "minLength": 1 },
+        "release_locator": { "type": "string", "minLength": 1 },
+        "release_catalog_locator": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "update": {
+      "type": "object",
+      "required": ["strategy", "identity_field", "source_field", "group_field", "version_field"],
+      "properties": {
+        "strategy": { "const": "authoritative_source_group_replace" },
+        "identity_field": { "const": "component_code" },
+        "source_field": { "const": "source" },
+        "group_field": { "const": "group" },
+        "version_field": { "const": "version" }
+      },
+      "additionalProperties": false
+    },
+    "pages": { "type": "array", "items": { "$ref": "#/$defs/pageReference" } }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "pageReference": {
+      "type": "object",
+      "required": ["page", "cursor", "locator"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "cursor": { "type": "string" },
+        "component_count": { "type": "integer", "minimum": 0 },
+        "checksum": { "$ref": "#/$defs/sha256" },
+        "locator": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

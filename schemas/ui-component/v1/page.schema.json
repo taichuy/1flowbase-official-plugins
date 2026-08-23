@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/ui-component/v1/page.schema.json",
+  "title": "1flowbase UI component catalog page v1",
+  "type": "object",
+  "required": ["schema_version", "catalog_version", "page", "cursor", "next_cursor", "next_page_locator", "components"],
+  "properties": {
+    "schema_version": { "const": "1flowbase.ui-component-catalog-page/v1" },
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "page": { "type": "integer", "minimum": 1 },
+    "cursor": { "type": "string" },
+    "next_cursor": { "type": ["string", "null"] },
+    "next_page_locator": { "type": ["string", "null"] },
+    "components": { "type": "array", "items": { "$ref": "component.schema.json" } }
+  },
+  "additionalProperties": false
+}

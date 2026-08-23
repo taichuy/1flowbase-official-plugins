@@ -1,0 +1,125 @@
+name: ui-component-catalog-release
+
+on:
+  pull_request:
+    paths:
+      - 'ui_components/**'
+      - 'schemas/ui-component/**'
+      - 'scripts/ui-component-*.mjs'
+      - 'scripts/_tests/ui-component-*.test.mjs'
+      - '.github/workflows/ui-component-catalog-release.yml'
+  push:
+    branches: [main]
+    tags: ['ui-component-catalog-v*.*.*']
+    paths:
+      - 'ui_components/**'
+      - 'schemas/ui-component/**'
+      - 'scripts/ui-component-*.mjs'
+      - 'scripts/_tests/ui-component-*.test.mjs'
+      - '.github/workflows/ui-component-catalog-release.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ui-component-catalog-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify canonical records and deterministic outputs
+        run: |
+          node --test scripts/_tests/ui-component-*.test.mjs
+          node scripts/ui-component-catalog-publisher.mjs --check
+
+  immutable-release:
+    if: startsWith(github.ref, 'refs/tags/ui-component-catalog-v')
+    needs: source-contract
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Bind tag, catalog version, and digest
+        id: release
+        env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" ] || [ -z "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" ]; then
+            echo "Official Ed25519 signing key and key id are required." >&2
+            exit 1
+          fi
+          version="$(node -p 'JSON.parse(require("fs").readFileSync("ui_components/catalog-source.json", "utf8")).catalog_version')"
+          expected_tag="ui-component-catalog-v${version}"
+          if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match catalog version ${version}." >&2
+            exit 1
+          fi
+          node scripts/ui-component-catalog-publisher.mjs --check
+          asset="ui-component-catalog-v${version}.json"
+          cp ui_components/dist/catalog-seed.json "${asset}"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > ui-component-signing-key.pem
+          node scripts/ui-component-release.mjs build \
+            --private-key-pem-file ui-component-signing-key.pem \
+            --key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" \
+            --record ui-component-release-record.json
+          digest="$(sha256sum "${asset}" | awk '{print $1}')"
+          printf '%s  %s\n' "${digest}" "${asset}" > "${asset}.sha256"
+          node -p 'JSON.parse(require("fs").readFileSync("ui-component-release-record.json", "utf8")).signature' \
+            > "${asset}.sig"
+          echo "asset=${asset}" >> "${GITHUB_OUTPUT}"
+          echo "digest=sha256:${digest}" >> "${GITHUB_OUTPUT}"
+      - name: Publish immutable catalog Seed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.release.outputs.asset }}
+          DIGEST: ${{ steps.release.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            repair_dir="$(mktemp -d)"
+            gh release download "${GITHUB_REF_NAME}" --pattern "${ASSET}" --dir "${repair_dir}"
+            cmp "${ASSET}" "${repair_dir}/${ASSET}"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              "${ASSET}" "${ASSET}.sha256" "${ASSET}.sig" ui-component-release-record.json \
+              --target "${GITHUB_SHA}" \
+              --title "Official UI component catalog ${GITHUB_REF_NAME}" \
+              --notes "Canonical Seed digest: ${DIGEST}"
+          fi
+      - name: Register verified release evidence
+        env:
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_worktree="$(mktemp -d)"
+          trap 'git worktree remove --force "${publish_worktree}" >/dev/null 2>&1 || true' EXIT
+          git fetch origin main
+          git worktree add --detach "${publish_worktree}" origin/main
+          cp ui-component-release-record.json "${publish_worktree}/ui-component-release-record.json"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_KEY_PEM}" > "${publish_worktree}/ui-component-signing-key.pem"
+          cd "${publish_worktree}"
+          node scripts/ui-component-catalog-publisher.mjs --check
+          node scripts/ui-component-release.mjs register \
+            --private-key-pem-file ui-component-signing-key.pem \
+            --record ui-component-release-record.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ui_components/releases/v1/catalog.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore(ui-components): register ${GITHUB_REF_NAME} release evidence"
+          git push origin HEAD:main

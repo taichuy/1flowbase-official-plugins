@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1flowbase.com/schemas/ui-component/v1/seed.schema.json",
+  "title": "1flowbase UI component catalog Seed v1",
+  "type": "object",
+  "required": ["manifest", "components"],
+  "properties": {
+    "manifest": {
+      "type": "object",
+      "required": ["schema_version", "catalog_version", "generated_at", "page_size", "total_components", "components_sha256", "semantic_sha256"],
+      "properties": {
+        "schema_version": { "const": "1flowbase.ui-component-catalog-seed/v1" },
+        "catalog_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "page_size": { "type": "integer", "minimum": 1 },
+        "total_components": { "type": "integer", "minimum": 0 },
+        "components_sha256": { "$ref": "#/$defs/sha256" },
+        "semantic_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "components": { "type": "array", "items": { "$ref": "component.schema.json" } }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}
