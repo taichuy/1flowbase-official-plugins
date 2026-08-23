@@ -186,6 +186,11 @@ test('provider-release keeps the Clash/Mihomo source outside the disposable pack
   assert.match(workflow, /cd build\/mihomo-source/);
   assert.doesNotMatch(workflow, /path: dist\/mihomo-source/);
   assert.doesNotMatch(workflow, /cd dist\/mihomo-source/);
+  const verificationBlock = workflow.slice(
+    workflow.indexOf('if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then'),
+    workflow.indexOf('package_name=', workflow.indexOf('if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then'))
+  );
+  assert.match(verificationBlock, /\n {10}NODE\n/);
 });
 
 test('provider-release creates release tags once before the package matrix starts', () => {
