@@ -85,6 +85,35 @@ test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summar
   assert.equal(entry.i18n_summary.bundles.zh_Hans.plugin.description, '中文描述');
 });
 
+test('buildRegistryEntry derives the network egress catalog type from the runtime slot', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
+  mkdirSync(path.join(root, 'provider'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'manifest.yaml'),
+    [
+      'publisher_namespace: 1flowbase',
+      'version: 0.2.2',
+      'slot_codes:',
+      '  - network_egress_provider',
+      '',
+    ].join('\n')
+  );
+  writeFileSync(
+    path.join(root, 'provider', 'clash-proxy.yaml'),
+    'provider_code: clash-proxy\nprotocol: stdio_json_worker\n'
+  );
+
+  const entry = buildRegistryEntry({
+    pluginDir: root,
+    providerCode: 'clash-proxy',
+    version: '0.2.2',
+    repositoryRoot: root,
+    artifacts: [],
+  });
+
+  assert.equal(entry.plugin_type, 'network_egress_provider');
+});
+
 test('buildRegistryEntry prefers manifest metadata for plugin label and description', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
   mkdirSync(path.join(root, 'provider'), { recursive: true });

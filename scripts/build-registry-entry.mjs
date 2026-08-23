@@ -243,7 +243,10 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
   if (!publisherNamespace) {
     throw new Error('manifest publisher_namespace must be a non-empty string');
   }
-  const pluginType = readField(manifest, 'plugin_type', 'model_provider');
+  const slotCodes = readListField(manifest, 'slot_codes');
+  const pluginType = slotCodes.includes('network_egress_provider')
+    ? 'network_egress_provider'
+    : 'model_provider';
   const manifestMetadata = parseManifestMetadata(manifest);
   const icon = resolveRegistryIcon(pluginDir, readField(manifest, 'icon', ''));
   const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
@@ -259,7 +262,7 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     publisher_namespace: publisherNamespace,
     manifest_locator: repositoryLocator(repositoryRoot, manifestPath),
     provider_code: providerCode,
-    slot_codes: readListField(manifest, 'slot_codes'),
+    slot_codes: slotCodes,
     keywords: readListField(manifest, 'keywords'),
     display_name:
       readField(providerYaml, 'display_name', '') ||

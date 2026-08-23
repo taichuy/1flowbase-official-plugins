@@ -14,7 +14,7 @@ test('NC-06 declares the network egress worker ABI and subscription URL input', 
   const manifest = read('manifest.yaml');
   const contract = read('provider/clash-proxy.yaml');
 
-  assert.match(manifest, /^plugin_type: network_egress_provider$/m);
+  assert.doesNotMatch(manifest, /^plugin_type:/m);
   assert.match(manifest, /contract_version: 1flowbase\.network_egress_provider\/v1/);
   assert.match(manifest, /execution_mode: stateful_runtime_worker/);
   assert.match(manifest, /protocol: stdio_json_worker/);
