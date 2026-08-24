@@ -375,4 +375,45 @@ mod tests {
             .is_err());
         assert_eq!(*attempts.lock().unwrap(), 1);
     }
+
+    #[test]
+    fn ac_003_ac_009_twenty_distinct_requests_never_exceed_the_runtime_capacity() {
+        let terminated = Arc::new(Mutex::new(Vec::new()));
+        let created = Arc::new(Mutex::new(0_usize));
+        let mut pool = RuntimePool::new(4, 60_000, 5_000);
+        let mut acquired = Vec::new();
+        let mut rejected = 0;
+
+        for index in 0..20 {
+            let created = created.clone();
+            let terminated = terminated.clone();
+            let result = pool.acquire(
+                &format!("node-{index}"),
+                format!("lease-{index}"),
+                format!("token-{index}"),
+                index,
+                || {
+                    *created.lock().unwrap() += 1;
+                    Ok(runtime(&format!("node-{index}"), &terminated))
+                },
+            );
+            match result {
+                Ok(lease) => acquired.push(lease),
+                Err(error) => {
+                    assert_eq!(
+                        error.downcast_ref::<PoolError>(),
+                        Some(&PoolError::CapacityExhausted)
+                    );
+                    rejected += 1;
+                }
+            }
+        }
+
+        assert_eq!(*created.lock().unwrap(), 4);
+        assert_eq!(acquired.len(), 4);
+        assert_eq!(rejected, 16);
+        assert!(terminated.lock().unwrap().is_empty());
+        pool.shutdown();
+        assert_eq!(terminated.lock().unwrap().len(), 4);
+    }
 }
