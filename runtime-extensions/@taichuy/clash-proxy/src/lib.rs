@@ -1,14 +1,21 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     fmt, fs,
     io::{BufRead, BufReader, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        mpsc, Arc, Mutex,
+    },
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+
+mod runtime_pool;
+
+use runtime_pool::{ManagedRuntime, PoolError, RuntimePool};
 
 use anyhow::{anyhow, bail, Context, Result};
 use rand::{rngs::OsRng, RngCore};
@@ -22,6 +29,13 @@ const SUBSCRIPTION_USER_AGENT: &str = "clash.meta";
 const SUBSCRIPTION_UNAVAILABLE_CODE: &str = "network_egress_subscription_unavailable";
 const SUBSCRIPTION_INVALID_CODE: &str = "network_egress_subscription_invalid";
 const PROXY_INVALID_CODE: &str = "network_egress_proxy_invalid";
+const RUNTIME_START_FAILED_CODE: &str = "network_egress_runtime_start_failed";
+const RUNTIME_CAPACITY_EXHAUSTED_CODE: &str = "network_egress_runtime_capacity_exhausted";
+const RUNTIME_BACKOFF_CODE: &str = "network_egress_runtime_backoff";
+const MAX_ACTIVE_RUNTIMES: usize = 4;
+const IDLE_RUNTIME_TTL: Duration = Duration::from_secs(60);
+const FAILED_RUNTIME_BACKOFF: Duration = Duration::from_secs(5);
+const REAPER_INTERVAL: Duration = Duration::from_secs(1);
 const SUPPORTED_REMOTE_PROXY_TYPES: &[&str] = &[
     "anytls",
     "gost-relay",
@@ -75,6 +89,26 @@ fn subscription_invalid_error() -> anyhow::Error {
 
 fn proxy_invalid_error() -> anyhow::Error {
     EgressError::new(PROXY_INVALID_CODE, "Proxy node is invalid.").into()
+}
+
+fn runtime_start_failed_error() -> anyhow::Error {
+    EgressError::new(RUNTIME_START_FAILED_CODE, "Proxy runtime could not start.").into()
+}
+
+fn runtime_capacity_exhausted_error() -> anyhow::Error {
+    EgressError::new(
+        RUNTIME_CAPACITY_EXHAUSTED_CODE,
+        "Proxy runtime capacity is exhausted.",
+    )
+    .into()
+}
+
+fn runtime_backoff_error() -> anyhow::Error {
+    EgressError::new(
+        RUNTIME_BACKOFF_CODE,
+        "Proxy runtime startup is temporarily paused.",
+    )
+    .into()
 }
 
 #[derive(Debug, Clone)]
@@ -261,15 +295,51 @@ fn looks_like_base64(value: &str) -> bool {
 }
 
 #[derive(Debug)]
-struct Lease {
-    cleanup_token: String,
+struct MihomoRuntime {
+    proxy_url: String,
     config_path: PathBuf,
     config_dir: PathBuf,
     child: Child,
 }
 
-impl Lease {
-    fn terminate(mut self) {
+impl MihomoRuntime {
+    fn start(core_path: &Path, proxy: &ProxyEntry) -> Result<Self> {
+        let listener =
+            TcpListener::bind("127.0.0.1:0").context("cannot reserve loopback proxy port")?;
+        let address = listener.local_addr()?.to_string();
+        drop(listener);
+        let (config_path, config_dir) = write_core_config(proxy, &address)?;
+        let child = Command::new(core_path)
+            .arg("-f")
+            .arg(&config_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+        let mut child = match child {
+            Ok(child) => child,
+            Err(_) => {
+                let _ = fs::remove_file(&config_path);
+                let _ = fs::remove_dir(&config_dir);
+                return Err(runtime_start_failed_error());
+            }
+        };
+        if wait_for_loopback(&address, &mut child).is_err() {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = fs::remove_file(&config_path);
+            let _ = fs::remove_dir(&config_dir);
+            return Err(runtime_start_failed_error());
+        }
+        Ok(Self {
+            proxy_url: format!("http://{address}"),
+            config_path,
+            config_dir,
+            child,
+        })
+    }
+
+    fn shutdown(mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
         let _ = fs::remove_file(&self.config_path);
@@ -277,18 +347,64 @@ impl Lease {
     }
 }
 
+impl ManagedRuntime for MihomoRuntime {
+    fn proxy_url(&self) -> &str {
+        &self.proxy_url
+    }
+
+    fn is_alive(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(None))
+    }
+
+    fn terminate(self) {
+        self.shutdown();
+    }
+}
+
 pub struct Worker {
     config: FixedYamlV1,
     core_path: PathBuf,
-    leases: HashMap<String, Lease>,
+    pool: Arc<Mutex<RuntimePool<MihomoRuntime>>>,
+    reaper_stop: Option<mpsc::Sender<()>>,
+    reaper: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
     pub fn start(config_path: &Path) -> Result<Self> {
+        Self::new(
+            FixedYamlV1::from_secret_file(config_path)?,
+            bundled_core_path()?,
+        )
+    }
+
+    fn new(config: FixedYamlV1, core_path: PathBuf) -> Result<Self> {
+        let pool = Arc::new(Mutex::new(RuntimePool::new(
+            MAX_ACTIVE_RUNTIMES,
+            IDLE_RUNTIME_TTL.as_millis() as u64,
+            FAILED_RUNTIME_BACKOFF.as_millis() as u64,
+        )));
+        let reaper_pool = pool.clone();
+        let (reaper_stop, stop_receiver) = mpsc::channel();
+        let reaper = thread::Builder::new()
+            .name("clash-runtime-reaper".to_owned())
+            .spawn(move || loop {
+                match stop_receiver.recv_timeout(REAPER_INTERVAL) {
+                    Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        let Ok(mut pool) = reaper_pool.lock() else {
+                            break;
+                        };
+                        pool.reap_idle(now_millis());
+                    }
+                }
+            })
+            .context("cannot start proxy runtime reaper")?;
         Ok(Self {
-            config: FixedYamlV1::from_secret_file(config_path)?,
-            core_path: bundled_core_path()?,
-            leases: HashMap::new(),
+            config,
+            core_path,
+            pool,
+            reaper_stop: Some(reaper_stop),
+            reaper: Some(reaper),
         })
     }
 
@@ -338,66 +454,52 @@ impl Worker {
 
     fn acquire(&mut self, key: &str) -> Result<(String, String, String)> {
         let egress = self.config.egress(key)?.clone();
-        let listener =
-            TcpListener::bind("127.0.0.1:0").context("cannot reserve loopback proxy port")?;
-        let address = listener.local_addr()?.to_string();
-        drop(listener);
-        let (config_path, config_dir) = write_core_config(&egress.proxy, &address)?;
-        let mut child = Command::new(&self.core_path)
-            .arg("-f")
-            .arg(&config_path)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .with_context(|| {
-                format!(
-                    "cannot start bundled Mihomo core at {}",
-                    self.core_path.display()
-                )
-            })?;
-        if let Err(error) = wait_for_loopback(&address) {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = fs::remove_file(&config_path);
-            let _ = fs::remove_dir(&config_dir);
-            return Err(error);
-        }
         let sequence = NEXT_LEASE.fetch_add(1, Ordering::Relaxed);
         let lease_id = format!("clash-{}-{sequence}", now_millis());
         let cleanup_token = random_token();
-        let proxy_url = format!("http://{address}");
-        self.leases.insert(
-            lease_id.clone(),
-            Lease {
-                cleanup_token: cleanup_token.clone(),
-                config_path,
-                config_dir,
-                child,
-            },
-        );
-        Ok((lease_id, proxy_url, cleanup_token))
+        let core_path = self.core_path.clone();
+        let acquired = self
+            .pool
+            .lock()
+            .map_err(|_| anyhow!("runtime pool lock is unavailable"))?
+            .acquire(key, lease_id, cleanup_token, now_millis(), || {
+                MihomoRuntime::start(&core_path, &egress.proxy)
+            })
+            .map_err(map_runtime_pool_error)?;
+        Ok((
+            acquired.lease_id,
+            acquired.proxy_url,
+            acquired.cleanup_token,
+        ))
     }
 
     fn release(&mut self, lease_id: &str, cleanup_token: &str) -> Result<()> {
-        let lease = self
-            .leases
-            .remove(lease_id)
-            .ok_or_else(|| anyhow!("unknown lease_id"))?;
-        if lease.cleanup_token != cleanup_token {
-            self.leases.insert(lease_id.to_owned(), lease);
-            bail!("cleanup_token does not match lease_id");
-        }
-        lease.terminate();
-        Ok(())
+        self.pool
+            .lock()
+            .map_err(|_| anyhow!("runtime pool lock is unavailable"))?
+            .release(lease_id, cleanup_token, now_millis())
     }
 }
 
 impl Drop for Worker {
     fn drop(&mut self) {
-        for (_, lease) in std::mem::take(&mut self.leases) {
-            lease.terminate();
+        if let Some(stop) = self.reaper_stop.take() {
+            let _ = stop.send(());
         }
+        if let Some(reaper) = self.reaper.take() {
+            let _ = reaper.join();
+        }
+        if let Ok(mut pool) = self.pool.lock() {
+            pool.shutdown();
+        }
+    }
+}
+
+fn map_runtime_pool_error(error: anyhow::Error) -> anyhow::Error {
+    match error.downcast_ref::<PoolError>() {
+        Some(PoolError::CapacityExhausted) => runtime_capacity_exhausted_error(),
+        Some(PoolError::Backoff) => runtime_backoff_error(),
+        None => error,
     }
 }
 
@@ -476,12 +578,15 @@ fn write_core_config(proxy: &ProxyEntry, address: &str) -> Result<(PathBuf, Path
     Ok((config_path, directory))
 }
 
-fn wait_for_loopback(address: &str) -> Result<()> {
+fn wait_for_loopback(address: &str, child: &mut Child) -> Result<()> {
     let socket: SocketAddr = address
         .parse()
         .context("invalid loopback listener address")?;
     let deadline = std::time::Instant::now() + CORE_READY_TIMEOUT;
     while std::time::Instant::now() < deadline {
+        if child.try_wait()?.is_some() {
+            bail!("bundled Mihomo core exited before binding its loopback listener");
+        }
         if TcpStream::connect_timeout(&socket, Duration::from_millis(100)).is_ok() {
             return Ok(());
         }
@@ -651,11 +756,7 @@ mod tests {
     #[test]
     fn nc_06_rejects_secret_or_config_on_the_public_stdio_abi() {
         let config = FixedYamlV1::from_yaml(FIXTURE).unwrap();
-        let mut worker = Worker {
-            config,
-            core_path: PathBuf::from("missing-core"),
-            leases: HashMap::new(),
-        };
+        let mut worker = Worker::new(config, PathBuf::from("missing-core")).unwrap();
         assert!(worker
             .handle(json!({"operation":"sync_egresses","input":{"secret":"no"}}))
             .is_err());
@@ -691,13 +792,13 @@ mod tests {
         let config_path = directory.join("mihomo.yaml");
         fs::write(&config_path, "mixed-port: 1\n").unwrap();
         let child = Command::new("sh").args(["-c", "sleep 30"]).spawn().unwrap();
-        let lease = Lease {
-            cleanup_token: "opaque".to_owned(),
+        let runtime = MihomoRuntime {
+            proxy_url: "http://127.0.0.1:1".to_owned(),
             config_path: config_path.clone(),
             config_dir: directory.clone(),
             child,
         };
-        lease.terminate();
+        runtime.shutdown();
         assert!(!config_path.exists());
         assert!(!directory.exists());
     }
@@ -810,6 +911,22 @@ proxies:
             let message = response["error"]["message"].as_str().unwrap();
             assert!(message.len() <= 64);
             assert!(!message.contains(secret));
+        }
+    }
+
+    #[test]
+    fn ac_003_ac_005_emits_stable_runtime_capacity_and_backoff_codes() {
+        for (pool_error, expected_code) in [
+            (
+                PoolError::CapacityExhausted,
+                RUNTIME_CAPACITY_EXHAUSTED_CODE,
+            ),
+            (PoolError::Backoff, RUNTIME_BACKOFF_CODE),
+        ] {
+            let error = map_runtime_pool_error(pool_error.into());
+            let response = safe_error_response(Some("acquire_http_forward_proxy"), &error);
+            assert_eq!(response["error"]["code"], expected_code);
+            assert_eq!(response["operation"], "acquire_http_forward_proxy");
         }
     }
 }
