@@ -16,10 +16,12 @@ Supported remote node types are `ss`, `ssr`, `socks5`, `http`, `vmess`, `vless`,
 `hysteria`, `hysteria2`, `tuic`, `snell`, `shadowquic`, `anytls`, `gost-relay`, and `mieru`; their
 Mihomo node options are preserved.
 
-For every lease the wrapper starts the signed, bundled Mihomo Alpha core with a fresh
-`127.0.0.1` mixed HTTP listener and an ephemeral configuration file. Releasing a lease stops the
-core and removes that file. TUN, system proxy changes, public listeners, and runtime downloads are
-not supported.
+The wrapper keeps a bounded pool of at most four signed, bundled Mihomo Alpha cores, keyed by the
+selected egress. Concurrent and consecutive leases for the same egress reuse its private
+`127.0.0.1` mixed HTTP listener while retaining independent lease and cleanup tokens. Releasing the
+last lease makes the core idle; an idle core is removed after 60 seconds or earlier when the pool
+needs capacity. Provider shutdown stops every core and removes every ephemeral configuration file.
+TUN, system proxy changes, public listeners, and runtime downloads are not supported.
 
 The bundled core is GPL-3.0. Each signed release includes its SHA-256, GPL notice, and
 corresponding-source pointer in `_meta/official-release.json`.
