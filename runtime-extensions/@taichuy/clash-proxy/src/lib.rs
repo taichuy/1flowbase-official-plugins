@@ -60,11 +60,40 @@ static NEXT_LEASE: AtomicU64 = AtomicU64::new(0);
 struct EgressError {
     code: &'static str,
     message: &'static str,
+    source: Option<Box<dyn std::error::Error + Send + Sync>>,
 }
 
 impl EgressError {
     const fn new(code: &'static str, message: &'static str) -> Self {
-        Self { code, message }
+        Self {
+            code,
+            message,
+            source: None,
+        }
+    }
+
+    fn with_source(
+        code: &'static str,
+        message: &'static str,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            code,
+            message,
+            source: Some(Box::new(source)),
+        }
+    }
+
+    fn with_anyhow_source(
+        code: &'static str,
+        message: &'static str,
+        source: anyhow::Error,
+    ) -> Self {
+        Self {
+            code,
+            message,
+            source: Some(source.into_boxed_dyn_error()),
+        }
     }
 }
 
@@ -74,7 +103,13 @@ impl fmt::Display for EgressError {
     }
 }
 
-impl std::error::Error for EgressError {}
+impl std::error::Error for EgressError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source
+            .as_deref()
+            .map(|source| source as &(dyn std::error::Error + 'static))
+    }
+}
 
 fn subscription_unavailable_error() -> anyhow::Error {
     EgressError::new(
@@ -96,14 +131,16 @@ fn runtime_start_failed_error(
     message: &'static str,
     cause: impl std::error::Error + Send + Sync + 'static,
 ) -> anyhow::Error {
-    anyhow::Error::new(cause).context(EgressError::new(RUNTIME_START_FAILED_CODE, message))
+    EgressError::with_source(RUNTIME_START_FAILED_CODE, message, cause).into()
 }
 
 fn runtime_resource_exhausted_error(cause: anyhow::Error) -> anyhow::Error {
-    cause.context(EgressError::new(
+    EgressError::with_anyhow_source(
         RUNTIME_RESOURCE_EXHAUSTED_CODE,
         "Proxy runtime could not reserve required memory.",
-    ))
+        cause,
+    )
+    .into()
 }
 
 fn runtime_capacity_exhausted_error() -> anyhow::Error {
@@ -327,10 +364,11 @@ impl MihomoRuntime {
             .to_string();
         drop(listener);
         let (config_path, config_dir) = write_core_config(proxy, &address).map_err(|cause| {
-            cause.context(EgressError::new(
+            EgressError::with_anyhow_source(
                 RUNTIME_START_FAILED_CODE,
                 "Proxy runtime configuration could not be prepared.",
-            ))
+                cause,
+            )
         })?;
         let stderr_path = config_dir.join("mihomo.stderr");
         let stderr = fs::File::create(&stderr_path).map_err(|cause| {
@@ -363,10 +401,12 @@ impl MihomoRuntime {
             return Err(if resource_exhausted {
                 runtime_resource_exhausted_error(error)
             } else {
-                error.context(EgressError::new(
+                EgressError::with_anyhow_source(
                     RUNTIME_START_FAILED_CODE,
                     "Proxy runtime did not become ready.",
-                ))
+                    error,
+                )
+                .into()
             });
         }
         Ok(Self {
