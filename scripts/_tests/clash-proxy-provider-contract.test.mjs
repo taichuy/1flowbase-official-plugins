@@ -33,7 +33,7 @@ test('NC-06 keeps SS, VMess, VLESS, and Trojan fixtures while preserving unsuppo
   }
   assert.match(unsupported, /ss:\/\//);
   assert.match(unsupported, /proxy-providers/);
-  assert.match(unsupported, /plugin: obfs/);
+  assert.match(unsupported, /type: direct/);
 });
 
 test('NC-06 release builds pinned Mihomo Alpha as a separately attested core and proves tamper rejection', () => {

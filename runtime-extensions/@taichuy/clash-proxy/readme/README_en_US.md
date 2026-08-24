@@ -11,25 +11,25 @@ top-level subscription settings (rules, groups, DNS, listeners, and proxy provid
 Node names may use Unicode or emoji and remain display-only. Each `provider_egress_key` is a
 stable ASCII SHA-256 fingerprint of the complete node configuration, so a subscription reorder
 does not change keys and equally named but differently configured nodes remain distinct. Exact
-duplicate nodes are rejected.
+duplicate nodes are rejected. A subscription may project at most 256 egresses so the provider's
+listener and file-descriptor usage remains bounded.
 Supported remote node types are `ss`, `ssr`, `socks5`, `http`, `vmess`, `vless`, `trojan`,
 `hysteria`, `hysteria2`, `tuic`, `snell`, `shadowquic`, `anytls`, `gost-relay`, and `mieru`; their
 Mihomo node options are preserved.
 
-The wrapper keeps a bounded pool of at most four signed, bundled Mihomo Alpha cores, keyed by the
-selected egress. Concurrent and consecutive leases for the same egress reuse its private
-`127.0.0.1` mixed HTTP listener while retaining independent lease and cleanup tokens. Releasing the
-last lease makes the core idle; an idle core is removed after 60 seconds or earlier when the pool
-needs capacity. Provider shutdown stops every core and removes every ephemeral configuration file.
-TUN, system proxy changes, public listeners, and runtime downloads are not supported.
+The wrapper starts at most one signed, bundled Mihomo Alpha core for each provider worker
+generation. Every projected egress receives a private `127.0.0.1` mixed listener whose `proxy`
+field is pinned directly to that node's stable internal fingerprint. Distinct nodes can therefore
+serve concurrent leases without changing a shared global selection, and duplicate display names
+remain safe. Concurrent leases retain independent lease and cleanup tokens. Releasing the final
+lease makes the provider core idle; it is removed after 60 seconds. Provider shutdown stops the
+core and removes every ephemeral configuration file. TUN, system proxy changes, public listeners,
+ambient-proxy inheritance, and runtime downloads are not supported.
 
-The default capacity is derived from a conservative local-source budget, not from the 1 GiB
-`RLIMIT_AS` value: a 2 GiB pool RSS budget minus a 256 MiB worker allowance, divided by a 384 MiB
-per-core peak RSS allowance, yields four cores. The ignored Linux source-integration benchmark
-starts a real bundled Mihomo under the 1 GiB address-space limit, probes its listener, records
-`VmRSS`/`VmHWM`, and rejects a peak above that allowance. `RLIMIT_AS` is inherited per process and
-is not an aggregate process-tree memory limit; the keyed pool's count bound is the aggregate
-runtime guard.
+The ignored Linux source-integration benchmark starts one real bundled Mihomo under the 1 GiB
+address-space limit, verifies every pinned listener, records `VmRSS`/`VmHWM`, and rejects a peak
+above 384 MiB. A separate source-integration probe concurrently exercises HTTP and HTTPS through
+multiple listeners and requires every observed exit to match the configured upstream proxy.
 
 The bundled core is GPL-3.0. Each signed release includes its SHA-256, GPL notice, and
 corresponding-source pointer in `_meta/official-release.json`.

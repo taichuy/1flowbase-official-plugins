@@ -13,9 +13,9 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-mod runtime_pool;
+mod provider_core;
 
-use runtime_pool::{ManagedRuntime, PoolError, RuntimePool};
+use provider_core::{ManagedProviderCore, ProviderCore, ProviderCoreError};
 
 use anyhow::{anyhow, bail, Context, Result};
 use rand::{rngs::OsRng, RngCore};
@@ -31,12 +31,11 @@ const SUBSCRIPTION_INVALID_CODE: &str = "network_egress_subscription_invalid";
 const PROXY_INVALID_CODE: &str = "network_egress_proxy_invalid";
 const RUNTIME_START_FAILED_CODE: &str = "network_egress_runtime_start_failed";
 const RUNTIME_RESOURCE_EXHAUSTED_CODE: &str = "network_egress_runtime_resource_exhausted";
-const RUNTIME_CAPACITY_EXHAUSTED_CODE: &str = "network_egress_runtime_capacity_exhausted";
 const RUNTIME_BACKOFF_CODE: &str = "network_egress_runtime_backoff";
-const MAX_ACTIVE_RUNTIMES: usize = 4;
 const IDLE_RUNTIME_TTL: Duration = Duration::from_secs(60);
 const FAILED_RUNTIME_BACKOFF: Duration = Duration::from_secs(5);
 const REAPER_INTERVAL: Duration = Duration::from_secs(1);
+const MAX_PROVIDER_EGRESSES: usize = 256;
 const SUPPORTED_REMOTE_PROXY_TYPES: &[&str] = &[
     "anytls",
     "gost-relay",
@@ -143,14 +142,6 @@ fn runtime_resource_exhausted_error(cause: anyhow::Error) -> anyhow::Error {
     .into()
 }
 
-fn runtime_capacity_exhausted_error() -> anyhow::Error {
-    EgressError::new(
-        RUNTIME_CAPACITY_EXHAUSTED_CODE,
-        "Proxy runtime capacity is exhausted.",
-    )
-    .into()
-}
-
 fn runtime_backoff_error() -> anyhow::Error {
     EgressError::new(
         RUNTIME_BACKOFF_CODE,
@@ -217,7 +208,7 @@ impl FixedYamlV1 {
             .get(serde_yaml::Value::String("proxies".to_owned()))
             .and_then(serde_yaml::Value::as_sequence)
             .ok_or_else(subscription_invalid_error)?;
-        if proxies.is_empty() {
+        if proxies.is_empty() || proxies.len() > MAX_PROVIDER_EGRESSES {
             return Err(subscription_invalid_error());
         }
 
@@ -336,7 +327,7 @@ fn looks_like_base64(value: &str) -> bool {
         .filter(|character| !character.is_whitespace())
         .collect();
     compact.len() >= 80
-        && compact.len() % 4 == 0
+        && compact.len().is_multiple_of(4)
         && compact.chars().all(|character| {
             character.is_ascii_alphanumeric() || matches!(character, '+' | '/' | '=')
         })
@@ -344,7 +335,7 @@ fn looks_like_base64(value: &str) -> bool {
 
 #[derive(Debug)]
 struct MihomoRuntime {
-    proxy_url: String,
+    proxy_urls: BTreeMap<String, String>,
     config_path: PathBuf,
     stderr_path: PathBuf,
     config_dir: PathBuf,
@@ -352,34 +343,31 @@ struct MihomoRuntime {
 }
 
 impl MihomoRuntime {
-    fn start(core_path: &Path, proxy: &ProxyEntry) -> Result<Self> {
-        let listener = TcpListener::bind("127.0.0.1:0").map_err(|cause| {
-            runtime_start_failed_error("Proxy runtime could not reserve a local port.", cause)
-        })?;
-        let address = listener
-            .local_addr()
-            .map_err(|cause| {
-                runtime_start_failed_error("Proxy runtime could not resolve its local port.", cause)
-            })?
-            .to_string();
-        drop(listener);
-        let (config_path, config_dir) = write_core_config(proxy, &address).map_err(|cause| {
-            EgressError::with_anyhow_source(
-                RUNTIME_START_FAILED_CODE,
-                "Proxy runtime configuration could not be prepared.",
-                cause,
-            )
-        })?;
+    fn start(core_path: &Path, config: &FixedYamlV1) -> Result<Self> {
+        let (listener_addresses, reservations) = reserve_listener_addresses(config)?;
+        let (config_path, config_dir) =
+            write_core_config(config, &listener_addresses).map_err(|cause| {
+                EgressError::with_anyhow_source(
+                    RUNTIME_START_FAILED_CODE,
+                    "Proxy runtime configuration could not be prepared.",
+                    cause,
+                )
+            })?;
         let stderr_path = config_dir.join("mihomo.stderr");
         let stderr = fs::File::create(&stderr_path).map_err(|cause| {
             cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
             runtime_start_failed_error("Proxy runtime diagnostics could not be prepared.", cause)
         })?;
+        let stdout = stderr.try_clone().map_err(|cause| {
+            cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+            runtime_start_failed_error("Proxy runtime diagnostics could not be prepared.", cause)
+        })?;
+        drop(reservations);
         let child = Command::new(core_path)
             .arg("-f")
             .arg(&config_path)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
+            .stdout(Stdio::from(stdout))
             .stderr(Stdio::from(stderr))
             .spawn();
         let mut child = match child {
@@ -392,7 +380,7 @@ impl MihomoRuntime {
                 ));
             }
         };
-        if let Err(cause) = wait_for_loopback(&address, &mut child) {
+        if let Err(cause) = wait_for_loopbacks(listener_addresses.values(), &mut child) {
             let _ = child.kill();
             let _ = child.wait();
             let resource_exhausted = stderr_reports_resource_exhaustion(&stderr_path);
@@ -410,7 +398,10 @@ impl MihomoRuntime {
             });
         }
         Ok(Self {
-            proxy_url: format!("http://{address}"),
+            proxy_urls: listener_addresses
+                .into_iter()
+                .map(|(key, address)| (key, format!("http://{address}")))
+                .collect(),
             config_path,
             stderr_path,
             config_dir,
@@ -450,9 +441,9 @@ fn cleanup_runtime_files(config_path: &Path, stderr_path: &Path, config_dir: &Pa
     let _ = fs::remove_dir(config_dir);
 }
 
-impl ManagedRuntime for MihomoRuntime {
-    fn proxy_url(&self) -> &str {
-        &self.proxy_url
+impl ManagedProviderCore for MihomoRuntime {
+    fn proxy_url(&self, provider_egress_key: &str) -> Option<&str> {
+        self.proxy_urls.get(provider_egress_key).map(String::as_str)
     }
 
     fn is_alive(&mut self) -> bool {
@@ -467,7 +458,7 @@ impl ManagedRuntime for MihomoRuntime {
 pub struct Worker {
     config: FixedYamlV1,
     core_path: PathBuf,
-    pool: Arc<Mutex<RuntimePool<MihomoRuntime>>>,
+    provider_core: Arc<Mutex<ProviderCore<MihomoRuntime>>>,
     reaper_stop: Option<mpsc::Sender<()>>,
     reaper: Option<thread::JoinHandle<()>>,
 }
@@ -481,12 +472,11 @@ impl Worker {
     }
 
     fn new(config: FixedYamlV1, core_path: PathBuf) -> Result<Self> {
-        let pool = Arc::new(Mutex::new(RuntimePool::new(
-            MAX_ACTIVE_RUNTIMES,
+        let provider_core = Arc::new(Mutex::new(ProviderCore::new(
             IDLE_RUNTIME_TTL.as_millis() as u64,
             FAILED_RUNTIME_BACKOFF.as_millis() as u64,
         )));
-        let reaper_pool = pool.clone();
+        let reaper_core = provider_core.clone();
         let (reaper_stop, stop_receiver) = mpsc::channel();
         let reaper = thread::Builder::new()
             .name("clash-runtime-reaper".to_owned())
@@ -494,10 +484,10 @@ impl Worker {
                 match stop_receiver.recv_timeout(REAPER_INTERVAL) {
                     Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
                     Err(mpsc::RecvTimeoutError::Timeout) => {
-                        let Ok(mut pool) = reaper_pool.lock() else {
+                        let Ok(mut provider_core) = reaper_core.lock() else {
                             break;
                         };
-                        pool.reap_idle(now_millis());
+                        provider_core.reap_idle(now_millis());
                     }
                 }
             })
@@ -505,7 +495,7 @@ impl Worker {
         Ok(Self {
             config,
             core_path,
-            pool,
+            provider_core,
             reaper_stop: Some(reaper_stop),
             reaper: Some(reaper),
         })
@@ -556,19 +546,20 @@ impl Worker {
     }
 
     fn acquire(&mut self, key: &str) -> Result<(String, String, String)> {
-        let egress = self.config.egress(key)?.clone();
+        self.config.egress(key)?;
         let sequence = NEXT_LEASE.fetch_add(1, Ordering::Relaxed);
         let lease_id = format!("clash-{}-{sequence}", now_millis());
         let cleanup_token = random_token();
         let core_path = self.core_path.clone();
+        let config = self.config.clone();
         let acquired = self
-            .pool
+            .provider_core
             .lock()
-            .map_err(|_| anyhow!("runtime pool lock is unavailable"))?
+            .map_err(|_| anyhow!("provider core lock is unavailable"))?
             .acquire(key, lease_id, cleanup_token, now_millis(), || {
-                MihomoRuntime::start(&core_path, &egress.proxy)
+                MihomoRuntime::start(&core_path, &config)
             })
-            .map_err(map_runtime_pool_error)?;
+            .map_err(map_provider_core_error)?;
         Ok((
             acquired.lease_id,
             acquired.proxy_url,
@@ -577,9 +568,9 @@ impl Worker {
     }
 
     fn release(&mut self, lease_id: &str, cleanup_token: &str) -> Result<()> {
-        self.pool
+        self.provider_core
             .lock()
-            .map_err(|_| anyhow!("runtime pool lock is unavailable"))?
+            .map_err(|_| anyhow!("provider core lock is unavailable"))?
             .release(lease_id, cleanup_token, now_millis())
     }
 }
@@ -592,16 +583,15 @@ impl Drop for Worker {
         if let Some(reaper) = self.reaper.take() {
             let _ = reaper.join();
         }
-        if let Ok(mut pool) = self.pool.lock() {
-            pool.shutdown();
+        if let Ok(mut provider_core) = self.provider_core.lock() {
+            provider_core.shutdown();
         }
     }
 }
 
-fn map_runtime_pool_error(error: anyhow::Error) -> anyhow::Error {
-    match error.downcast_ref::<PoolError>() {
-        Some(PoolError::CapacityExhausted) => runtime_capacity_exhausted_error(),
-        Some(PoolError::Backoff) => runtime_backoff_error(),
+fn map_provider_core_error(error: anyhow::Error) -> anyhow::Error {
+    match error.downcast_ref::<ProviderCoreError>() {
+        Some(ProviderCoreError::Backoff) => runtime_backoff_error(),
         None => error,
     }
 }
@@ -661,36 +651,137 @@ fn target_triple() -> &'static str {
     }
 }
 
-fn write_core_config(proxy: &ProxyEntry, address: &str) -> Result<(PathBuf, PathBuf)> {
-    let directory = std::env::temp_dir().join(format!("1flowbase-clash-{}", random_token()));
-    fs::create_dir(&directory).context("cannot create ephemeral core config directory")?;
-    let config_path = directory.join("mihomo.yaml");
-    let payload = json!({
-        "mixed-port": address.rsplit(':').next().ok_or_else(|| anyhow!("invalid loopback address"))?.parse::<u16>()?,
-        "bind-address": "127.0.0.1",
-        "allow-lan": false,
-        "mode": "global",
+fn reserve_listener_addresses(
+    config: &FixedYamlV1,
+) -> Result<(BTreeMap<String, String>, Vec<TcpListener>)> {
+    let mut addresses = BTreeMap::new();
+    let mut reservations = Vec::with_capacity(config.egresses().len());
+    for egress in config.egresses() {
+        let listener = TcpListener::bind("127.0.0.1:0").map_err(|cause| {
+            runtime_start_failed_error("Proxy runtime could not reserve a local port.", cause)
+        })?;
+        let address = listener
+            .local_addr()
+            .map_err(|cause| {
+                runtime_start_failed_error("Proxy runtime could not resolve its local port.", cause)
+            })?
+            .to_string();
+        addresses.insert(egress.key.clone(), address);
+        reservations.push(listener);
+    }
+    Ok((addresses, reservations))
+}
+
+fn runtime_proxy_name(provider_egress_key: &str) -> Result<String> {
+    let fingerprint = provider_egress_key
+        .strip_prefix("clash/")
+        .filter(|value| {
+            value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
+        })
+        .ok_or_else(proxy_invalid_error)?;
+    Ok(format!("egress-{fingerprint}"))
+}
+
+fn provider_core_config(
+    config: &FixedYamlV1,
+    listener_addresses: &BTreeMap<String, String>,
+) -> Result<Value> {
+    let mut proxies = Vec::with_capacity(config.egresses().len());
+    let mut listeners = Vec::with_capacity(config.egresses().len());
+    for egress in config.egresses() {
+        let runtime_name = runtime_proxy_name(&egress.key)?;
+        let mut proxy = egress
+            .proxy
+            .config
+            .as_object()
+            .cloned()
+            .ok_or_else(proxy_invalid_error)?;
+        proxy.insert("name".to_owned(), Value::String(runtime_name.clone()));
+        proxies.push(Value::Object(proxy));
+
+        let address = listener_addresses
+            .get(&egress.key)
+            .ok_or_else(|| anyhow!("provider core listener address is missing"))?
+            .parse::<SocketAddr>()
+            .context("provider core listener address is invalid")?;
+        if !address.ip().is_loopback() {
+            bail!("provider core listener must be loopback-only");
+        }
+        listeners.push(json!({
+            "name": format!("listener-{}", runtime_name),
+            "type": "mixed",
+            "listen": "127.0.0.1",
+            "port": address.port(),
+            "proxy": runtime_name,
+            "udp": false,
+            "users": []
+        }));
+    }
+    Ok(json!({
         "log-level": "warning",
         "ipv6": false,
-        "proxies": [proxy.config],
-        "proxy-groups": [{"name":"1flowbase-egress", "type":"select", "proxies":[proxy.name]}],
-        "rules": ["MATCH,1flowbase-egress"]
-    });
+        "proxies": proxies,
+        "listeners": listeners
+    }))
+}
+
+fn write_core_config(
+    config: &FixedYamlV1,
+    listener_addresses: &BTreeMap<String, String>,
+) -> Result<(PathBuf, PathBuf)> {
+    let directory = std::env::temp_dir().join(format!("1flowbase-clash-{}", random_token()));
+    create_private_directory(&directory)
+        .context("cannot create ephemeral core config directory")?;
+    let config_path = directory.join("mihomo.yaml");
+    let payload = provider_core_config(config, listener_addresses)?;
     let yaml = serde_yaml::to_string(&payload).context("cannot render Mihomo lease config")?;
-    fs::write(&config_path, yaml).context("cannot write Mihomo lease config")?;
+    write_private_file(&config_path, yaml.as_bytes())
+        .context("cannot write Mihomo lease config")?;
     Ok((config_path, directory))
 }
 
-fn wait_for_loopback(address: &str, child: &mut Child) -> Result<()> {
-    let socket: SocketAddr = address
-        .parse()
-        .context("invalid loopback listener address")?;
+fn create_private_directory(path: &Path) -> std::io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(path)
+}
+
+fn write_private_file(path: &Path, payload: &[u8]) -> std::io::Result<()> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    file.write_all(payload)
+}
+
+fn wait_for_loopbacks<'a>(
+    addresses: impl Iterator<Item = &'a String>,
+    child: &mut Child,
+) -> Result<()> {
+    let sockets = addresses
+        .map(|address| {
+            address
+                .parse::<SocketAddr>()
+                .context("invalid loopback listener address")
+        })
+        .collect::<Result<Vec<_>>>()?;
     let deadline = std::time::Instant::now() + CORE_READY_TIMEOUT;
     while std::time::Instant::now() < deadline {
         if child.try_wait()?.is_some() {
             bail!("bundled Mihomo core exited before binding its loopback listener");
         }
-        if TcpStream::connect_timeout(&socket, Duration::from_millis(100)).is_ok() {
+        if sockets
+            .iter()
+            .all(|socket| TcpStream::connect_timeout(socket, Duration::from_millis(100)).is_ok())
+        {
             return Ok(());
         }
         thread::sleep(Duration::from_millis(25));
@@ -816,19 +907,18 @@ mod tests {
 
     #[test]
     fn nc_07_preserves_supported_node_options_in_the_isolated_mihomo_config() {
-        let proxy = FixedYamlV1::from_yaml(REALISTIC_SUBSCRIPTION)
-            .unwrap()
+        let subscription = FixedYamlV1::from_yaml(REALISTIC_SUBSCRIPTION).unwrap();
+        let addresses = subscription
             .egresses()
             .iter()
-            .find(|egress| egress.proxy.kind == "vless")
-            .expect("fixture includes VLESS")
-            .proxy
-            .clone();
-        let (path, directory) = write_core_config(&proxy, "127.0.0.1:18080").unwrap();
-        let config = fs::read_to_string(&path).unwrap();
-        assert!(config.contains("reality-opts"));
-        assert!(config.contains("public-key"));
-        assert!(!config.contains("AUTO"));
+            .enumerate()
+            .map(|(index, egress)| (egress.key.clone(), format!("127.0.0.1:{}", 18_080 + index)))
+            .collect();
+        let (path, directory) = write_core_config(&subscription, &addresses).unwrap();
+        let runtime_config = fs::read_to_string(&path).unwrap();
+        assert!(runtime_config.contains("reality-opts"));
+        assert!(runtime_config.contains("public-key"));
+        assert!(!runtime_config.contains("AUTO"));
         fs::remove_file(path).unwrap();
         fs::remove_dir(directory).unwrap();
     }
@@ -868,22 +958,105 @@ mod tests {
 
     #[test]
     fn nc_06_generates_loopback_only_mihomo_config_without_tun_or_system_proxy() {
-        let proxy = FixedYamlV1::from_yaml(FIXTURE)
-            .unwrap()
+        let subscription = FixedYamlV1::from_yaml(FIXTURE).unwrap();
+        let addresses = subscription
             .egresses()
             .iter()
-            .find(|egress| egress.proxy.kind == "ss")
-            .expect("fixture includes SS")
-            .proxy
-            .clone();
-        let (path, directory) = write_core_config(&proxy, "127.0.0.1:18080").unwrap();
-        let config = fs::read_to_string(&path).unwrap();
-        assert!(config.contains("bind-address: 127.0.0.1"));
-        assert!(config.contains("mixed-port: 18080"));
-        assert!(!config.contains("tun:"));
-        assert!(!config.contains("system-proxy"));
+            .enumerate()
+            .map(|(index, egress)| (egress.key.clone(), format!("127.0.0.1:{}", 18_080 + index)))
+            .collect();
+        let (path, directory) = write_core_config(&subscription, &addresses).unwrap();
+        let runtime_config = fs::read_to_string(&path).unwrap();
+        assert!(runtime_config.contains("listen: 127.0.0.1"));
+        assert!(runtime_config.contains("type: mixed"));
+        assert!(!runtime_config.contains("tun:"));
+        assert!(!runtime_config.contains("system-proxy"));
         fs::remove_file(path).unwrap();
         fs::remove_dir(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ac_007_provider_core_configuration_is_owner_private() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let subscription = FixedYamlV1::from_yaml(FIXTURE).unwrap();
+        let addresses = subscription
+            .egresses()
+            .iter()
+            .enumerate()
+            .map(|(index, egress)| (egress.key.clone(), format!("127.0.0.1:{}", 18_080 + index)))
+            .collect();
+        let (path, directory) = write_core_config(&subscription, &addresses).unwrap();
+
+        assert_eq!(
+            fs::metadata(&directory).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(directory).unwrap();
+    }
+
+    #[test]
+    fn ac_001_provider_core_uses_one_node_pinned_listener_per_egress() {
+        let config = FixedYamlV1::from_yaml(FIXTURE).unwrap();
+        let listener_addresses = config
+            .egresses()
+            .iter()
+            .enumerate()
+            .map(|(index, egress)| (egress.key.clone(), format!("127.0.0.1:{}", 18_080 + index)))
+            .collect::<BTreeMap<_, _>>();
+        let payload = provider_core_config(&config, &listener_addresses).unwrap();
+        let proxies = payload["proxies"].as_array().unwrap();
+        let listeners = payload["listeners"].as_array().unwrap();
+
+        assert_eq!(proxies.len(), config.egresses().len());
+        assert_eq!(listeners.len(), config.egresses().len());
+        assert!(payload.get("mixed-port").is_none());
+        assert!(payload.get("mode").is_none());
+        assert!(payload.get("rules").is_none());
+        for (egress, listener) in config.egresses().iter().zip(listeners) {
+            assert_eq!(listener["type"], "mixed");
+            assert_eq!(listener["listen"], "127.0.0.1");
+            assert_eq!(listener["proxy"], runtime_proxy_name(&egress.key).unwrap());
+            assert_ne!(listener["proxy"], egress.display_name);
+        }
+    }
+
+    #[test]
+    fn ac_002_duplicate_display_names_receive_distinct_runtime_proxy_names() {
+        let config = FixedYamlV1::from_yaml(
+            r#"
+proxies:
+  - name: duplicate
+    type: ss
+    server: first.example.test
+    port: 8388
+    cipher: aes-128-gcm
+    password: first
+  - name: duplicate
+    type: ss
+    server: second.example.test
+    port: 8388
+    cipher: aes-128-gcm
+    password: second
+"#,
+        )
+        .unwrap();
+        let names = config
+            .egresses()
+            .iter()
+            .map(|egress| runtime_proxy_name(&egress.key).unwrap())
+            .collect::<Vec<_>>();
+
+        assert_ne!(names[0], names[1]);
+        assert!(names
+            .iter()
+            .all(|name| name.starts_with("egress-") && name.is_ascii()));
     }
 
     #[cfg(unix)]
@@ -917,14 +1090,15 @@ mod tests {
             thread::sleep(Duration::from_millis(10));
         }
         let runtime = MihomoRuntime {
-            proxy_url: format!("http://{address}"),
+            proxy_urls: BTreeMap::from([("lifecycle".to_owned(), format!("http://{address}"))]),
             config_path: config_path.clone(),
             stderr_path: stderr_path.clone(),
             config_dir: directory.clone(),
             child,
         };
-        let pool = Arc::new(Mutex::new(RuntimePool::new(1, 60_000, 5_000)));
-        pool.lock()
+        let provider_core = Arc::new(Mutex::new(ProviderCore::new(60_000, 5_000)));
+        provider_core
+            .lock()
             .unwrap()
             .acquire(
                 "lifecycle",
@@ -937,7 +1111,7 @@ mod tests {
         let worker = Worker {
             config: FixedYamlV1::from_yaml(FIXTURE).unwrap(),
             core_path: PathBuf::from("unused-test-core"),
-            pool,
+            provider_core,
             reaper_stop: None,
             reaper: None,
         };
@@ -992,29 +1166,25 @@ mod tests {
         use std::os::unix::process::CommandExt;
 
         const ADDRESS_SPACE_LIMIT_BYTES: u64 = 1024 * 1024 * 1024;
-        const POOL_RSS_BUDGET_BYTES: u64 = 2 * 1024 * 1024 * 1024;
-        const WORKER_RSS_ALLOWANCE_BYTES: u64 = 256 * 1024 * 1024;
         const RUNTIME_PEAK_RSS_ALLOWANCE_BYTES: u64 = 384 * 1024 * 1024;
 
         let core_path = std::env::var_os("ONEFLOWBASE_TEST_MIHOMO_CORE")
             .map(PathBuf::from)
             .filter(|path| path.is_file())
             .expect("ONEFLOWBASE_TEST_MIHOMO_CORE must point to a real Mihomo executable");
-        let proxy = FixedYamlV1::from_yaml(FIXTURE).unwrap().egresses()[0]
-            .proxy
-            .clone();
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap().to_string();
-        drop(listener);
-        let (config_path, config_dir) = write_core_config(&proxy, &address).unwrap();
+        let subscription = FixedYamlV1::from_yaml(FIXTURE).unwrap();
+        let (addresses, reservations) = reserve_listener_addresses(&subscription).unwrap();
+        let (config_path, config_dir) = write_core_config(&subscription, &addresses).unwrap();
+        drop(reservations);
         let stderr_path = config_dir.join("mihomo.stderr");
         let stderr = fs::File::create(&stderr_path).unwrap();
+        let stdout = stderr.try_clone().unwrap();
         let mut command = Command::new(core_path);
         command
             .arg("-f")
             .arg(&config_path)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
+            .stdout(Stdio::from(stdout))
             .stderr(Stdio::from(stderr));
         unsafe {
             command.pre_exec(|| {
@@ -1030,13 +1200,18 @@ mod tests {
             });
         }
         let mut child = command.spawn().unwrap();
-        if let Err(error) = wait_for_loopback(&address, &mut child) {
+        if let Err(error) = wait_for_loopbacks(addresses.values(), &mut child) {
             let _ = child.kill();
             let _ = child.wait();
             let resource_exhausted = stderr_reports_resource_exhaustion(&stderr_path);
+            let diagnostic = fs::read_to_string(&stderr_path)
+                .unwrap_or_default()
+                .chars()
+                .take(4_096)
+                .collect::<String>();
             cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
             panic!(
-                "real Mihomo failed under 1 GiB RLIMIT_AS: {error}; resource_exhausted={resource_exhausted}"
+                "real Mihomo failed under 1 GiB RLIMIT_AS: {error}; resource_exhausted={resource_exhausted}; diagnostic={diagnostic}"
             );
         }
 
@@ -1050,19 +1225,104 @@ mod tests {
             thread::sleep(Duration::from_millis(25));
         }
         let peak_rss_bytes = peak_rss_kib * 1024;
-        let derived_capacity =
-            (POOL_RSS_BUDGET_BYTES - WORKER_RSS_ALLOWANCE_BYTES) / RUNTIME_PEAK_RSS_ALLOWANCE_BYTES;
         eprintln!(
-            "mihomo_resource_evidence stable_rss_kib={stable_rss_kib} peak_rss_kib={peak_rss_kib} address_space_limit_bytes={ADDRESS_SPACE_LIMIT_BYTES} pool_rss_budget_bytes={POOL_RSS_BUDGET_BYTES} worker_rss_allowance_bytes={WORKER_RSS_ALLOWANCE_BYTES} runtime_peak_rss_allowance_bytes={RUNTIME_PEAK_RSS_ALLOWANCE_BYTES} derived_capacity={derived_capacity}"
+            "mihomo_resource_evidence process_count=1 listeners={} stable_rss_kib={stable_rss_kib} peak_rss_kib={peak_rss_kib} address_space_limit_bytes={ADDRESS_SPACE_LIMIT_BYTES} runtime_peak_rss_allowance_bytes={RUNTIME_PEAK_RSS_ALLOWANCE_BYTES}",
+            addresses.len()
         );
         assert!(peak_rss_bytes > 0);
         assert!(peak_rss_bytes <= RUNTIME_PEAK_RSS_ALLOWANCE_BYTES);
-        assert_eq!(derived_capacity as usize, MAX_ACTIVE_RUNTIMES);
-        assert!(TcpStream::connect(&address).is_ok());
+        assert!(addresses
+            .values()
+            .all(|address| TcpStream::connect(address).is_ok()));
 
         let _ = child.kill();
         let _ = child.wait();
         cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "source integration: requires real Mihomo, upstream HTTP proxy, and expected exit IP"]
+    fn ac_001_ac_003_pinned_listeners_route_concurrent_http_and_https_through_one_core() {
+        let core_path = std::env::var_os("ONEFLOWBASE_TEST_MIHOMO_CORE")
+            .map(PathBuf::from)
+            .filter(|path| path.is_file())
+            .expect("ONEFLOWBASE_TEST_MIHOMO_CORE must point to a real Mihomo executable");
+        let upstream = std::env::var("ONEFLOWBASE_TEST_UPSTREAM_HTTP_PROXY")
+            .expect("ONEFLOWBASE_TEST_UPSTREAM_HTTP_PROXY must be host:port");
+        let expected_exit_ip = std::env::var("ONEFLOWBASE_TEST_EXPECTED_EXIT_IP")
+            .expect("ONEFLOWBASE_TEST_EXPECTED_EXIT_IP must identify the upstream exit");
+        let upstream = upstream
+            .strip_prefix("http://")
+            .unwrap_or(&upstream)
+            .parse::<SocketAddr>()
+            .expect("upstream HTTP proxy must be a socket address");
+        let subscription = FixedYamlV1::from_yaml(&format!(
+            r#"
+proxies:
+  - name: upstream-a
+    type: http
+    server: {}
+    port: {}
+  - name: upstream-b
+    type: http
+    server: {}
+    port: {}
+"#,
+            upstream.ip(),
+            upstream.port(),
+            upstream.ip(),
+            upstream.port()
+        ))
+        .unwrap();
+        let runtime = MihomoRuntime::start(&core_path, &subscription).unwrap();
+        let proxy_urls = subscription
+            .egresses()
+            .iter()
+            .map(|egress| runtime.proxy_url(&egress.key).unwrap().to_owned())
+            .collect::<Vec<_>>();
+
+        let probes = proxy_urls
+            .into_iter()
+            .flat_map(|proxy_url| {
+                [
+                    (proxy_url.clone(), "http://ip-api.com/json/?lang=en"),
+                    (proxy_url, "https://api.ipify.org?format=json"),
+                ]
+            })
+            .map(|(proxy_url, target)| {
+                thread::spawn(move || {
+                    let output = Command::new("curl")
+                        .args([
+                            "-sS",
+                            "--noproxy",
+                            "",
+                            "--proxy",
+                            &proxy_url,
+                            "--max-time",
+                            "15",
+                            target,
+                        ])
+                        .output()
+                        .expect("curl must be available for the source integration probe");
+                    assert!(output.status.success(), "curl probe failed");
+                    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+                    body.get("ip")
+                        .or_else(|| body.get("query"))
+                        .and_then(Value::as_str)
+                        .expect("IP echo response must contain an address")
+                        .to_owned()
+                })
+            })
+            .collect::<Vec<_>>();
+        let exits = probes
+            .into_iter()
+            .map(|probe| probe.join().unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(exits.len(), 4);
+        assert!(exits.iter().all(|exit| exit == &expected_exit_ip));
+        runtime.shutdown();
     }
 
     #[cfg(target_os = "linux")]
@@ -1162,6 +1422,25 @@ proxies:
     }
 
     #[test]
+    fn ac_009_rejects_subscriptions_that_exceed_the_listener_capacity() {
+        let proxies = (0..=MAX_PROVIDER_EGRESSES)
+            .map(|index| {
+                format!(
+                    "  - {{name: node-{index}, type: ss, server: node-{index}.example.test, port: 8388, cipher: aes-128-gcm, password: redacted}}"
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let error = FixedYamlV1::from_yaml(&format!("proxies:\n{proxies}\n"))
+            .expect_err("provider listener capacity must be bounded");
+
+        assert_eq!(
+            safe_error_response(Some("sync_egresses"), &error)["error"]["code"],
+            SUBSCRIPTION_INVALID_CODE
+        );
+    }
+
+    #[test]
     fn nc_08_emits_only_safe_parse_error_codes_and_messages() {
         let invalid_subscription =
             FixedYamlV1::from_yaml("https://private.example.test/token").unwrap_err();
@@ -1188,18 +1467,10 @@ proxies:
     }
 
     #[test]
-    fn ac_003_ac_005_emits_stable_runtime_capacity_and_backoff_codes() {
-        for (pool_error, expected_code) in [
-            (
-                PoolError::CapacityExhausted,
-                RUNTIME_CAPACITY_EXHAUSTED_CODE,
-            ),
-            (PoolError::Backoff, RUNTIME_BACKOFF_CODE),
-        ] {
-            let error = map_runtime_pool_error(pool_error.into());
-            let response = safe_error_response(Some("acquire_http_forward_proxy"), &error);
-            assert_eq!(response["error"]["code"], expected_code);
-            assert_eq!(response["operation"], "acquire_http_forward_proxy");
-        }
+    fn ac_003_ac_005_emits_stable_runtime_backoff_code() {
+        let error = map_provider_core_error(ProviderCoreError::Backoff.into());
+        let response = safe_error_response(Some("acquire_http_forward_proxy"), &error);
+        assert_eq!(response["error"]["code"], RUNTIME_BACKOFF_CODE);
+        assert_eq!(response["operation"], "acquire_http_forward_proxy");
     }
 }
