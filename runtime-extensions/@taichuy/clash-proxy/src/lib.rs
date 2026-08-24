@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     fmt, fs,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -30,6 +30,7 @@ const SUBSCRIPTION_UNAVAILABLE_CODE: &str = "network_egress_subscription_unavail
 const SUBSCRIPTION_INVALID_CODE: &str = "network_egress_subscription_invalid";
 const PROXY_INVALID_CODE: &str = "network_egress_proxy_invalid";
 const RUNTIME_START_FAILED_CODE: &str = "network_egress_runtime_start_failed";
+const RUNTIME_RESOURCE_EXHAUSTED_CODE: &str = "network_egress_runtime_resource_exhausted";
 const RUNTIME_CAPACITY_EXHAUSTED_CODE: &str = "network_egress_runtime_capacity_exhausted";
 const RUNTIME_BACKOFF_CODE: &str = "network_egress_runtime_backoff";
 const MAX_ACTIVE_RUNTIMES: usize = 4;
@@ -91,8 +92,18 @@ fn proxy_invalid_error() -> anyhow::Error {
     EgressError::new(PROXY_INVALID_CODE, "Proxy node is invalid.").into()
 }
 
-fn runtime_start_failed_error() -> anyhow::Error {
-    EgressError::new(RUNTIME_START_FAILED_CODE, "Proxy runtime could not start.").into()
+fn runtime_start_failed_error(
+    message: &'static str,
+    cause: impl std::error::Error + Send + Sync + 'static,
+) -> anyhow::Error {
+    anyhow::Error::new(cause).context(EgressError::new(RUNTIME_START_FAILED_CODE, message))
+}
+
+fn runtime_resource_exhausted_error(cause: anyhow::Error) -> anyhow::Error {
+    cause.context(EgressError::new(
+        RUNTIME_RESOURCE_EXHAUSTED_CODE,
+        "Proxy runtime could not reserve required memory.",
+    ))
 }
 
 fn runtime_capacity_exhausted_error() -> anyhow::Error {
@@ -298,42 +309,70 @@ fn looks_like_base64(value: &str) -> bool {
 struct MihomoRuntime {
     proxy_url: String,
     config_path: PathBuf,
+    stderr_path: PathBuf,
     config_dir: PathBuf,
     child: Child,
 }
 
 impl MihomoRuntime {
     fn start(core_path: &Path, proxy: &ProxyEntry) -> Result<Self> {
-        let listener =
-            TcpListener::bind("127.0.0.1:0").context("cannot reserve loopback proxy port")?;
-        let address = listener.local_addr()?.to_string();
+        let listener = TcpListener::bind("127.0.0.1:0").map_err(|cause| {
+            runtime_start_failed_error("Proxy runtime could not reserve a local port.", cause)
+        })?;
+        let address = listener
+            .local_addr()
+            .map_err(|cause| {
+                runtime_start_failed_error("Proxy runtime could not resolve its local port.", cause)
+            })?
+            .to_string();
         drop(listener);
-        let (config_path, config_dir) = write_core_config(proxy, &address)?;
+        let (config_path, config_dir) = write_core_config(proxy, &address).map_err(|cause| {
+            cause.context(EgressError::new(
+                RUNTIME_START_FAILED_CODE,
+                "Proxy runtime configuration could not be prepared.",
+            ))
+        })?;
+        let stderr_path = config_dir.join("mihomo.stderr");
+        let stderr = fs::File::create(&stderr_path).map_err(|cause| {
+            cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+            runtime_start_failed_error("Proxy runtime diagnostics could not be prepared.", cause)
+        })?;
         let child = Command::new(core_path)
             .arg("-f")
             .arg(&config_path)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::from(stderr))
             .spawn();
         let mut child = match child {
             Ok(child) => child,
-            Err(_) => {
-                let _ = fs::remove_file(&config_path);
-                let _ = fs::remove_dir(&config_dir);
-                return Err(runtime_start_failed_error());
+            Err(cause) => {
+                cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+                return Err(runtime_start_failed_error(
+                    "Proxy runtime process could not be created.",
+                    cause,
+                ));
             }
         };
-        if wait_for_loopback(&address, &mut child).is_err() {
+        if let Err(cause) = wait_for_loopback(&address, &mut child) {
             let _ = child.kill();
             let _ = child.wait();
-            let _ = fs::remove_file(&config_path);
-            let _ = fs::remove_dir(&config_dir);
-            return Err(runtime_start_failed_error());
+            let resource_exhausted = stderr_reports_resource_exhaustion(&stderr_path);
+            cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+            let error = cause.context("Mihomo did not become ready");
+            return Err(if resource_exhausted {
+                runtime_resource_exhausted_error(error)
+            } else {
+                error.context(EgressError::new(
+                    RUNTIME_START_FAILED_CODE,
+                    "Proxy runtime did not become ready.",
+                ))
+            });
         }
         Ok(Self {
             proxy_url: format!("http://{address}"),
             config_path,
+            stderr_path,
             config_dir,
             child,
         })
@@ -342,9 +381,33 @@ impl MihomoRuntime {
     fn shutdown(mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        let _ = fs::remove_file(&self.config_path);
-        let _ = fs::remove_dir(&self.config_dir);
+        cleanup_runtime_files(&self.config_path, &self.stderr_path, &self.config_dir);
     }
+}
+
+fn stderr_reports_resource_exhaustion(path: &Path) -> bool {
+    let Ok(file) = fs::File::open(path) else {
+        return false;
+    };
+    let mut bytes = Vec::new();
+    if file.take(16 * 1024).read_to_end(&mut bytes).is_err() {
+        return false;
+    }
+    let diagnostic = String::from_utf8_lossy(&bytes).to_ascii_lowercase();
+    [
+        "failed to reserve page summary memory",
+        "cannot allocate memory",
+        "out of memory",
+        "memory limit",
+    ]
+    .iter()
+    .any(|marker| diagnostic.contains(marker))
+}
+
+fn cleanup_runtime_files(config_path: &Path, stderr_path: &Path, config_dir: &Path) {
+    let _ = fs::remove_file(config_path);
+    let _ = fs::remove_file(stderr_path);
+    let _ = fs::remove_dir(config_dir);
 }
 
 impl ManagedRuntime for MihomoRuntime {
@@ -785,22 +848,192 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn nc_06_release_terminates_the_core_and_removes_the_ephemeral_config() {
+    fn ac_006_worker_drop_terminates_runtime_closes_port_and_removes_config() {
         let directory =
             std::env::temp_dir().join(format!("clash-proxy-cleanup-{}", random_token()));
         fs::create_dir(&directory).unwrap();
         let config_path = directory.join("mihomo.yaml");
+        let stderr_path = directory.join("mihomo.stderr");
         fs::write(&config_path, "mixed-port: 1\n").unwrap();
-        let child = Command::new("sh").args(["-c", "sleep 30"]).spawn().unwrap();
+        fs::write(&stderr_path, "").unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        let child = Command::new("python3")
+            .args([
+                "-c",
+                "import socket,sys,time; s=socket.socket(); s.bind(('127.0.0.1',int(sys.argv[1]))); s.listen(); time.sleep(30)",
+                &address.port().to_string(),
+            ])
+            .spawn()
+            .unwrap();
+        let child_id = child.id();
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while TcpStream::connect(address).is_err() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "test core did not listen"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
         let runtime = MihomoRuntime {
-            proxy_url: "http://127.0.0.1:1".to_owned(),
+            proxy_url: format!("http://{address}"),
             config_path: config_path.clone(),
+            stderr_path: stderr_path.clone(),
             config_dir: directory.clone(),
             child,
         };
-        runtime.shutdown();
+        let pool = Arc::new(Mutex::new(RuntimePool::new(1, 60_000, 5_000)));
+        pool.lock()
+            .unwrap()
+            .acquire(
+                "lifecycle",
+                "lease-lifecycle".into(),
+                "token-lifecycle".into(),
+                now_millis(),
+                || Ok(runtime),
+            )
+            .unwrap();
+        let worker = Worker {
+            config: FixedYamlV1::from_yaml(FIXTURE).unwrap(),
+            core_path: PathBuf::from("unused-test-core"),
+            pool,
+            reaper_stop: None,
+            reaper: None,
+        };
+        drop(worker);
+
         assert!(!config_path.exists());
+        assert!(!stderr_path.exists());
         assert!(!directory.exists());
+        assert!(TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_err());
+        assert!(!PathBuf::from(format!("/proc/{child_id}")).exists());
+    }
+
+    #[test]
+    fn ac_008_classifies_startup_stages_and_never_exposes_internal_causes() {
+        let private_path = "/private/subscription/token/mihomo";
+        let error = runtime_start_failed_error(
+            "Proxy runtime process could not be created.",
+            std::io::Error::new(std::io::ErrorKind::NotFound, private_path),
+        );
+        let response = safe_error_response(Some("acquire_http_forward_proxy"), &error);
+        assert_eq!(response["error"]["code"], RUNTIME_START_FAILED_CODE);
+        assert_eq!(
+            response["error"]["message"],
+            "Proxy runtime process could not be created."
+        );
+        assert!(!response.to_string().contains(private_path));
+
+        let directory = std::env::temp_dir().join(format!(
+            "clash-proxy-resource-diagnostic-{}",
+            random_token()
+        ));
+        fs::create_dir(&directory).unwrap();
+        let stderr_path = directory.join("mihomo.stderr");
+        fs::write(
+            &stderr_path,
+            "runtime: failed to reserve page summary memory\nprivate-token",
+        )
+        .unwrap();
+        assert!(stderr_reports_resource_exhaustion(&stderr_path));
+        let error = runtime_resource_exhausted_error(anyhow!("private-token"));
+        let response = safe_error_response(Some("acquire_http_forward_proxy"), &error);
+        assert_eq!(response["error"]["code"], RUNTIME_RESOURCE_EXHAUSTED_CODE);
+        assert!(!response.to_string().contains("private-token"));
+        fs::remove_file(stderr_path).unwrap();
+        fs::remove_dir(directory).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "source integration: requires ONEFLOWBASE_TEST_MIHOMO_CORE and Linux procfs"]
+    fn ac_003_mihomo_resource_benchmark_under_one_gib_address_space() {
+        use std::os::unix::process::CommandExt;
+
+        const ADDRESS_SPACE_LIMIT_BYTES: u64 = 1024 * 1024 * 1024;
+        const POOL_RSS_BUDGET_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+        const WORKER_RSS_ALLOWANCE_BYTES: u64 = 256 * 1024 * 1024;
+        const RUNTIME_PEAK_RSS_ALLOWANCE_BYTES: u64 = 384 * 1024 * 1024;
+
+        let core_path = std::env::var_os("ONEFLOWBASE_TEST_MIHOMO_CORE")
+            .map(PathBuf::from)
+            .filter(|path| path.is_file())
+            .expect("ONEFLOWBASE_TEST_MIHOMO_CORE must point to a real Mihomo executable");
+        let proxy = FixedYamlV1::from_yaml(FIXTURE).unwrap().egresses()[0]
+            .proxy
+            .clone();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap().to_string();
+        drop(listener);
+        let (config_path, config_dir) = write_core_config(&proxy, &address).unwrap();
+        let stderr_path = config_dir.join("mihomo.stderr");
+        let stderr = fs::File::create(&stderr_path).unwrap();
+        let mut command = Command::new(core_path);
+        command
+            .arg("-f")
+            .arg(&config_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::from(stderr));
+        unsafe {
+            command.pre_exec(|| {
+                let limit = libc::rlimit {
+                    rlim_cur: ADDRESS_SPACE_LIMIT_BYTES,
+                    rlim_max: ADDRESS_SPACE_LIMIT_BYTES,
+                };
+                if libc::setrlimit(libc::RLIMIT_AS, &limit) == 0 {
+                    Ok(())
+                } else {
+                    Err(std::io::Error::last_os_error())
+                }
+            });
+        }
+        let mut child = command.spawn().unwrap();
+        if let Err(error) = wait_for_loopback(&address, &mut child) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let resource_exhausted = stderr_reports_resource_exhaustion(&stderr_path);
+            cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+            panic!(
+                "real Mihomo failed under 1 GiB RLIMIT_AS: {error}; resource_exhausted={resource_exhausted}"
+            );
+        }
+
+        let mut stable_rss_kib = 0_u64;
+        let mut peak_rss_kib = 0_u64;
+        for _ in 0..20 {
+            let status = fs::read_to_string(format!("/proc/{}/status", child.id())).unwrap();
+            stable_rss_kib = proc_status_kib(&status, "VmRSS:").unwrap_or(stable_rss_kib);
+            peak_rss_kib =
+                peak_rss_kib.max(proc_status_kib(&status, "VmHWM:").unwrap_or(stable_rss_kib));
+            thread::sleep(Duration::from_millis(25));
+        }
+        let peak_rss_bytes = peak_rss_kib * 1024;
+        let derived_capacity =
+            (POOL_RSS_BUDGET_BYTES - WORKER_RSS_ALLOWANCE_BYTES) / RUNTIME_PEAK_RSS_ALLOWANCE_BYTES;
+        eprintln!(
+            "mihomo_resource_evidence stable_rss_kib={stable_rss_kib} peak_rss_kib={peak_rss_kib} address_space_limit_bytes={ADDRESS_SPACE_LIMIT_BYTES} pool_rss_budget_bytes={POOL_RSS_BUDGET_BYTES} worker_rss_allowance_bytes={WORKER_RSS_ALLOWANCE_BYTES} runtime_peak_rss_allowance_bytes={RUNTIME_PEAK_RSS_ALLOWANCE_BYTES} derived_capacity={derived_capacity}"
+        );
+        assert!(peak_rss_bytes > 0);
+        assert!(peak_rss_bytes <= RUNTIME_PEAK_RSS_ALLOWANCE_BYTES);
+        assert_eq!(derived_capacity as usize, MAX_ACTIVE_RUNTIMES);
+        assert!(TcpStream::connect(&address).is_ok());
+
+        let _ = child.kill();
+        let _ = child.wait();
+        cleanup_runtime_files(&config_path, &stderr_path, &config_dir);
+    }
+
+    #[cfg(target_os = "linux")]
+    fn proc_status_kib(status: &str, field: &str) -> Option<u64> {
+        status.lines().find_map(|line| {
+            line.strip_prefix(field)?
+                .split_whitespace()
+                .next()?
+                .parse()
+                .ok()
+        })
     }
 
     #[test]

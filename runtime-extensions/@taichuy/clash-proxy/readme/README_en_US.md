@@ -23,5 +23,13 @@ last lease makes the core idle; an idle core is removed after 60 seconds or earl
 needs capacity. Provider shutdown stops every core and removes every ephemeral configuration file.
 TUN, system proxy changes, public listeners, and runtime downloads are not supported.
 
+The default capacity is derived from a conservative local-source budget, not from the 1 GiB
+`RLIMIT_AS` value: a 2 GiB pool RSS budget minus a 256 MiB worker allowance, divided by a 384 MiB
+per-core peak RSS allowance, yields four cores. The ignored Linux source-integration benchmark
+starts a real bundled Mihomo under the 1 GiB address-space limit, probes its listener, records
+`VmRSS`/`VmHWM`, and rejects a peak above that allowance. `RLIMIT_AS` is inherited per process and
+is not an aggregate process-tree memory limit; the keyed pool's count bound is the aggregate
+runtime guard.
+
 The bundled core is GPL-3.0. Each signed release includes its SHA-256, GPL notice, and
 corresponding-source pointer in `_meta/official-release.json`.

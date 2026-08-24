@@ -251,7 +251,13 @@ impl<R: ManagedRuntime> RuntimePool<R> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc, Barrier, Mutex,
+        },
+        thread,
+    };
 
     use super::*;
 
@@ -286,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn ac_001_ac_002_reuses_one_runtime_while_keeping_leases_independent() {
+    fn ac_001_reuses_one_runtime_while_keeping_leases_independent() {
         let terminated = Arc::new(Mutex::new(Vec::new()));
         let mut pool = RuntimePool::new(4, 60_000, 5_000);
         let first = pool
@@ -306,6 +312,53 @@ mod tests {
         assert!(pool.release("lease-b", "token-a", 40).is_err());
         pool.release("lease-b", "token-b", 50).unwrap();
         assert!(terminated.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn ac_002_concurrent_cold_acquires_create_one_runtime() {
+        const CALLERS: usize = 8;
+        let pool = Arc::new(Mutex::new(RuntimePool::new(4, 60_000, 5_000)));
+        let start = Arc::new(Barrier::new(CALLERS));
+        let created = Arc::new(AtomicUsize::new(0));
+        let terminated = Arc::new(Mutex::new(Vec::new()));
+
+        let callers = (0..CALLERS)
+            .map(|index| {
+                let pool = pool.clone();
+                let start = start.clone();
+                let created = created.clone();
+                let terminated = terminated.clone();
+                thread::spawn(move || {
+                    start.wait();
+                    pool.lock().unwrap().acquire(
+                        "node-a",
+                        format!("lease-{index}"),
+                        format!("token-{index}"),
+                        10,
+                        || {
+                            created.fetch_add(1, Ordering::SeqCst);
+                            Ok(runtime("node-a", &terminated))
+                        },
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let leases = callers
+            .into_iter()
+            .map(|caller| caller.join().unwrap().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(created.load(Ordering::SeqCst), 1);
+        assert!(leases
+            .iter()
+            .all(|lease| lease.proxy_url == leases[0].proxy_url));
+        let mut lease_ids = leases
+            .iter()
+            .map(|lease| lease.lease_id.as_str())
+            .collect::<Vec<_>>();
+        lease_ids.sort_unstable();
+        lease_ids.dedup();
+        assert_eq!(lease_ids.len(), CALLERS);
     }
 
     #[test]
@@ -356,24 +409,49 @@ mod tests {
     }
 
     #[test]
-    fn ac_005_backs_off_a_failed_runtime_without_restarting_it() {
+    fn ac_005_backs_off_failure_storm_then_recovers_after_retry_window() {
+        let terminated = Arc::new(Mutex::new(Vec::new()));
         let mut pool = RuntimePool::<FakeRuntime>::new(2, 100, 50);
-        let attempts = Arc::new(Mutex::new(0));
+        let attempts = Arc::new(AtomicUsize::new(0));
         let first_attempts = attempts.clone();
         assert!(pool
             .acquire("failed", "lease-a".into(), "token-a".into(), 10, || {
-                *first_attempts.lock().unwrap() += 1;
+                first_attempts.fetch_add(1, Ordering::SeqCst);
                 Err(anyhow!("controlled startup failure"))
             })
             .is_err());
-        let second_attempts = attempts.clone();
-        assert!(pool
-            .acquire("failed", "lease-b".into(), "token-b".into(), 20, || {
-                *second_attempts.lock().unwrap() += 1;
-                panic!("backoff must suppress a second startup")
-            })
-            .is_err());
-        assert_eq!(*attempts.lock().unwrap(), 1);
+        for now in 11..60 {
+            let suppressed_attempts = attempts.clone();
+            assert!(pool
+                .acquire(
+                    "failed",
+                    format!("suppressed-{now}"),
+                    format!("token-{now}"),
+                    now,
+                    || {
+                        suppressed_attempts.fetch_add(1, Ordering::SeqCst);
+                        panic!("backoff must suppress repeated startup")
+                    },
+                )
+                .is_err());
+        }
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+
+        let recovered_attempts = attempts.clone();
+        let recovered = pool
+            .acquire(
+                "failed",
+                "lease-recovered".into(),
+                "token-recovered".into(),
+                60,
+                || {
+                    recovered_attempts.fetch_add(1, Ordering::SeqCst);
+                    Ok(runtime("recovered", &terminated))
+                },
+            )
+            .unwrap();
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        assert_eq!(recovered.proxy_url, "http://127.0.0.1/recovered");
     }
 
     #[test]
