@@ -1,6 +1,31 @@
 use std::io::{self, BufRead, Write};
 
+use serde::Deserialize;
 use serde_json::{json, Value};
+
+const HOST_CALL_PROTOCOL: &str = "runtime_host_call/v1";
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "frame", rename_all = "snake_case", deny_unknown_fields)]
+enum HostFrame {
+    HostResult {
+        protocol: String,
+        call_id: String,
+        #[serde(default)]
+        result: Option<Value>,
+        #[serde(default)]
+        error: Option<HostError>,
+    },
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+#[serde(deny_unknown_fields)]
+struct HostError {
+    kind: String,
+    code: String,
+    retryable: bool,
+}
 
 fn main() {
     let stdin = io::stdin();
@@ -11,10 +36,12 @@ fn main() {
         if stdin.read_line(&mut line).unwrap_or_default() == 0 {
             break;
         }
-        let response = serde_json::from_str::<Value>(&line)
-            .ok()
-            .and_then(|request| select(&request, &mut stdin, &mut stdout).ok())
-            .unwrap_or_else(|| json!({"decision":"no_eligible_target","reason":"invalid_invocation"}));
+        let response = match serde_json::from_str::<Value>(&line) {
+            Ok(request) => select(&request, &mut stdin, &mut stdout).unwrap_or_else(|_| {
+                json!({"decision":"no_eligible_target","reason":"plugin_data_unavailable"})
+            }),
+            Err(_) => json!({"decision":"no_eligible_target","reason":"invalid_invocation"}),
+        };
         writeln!(stdout, "{}", json!({"ok":true,"result":response})).ok();
         stdout.flush().ok();
     }
@@ -70,7 +97,7 @@ fn find_affinity(
         "operations":[{"operation":"find_one","target":{"kind":"owned_collection","collection_code":"affinity"},
             "fields":["target_id"],"filters":filters}]
     }))?;
-    Ok(response.pointer("/result/results/0/row/values/target_id/value")
+    Ok(response.pointer("/results/0/row/values/target_id/value")
         .and_then(Value::as_str).map(str::to_string))
 }
 
@@ -80,12 +107,23 @@ fn host_call(
     call_id: &str,
     request: Value,
 ) -> io::Result<Value> {
-    writeln!(stdout, "{}", json!({"frame":"host_call","protocol":"runtime_host_call/v1","call_id":call_id,
+    writeln!(stdout, "{}", json!({"frame":"host_call","protocol":HOST_CALL_PROTOCOL,"call_id":call_id,
         "service":"plugin_data/v1","request":request}))?;
     stdout.flush()?;
     let mut line = String::new();
     stdin.read_line(&mut line)?;
-    serde_json::from_str(&line).map_err(io::Error::other)
+    let frame: HostFrame = serde_json::from_str(line.trim()).map_err(io::Error::other)?;
+    match frame {
+        HostFrame::HostResult {
+            protocol,
+            call_id: response_call_id,
+            result: Some(result),
+            error: None,
+        } if protocol == HOST_CALL_PROTOCOL && response_call_id == call_id => Ok(result),
+        HostFrame::HostResult { .. } => Err(io::Error::other(
+            "uncorrelated or failed runtime host result",
+        )),
+    }
 }
 
 fn decision_for_bound_target(input: &Value, target_id: &str) -> Value {
@@ -95,5 +133,33 @@ fn decision_for_bound_target(input: &Value, target_id: &str) -> Value {
         json!({"decision":"select","target_id":target_id})
     } else {
         json!({"decision":"no_eligible_target","reason":"affinity_target_unavailable"})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    fn call(response: &str) -> io::Result<Value> {
+        let mut input = Cursor::new(format!("{response}\n"));
+        let mut output = Vec::new();
+        host_call(&mut input, &mut output, "affinity-find", json!({"operations":[]}))
+    }
+
+    #[test]
+    fn rejects_host_error() {
+        assert!(call(r#"{"frame":"host_result","protocol":"runtime_host_call/v1","call_id":"affinity-find","error":{"kind":"storage_unavailable","code":"storage_unavailable","retryable":true}}"#).is_err());
+    }
+
+    #[test]
+    fn rejects_mismatched_call_id() {
+        assert!(call(r#"{"frame":"host_result","protocol":"runtime_host_call/v1","call_id":"other","result":{"results":[]}}"#).is_err());
+    }
+
+    #[test]
+    fn rejects_missing_or_ambiguous_result() {
+        assert!(call(r#"{"frame":"host_result","protocol":"runtime_host_call/v1","call_id":"affinity-find"}"#).is_err());
+        assert!(call(r#"{"frame":"host_result","protocol":"runtime_host_call/v1","call_id":"affinity-find","result":{"results":[]},"error":{"kind":"storage_unavailable","code":"storage_unavailable","retryable":true}}"#).is_err());
     }
 }
