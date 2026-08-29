@@ -66,6 +66,10 @@ function readRuntimeExecutablePath(content) {
 }
 
 function readProviderCode(content, pluginDir) {
+  if (/^slot_codes:\s*\[provider_distribution_rule\]\s*$/m.test(content) ||
+      /^\s+-\s+provider_distribution_rule\s*$/m.test(content)) {
+    return path.basename(pluginDir);
+  }
   const manifestVersion = readManifestField(content, 'manifest_version');
   if (manifestVersion === '1') {
     const pluginId = readManifestField(content, 'plugin_id');

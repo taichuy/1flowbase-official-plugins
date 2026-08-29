@@ -332,6 +332,7 @@ function runtimeEntries(repoRoot) {
         publisher_registry: 'official-registry.json',
         plugin_id: plugin.plugin_id,
         plugin_type: plugin.plugin_type,
+        contract_version: plugin.contract_version,
         provider_code: plugin.provider_code,
         protocol: plugin.protocol,
         model_discovery_mode: plugin.model_discovery_mode,

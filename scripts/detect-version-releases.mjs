@@ -42,10 +42,10 @@ function parseManifestSlotCodes(content) {
   return values;
 }
 
-function isProviderManifest(content) {
+function isPublishableRuntimeManifest(content) {
   const slotCodes = parseManifestSlotCodes(content);
   return slotCodes === null || slotCodes.some((slotCode) =>
-    ['model_provider', 'network_egress_provider'].includes(slotCode)
+    ['model_provider', 'network_egress_provider', 'provider_distribution_rule'].includes(slotCode)
   );
 }
 
@@ -73,7 +73,7 @@ export function detectVersionReleases(changes) {
       if (!nextVersion) {
         return [];
       }
-      if (!isProviderManifest(afterContent)) {
+      if (!isPublishableRuntimeManifest(afterContent)) {
         return [];
       }
       if (previousVersion === nextVersion) {

@@ -114,6 +114,52 @@ test('buildRegistryEntry derives the network egress catalog type from the runtim
   assert.equal(entry.plugin_type, 'network_egress_provider');
 });
 
+test('buildRegistryEntry derives provider distribution metadata without provider yaml', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
+  writeFileSync(
+    path.join(root, 'manifest.yaml'),
+    [
+      'manifest_version: 1',
+      'plugin_id: session_retry_distribution',
+      'publisher_namespace: taichuy',
+      'display_name: Session Retry Distribution',
+      'description: Pins provider selection for a conversation.',
+      'version: 1.0.0',
+      'slot_codes: [provider_distribution_rule]',
+      'contract_version: 1flowbase.provider-distribution-rule/v1',
+      'minimum_host_version: 0.4.1',
+      'runtime:',
+      '  protocol: stdio_json_worker',
+      '  entry: bin/session-retry-distribution',
+      '',
+    ].join('\n')
+  );
+
+  const entry = buildRegistryEntry({
+    pluginDir: root,
+    providerCode: 'session-retry-distribution',
+    version: '1.0.0',
+    repositoryRoot: root,
+    artifacts: [{
+      os: 'linux',
+      arch: 'amd64',
+      libc: 'musl',
+      rust_target: 'x86_64-unknown-linux-musl',
+      download_url: 'https://example.test/session-retry.1flowbasepkg',
+      checksum: `sha256:${'a'.repeat(64)}`,
+    }],
+  });
+
+  assert.equal(entry.plugin_id, 'taichuy.session_retry_distribution');
+  assert.equal(entry.provider_code, 'session-retry-distribution');
+  assert.equal(entry.plugin_type, 'provider_distribution_rule');
+  assert.deepEqual(entry.slot_codes, ['provider_distribution_rule']);
+  assert.equal(entry.contract_version, '1flowbase.provider-distribution-rule/v1');
+  assert.equal(entry.protocol, 'stdio_json_worker');
+  assert.equal(entry.display_name, 'Session Retry Distribution');
+  assert.equal(entry.model_discovery_mode, 'not_applicable');
+});
+
 test('buildRegistryEntry prefers manifest metadata for plugin label and description', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
   mkdirSync(path.join(root, 'provider'), { recursive: true });

@@ -97,7 +97,7 @@ test('detectVersionReleases ignores documentation and test-only provider changes
   assert.deepEqual(releases, []);
 });
 
-test('detectVersionReleases ignores runtime extensions outside provider slots', () => {
+test('detectVersionReleases releases provider distribution runtime extensions', () => {
   const releases = detectVersionReleases([
     {
       path: 'runtime-extensions/@taichuy/session-retry-distribution/src/main.rs',
@@ -113,6 +113,38 @@ slot_codes: [provider_distribution_rule]
     },
   ]);
 
+  assert.deepEqual(releases, [
+    {
+      plugin_dir: 'runtime-extensions/@taichuy/session-retry-distribution',
+      provider_code: 'session-retry-distribution',
+      release_tag: 'session-retry-distribution-v1.0.0',
+      version: '1.0.0',
+    },
+  ]);
+});
+
+test('detectVersionReleases requires a version bump for provider distribution implementation changes', () => {
+  assert.throws(
+    () => detectVersionReleases([
+      {
+        path: 'runtime-extensions/@taichuy/session-retry-distribution/src/main.rs',
+      },
+      {
+        path: 'runtime-extensions/@taichuy/session-retry-distribution/manifest.yaml',
+        beforeContent: `version: 1.0.0\nslot_codes: [provider_distribution_rule]\n`,
+        afterContent: `version: 1.0.0\nslot_codes: [provider_distribution_rule]\n`,
+      },
+    ]),
+    /provider_version_bump_required: session-retry-distribution changed without updating manifest version 1\.0\.0/
+  );
+});
+
+test('detectVersionReleases ignores provider distribution non-package inputs', () => {
+  const releases = detectVersionReleases([
+    { path: 'runtime-extensions/@taichuy/session-retry-distribution/README.md' },
+    { path: 'runtime-extensions/@taichuy/session-retry-distribution/tests/stdio.rs' },
+    { path: 'runtime-extensions/@taichuy/session-retry-distribution/target/release/binary' },
+  ]);
   assert.deepEqual(releases, []);
 });
 

@@ -134,3 +134,27 @@ test('readProviderPackageTarget derives a windows runtime binary name from rust 
     }
   );
 });
+
+test('readProviderPackageTarget keeps distribution release identity distinct from manifest plugin id', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'distribution-target-'));
+  const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', 'session-retry-distribution');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(pluginDir, 'manifest.yaml'),
+    [
+      'manifest_version: 1',
+      'plugin_id: session_retry_distribution',
+      'version: 1.0.0',
+      'slot_codes: [provider_distribution_rule]',
+      'runtime:',
+      '  entry: bin/session-retry-distribution',
+      '',
+    ].join('\n')
+  );
+
+  assert.deepEqual(readProviderPackageTarget(pluginDir, root), {
+    provider_code: 'session-retry-distribution',
+    plugin_dir: 'runtime-extensions/@taichuy/session-retry-distribution',
+    binary_name: 'session-retry-distribution',
+  });
+});

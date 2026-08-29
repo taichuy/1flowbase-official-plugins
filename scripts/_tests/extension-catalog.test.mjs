@@ -330,7 +330,7 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
     ['agent-flow', 2],
     ['i18n', publishedI18nCount],
     ['mcp', 1],
-    ['runtime-extensions', 8],
+    ['runtime-extensions', 9],
   ]);
 
   for (const [category, expectedCount] of expectedCounts) {
@@ -339,7 +339,19 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
     for (const entry of entries) {
       if (category === 'runtime-extensions') {
         assert.equal(fs.existsSync(path.join(repositoryRoot, entry.source.locator)), true);
-        assert.equal(entry.organization, '1flowbase');
+        if (entry.artifact === 'session-retry-distribution') {
+          assert.equal(entry.id, 'runtime-extensions:taichuy/session-retry-distribution');
+          assert.equal(entry.organization, 'taichuy');
+          assert.deepEqual(entry.slot_codes, ['provider_distribution_rule']);
+          assert.equal(entry.source.plugin_type, 'provider_distribution_rule');
+          assert.equal(
+            entry.source.contract_version,
+            '1flowbase.provider-distribution-rule/v1'
+          );
+          assert.equal(entry.download_locator.artifacts.length, 6);
+        } else {
+          assert.equal(entry.organization, '1flowbase');
+        }
         continue;
       }
       const artifactRoot = `${category}/@${entry.organization}/${entry.artifact}`;
@@ -352,7 +364,7 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
 
   for (const entry of discoverCatalogEntries({ repoRoot: repositoryRoot, category: 'runtime-extensions' })) {
     assert.ok(
-      ['model_provider', 'network_egress_provider'].includes(entry.source.plugin_type),
+      ['model_provider', 'network_egress_provider', 'provider_distribution_rule'].includes(entry.source.plugin_type),
       `${entry.id} must expose a supported provider plugin type`
     );
     assert.equal(entry.source.provider_code, entry.artifact);

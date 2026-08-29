@@ -39,6 +39,38 @@ function readListField(content, fieldName) {
   return normalizeList(values);
 }
 
+function readRuntimeField(content, fieldName, fallback = '') {
+  const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lines = content.split(/\r?\n/);
+  const runtimeIndex = lines.findIndex((line) => /^runtime:\s*$/.test(line));
+  if (runtimeIndex < 0) return fallback;
+  for (const line of lines.slice(runtimeIndex + 1)) {
+    if (line && !line.startsWith('  ')) break;
+    const match = line.match(new RegExp(`^  ${escapedField}:\\s*(.+)$`));
+    if (match) return match[1].trim();
+  }
+  return fallback;
+}
+
+function pluginTypeForSlots(slotCodes) {
+  if (slotCodes.length === 0) {
+    return 'model_provider';
+  }
+  if (slotCodes.length !== 1) {
+    throw new Error('runtime extension manifest must declare exactly one publishable slot');
+  }
+  const pluginType = {
+    model_provider: 'model_provider',
+    data_source: 'model_provider',
+    network_egress_provider: 'network_egress_provider',
+    provider_distribution_rule: 'provider_distribution_rule',
+  }[slotCodes[0]];
+  if (!pluginType) {
+    throw new Error(`unsupported runtime extension slot: ${slotCodes[0]}`);
+  }
+  return pluginType;
+}
+
 function normalizeList(values) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
     .sort(compareText);
@@ -244,20 +276,21 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     throw new Error('manifest publisher_namespace must be a non-empty string');
   }
   const slotCodes = readListField(manifest, 'slot_codes');
-  const pluginType = slotCodes.includes('network_egress_provider')
-    ? 'network_egress_provider'
-    : 'model_provider';
+  const pluginType = pluginTypeForSlots(slotCodes);
   const manifestMetadata = parseManifestMetadata(manifest);
   const icon = resolveRegistryIcon(pluginDir, readField(manifest, 'icon', ''));
   const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
-  const providerYaml = fs.readFileSync(providerPath, 'utf8');
+  const providerYaml = fs.existsSync(providerPath) ? fs.readFileSync(providerPath, 'utf8') : '';
+  if (pluginType !== 'provider_distribution_rule' && !providerYaml) {
+    throw new Error(`${pluginType} registry metadata requires provider/${providerCode}.yaml`);
+  }
   const i18nSummary = applyManifestMetadataToI18nSummary(
     buildI18nSummary(path.join(pluginDir, 'i18n')),
     manifestMetadata
   );
 
   return {
-    plugin_id: `${publisherNamespace}.${providerCode}`,
+    plugin_id: `${publisherNamespace}.${readField(manifest, 'plugin_id', providerCode)}`,
     plugin_type: pluginType,
     publisher_namespace: publisherNamespace,
     manifest_locator: repositoryLocator(repositoryRoot, manifestPath),
@@ -267,13 +300,19 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     display_name:
       readField(providerYaml, 'display_name', '') ||
       i18nSummary.bundles[i18nSummary.default_locale]?.provider?.label ||
+      readField(manifest, 'display_name', '') ||
       providerCode,
     icon,
-    protocol: readField(providerYaml, 'protocol', providerCode),
+    protocol: readField(providerYaml, 'protocol', '') || readRuntimeField(manifest, 'protocol', providerCode),
+    contract_version: readField(manifest, 'contract_version', ''),
     latest_version: version,
     minimum_host_version: readField(manifest, 'minimum_host_version', '0.1.0'),
     help_url: nullableField(providerYaml, 'help_url'),
-    model_discovery_mode: readField(providerYaml, 'model_discovery', 'hybrid'),
+    model_discovery_mode: readField(
+      providerYaml,
+      'model_discovery',
+      pluginType === 'provider_distribution_rule' ? 'not_applicable' : 'hybrid'
+    ),
     i18n_summary: i18nSummary,
     artifacts: [...(Array.isArray(artifacts) ? artifacts : [])]
       .map(normalizeArtifact)
