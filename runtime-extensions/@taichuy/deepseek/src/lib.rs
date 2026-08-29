@@ -497,7 +497,7 @@ fn count_tokens_result(input: Value) -> Value {
         .ok()
         .and_then(|input| build_chat_completion_body(&input).ok())
         .unwrap_or_else(|| count_tokens_fallback_body(&input));
-    count_tokens::provider_estimate(wire_body)
+    count_tokens::count(wire_body)
 }
 
 fn count_tokens_fallback_body(input: &Value) -> Value {
