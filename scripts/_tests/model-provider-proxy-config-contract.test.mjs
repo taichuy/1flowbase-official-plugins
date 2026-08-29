@@ -16,6 +16,10 @@ function listProviderDirs() {
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(providersRoot, entry.name))
     .filter((providerDir) => fs.existsSync(path.join(providerDir, 'manifest.yaml')))
+    .filter((providerDir) => {
+      const manifest = fs.readFileSync(path.join(providerDir, 'manifest.yaml'), 'utf8');
+      return /^  - model_provider$/m.test(manifest);
+    })
     .sort();
 }
 
@@ -30,16 +34,18 @@ test('AC-001 official model providers expose advanced secret proxy_url config', 
   for (const providerDir of listProviderDirs()) {
     const yamlPath = providerYamlPath(providerDir);
     const provider = fs.readFileSync(yamlPath, 'utf8');
-    const match = provider.match(/^- key: proxy_url\r?\n[\s\S]*?(?=\n- key:|\nmodels:|\n$)/m);
+    const match = provider.match(
+      /^\s*- key: proxy_url\r?\n[\s\S]*?(?=\n\s*- key:|\nmodels:|\n$)/m
+    );
 
     if (!match) {
       failures.push(`${toRepoPath(yamlPath)} is missing config_schema key proxy_url`);
       continue;
     }
 
-    assert.match(match[0], /^  type: secret$/m, `${toRepoPath(yamlPath)} proxy_url must be secret`);
-    assert.match(match[0], /^  required: false$/m, `${toRepoPath(yamlPath)} proxy_url must be optional`);
-    assert.match(match[0], /^  advanced: true$/m, `${toRepoPath(yamlPath)} proxy_url must be advanced`);
+    assert.match(match[0], /^\s+type: secret$/m, `${toRepoPath(yamlPath)} proxy_url must be secret`);
+    assert.match(match[0], /^\s+required: false$/m, `${toRepoPath(yamlPath)} proxy_url must be optional`);
+    assert.match(match[0], /^\s+advanced: true$/m, `${toRepoPath(yamlPath)} proxy_url must be advanced`);
   }
 
   assert.deepEqual(failures, []);
