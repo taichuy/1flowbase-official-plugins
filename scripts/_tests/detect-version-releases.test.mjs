@@ -97,6 +97,25 @@ test('detectVersionReleases ignores documentation and test-only provider changes
   assert.deepEqual(releases, []);
 });
 
+test('detectVersionReleases ignores runtime extensions outside provider slots', () => {
+  const releases = detectVersionReleases([
+    {
+      path: 'runtime-extensions/@taichuy/session-retry-distribution/src/main.rs',
+    },
+    {
+      path: 'runtime-extensions/@taichuy/session-retry-distribution/manifest.yaml',
+      beforeContent: `version: 0.9.0
+slot_codes: [provider_distribution_rule]
+`,
+      afterContent: `version: 1.0.0
+slot_codes: [provider_distribution_rule]
+`,
+    },
+  ]);
+
+  assert.deepEqual(releases, []);
+});
+
 test('detectVersionReleases treats a newly added provider manifest as releasable', () => {
   const releases = detectVersionReleases([
     {

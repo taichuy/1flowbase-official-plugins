@@ -19,6 +19,36 @@ export function parseManifestVersion(content) {
   return match ? match[1].trim() : '';
 }
 
+function parseManifestSlotCodes(content) {
+  const lines = content.split(/\r?\n/);
+  const fieldIndex = lines.findIndex((line) => /^slot_codes:\s*/.test(line));
+  if (fieldIndex < 0) return null;
+
+  const inline = lines[fieldIndex].replace(/^slot_codes:\s*/, '').trim();
+  if (inline.startsWith('[') && inline.endsWith(']')) {
+    return inline
+      .slice(1, -1)
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+
+  const values = [];
+  for (const line of lines.slice(fieldIndex + 1)) {
+    const match = line.match(/^\s{2}-\s+(.+?)\s*$/);
+    if (!match) break;
+    values.push(match[1]);
+  }
+  return values;
+}
+
+function isProviderManifest(content) {
+  const slotCodes = parseManifestSlotCodes(content);
+  return slotCodes === null || slotCodes.some((slotCode) =>
+    ['model_provider', 'network_egress_provider'].includes(slotCode)
+  );
+}
+
 export function detectVersionReleases(changes) {
   const affectedProviders = new Set(
     changes.flatMap(({ path }) => {
@@ -41,6 +71,9 @@ export function detectVersionReleases(changes) {
       const nextVersion = parseManifestVersion(afterContent);
 
       if (!nextVersion) {
+        return [];
+      }
+      if (!isProviderManifest(afterContent)) {
         return [];
       }
       if (previousVersion === nextVersion) {
