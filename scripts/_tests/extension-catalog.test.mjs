@@ -330,7 +330,7 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
     ['agent-flow', 2],
     ['i18n', publishedI18nCount],
     ['mcp', 1],
-    ['runtime-extensions', 6],
+    ['runtime-extensions', 8],
   ]);
 
   for (const [category, expectedCount] of expectedCounts) {
@@ -351,7 +351,10 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
   }
 
   for (const entry of discoverCatalogEntries({ repoRoot: repositoryRoot, category: 'runtime-extensions' })) {
-    assert.equal(entry.source.plugin_type, 'model_provider');
+    assert.ok(
+      ['model_provider', 'network_egress_provider'].includes(entry.source.plugin_type),
+      `${entry.id} must expose a supported provider plugin type`
+    );
     assert.equal(entry.source.provider_code, entry.artifact);
     assert.equal(typeof entry.source.protocol, 'string');
     assert.ok(entry.source.protocol.length > 0);

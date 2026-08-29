@@ -15,7 +15,7 @@ test('ChatGPT Codex package exposes only the provider-owned OAuth contract', () 
   const provider = read('provider/chatgpt-codex.yaml');
 
   assert.match(manifest, /^plugin_id: chatgpt-codex$/m);
-  assert.match(manifest, /^version: 0\.1\.1$/m);
+  assert.match(manifest, /^version: 0\.1\.2$/m);
   assert.match(manifest, /^display_name: ChatGPT Codex$/m);
   assert.match(manifest, /^  entry: bin\/chatgpt-codex-provider$/m);
   assert.match(manifest, /^    - usage\.rate_limit_windows$/m);
