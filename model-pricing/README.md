@@ -14,10 +14,11 @@ The publisher deterministically generates:
 - `_maintenance/catalog-state.json`
 - `catalog/v1/catalog.json` and `dist/catalog-seed.json` compatibility snapshots
 
-Rules use stable IDs. Consumers upsert matching IDs and never delete user-owned local rules
-merely because a later catalog omits them. The initial catalog contains one `zero / any`
-global fallback. Reviewed vendor prices are added as exact provider/model rules and take
-precedence over the fallback; prices must not be guessed.
+Rules use immutable IDs. After an ID has been published, changing any of its pricing content is
+rejected; a price revision must use a new rule ID and effective range. Consumers insert missing
+IDs and never update or delete an installed local rule. The initial catalog contains one
+`zero / any` global fallback. Reviewed vendor prices are added as exact provider/model rules and
+take precedence over the fallback; prices must not be guessed.
 
 Time-of-day prices remain separate physical rules selected by effective range, timezone,
 weekday, and local window. Conditional standard API prices use the versioned

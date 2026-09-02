@@ -214,6 +214,12 @@ export function buildModelPricingCatalog({
   const rules = discovered.map((rule) => ({ ...rule, source_version: metadata.catalog_version }));
   const fingerprint = sha256(json(rules));
   const previousState = readJsonIfExists(paths.statePath);
+  for (const rule of rules) {
+    const previous = previousState?.rules?.[rule.id];
+    if (previous && previous.source_checksum !== rule.source_checksum) {
+      throw new Error(`model pricing rule ${rule.id} is immutable; publish a new rule id`);
+    }
+  }
   const changed = previousState?.source_fingerprint !== fingerprint || previousState?.page_size !== pageSize;
   const generatedAt = !changed && typeof previousState?.updated_at === 'string'
     ? previousState.updated_at

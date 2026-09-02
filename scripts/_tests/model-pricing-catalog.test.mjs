@@ -183,6 +183,19 @@ test('AC-002 check mode detects generated catalog drift without rewriting it', (
   assert.equal(fs.readFileSync(indexPath, 'utf8'), '{}\n');
 });
 
+test('AC-006 requires a new rule id when published pricing content changes', () => {
+  const repoRoot = sourceFixture();
+  updateModelPricingCatalog({ repoRoot, now: '2026-08-18T01:00:00Z' });
+  const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  source.rules[0].input_token_unit_price = '9';
+  fs.writeFileSync(sourcePath, JSON.stringify(source));
+  assert.throws(
+    () => updateModelPricingCatalog({ repoRoot, now: '2026-08-19T01:00:00Z' }),
+    /is immutable; publish a new rule id/
+  );
+});
+
 test('rejects unsupported executable rating policies at the catalog boundary', () => {
   const repoRoot = sourceFixture();
   const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
