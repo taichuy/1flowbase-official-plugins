@@ -57,7 +57,7 @@ test('publishes standard USD API prices with one provider-independent zero-cost 
     )
   );
   assert.equal(verifyModelPricingCatalog(published), true);
-  assert.equal(published.rules.length, 30);
+  assert.equal(published.rules.length, 32);
   const fallbackRules = published.rules.filter(
     (candidate) => candidate.provider_code === 'zero' && candidate.upstream_model_id === 'any'
   );
@@ -71,7 +71,7 @@ test('publishes standard USD API prices with one provider-independent zero-cost 
   assert.equal(rule.extensions.pricing_policy, 'global_zero_fallback');
   assert.equal(
     published.rules.filter((candidate) => candidate.rating_policy_enabled).length,
-    6
+    7
   );
   assert.equal(
     published.rules.filter((candidate) => candidate.provider_code === 'deepseek').length,
@@ -80,6 +80,39 @@ test('publishes standard USD API prices with one provider-independent zero-cost 
   assert.equal(
     published.rules.some((candidate) => candidate.upstream_model_id === 'glm-5.3'),
     false
+  );
+  const astra = published.rules.find(
+    (candidate) => candidate.provider_code === 'openai' && candidate.upstream_model_id === 'gpt-6-astra'
+  );
+  assert.deepEqual(
+    {
+      input: astra?.input_token_unit_price,
+      cache_hit: astra?.cache_hit_token_unit_price,
+      output: astra?.output_token_unit_price,
+      long_context: astra?.rating_policy?.tiers?.[0]?.rates
+    },
+    {
+      input: '10',
+      cache_hit: '1',
+      output: '50',
+      long_context: {
+        input: { unit_size: 1000000, unit_price: '20' },
+        output: { unit_size: 1000000, unit_price: '75' },
+        cache_hit: { unit_size: 1000000, unit_price: '2' }
+      }
+    }
+  );
+  const fable = published.rules.find(
+    (candidate) => candidate.provider_code === 'anthropic' && candidate.upstream_model_id === 'claude-fable-5-1'
+  );
+  assert.deepEqual(
+    {
+      input: fable?.input_token_unit_price,
+      cache_hit: fable?.cache_hit_token_unit_price,
+      output: fable?.output_token_unit_price,
+      rating_policy_enabled: fable?.rating_policy_enabled
+    },
+    { input: '10', cache_hit: '0.25', output: '50', rating_policy_enabled: false }
   );
 });
 
