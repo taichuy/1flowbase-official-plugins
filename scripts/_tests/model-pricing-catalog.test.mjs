@@ -284,8 +284,16 @@ test('AC1 rejects malformed v2 policies and accepts complete ascending replaceme
     return discoverModelPricingRules(repoRoot);
   };
   assert.doesNotThrow(() => publish(policy));
+  for (const value of ['79228162514264337593543950335', '79228162514.264337593543950335', '0.000000000000000001']) {
+    const candidate = structuredClone(policy);
+    candidate.rates.input = value;
+    assert.doesNotThrow(() => publish(candidate));
+  }
   const invalid = [
     p => { p.unknown = 1; }, p => { p.unit_size = 0; }, p => { p.unit_size = 1.5; },
+    p => { p.rates.input = '79228162514264337593543950336'; },
+    p => { p.rates.input = '79228162514264337593543950335.0'; },
+    p => { p.rates.input = '79228162514.264337593543950336'; },
     p => { p.rates.input = 10; }, p => { p.rates.output = '-1'; },
     p => { p.rates.cache_hit = '1e2'; }, p => { delete p.rates.cache_write; },
     p => { p.rates.cache_write.by_ttl_seconds = { '300': '1' }; },

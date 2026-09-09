@@ -79,6 +79,8 @@ function validateTokenPricingPolicy(policy, context) {
   };
   const decimal = (value) => {
     if (typeof value !== 'string' || !/^[0-9]+(\.[0-9]{1,18})?$/.test(value)) fail();
+    // Match Decimal::from_str_exact: the unscaled coefficient must fit 96 bits.
+    if (BigInt(value.replace('.', '')) > 79228162514264337593543950335n) fail();
   };
   const rates = (value) => {
     object(value, ['input', 'output', 'cache_hit', 'cache_write']);

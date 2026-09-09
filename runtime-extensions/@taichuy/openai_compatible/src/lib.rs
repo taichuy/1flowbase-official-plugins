@@ -3252,7 +3252,7 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            3
+            5
         );
         assert!(!manifest
             .lines()
