@@ -147,6 +147,10 @@ pub struct ProviderUsage {
     pub reasoning_tokens: Option<u64>,
     pub cache_read_tokens: Option<u64>,
     pub cache_write_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_cache_miss_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_by_ttl_seconds: Option<std::collections::BTreeMap<String, u64>>,
     pub total_tokens: Option<u64>,
 }
 
@@ -157,6 +161,8 @@ impl ProviderUsage {
             || self.reasoning_tokens.is_some()
             || self.cache_read_tokens.is_some()
             || self.cache_write_tokens.is_some()
+            || self.input_cache_miss_tokens.is_some()
+            || self.cache_write_by_ttl_seconds.is_some()
             || self.total_tokens.is_some()
     }
 }
@@ -1908,10 +1914,13 @@ fn normalize_usage(usage: &Value) -> ProviderUsage {
             .get("prompt_tokens_details")
             .and_then(|value| value.get("cached_tokens"))
             .and_then(number_or_none_ref),
+        // Official Chat Completions prompt details report input cache writes.
         cache_write_tokens: usage
-            .get("completion_tokens_details")
-            .and_then(|value| value.get("cached_tokens"))
-            .and_then(number_or_none_ref),
+            .get("prompt_tokens_details")
+            .and_then(|value| value.get("cache_write_tokens"))
+            .and_then(Value::as_u64),
+        input_cache_miss_tokens: None,
+        cache_write_by_ttl_seconds: None,
         total_tokens: number_or_none(usage.get("total_tokens")),
     }
 }
@@ -3368,3 +3377,7 @@ mod tests {
         assert_eq!(empty.message, "HTTP 503 Service Unavailable");
     }
 }
+
+#[cfg(test)]
+#[path = "_tests/cache_write_usage.rs"]
+mod cache_write_usage_tests;

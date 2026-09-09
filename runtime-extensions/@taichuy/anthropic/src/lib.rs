@@ -137,6 +137,10 @@ pub struct ProviderUsage {
     pub reasoning_tokens: Option<u64>,
     pub cache_read_tokens: Option<u64>,
     pub cache_write_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_cache_miss_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_by_ttl_seconds: Option<std::collections::BTreeMap<String, u64>>,
     pub total_tokens: Option<u64>,
 }
 
@@ -147,6 +151,8 @@ impl ProviderUsage {
             || self.reasoning_tokens.is_some()
             || self.cache_read_tokens.is_some()
             || self.cache_write_tokens.is_some()
+            || self.input_cache_miss_tokens.is_some()
+            || self.cache_write_by_ttl_seconds.is_some()
             || self.total_tokens.is_some()
     }
 }
@@ -2168,6 +2174,24 @@ fn normalize_usage(raw: &Value) -> ProviderUsage {
     let output = raw.get("output_tokens").and_then(Value::as_u64);
     ProviderUsage {
         input_tokens: input,
+        // Anthropic input_tokens excludes cache reads and cache creation.
+        input_cache_miss_tokens: input,
+        cache_write_by_ttl_seconds: raw.get("cache_creation").and_then(Value::as_object).map(
+            |creation| {
+                [
+                    ("ephemeral_5m_input_tokens", "300"),
+                    ("ephemeral_1h_input_tokens", "3600"),
+                ]
+                .into_iter()
+                .filter_map(|(field, ttl)| {
+                    creation
+                        .get(field)
+                        .and_then(Value::as_u64)
+                        .map(|count| (ttl.to_owned(), count))
+                })
+                .collect()
+            },
+        ),
         output_tokens: output,
         total_tokens: input.zip(output).map(|(left, right)| left + right),
         reasoning_tokens: None,
@@ -2184,6 +2208,15 @@ fn merge_usage(current: &mut ProviderUsage, snapshot: ProviderUsage) {
     current.reasoning_tokens = snapshot.reasoning_tokens.or(current.reasoning_tokens);
     current.cache_read_tokens = snapshot.cache_read_tokens.or(current.cache_read_tokens);
     current.cache_write_tokens = snapshot.cache_write_tokens.or(current.cache_write_tokens);
+    current.input_cache_miss_tokens = snapshot
+        .input_cache_miss_tokens
+        .or(current.input_cache_miss_tokens);
+    if let Some(buckets) = snapshot.cache_write_by_ttl_seconds {
+        current
+            .cache_write_by_ttl_seconds
+            .get_or_insert_with(Default::default)
+            .extend(buckets);
+    }
     current.total_tokens = current
         .input_tokens
         .zip(current.output_tokens)
@@ -4110,3 +4143,7 @@ mod tests {
         assert!(!encoded.contains("response-secret"));
     }
 }
+
+#[cfg(test)]
+#[path = "_tests/cache_write_usage.rs"]
+mod cache_write_usage_tests;
