@@ -3,35 +3,105 @@
   "provider_code": "openai",
   "upstream_model_id": "gpt-6-astra",
   "currency_code": "USD",
-  "rules": [{
-    "id": "21000000-0000-4000-8000-000000000004",
-    "input_token_unit_size": 1000000,
-    "input_token_unit_price": "10",
-    "output_token_unit_size": 1000000,
-    "output_token_unit_price": "50",
-    "cache_hit_token_unit_size": 1000000,
-    "cache_hit_token_unit_price": "1",
-    "effective_from": "2026-09-08T00:00:00Z",
-    "effective_to": null,
-    "timezone": "UTC",
-    "weekday_mask": 127,
-    "local_time_start": null,
-    "local_time_end": null,
-    "priority": 0,
-    "enabled": true,
-    "rating_policy_enabled": true,
-    "rating_policy": {
-      "schema_version": "1flowbase.model-rating-policy/v1",
-      "type": "input_token_tiers",
-      "tiers": [{
-        "when": { "operator": "gt", "value": 272000 },
-        "rates": {
-          "input": { "unit_size": 1000000, "unit_price": "20" },
-          "output": { "unit_size": 1000000, "unit_price": "75" },
-          "cache_hit": { "unit_size": 1000000, "unit_price": "2" }
-        }
-      }]
+  "rules": [
+    {
+      "id": "21000000-0000-4000-8000-000000000004",
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "effective_from": "2026-09-08T00:00:00Z",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "rating_policy_enabled": true,
+      "rating_policy": {
+        "schema_version": "1flowbase.model-rating-policy/v1",
+        "type": "input_token_tiers",
+        "tiers": [
+          {
+            "when": {
+              "operator": "gt",
+              "value": 272000
+            },
+            "rates": {
+              "input": {
+                "unit_size": 1000000,
+                "unit_price": "20"
+              },
+              "output": {
+                "unit_size": 1000000,
+                "unit_price": "75"
+              },
+              "cache_hit": {
+                "unit_size": 1000000,
+                "unit_price": "2"
+              }
+            }
+          }
+        ]
+      },
+      "extensions": {
+        "price_type": "standard_api",
+        "source": "vendor_published"
+      }
     },
-    "extensions": { "price_type": "standard_api", "source": "vendor_published" }
-  }]
+    {
+      "id": "21000000-0000-4000-8000-000000000104",
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "effective_from": "2026-09-09T00:00:00Z",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 1,
+      "enabled": true,
+      "rating_policy_enabled": true,
+      "rating_policy": {
+        "schema_version": "1flowbase.model-rating-policy/v2",
+        "type": "token_pricing",
+        "unit_size": 1000000,
+        "rates": {
+          "input": "10",
+          "output": "50",
+          "cache_hit": "1",
+          "cache_write": {
+            "unit_price": "12.5"
+          }
+        },
+        "input_token_tiers": [
+          {
+            "when": {
+              "operator": "gt",
+              "value": 272000
+            },
+            "rates": {
+              "input": "20",
+              "output": "75",
+              "cache_hit": "2",
+              "cache_write": {
+                "unit_price": "25"
+              }
+            }
+          }
+        ]
+      },
+      "extensions": {
+        "price_type": "standard_api",
+        "source": "vendor_published"
+      }
+    }
+  ]
 }

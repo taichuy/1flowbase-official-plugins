@@ -22,7 +22,13 @@ take precedence over the fallback; prices must not be guessed.
 
 Time-of-day prices remain separate physical rules selected by effective range, timezone,
 weekday, and local window. Conditional standard API prices use the versioned
-`rating_policy`; v1 only permits deterministic input-token tiers. Coding plans, credits,
+`rating_policy`; v1 permits deterministic input-token tiers. V2 `token_pricing`
+uses one positive integer `unit_size`, complete input/output/cache-hit decimal rates,
+and cache-write rates with either `unit_price` or `by_ttl_seconds`. Optional strictly
+ascending input tiers replace all four rates for the full request at the highest
+matching threshold. TTL buckets are positive integer seconds; missing write TTL
+evidence must not be guessed. New revisions have higher priority and a later
+effective date, leaving published IDs and historical pricing unchanged. Coding plans, credits,
 subscriptions, and unpublished prices are not part of this USD catalog.
 
 Run `node scripts/model-pricing-catalog.mjs` after editing a source and

@@ -57,7 +57,7 @@ test('publishes standard USD API prices with one provider-independent zero-cost 
     )
   );
   assert.equal(verifyModelPricingCatalog(published), true);
-  assert.equal(published.rules.length, 32);
+  assert.equal(published.rules.length, 34);
   const fallbackRules = published.rules.filter(
     (candidate) => candidate.provider_code === 'zero' && candidate.upstream_model_id === 'any'
   );
@@ -71,7 +71,7 @@ test('publishes standard USD API prices with one provider-independent zero-cost 
   assert.equal(rule.extensions.pricing_policy, 'global_zero_fallback');
   assert.equal(
     published.rules.filter((candidate) => candidate.rating_policy_enabled).length,
-    7
+    9
   );
   assert.equal(
     published.rules.filter((candidate) => candidate.provider_code === 'deepseek').length,
@@ -241,4 +241,68 @@ test('rejects unsupported executable rating policies at the catalog boundary', (
   };
   fs.writeFileSync(sourcePath, JSON.stringify(source));
   assert.throws(() => discoverModelPricingRules(repoRoot), /unsupported rating policy/);
+});
+
+// AC1/AC6: exercise the real publisher boundary, including immutable history.
+test('v2 catalog revisions preserve old rules and publish complete token pricing', () => {
+  const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
+  const latest = (model) => rules.filter((rule) => rule.upstream_model_id === model)
+    .sort((a, b) => b.priority - a.priority || b.effective_from.localeCompare(a.effective_from));
+  const astra = latest('gpt-6-astra');
+  assert.equal(astra.length, 2);
+  assert.equal(astra[0].effective_from, '2026-09-09T00:00:00Z');
+  assert.equal(astra[1].rating_policy.schema_version, '1flowbase.model-rating-policy/v1');
+  assert.deepEqual(astra[0].rating_policy.rates, {
+    input: '10', output: '50', cache_hit: '1', cache_write: { unit_price: '12.5' }
+  });
+  assert.deepEqual(astra[0].rating_policy.input_token_tiers, [{
+    when: { operator: 'gt', value: 272000 },
+    rates: { input: '20', output: '75', cache_hit: '2', cache_write: { unit_price: '25' } }
+  }]);
+  const fable = latest('claude-fable-5-1');
+  assert.equal(fable.length, 2);
+  assert.deepEqual(fable[0].rating_policy.rates, {
+    input: '10', output: '50', cache_hit: '0.25',
+    cache_write: { by_ttl_seconds: { '300': '12.5', '3600': '20' } }
+  });
+  assert.equal(fable[1].rating_policy_enabled, false);
+  assert.equal(latest('claude-fable-5').length, 1);
+});
+
+test('AC1 rejects malformed v2 policies and accepts complete ascending replacement tiers', () => {
+  const repoRoot = sourceFixture();
+  const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  const rates = { input: '10', output: '50', cache_hit: '1', cache_write: { unit_price: '12.5' } };
+  const policy = { schema_version: '1flowbase.model-rating-policy/v2', type: 'token_pricing', unit_size: 1000000,
+    rates, input_token_tiers: [{ when: { operator: 'gt', value: 272000 }, rates },
+      { when: { operator: 'gte', value: 500000 }, rates }] };
+  const publish = (candidate) => {
+    source.rules[0].rating_policy_enabled = true;
+    source.rules[0].rating_policy = candidate;
+    fs.writeFileSync(sourcePath, JSON.stringify(source));
+    return discoverModelPricingRules(repoRoot);
+  };
+  assert.doesNotThrow(() => publish(policy));
+  const invalid = [
+    p => { p.unknown = 1; }, p => { p.unit_size = 0; }, p => { p.unit_size = 1.5; },
+    p => { p.rates.input = 10; }, p => { p.rates.output = '-1'; },
+    p => { p.rates.cache_hit = '1e2'; }, p => { delete p.rates.cache_write; },
+    p => { p.rates.cache_write.by_ttl_seconds = { '300': '1' }; },
+    p => { p.rates.cache_write = { by_ttl_seconds: {} }; },
+    p => { p.rates.cache_write = { by_ttl_seconds: { '0': '1' } }; },
+    p => { p.rates.cache_write = { by_ttl_seconds: { '0300': '1' } }; },
+    p => { p.rates.cache_write = { by_ttl_seconds: { '300': 'NaN' } }; },
+    p => { p.input_token_tiers[1].when.value = 272000; },
+    p => { p.input_token_tiers[0].when.operator = 'lt'; },
+    p => { delete p.input_token_tiers[0].rates.output; },
+    p => { p.input_token_tiers[0].when.extra = true; },
+    p => { p.input_token_tiers = []; }
+  ];
+  for (const mutate of invalid) {
+    const candidate = structuredClone(policy);
+    mutate(candidate);
+    assert.throws(() => publish(candidate), /invalid v2 rating policy/);
+  }
+  fs.rmSync(repoRoot, { recursive: true, force: true });
 });
