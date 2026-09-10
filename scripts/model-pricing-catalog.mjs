@@ -97,7 +97,7 @@ export function discoverModelPricingRules(repoRoot) {
       if (!fs.existsSync(sourcePath)) continue;
       const source = readJson(sourcePath);
       if (source.schema_version !== MODEL_PRICING_SOURCE_SCHEMA_VERSION ||
-          source.currency_code !== 'USD' || !Array.isArray(source.rules)) {
+          source.currency_code !== 'USD') {
         throw new Error(`${path.relative(repoRoot, sourcePath)} is not a USD model-pricing source`);
       }
       if (source.provider_code !== providerCode) {
