@@ -5,8 +5,10 @@ on:
     paths:
       - 'model-pricing/**'
       - 'schemas/model-pricing/**'
-      - 'scripts/model-pricing-catalog.mjs'
-      - 'scripts/_tests/model-pricing-catalog.test.mjs'
+      - 'scripts/model-pricing-*.mjs'
+      - 'scripts/convert-model-pricing-v2.mjs'
+      - 'scripts/_tests/*model-pricing*.test.mjs'
+      - 'scripts/_tests/fixtures/model-pricing/**'
       - '.github/workflows/model-pricing-catalog-release.yml'
   push:
     branches: [main]
@@ -14,8 +16,10 @@ on:
     paths:
       - 'model-pricing/**'
       - 'schemas/model-pricing/**'
-      - 'scripts/model-pricing-catalog.mjs'
-      - 'scripts/_tests/model-pricing-catalog.test.mjs'
+      - 'scripts/model-pricing-*.mjs'
+      - 'scripts/convert-model-pricing-v2.mjs'
+      - 'scripts/_tests/*model-pricing*.test.mjs'
+      - 'scripts/_tests/fixtures/model-pricing/**'
       - '.github/workflows/model-pricing-catalog-release.yml'
   workflow_dispatch:
 
@@ -33,7 +37,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: node --test scripts/_tests/model-pricing-catalog.test.mjs
+      - run: node --test scripts/_tests/model-pricing-catalog.test.mjs scripts/_tests/convert-model-pricing-v2.test.mjs
       - name: Generate model pricing catalog
         run: node scripts/model-pricing-catalog.mjs
       - name: Detect generated catalog drift

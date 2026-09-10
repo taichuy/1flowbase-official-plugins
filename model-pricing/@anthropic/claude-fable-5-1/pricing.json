@@ -1,69 +1,37 @@
 {
-  "schema_version": "1flowbase.model-pricing-source/v1",
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "id": "22000000-0000-4000-8000-000000000105",
   "provider_code": "anthropic",
   "upstream_model_id": "claude-fable-5-1",
   "currency_code": "USD",
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "10",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "50",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.25",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "12.5",
+  "effective_from": "2026-09-09T00:00:00Z",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
   "rules": [
     {
-      "id": "22000000-0000-4000-8000-000000000005",
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
-      "effective_from": "2026-09-01T00:00:00Z",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "rating_policy_enabled": false,
-      "rating_policy": {},
-      "extensions": {
-        "price_type": "standard_api",
-        "source": "vendor_published"
-      }
-    },
-    {
-      "id": "22000000-0000-4000-8000-000000000105",
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
-      "effective_from": "2026-09-09T00:00:00Z",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 1,
-      "enabled": true,
-      "rating_policy_enabled": true,
-      "rating_policy": {
-        "schema_version": "1flowbase.model-rating-policy/v2",
-        "type": "token_pricing",
-        "unit_size": 1000000,
-        "rates": {
-          "input": "10",
-          "output": "50",
-          "cache_hit": "0.25",
-          "cache_write": {
-            "by_ttl_seconds": {
-              "300": "12.5",
-              "3600": "20"
-            }
-          }
-        }
+      "when": {
+        "cache_write_ttl_seconds": 3600
       },
-      "extensions": {
-        "price_type": "standard_api",
-        "source": "vendor_published"
+      "overrides": {
+        "cache_write_token_unit_price": "20"
       }
     }
-  ]
+  ],
+  "extensions": {
+    "price_type": "standard_api",
+    "source": "vendor_published"
+  }
 }

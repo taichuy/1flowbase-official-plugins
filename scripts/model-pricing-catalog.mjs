@@ -1,14 +1,15 @@
 import crypto from 'node:crypto';
+import { validatePricingConfiguration } from './model-pricing-validation.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const MODEL_PRICING_SCHEMA_VERSION = '1flowbase.model-pricing/v1';
-export const MODEL_PRICING_SOURCE_SCHEMA_VERSION = '1flowbase.model-pricing-source/v1';
-export const MODEL_PRICING_INDEX_SCHEMA_VERSION = '1flowbase.model-pricing-index/v1';
-export const MODEL_PRICING_PAGE_SCHEMA_VERSION = '1flowbase.model-pricing-page/v1';
-export const MODEL_PRICING_SEARCH_SCHEMA_VERSION = '1flowbase.model-pricing-search/v1';
-export const MODEL_PRICING_STATE_SCHEMA_VERSION = '1flowbase.model-pricing-state/v1';
+export const MODEL_PRICING_SCHEMA_VERSION = '1flowbase.model-pricing/v2';
+export const MODEL_PRICING_SOURCE_SCHEMA_VERSION = '1flowbase.model-pricing-source/v2';
+export const MODEL_PRICING_INDEX_SCHEMA_VERSION = '1flowbase.model-pricing-index/v2';
+export const MODEL_PRICING_PAGE_SCHEMA_VERSION = '1flowbase.model-pricing-page/v2';
+export const MODEL_PRICING_SEARCH_SCHEMA_VERSION = '1flowbase.model-pricing-search/v2';
+export const MODEL_PRICING_STATE_SCHEMA_VERSION = '1flowbase.model-pricing-state/v2';
 export const DEFAULT_MODEL_PRICING_PAGE_SIZE = 100;
 export const DEFAULT_MODEL_PRICING_RAW_BASE_URL =
   process.env.MODEL_PRICING_CATALOG_RAW_BASE_URL ||
@@ -32,89 +33,6 @@ function readJsonIfExists(filePath) {
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function validateRatingPolicy(rule, context) {
-  if (typeof rule.rating_policy_enabled !== 'boolean' ||
-      rule.rating_policy === null || typeof rule.rating_policy !== 'object' ||
-      Array.isArray(rule.rating_policy)) {
-    throw new Error(`${context} has an invalid rating policy`);
-  }
-  if (!rule.rating_policy_enabled) return;
-  const policy = rule.rating_policy;
-  if (policy.schema_version === '1flowbase.model-rating-policy/v2') {
-    validateTokenPricingPolicy(policy, context);
-    return;
-  }
-  if (policy.schema_version !== '1flowbase.model-rating-policy/v1' ||
-      policy.type !== 'input_token_tiers' || !Array.isArray(policy.tiers) ||
-      policy.tiers.length === 0) {
-    throw new Error(`${context} has an unsupported rating policy`);
-  }
-  let previousThreshold = -1;
-  for (const tier of policy.tiers) {
-    const threshold = tier?.when?.value;
-    if (!['gt', 'gte'].includes(tier?.when?.operator) ||
-        !Number.isSafeInteger(threshold) || threshold < 0 || threshold <= previousThreshold) {
-      throw new Error(`${context} rating policy tiers must be strictly ascending`);
-    }
-    previousThreshold = threshold;
-    for (const meter of ['input', 'output', 'cache_hit']) {
-      const rate = tier?.rates?.[meter];
-      if (!Number.isSafeInteger(rate?.unit_size) || rate.unit_size < 1 ||
-          typeof rate.unit_price !== 'string' ||
-          !/^[0-9]+(\.[0-9]{1,18})?$/.test(rate.unit_price)) {
-        throw new Error(`${context} has an invalid ${meter} tier rate`);
-      }
-    }
-  }
-}
-
-function validateTokenPricingPolicy(policy, context) {
-  const fail = () => { throw new Error(`${context} has an invalid v2 rating policy`); };
-  const object = (value, required, optional = []) => {
-    if (!value || typeof value !== 'object' || Array.isArray(value) ||
-        required.some((key) => !Object.hasOwn(value, key)) ||
-        Object.keys(value).some((key) => ![...required, ...optional].includes(key))) fail();
-  };
-  const decimal = (value) => {
-    if (typeof value !== 'string' || !/^[0-9]+(\.[0-9]{1,18})?$/.test(value)) fail();
-    // Match Decimal::from_str_exact: the unscaled coefficient must fit 96 bits.
-    if (BigInt(value.replace('.', '')) > 79228162514264337593543950335n) fail();
-  };
-  const rates = (value) => {
-    object(value, ['input', 'output', 'cache_hit', 'cache_write']);
-    for (const meter of ['input', 'output', 'cache_hit']) decimal(value[meter]);
-    const write = value.cache_write;
-    if (write && Object.hasOwn(write, 'unit_price')) {
-      object(write, ['unit_price']);
-      decimal(write.unit_price);
-    } else {
-      object(write, ['by_ttl_seconds']);
-      const buckets = write.by_ttl_seconds;
-      if (!buckets || typeof buckets !== 'object' || Array.isArray(buckets) ||
-          Object.keys(buckets).length === 0) fail();
-      for (const [ttl, price] of Object.entries(buckets)) {
-        if (!/^[1-9][0-9]*$/.test(ttl) || !Number.isSafeInteger(Number(ttl))) fail();
-        decimal(price);
-      }
-    }
-  };
-  object(policy, ['schema_version', 'type', 'unit_size', 'rates'], ['input_token_tiers']);
-  if (policy.type !== 'token_pricing' || !Number.isSafeInteger(policy.unit_size) || policy.unit_size < 1) fail();
-  rates(policy.rates);
-  if (Object.hasOwn(policy, 'input_token_tiers')) {
-    if (!Array.isArray(policy.input_token_tiers) || policy.input_token_tiers.length === 0) fail();
-    let previous = -1;
-    for (const tier of policy.input_token_tiers) {
-      object(tier, ['when', 'rates']);
-      object(tier.when, ['operator', 'value']);
-      if (!['gt', 'gte'].includes(tier.when.operator) ||
-          !Number.isSafeInteger(tier.when.value) || tier.when.value < 0 || tier.when.value <= previous) fail();
-      previous = tier.when.value;
-      rates(tier.rates);
-    }
-  }
 }
 
 function rawUrl(rawBaseUrl, relativePath) {
@@ -156,6 +74,15 @@ function ruleOrder(left, right) {
     compareText(left.id, right.id);
 }
 
+function assertUniqueModels(rules) {
+  const seen = new Set();
+  for (const rule of rules) {
+    const key = JSON.stringify([rule.provider_code, rule.upstream_model_id]);
+    if (seen.has(key)) throw new Error('official provider/model configurations must be unique');
+    seen.add(key);
+  }
+}
+
 export function discoverModelPricingRules(repoRoot) {
   const paths = catalogPaths(repoRoot);
   const rules = [];
@@ -179,29 +106,19 @@ export function discoverModelPricingRules(repoRoot) {
       if (typeof source.upstream_model_id !== 'string' || source.upstream_model_id.length === 0) {
         throw new Error(`${path.relative(repoRoot, sourcePath)} upstream_model_id is required`);
       }
-      for (const sourceRule of source.rules) {
-        if (!sourceRule.id || ids.has(sourceRule.id)) {
-          throw new Error('model pricing rule ids must be unique');
-        }
-        ids.add(sourceRule.id);
-        validateRatingPolicy(sourceRule, path.relative(repoRoot, sourcePath));
-        const sourceChecksum = sha256(json({
-          provider_code: providerCode,
-          upstream_model_id: source.upstream_model_id,
-          rule: sourceRule,
-        }));
-        rules.push({
-          ...sourceRule,
-          provider_code: providerCode,
-          upstream_model_id: source.upstream_model_id,
-          currency_code: 'USD',
-          source_kind: 'official',
-          source_catalog_id: sourceRule.id,
-          source_checksum: sourceChecksum,
-        });
-      }
+      validatePricingConfiguration(source, path.relative(repoRoot, sourcePath), true);
+      if (ids.has(source.id)) throw new Error('model pricing rule ids must be unique');
+      ids.add(source.id);
+      const { schema_version, ...configuration } = source;
+      rules.push({
+        ...configuration,
+        source_kind: 'official',
+        source_catalog_id: source.id,
+        source_checksum: sha256(json(configuration)),
+      });
     }
   }
+  assertUniqueModels(rules);
   return rules.sort(ruleOrder);
 }
 
@@ -227,8 +144,11 @@ export function verifyModelPricingCatalog(catalog) {
     if (rule.currency_code !== 'USD' || rule.source_kind !== 'official') {
       throw new Error('official model pricing rules must use USD and source_kind=official');
     }
-    validateRatingPolicy(rule, `catalog rule ${rule.id}`);
+    validatePricingConfiguration(rule, `catalog rule ${rule.id}`);
+    const { source_kind, source_catalog_id, source_version, source_checksum, ...configuration } = rule;
+    if (source_checksum !== sha256(json(configuration))) throw new Error('model pricing source checksum mismatch');
   }
+  assertUniqueModels(catalog.rules);
   return true;
 }
 
@@ -265,6 +185,9 @@ export function buildModelPricingCatalog({
   const rules = discovered.map((rule) => ({ ...rule, source_version: metadata.catalog_version }));
   const fingerprint = sha256(json(rules));
   const previousState = readJsonIfExists(paths.statePath);
+  if (previousState && previousState.schema_version !== MODEL_PRICING_STATE_SCHEMA_VERSION) {
+    throw new Error('legacy catalog state requires the explicit v2 converter');
+  }
   for (const rule of rules) {
     const previous = previousState?.rules?.[rule.id];
     if (previous && previous.source_checksum !== rule.source_checksum) {
@@ -286,7 +209,7 @@ export function buildModelPricingCatalog({
   };
   const pageCount = Math.max(1, Math.ceil(rules.length / pageSize));
   const pages = [];
-  const stateRules = {};
+  const stateRules = { ...previousState?.rules };
   for (let page = 1; page <= pageCount; page += 1) {
     const offset = (page - 1) * pageSize;
     const pageRules = rules.slice(offset, offset + pageSize);

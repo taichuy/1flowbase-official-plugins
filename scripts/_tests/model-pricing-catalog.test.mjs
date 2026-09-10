@@ -16,7 +16,7 @@ import {
 function catalog() {
   const rules = [];
   return {
-    schema_version: '1flowbase.model-pricing/v1',
+    schema_version: '1flowbase.model-pricing/v2',
     catalog_version: '2026-08-17.1',
     generated_at: '2026-08-17T12:00:00Z',
     currency_code: 'USD',
@@ -48,72 +48,20 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes standard USD API prices with one provider-independent zero-cost fallback', () => {
-  const repositoryRoot = path.resolve(import.meta.dirname, '../..');
-  const published = JSON.parse(
-    fs.readFileSync(
-      path.join(repositoryRoot, 'model-pricing/catalog/v1/catalog.json'),
-      'utf8'
-    )
-  );
-  assert.equal(verifyModelPricingCatalog(published), true);
-  assert.equal(published.rules.length, 34);
-  const fallbackRules = published.rules.filter(
-    (candidate) => candidate.provider_code === 'zero' && candidate.upstream_model_id === 'any'
-  );
-  assert.equal(fallbackRules.length, 1);
-  const [rule] = fallbackRules;
-  assert.equal(rule.provider_code, 'zero');
-  assert.equal(rule.upstream_model_id, 'any');
-  assert.equal(rule.input_token_unit_price, '0');
-  assert.equal(rule.output_token_unit_price, '0');
-  assert.equal(rule.cache_hit_token_unit_price, '0');
-  assert.equal(rule.extensions.pricing_policy, 'global_zero_fallback');
-  assert.equal(
-    published.rules.filter((candidate) => candidate.rating_policy_enabled).length,
-    9
-  );
-  assert.equal(
-    published.rules.filter((candidate) => candidate.provider_code === 'deepseek').length,
-    10
-  );
-  assert.equal(
-    published.rules.some((candidate) => candidate.upstream_model_id === 'glm-5.3'),
-    false
-  );
-  const astra = published.rules.find(
-    (candidate) => candidate.provider_code === 'openai' && candidate.upstream_model_id === 'gpt-6-astra'
-  );
-  assert.deepEqual(
-    {
-      input: astra?.input_token_unit_price,
-      cache_hit: astra?.cache_hit_token_unit_price,
-      output: astra?.output_token_unit_price,
-      long_context: astra?.rating_policy?.tiers?.[0]?.rates
-    },
-    {
-      input: '10',
-      cache_hit: '1',
-      output: '50',
-      long_context: {
-        input: { unit_size: 1000000, unit_price: '20' },
-        output: { unit_size: 1000000, unit_price: '75' },
-        cache_hit: { unit_size: 1000000, unit_price: '2' }
-      }
-    }
-  );
-  const fable = published.rules.find(
-    (candidate) => candidate.provider_code === 'anthropic' && candidate.upstream_model_id === 'claude-fable-5-1'
-  );
-  assert.deepEqual(
-    {
-      input: fable?.input_token_unit_price,
-      cache_hit: fable?.cache_hit_token_unit_price,
-      output: fable?.output_token_unit_price,
-      rating_policy_enabled: fable?.rating_policy_enabled
-    },
-    { input: '10', cache_hit: '0.25', output: '50', rating_policy_enabled: false }
-  );
+test('publishes 23 unique standard configurations and all four fallback prices', () => {
+  const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
+  assert.equal(rules.length, 23);
+  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 23);
+  const zero = rules.find(r => r.provider_code === 'zero');
+  for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
+  const astra = rules.find(r => r.upstream_model_id === 'gpt-6-astra');
+  assert.equal(astra.id, '21000000-0000-4000-8000-000000000104');
+  assert.equal(astra.priority, 0);
+  assert.equal(astra.cache_write_token_unit_price, '12.5');
+  assert.deepEqual(astra.rules, [{when:{input_tokens:{operator:'gt',value:272000}},overrides:{input_token_unit_price:'20',output_token_unit_price:'75',cache_hit_token_unit_price:'2',cache_write_token_unit_price:'25'}}]);
+  const fable = rules.find(r => r.upstream_model_id === 'claude-fable-5-1');
+  assert.equal(fable.cache_write_token_unit_price, '12.5');
+  assert.deepEqual(fable.rules, [{when:{cache_write_ttl_seconds:3600},overrides:{cache_write_token_unit_price:'20'}}]);
 });
 
 function sourceFixture() {
@@ -121,7 +69,7 @@ function sourceFixture() {
   fs.mkdirSync(path.join(repoRoot, 'model-pricing/@zeta/model-z'), { recursive: true });
   fs.mkdirSync(path.join(repoRoot, 'model-pricing/@alpha/model-a'), { recursive: true });
   fs.writeFileSync(path.join(repoRoot, 'model-pricing/catalog-source.json'), JSON.stringify({
-    schema_version: '1flowbase.model-pricing-source/v1',
+    schema_version: '1flowbase.model-pricing-source/v2',
     catalog_version: '2026-08-18.1',
     currency_code: 'USD'
   }));
@@ -129,30 +77,29 @@ function sourceFixture() {
     fs.writeFileSync(
       path.join(repoRoot, `model-pricing/@${provider}/${modelKey}/pricing.json`),
       JSON.stringify({
-        schema_version: '1flowbase.model-pricing-source/v1',
+        schema_version: '1flowbase.model-pricing-source/v2',
         provider_code: provider,
         upstream_model_id: upstreamModelId,
         currency_code: 'USD',
-        rules: [{
-          id,
-          input_token_unit_size: 1_000_000,
-          input_token_unit_price: '1',
-          output_token_unit_size: 1_000_000,
-          output_token_unit_price: '2',
-          cache_hit_token_unit_size: 1_000_000,
-          cache_hit_token_unit_price: '0.5',
-          effective_from: '2026-08-18T00:00:00Z',
-          effective_to: null,
-          timezone: 'UTC',
-          weekday_mask: 127,
-          local_time_start: null,
-          local_time_end: null,
-          priority: 0,
-          enabled: true,
-          rating_policy_enabled: false,
-          rating_policy: {},
-          extensions: {}
-        }]
+        id,
+        input_token_unit_size: 1_000_000,
+        input_token_unit_price: '1',
+        output_token_unit_size: 1_000_000,
+        output_token_unit_price: '2',
+        cache_hit_token_unit_size: 1_000_000,
+        cache_hit_token_unit_price: '0.5',
+        effective_from: '2026-08-18T00:00:00Z',
+        effective_to: null,
+        timezone: 'UTC',
+        weekday_mask: 127,
+        local_time_start: null,
+        local_time_end: null,
+        priority: 0,
+        enabled: true,
+        cache_write_token_unit_size: 1_000_000,
+        cache_write_token_unit_price: '1',
+        rules: [],
+        extensions: {}
       })
     );
   };
@@ -221,7 +168,7 @@ test('AC-006 requires a new rule id when published pricing content changes', () 
   updateModelPricingCatalog({ repoRoot, now: '2026-08-18T01:00:00Z' });
   const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
   const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  source.rules[0].input_token_unit_price = '9';
+  source.input_token_unit_price = '9';
   fs.writeFileSync(sourcePath, JSON.stringify(source));
   assert.throws(
     () => updateModelPricingCatalog({ repoRoot, now: '2026-08-19T01:00:00Z' }),
@@ -229,88 +176,29 @@ test('AC-006 requires a new rule id when published pricing content changes', () 
   );
 });
 
-test('rejects unsupported executable rating policies at the catalog boundary', () => {
+test('rejects old policies, malformed conditions, overrides and duplicate models', () => {
   const repoRoot = sourceFixture();
   const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
-  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  source.rules[0].rating_policy_enabled = true;
-  source.rules[0].rating_policy = {
-    schema_version: '1flowbase.model-rating-policy/v1',
-    type: 'arbitrary_expression',
-    expression: 'input_tokens * 2'
-  };
-  fs.writeFileSync(sourcePath, JSON.stringify(source));
-  assert.throws(() => discoverModelPricingRules(repoRoot), /unsupported rating policy/);
-});
-
-// AC1/AC6: exercise the real publisher boundary, including immutable history.
-test('v2 catalog revisions preserve old rules and publish complete token pricing', () => {
-  const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
-  const latest = (model) => rules.filter((rule) => rule.upstream_model_id === model)
-    .sort((a, b) => b.priority - a.priority || b.effective_from.localeCompare(a.effective_from));
-  const astra = latest('gpt-6-astra');
-  assert.equal(astra.length, 2);
-  assert.equal(astra[0].effective_from, '2026-09-09T00:00:00Z');
-  assert.equal(astra[1].rating_policy.schema_version, '1flowbase.model-rating-policy/v1');
-  assert.deepEqual(astra[0].rating_policy.rates, {
-    input: '10', output: '50', cache_hit: '1', cache_write: { unit_price: '12.5' }
-  });
-  assert.deepEqual(astra[0].rating_policy.input_token_tiers, [{
-    when: { operator: 'gt', value: 272000 },
-    rates: { input: '20', output: '75', cache_hit: '2', cache_write: { unit_price: '25' } }
-  }]);
-  const fable = latest('claude-fable-5-1');
-  assert.equal(fable.length, 2);
-  assert.deepEqual(fable[0].rating_policy.rates, {
-    input: '10', output: '50', cache_hit: '0.25',
-    cache_write: { by_ttl_seconds: { '300': '12.5', '3600': '20' } }
-  });
-  assert.equal(fable[1].rating_policy_enabled, false);
-  assert.equal(latest('claude-fable-5').length, 1);
-});
-
-test('AC1 rejects malformed v2 policies and accepts complete ascending replacement tiers', () => {
-  const repoRoot = sourceFixture();
-  const sourcePath = path.join(repoRoot, 'model-pricing/@alpha/model-a/pricing.json');
-  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  const rates = { input: '10', output: '50', cache_hit: '1', cache_write: { unit_price: '12.5' } };
-  const policy = { schema_version: '1flowbase.model-rating-policy/v2', type: 'token_pricing', unit_size: 1000000,
-    rates, input_token_tiers: [{ when: { operator: 'gt', value: 272000 }, rates },
-      { when: { operator: 'gte', value: 500000 }, rates }] };
-  const publish = (candidate) => {
-    source.rules[0].rating_policy_enabled = true;
-    source.rules[0].rating_policy = candidate;
-    fs.writeFileSync(sourcePath, JSON.stringify(source));
-    return discoverModelPricingRules(repoRoot);
-  };
-  assert.doesNotThrow(() => publish(policy));
-  for (const value of ['79228162514264337593543950335', '79228162514.264337593543950335', '0.000000000000000001']) {
-    const candidate = structuredClone(policy);
-    candidate.rates.input = value;
-    assert.doesNotThrow(() => publish(candidate));
+  const base = JSON.parse(fs.readFileSync(sourcePath));
+  for (const mutate of [
+    s => { s.rating_policy = {}; }, s => { delete s.rules; },
+    s => { s.rules = [{when:{},overrides:{input_token_unit_price:'2'}}]; },
+    s => { s.rules = [{when:{input_tokens:{operator:'lt',value:1}},overrides:{input_token_unit_price:'2'}}]; },
+    s => { s.rules = [{when:{cache_write_ttl_seconds:300},overrides:{input_token_unit_price:'2'}}]; },
+    s => { s.rules = [{when:{timezone:'Invalid/Zone'},overrides:{output_token_unit_price:'2'}}]; },
+    s => { s.rules = [{when:{local_time_start:'01:00:00',local_time_end:'04:00:00'},overrides:{output_token_unit_price:'2'}}]; },
+    s => { s.cache_write_token_unit_price = '79228162514264337593543950336'; },
+    s => { s.rules = [{when:{weekday_mask:128},overrides:{output_token_unit_price:'2'}}]; },
+    s => { s.rules = [{when:{input_tokens:{operator:'gt',value:1}},overrides:{},default:{}}]; },
+  ]) {
+    const source = structuredClone(base); mutate(source);
+    fs.writeFileSync(sourcePath,JSON.stringify(source));
+    assert.throws(() => discoverModelPricingRules(repoRoot), /invalid v2/);
   }
-  const invalid = [
-    p => { p.unknown = 1; }, p => { p.unit_size = 0; }, p => { p.unit_size = 1.5; },
-    p => { p.rates.input = '79228162514264337593543950336'; },
-    p => { p.rates.input = '79228162514264337593543950335.0'; },
-    p => { p.rates.input = '79228162514.264337593543950336'; },
-    p => { p.rates.input = 10; }, p => { p.rates.output = '-1'; },
-    p => { p.rates.cache_hit = '1e2'; }, p => { delete p.rates.cache_write; },
-    p => { p.rates.cache_write.by_ttl_seconds = { '300': '1' }; },
-    p => { p.rates.cache_write = { by_ttl_seconds: {} }; },
-    p => { p.rates.cache_write = { by_ttl_seconds: { '0': '1' } }; },
-    p => { p.rates.cache_write = { by_ttl_seconds: { '0300': '1' } }; },
-    p => { p.rates.cache_write = { by_ttl_seconds: { '300': 'NaN' } }; },
-    p => { p.input_token_tiers[1].when.value = 272000; },
-    p => { p.input_token_tiers[0].when.operator = 'lt'; },
-    p => { delete p.input_token_tiers[0].rates.output; },
-    p => { p.input_token_tiers[0].when.extra = true; },
-    p => { p.input_token_tiers = []; }
-  ];
-  for (const mutate of invalid) {
-    const candidate = structuredClone(policy);
-    mutate(candidate);
-    assert.throws(() => publish(candidate), /invalid v2 rating policy/);
-  }
-  fs.rmSync(repoRoot, { recursive: true, force: true });
+  fs.writeFileSync(sourcePath,JSON.stringify(base));
+  const duplicatePath = path.join(repoRoot,'model-pricing/@alpha/duplicate');
+  fs.mkdirSync(duplicatePath);
+  fs.writeFileSync(path.join(duplicatePath,'pricing.json'),JSON.stringify({...base,id:'20000000-0000-4000-8000-000000000003'}));
+  assert.throws(() => discoverModelPricingRules(repoRoot), /provider\/model configurations must be unique/);
+  fs.rmSync(repoRoot,{recursive:true,force:true});
 });
