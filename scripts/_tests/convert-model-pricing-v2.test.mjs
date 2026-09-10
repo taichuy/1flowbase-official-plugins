@@ -93,3 +93,58 @@ test('repository migration is idempotent and never bypasses v2 immutability',()=
   assert.throws(()=>updateModelPricingCatalog({repoRoot:repo}),/immutable/);
   fs.rmSync(repo,{recursive:true,force:true});
 });
+
+test('canonical temporal admission rejects QA counterexamples and keeps legal neighbours', () => {
+  const base = convertPricingSource(groups.get('zero/any'));
+  const condition = when => ({rules:[{when,overrides:{input_token_unit_price:'1'}}]});
+  const window = (start, end) => ({timezone:'UTC',local_time_start:start,local_time_end:end});
+  const pairs = [
+    ['timezone alone', condition({timezone:'UTC'}), condition({timezone:'UTC',input_tokens:{operator:'gte',value:0}})],
+    ['weekday timezone', condition({weekday_mask:1}), condition({weekday_mask:1,timezone:'UTC'})],
+    ['equal conditional endpoints', condition(window('01:00:00','01:00:00')), condition(window('01:00:00','01:00:01'))],
+    ['conditional calendar date', condition({effective_from:'2026-02-30T00:00:00Z'}), condition({effective_from:'2026-02-28T00:00:00Z'})],
+    ['equal default endpoints', window('01:00:00','01:00:00'), window('01:00:00','01:00:01')],
+    ['default cross-midnight weekday', {...window('23:00:00','01:00:00'),weekday_mask:1}, {...window('23:00:00','01:00:00'),weekday_mask:127}],
+    ['default calendar date', {effective_from:'2026-02-30T00:00:00Z'}, {effective_from:'2026-02-28T00:00:00Z'}],
+    ['priority i32', {priority:2147483648}, {priority:2147483647}],
+  ];
+  for (const [name, invalid, valid] of pairs) {
+    assert.throws(() => convertPricingSource({...base,...invalid}), /invalid v2/, name);
+    assert.doesNotThrow(() => convertPricingSource({...base,...valid}), name);
+  }
+  // Conditional windows may cross midnight even with a restricted weekday mask.
+  assert.doesNotThrow(() => convertPricingSource({...base,...condition({...window('23:59:59','00:00:00'),weekday_mask:1})}));
+  for (const [invalid, valid] of [
+    ['2026-02-29T00:00:00Z','2028-02-29T00:00:00Z'],
+    ['2100-02-29T00:00:00Z','2000-02-29T00:00:00Z'],
+    ['2026-04-31T00:00:00Z','2026-04-30T00:00:00Z'],
+    ['2026-00-01T00:00:00Z','2026-01-01T00:00:00Z'],
+    ['2026-13-01T00:00:00Z','2026-12-01T00:00:00Z'],
+    ['2026-01-00T00:00:00Z','2026-01-01T00:00:00Z'],
+    ['2026-01-01T24:00:00Z','2026-01-01T23:59:59Z'],
+    ['2026-01-01T00:60:00Z','2026-01-01T00:59:59Z'],
+    ['2026-01-01T00:00:61Z','2026-01-01T00:00:59Z'],
+    ['2026-01-01T00:00:00+24:00','2026-01-01T00:00:00+23:59'],
+    ['2026-01-01T00:00:00-01:60','2026-01-01T00:00:00-01:59'],
+    ['2026-01-01T00:00:60Z','2026-01-31T23:59:60Z'],
+    ['2026-01-01T00:00:00.Z','2026-01-01t00:00:00.000000001z'],
+  ]) {
+    for (const patch of [value => ({effective_from:value}), value => condition({effective_from:value})]) {
+      assert.throws(() => convertPricingSource({...base,...patch(invalid)}), /invalid v2/, invalid);
+      assert.doesNotThrow(() => convertPricingSource({...base,...patch(valid)}), valid);
+    }
+  }
+  for (const weekday_mask of [0,128,1.5,Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => convertPricingSource({...base,weekday_mask}), /invalid v2/);
+    assert.throws(() => convertPricingSource({...base,...condition({timezone:'UTC',weekday_mask})}), /invalid v2/);
+  }
+  for (const weekday_mask of [1,127]) assert.doesNotThrow(() => convertPricingSource({...base,weekday_mask,...condition({timezone:'UTC',weekday_mask})}));
+  // Ordering uses offset-aware nanoseconds, not Date's truncated millisecond representation.
+  const from = '2026-01-01T00:00:00.000000001Z';
+  const to = '2026-01-01T01:00:00.000000002+01:00';
+  for (const patch of [v=>v, condition]) {
+    assert.doesNotThrow(() => convertPricingSource({...base,...patch({effective_from:from,effective_to:to})}));
+    assert.throws(() => convertPricingSource({...base,...patch({effective_from:to,effective_to:from})}), /invalid v2/);
+    assert.throws(() => convertPricingSource({...base,...patch({effective_from:from,effective_to:from})}), /invalid v2/);
+  }
+});

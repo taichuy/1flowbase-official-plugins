@@ -11,12 +11,37 @@ function decimal(v) {
   return typeof v === 'string' && /^[0-9]+(\.[0-9]{1,18})?$/.test(v) &&
     BigInt(v.replace('.', '')) <= 79228162514264337593543950335n;
 }
+function daysInMonth(year, month) {
+  return [31, year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+    31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+}
+function timestamp(value, fail) {
+  const match = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?([Zz]|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if (!match) fail();
+  const [, y, mo, d, h, mi, sec, fraction = '', zone, sign, oh = '0', om = '0'] = match;
+  const [year, month, day, hour, minute, second, offsetHour, offsetMinute] = [y, mo, d, h, mi, sec, oh, om].map(Number);
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month) ||
+      hour > 23 || minute > 59 || second > 60 || offsetHour > 23 || offsetMinute > 59) fail();
+  // Validate components before constructing Date; never let Date.parse normalize invalid dates.
+  // setUTCFullYear also avoids Date.UTC's special handling of years 00 through 99.
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(hour, minute, Math.min(second, 59), 0);
+  const offset = /^[Zz]$/.test(zone) ? 0 : (sign === '-' ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+  const milliseconds = date.getTime() - offset * 60000;
+  const utc = new Date(milliseconds);
+  // Match time::Rfc3339: month-end UTC leap seconds stand in for the preceding nanosecond.
+  if (second === 60 && !(utc.getUTCHours() === 23 && utc.getUTCMinutes() === 59 &&
+      utc.getUTCSeconds() === 59 && utc.getUTCDate() === daysInMonth(utc.getUTCFullYear(), utc.getUTCMonth() + 1))) fail();
+  const nanos = second === 60 ? 999999999n : BigInt(fraction.slice(0, 9).padEnd(9, '0'));
+  return BigInt(milliseconds) * 1000000n + nanos;
+}
 function validateSchedule(v, fail, conditional = false) {
+  const dates = {};
   for (const k of ['effective_from', 'effective_to']) {
-    if (own(v, k) && !(v[k] === null && k === 'effective_to' && !conditional) &&
-        (typeof v[k] !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(v[k]) || !Number.isFinite(Date.parse(v[k])))) fail();
+    if (own(v, k) && !(v[k] === null && k === 'effective_to' && !conditional)) dates[k] = timestamp(v[k], fail);
   }
-  if (v.effective_from && v.effective_to && Date.parse(v.effective_from) >= Date.parse(v.effective_to)) fail();
+  if (dates.effective_from !== undefined && dates.effective_to !== undefined && dates.effective_from >= dates.effective_to) fail();
   if (own(v, 'timezone')) {
     if (typeof v.timezone !== 'string' || !v.timezone) fail();
     try { new Intl.DateTimeFormat('en', { timeZone: v.timezone }); } catch { fail(); }
@@ -27,7 +52,10 @@ function validateSchedule(v, fail, conditional = false) {
         (typeof v[k] !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(v[k]))) fail();
   }
   if ((v.local_time_start != null) !== (v.local_time_end != null)) fail();
-  if (conditional && v.local_time_start != null && !own(v, 'timezone')) fail();
+  if (v.local_time_start != null && (v.local_time_start === v.local_time_end ||
+      (!conditional && v.local_time_start > v.local_time_end && v.weekday_mask !== 127))) fail();
+  if (conditional && (v.local_time_start != null || own(v, 'weekday_mask')) && !own(v, 'timezone')) fail();
+  if (conditional && !Object.keys(v).some(k => k !== 'timezone')) fail();
 }
 export function validatePricingConfiguration(v, context = 'pricing configuration', source = false) {
   const fail = () => { throw new Error(`${context} has an invalid v2 pricing configuration`); };
@@ -40,7 +68,7 @@ export function validatePricingConfiguration(v, context = 'pricing configuration
   if (source && v.schema_version !== '1flowbase.model-pricing-source/v2') fail();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.id) ||
       !['provider_code', 'upstream_model_id'].every(k => typeof v[k] === 'string' && v[k].length) ||
-      v.currency_code !== 'USD' || !Number.isSafeInteger(v.priority) || v.priority < 0 || typeof v.enabled !== 'boolean' ||
+      v.currency_code !== 'USD' || !Number.isSafeInteger(v.priority) || v.priority < 0 || v.priority > 2147483647 || typeof v.enabled !== 'boolean' ||
       !v.extensions || typeof v.extensions !== 'object' || Array.isArray(v.extensions)) fail();
   for (const k of RATE_FIELDS) if (!(k.endsWith('_size') ? positive(v[k]) : decimal(v[k]))) fail();
   validateSchedule(v, fail);

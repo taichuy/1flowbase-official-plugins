@@ -81,4 +81,3 @@ function validateTokenPricingPolicy(policy, context) {
     }
   }
 }
-
