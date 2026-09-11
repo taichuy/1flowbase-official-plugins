@@ -213,7 +213,7 @@ fn start_websocket_function_call_done_then_close_server() -> (String, thread::Jo
             .expect("response.created should be writable");
         websocket
             .send(Message::Text(
-                r#"{"type":"response.output_item.added","item":{"type":"function_call","call_id":"call_lookup","name":"lookup","arguments":""}}"#.into(),
+                r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","call_id":"call_lookup","name":"lookup","arguments":""}}"#.into(),
             ))
             .expect("function call item should be writable");
         websocket
@@ -481,7 +481,7 @@ fn start_websocket_previous_response_unavailable_full_context_server(
             .expect("response.created should be writable");
         websocket
             .send(Message::Text(
-                r#"{"type":"response.output_item.added","item":{"type":"function_call","call_id":"call_lookup","name":"lookup","arguments":""}}"#.into(),
+                r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","call_id":"call_lookup","name":"lookup","arguments":""}}"#.into(),
             ))
             .expect("function call item should be writable");
         websocket

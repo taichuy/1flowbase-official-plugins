@@ -760,6 +760,7 @@ impl std::error::Error for ProviderRuntimeError {}
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
+    websocket_response_owners: HashMap<String, String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
 }
@@ -1246,10 +1247,22 @@ impl OpenAiProviderRuntime {
         let request = build_openai_generate_request(&input)?;
         let body = request.body.clone();
         let native_passthrough = input.native_transport.is_some();
-        let transport_mode = if native_passthrough || request.protocol == OpenAiWireProtocol::Chat {
+        let transport_mode = if request.protocol == OpenAiWireProtocol::Chat {
             OpenAiTransportMode::HttpSse
         } else {
             resolve_responses_node_transport(&config, &input)?
+        };
+        if native_passthrough
+            && transport_mode == OpenAiTransportMode::HttpSse
+            && self.responses_body_uses_websocket_response_cursor(&body)
+        {
+            bail!("native WebSocket continuation cannot switch to HTTP");
+        }
+        let mut on_event = |event: &ProviderStreamEvent| {
+            if !native_passthrough && is_client_tool_output_item(event) {
+                return Ok(());
+            }
+            on_event(event)
         };
         let mut output = match transport_mode {
             OpenAiTransportMode::HttpSse => {
@@ -1266,8 +1279,9 @@ impl OpenAiProviderRuntime {
                 .await
             }
             OpenAiTransportMode::ResponsesWebsocket => {
-                let requires_websocket_cursor =
-                    self.responses_body_uses_websocket_response_cursor(&body);
+                let requires_websocket_cursor = self
+                    .responses_body_uses_websocket_response_cursor(&body)
+                    || (native_passthrough && responses_body_previous_response_id(&body).is_some());
                 match self
                     .invoke_response_websocket_with_cursor_retry(
                         &config,
@@ -1300,8 +1314,9 @@ impl OpenAiProviderRuntime {
                 }
             }
             OpenAiTransportMode::Auto => {
-                let requires_websocket_cursor =
-                    self.responses_body_uses_websocket_response_cursor(&body);
+                let requires_websocket_cursor = self
+                    .responses_body_uses_websocket_response_cursor(&body)
+                    || (native_passthrough && responses_body_previous_response_id(&body).is_some());
                 match self
                     .invoke_response_websocket_with_cursor_retry(
                         &config,
@@ -1334,6 +1349,11 @@ impl OpenAiProviderRuntime {
                 }
             }
         }?;
+        if !native_passthrough {
+            output
+                .events
+                .retain(|event| !is_client_tool_output_item(event));
+        }
         attach_openai_model_intent(&mut output, &request.model_intent);
         append_request_translation_decisions(
             &mut output.result.provider_metadata,
@@ -1375,7 +1395,8 @@ impl OpenAiProviderRuntime {
             {
                 Ok(output) => return Ok(output),
                 Err(error)
-                    if retry_response_id.is_some()
+                    if input.native_transport.is_none()
+                        && retry_response_id.is_some()
                         && !full_context_retry_used
                         && (error.reconnect_allowed || error.fallback_allowed)
                         && websocket_previous_response_unavailable(&error.source) =>
@@ -1407,7 +1428,8 @@ impl OpenAiProviderRuntime {
                     continue;
                 }
                 Err(error)
-                    if retry_response_id.is_some()
+                    if input.native_transport.is_none()
+                        && retry_response_id.is_some()
                         && error.reconnect_allowed
                         && !full_context_retry_used =>
                 {
@@ -1440,6 +1462,15 @@ impl OpenAiProviderRuntime {
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
         let session_key = websocket_session_key(config, input);
+        if input.native_transport.is_some() {
+            if let Some(response_id) = responses_body_previous_response_id(&body) {
+                if self.websocket_response_owners.get(response_id) != Some(&session_key) {
+                    return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
+                        "native WebSocket continuation is unavailable for this provider session"
+                    )));
+                }
+            }
+        }
         if !self.websocket_sessions.contains_key(&session_key) {
             let turn_state = responses_body_previous_response_id(&body)
                 .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
@@ -1474,6 +1505,8 @@ impl OpenAiProviderRuntime {
                 {
                     self.websocket_response_ids_seen
                         .insert(response_id.to_string());
+                    self.websocket_response_owners
+                        .insert(response_id.to_string(), session_key.clone());
                     if let Some(turn_state) = turn_state.as_deref() {
                         self.websocket_turn_states_by_response_id
                             .insert(response_id.to_string(), turn_state.to_string());
@@ -2736,7 +2769,18 @@ fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInpu
         config.api_key,
         config.organization.as_deref().unwrap_or_default(),
         config.project.as_deref().unwrap_or_default(),
-        serde_json::to_string(&input.client_protocol_envelope).unwrap_or_default(),
+        // Request body extensions vary between turns; only handshake context owns
+        // the socket. Model/protocol remain part of the provider session identity.
+        serde_json::to_string(&(
+            &input.protocol,
+            &input.model,
+            input.client_protocol_envelope.as_ref().map(|context| (
+                &context.source_protocol,
+                &context.headers,
+                &context.query,
+            )),
+        ))
+        .unwrap_or_default(),
     )
 }
 
@@ -3569,6 +3613,11 @@ fn process_response_sse_payload(
     Ok(())
 }
 
+fn is_client_tool_output_item(event: &ProviderStreamEvent) -> bool {
+    matches!(event, ProviderStreamEvent::OutputItem { item, .. }
+        if matches!(item.get("type").and_then(Value::as_str), Some("function_call" | "custom_tool_call")))
+}
+
 fn typed_response_output_item(
     payload: &Value,
     phase: ProviderOutputItemPhase,
@@ -3579,7 +3628,9 @@ fn typed_response_output_item(
     if !matches!(
         item.get("type").and_then(Value::as_str),
         Some(
-            "tool_search_call"
+            "function_call"
+                | "custom_tool_call"
+                | "tool_search_call"
                 | "tool_search_output"
                 | "additional_tools"
                 | "file_search_call"
@@ -3957,7 +4008,7 @@ mod tests {
     fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
         let manifest = include_str!("../manifest.yaml");
 
-        assert!(manifest.contains("version: 0.2.29"));
+        assert!(manifest.contains("version: 0.2.30"));
         assert!(manifest.contains("- reasoning_output_supported"));
         assert!(manifest.contains("- native_continuation_supported"));
         assert!(!manifest.contains("- reasoning_history_input_supported"));
@@ -5604,7 +5655,7 @@ mod tests {
         let mut response_id = Value::Null;
 
         process_response_sse_data(
-            r#"{"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
+            r#"{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"query\":\"refund\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5643,7 +5694,7 @@ mod tests {
         let mut response_id = Value::Null;
 
         process_response_sse_data(
-            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
+            r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":""}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5691,7 +5742,7 @@ mod tests {
         assert!(tool_calls.is_empty());
 
         process_response_sse_data(
-            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+            r#"{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5717,7 +5768,7 @@ mod tests {
         let mut response_id = Value::Null;
 
         process_response_sse_data(
-            r#"{"type":"response.output_item.added","item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
+            r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","arguments":""}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -5741,7 +5792,7 @@ mod tests {
         assert!(tool_calls.is_empty());
 
         process_response_sse_data(
-            r#"{"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
+            r#"{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"Bash","arguments":"{\"command\":\"pwd\"}"}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -6459,3 +6510,7 @@ mod tests {
 #[cfg(test)]
 #[path = "_tests/cache_write_usage.rs"]
 mod cache_write_usage_tests;
+
+#[cfg(test)]
+#[path = "_tests/native_tool_roundtrip.rs"]
+mod native_tool_roundtrip;
