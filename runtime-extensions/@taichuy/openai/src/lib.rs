@@ -2767,6 +2767,14 @@ fn build_websocket_headers(
     protocol_context: &RestoredProtocolContext,
 ) -> Result<HeaderMap> {
     let mut headers = build_base_headers(config, false, "application/json")?;
+    // The adapter has already validated the client's protocol context. The
+    // transport beta may be repeated by Codex, but must match our wire version.
+    append_protocol_headers(&mut headers, protocol_context)?;
+    let beta = headers.get_all("openai-beta").iter().collect::<Vec<_>>();
+    if beta.len() > 1 || beta.first().is_some_and(|value| value.as_bytes() != RESPONSES_WEBSOCKETS_BETA.as_bytes()) {
+        bail!("protocol context header collides with an owned field: openai-beta");
+    }
+    // A provider-issued sticky token owns reconnects after the first handshake.
     if let Some(turn_state) = turn_state.filter(|value| !value.trim().is_empty()) {
         headers.insert(
             HeaderName::from_static(X_CODEX_TURN_STATE_HEADER),
@@ -2777,7 +2785,6 @@ fn build_websocket_headers(
         HeaderName::from_static("openai-beta"),
         HeaderValue::from_static(RESPONSES_WEBSOCKETS_BETA),
     );
-    append_protocol_headers(&mut headers, protocol_context)?;
     inject_provider_auth(&mut headers, config)?;
     Ok(headers)
 }
@@ -4064,7 +4071,7 @@ mod tests {
     fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
         let manifest = include_str!("../manifest.yaml");
 
-        assert!(manifest.contains("version: 0.2.31"));
+        assert!(manifest.contains("version: 0.2.32"));
         assert!(manifest.contains("- reasoning_output_supported"));
         assert!(manifest.contains("- native_continuation_supported"));
         assert!(!manifest.contains("- reasoning_history_input_supported"));
@@ -6498,10 +6505,15 @@ mod tests {
             proxy_url: None,
         };
 
+        let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+            "source_protocol": "openai_responses",
+            "headers": {"openai-beta": [RESPONSES_WEBSOCKETS_BETA], "x-codex-turn-state": ["client-original"]}
+        })).unwrap();
+        let (_, context) = restore_protocol_context(OpenAiWireProtocol::Responses, json!({}), Some(&envelope)).unwrap();
         let headers = build_websocket_headers(
             &config,
             Some("sticky-turn-1"),
-            &RestoredProtocolContext::default(),
+            &context,
         )
         .unwrap();
 

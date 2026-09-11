@@ -1,7 +1,7 @@
 //! Root #2028 AC-007/010/012: real stdio worker and real WS upstream.
 use std::{io::{BufRead, BufReader, Write}, net::TcpListener, process::{Command, Stdio}, thread, time::Duration};
 use serde_json::{json, Value};
-use tokio_tungstenite::tungstenite::{accept, Message};
+use tokio_tungstenite::tungstenite::{accept_hdr, Message};
 
 fn input(base: &str, body: Value, current: bool) -> Value {
     let mut capabilities=vec!["responses.native_passthrough"];
@@ -11,7 +11,7 @@ fn input(base: &str, body: Value, current: bool) -> Value {
         "provider_code":"openai","protocol":"openai_responses","model":"fixture",
         "provider_config":{"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"},
         "required_capabilities":capabilities,
-        "client_protocol_envelope":{"source_protocol":"openai_responses","headers":{"session-id":["fixture-session"]}},
+        "client_protocol_envelope":{"source_protocol":"openai_responses","headers":{"session-id":["fixture-session"],"thread-id":["fixture-thread"],"openai-beta":["responses_websockets=2026-02-06"],"x-codex-turn-state":["client-turn"]}},
         "native_transport":{"protocol":"openai_responses","wire_body":body,"digest":"fixture","size_bytes":1}
     }})
 }
@@ -43,7 +43,13 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
         let upstream_items=items.clone();
         let server=thread::spawn(move || {
             let (stream,_)=listener.accept().unwrap();stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
-            let mut ws=accept(stream).unwrap();
+            let mut ws=accept_hdr(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                assert_eq!(request.headers()["openai-beta"], "responses_websockets=2026-02-06");
+                assert_eq!(request.headers().get_all("openai-beta").iter().count(), 1);
+                assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
+                response.headers_mut().insert("x-codex-turn-state", "provider-turn".parse().unwrap());
+                Ok(response)
+            }).unwrap();
             let first:Value=serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             assert_eq!(first["input"][0]["type"],"additional_tools");
             ws.send(Message::Text(json!({"type":"response.created","response":{"id":"resp_1"}}).to_string().into())).unwrap();
@@ -68,6 +74,7 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
         let first=turn(json!({"input":[{"type":"additional_tools","tools":[]}]}));
         let actual:Vec<Value>=first.iter().filter(|v|v["type"]=="output_item"&&v["phase"]=="done").map(|v|v["item"].clone()).collect();
         assert_eq!(actual,items);
+        assert_eq!(first.last().unwrap()["result"]["provider_metadata"]["transport"],"responses_websocket");
         let second=turn(json!({"previous_response_id":"resp_1","input":[{"type":result_kind,"call_id":"call_1","output":"nonce"}]}));
         assert_eq!(second.last().unwrap()["result"]["final_content"],"nonce");
         assert!(second.iter().any(|v|v["type"]=="output_item"&&v["phase"]=="done"&&v["item"]["phase"]=="final_answer"));
