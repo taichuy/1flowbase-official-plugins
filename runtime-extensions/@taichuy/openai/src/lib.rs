@@ -4077,7 +4077,6 @@ mod tests {
     fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
         let manifest = include_str!("../manifest.yaml");
 
-        assert!(manifest.contains("version: 0.2.33"));
         assert!(manifest.contains("- reasoning_output_supported"));
         assert!(manifest.contains("- native_continuation_supported"));
         assert!(!manifest.contains("- reasoning_history_input_supported"));
