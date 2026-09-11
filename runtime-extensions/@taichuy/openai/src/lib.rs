@@ -1509,7 +1509,7 @@ impl OpenAiProviderRuntime {
             .expect("websocket session should be initialized");
         let mut request_body = build_websocket_response_create_body(body.clone());
         let result =
-            read_websocket_response(session, &mut request_body, input.model.clone(), on_event)
+            read_websocket_response(session, &mut request_body, input, on_event)
                 .await;
 
         match result {
@@ -2883,7 +2883,7 @@ async fn send_websocket_response_processed(
 async fn read_websocket_response<F>(
     session: &mut ResponsesWebsocketSession,
     request_body: &mut Value,
-    request_model: String,
+    input: &ProviderInvocationInput,
     on_event: &mut F,
 ) -> Result<WebsocketResponseOutput, WebsocketInvocationError>
 where
@@ -3020,7 +3020,7 @@ where
         finish_reason,
         response_id,
         json!({
-            "request_model": request_model,
+            "request_model": input.model,
             "transport": "responses_websocket",
         }),
         on_event,
@@ -3032,7 +3032,7 @@ where
         .as_deref()
         .filter(|value| !value.trim().is_empty())
     {
-        if send_websocket_response_processed(session, response_id)
+        if input.native_transport.is_none() && send_websocket_response_processed(session, response_id)
             .await
             .is_err()
         {

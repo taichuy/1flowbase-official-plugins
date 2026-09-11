@@ -59,7 +59,8 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
                 }
             }
             ws.send(Message::Text(json!({"type":"response.completed","response":{"id":"resp_1","output":upstream_items}}).to_string().into())).unwrap();
-            let next=loop {let v:Value=serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();if v["type"]=="response.create" {break v;}};
+            let next:Value=serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
+            assert_eq!(next["type"],"response.create", "native transport must not synthesize response.processed");
             assert_eq!(next["previous_response_id"],"resp_1");
             assert_eq!(next["input"],json!([{"type":result_kind,"call_id":"call_1","output":"nonce"}]));
             let final_item=json!({"id":"msg_final","type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":"nonce"}]});
