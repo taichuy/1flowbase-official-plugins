@@ -4064,7 +4064,7 @@ mod tests {
     fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
         let manifest = include_str!("../manifest.yaml");
 
-        assert!(manifest.contains("version: 0.2.30"));
+        assert!(manifest.contains("version: 0.2.31"));
         assert!(manifest.contains("- reasoning_output_supported"));
         assert!(manifest.contains("- native_continuation_supported"));
         assert!(!manifest.contains("- reasoning_history_input_supported"));
@@ -4859,6 +4859,7 @@ mod tests {
             model: "gpt-5.4".to_string(),
             required_capabilities: BTreeSet::from([
                 ProviderInvocationCapability::ResponsesNativePassthrough,
+                ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
             native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".to_string(),
@@ -4900,6 +4901,7 @@ mod tests {
             model: "gpt-5.4".to_string(),
             required_capabilities: BTreeSet::from([
                 ProviderInvocationCapability::ResponsesNativePassthrough,
+                ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
             native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".to_string(),
@@ -4942,6 +4944,7 @@ mod tests {
             previous_response_id: Some("resp_provider_owned".to_string()),
             required_capabilities: BTreeSet::from([
                 ProviderInvocationCapability::ResponsesNativePassthrough,
+                ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
             native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".to_string(),
@@ -5522,6 +5525,7 @@ mod tests {
             "compact.responses_compact",
             "compact.responses_compaction_v2",
             "responses.native_passthrough",
+            "responses.native_output.v1",
             "protocol_context.restore.openai_chat.v1",
             "protocol_context.restore.openai_responses.v1",
             "reasoning_output_supported",
@@ -5536,7 +5540,7 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            10
+            11
         );
         assert!(!manifest
             .lines()
@@ -6064,7 +6068,7 @@ mod tests {
         let mut response_id = Value::Null;
 
         process_response_sse_data(
-            r#"{"type":"response.reasoning_text.delta","content_index":0,"delta":"thinking"}"#,
+            r#"{"type":"response.reasoning_text.delta","item_id":"rs_1","output_index":0,"content_index":0,"delta":"thinking"}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -6074,7 +6078,7 @@ mod tests {
         )
         .unwrap();
         process_response_sse_data(
-            r#"{"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","delta":"{\"cmd\":\"pwd\"}"}"#,
+            r#"{"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","output_index":1,"delta":"{\"cmd\":\"pwd\"}"}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
@@ -6087,9 +6091,11 @@ mod tests {
         assert_eq!(
             events,
             vec![
+                ProviderStreamEvent::ResponsesOutputDelta { event: json!({"type":"response.reasoning_text.delta","item_id":"rs_1","output_index":0,"content_index":0,"delta":"thinking"}) },
                 ProviderStreamEvent::ReasoningDelta {
                     delta: "thinking".to_string()
                 },
+                ProviderStreamEvent::ResponsesOutputDelta { event: json!({"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","output_index":1,"delta":"{\"cmd\":\"pwd\"}"}) },
                 ProviderStreamEvent::ToolCallDelta {
                     call_id: "call_custom".to_string(),
                     delta: json!("{\"cmd\":\"pwd\"}")
@@ -6131,7 +6137,7 @@ mod tests {
         let mut response_id = Value::Null;
 
         process_response_sse_data(
-            r#"{"type":"response.output_item.done","item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
+            r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"msg_fallback","type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"},{"type":"output_text","text":" world"}]}}"#,
             &mut events,
             &mut text,
             &mut tool_calls,
