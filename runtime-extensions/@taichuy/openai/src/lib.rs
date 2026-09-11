@@ -2798,7 +2798,7 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
 
 fn native_session_identity(input: &ProviderInvocationInput) -> Option<&str> {
     input.client_protocol_envelope.as_ref()?.headers
-        .get("x-1flowbase-session-id")?.first().map(String::as_str)
+        .get("session-id")?.first().map(String::as_str)
         .filter(|value| !value.is_empty() && value.len() <= 256)
 }
 
@@ -2818,7 +2818,7 @@ fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInpu
             input.client_protocol_envelope.as_ref().map(|context| (
                 &context.source_protocol,
                 context.headers.iter().filter(|(name, _)| input.native_transport.is_none() || matches!(name.as_str(),
-                    "x-1flowbase-session-id" | "session_id" | "conversation_id" | "openai-organization" | "openai-project"
+                    "session-id" | "thread-id" | "conversation_id" | "openai-organization" | "openai-project"
                 )).collect::<Vec<_>>(),
                 &context.query,
             )),

@@ -205,8 +205,6 @@ pub(crate) fn append_protocol_headers(
     context: &RestoredProtocolContext,
 ) -> Result<()> {
     for (name, values) in &context.headers {
-        // Host-owned isolation identity is local routing metadata, never an upstream header.
-        if name == "x-1flowbase-session-id" { continue; }
         let header_name = HeaderName::from_bytes(name.as_bytes())
             .with_context(|| format!("invalid protocol context header name: {name}"))?;
         if headers.contains_key(&header_name) {

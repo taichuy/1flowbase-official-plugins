@@ -11,7 +11,7 @@ fn input(base: &str, body: Value, current: bool) -> Value {
         "provider_code":"openai","protocol":"openai_responses","model":"fixture",
         "provider_config":{"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"},
         "required_capabilities":capabilities,
-        "client_protocol_envelope":{"source_protocol":"openai_responses","headers":{"x-1flowbase-session-id":["fixture-session"]}},
+        "client_protocol_envelope":{"source_protocol":"openai_responses","headers":{"session-id":["fixture-session"]}},
         "native_transport":{"protocol":"openai_responses","wire_body":body,"digest":"fixture","size_bytes":1}
     }})
 }

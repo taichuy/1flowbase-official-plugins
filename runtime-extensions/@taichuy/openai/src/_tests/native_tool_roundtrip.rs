@@ -65,7 +65,7 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
                 ProviderInvocationCapability::ResponsesNativePassthrough,
                 ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
-            client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("x-1flowbase-session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
+            client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
         native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".into(),
                 wire_body: body,
@@ -141,7 +141,7 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
             ProviderInvocationCapability::ResponsesNativePassthrough,
                 ProviderInvocationCapability::ResponsesNativeOutputV1,
         ]),
-        client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("x-1flowbase-session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
+        client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
         native_transport: Some(ProviderNativeTransport {
             protocol: "openai_responses".into(),
             wire_body: json!({"previous_response_id":"resp_foreign","input":[]}),
@@ -238,7 +238,7 @@ async fn native_sessions_are_isolated_and_owner_survives_socket_reconnect() {
         provider_instance_id:"fixture".into(),model:"fixture".into(),protocol:"openai_responses".into(),
         provider_config:json!({"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"}),
         required_capabilities:[ProviderInvocationCapability::ResponsesNativePassthrough,ProviderInvocationCapability::ResponsesNativeOutputV1].into(),
-        client_protocol_envelope:Some(ProtocolContextEnvelope{source_protocol:"openai_responses".into(),headers:[("x-1flowbase-session-id".into(),vec![nonce.into()])].into(),..Default::default()}),
+        client_protocol_envelope:Some(ProtocolContextEnvelope{source_protocol:"openai_responses".into(),headers:[("session-id".into(),vec![nonce.into()])].into(),..Default::default()}),
         native_transport:Some(ProviderNativeTransport{protocol:"openai_responses".into(),wire_body:body,digest:"fixture".into(),size_bytes:1}),..Default::default()
     };
     let mut runtime=OpenAiProviderRuntime::default();
