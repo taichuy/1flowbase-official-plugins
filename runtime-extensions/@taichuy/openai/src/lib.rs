@@ -766,6 +766,7 @@ pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
     websocket_response_owners: HashMap<String, String>,
+    websocket_response_order: std::collections::VecDeque<String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
 }
@@ -1466,6 +1467,11 @@ impl OpenAiProviderRuntime {
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
+        if input.native_transport.is_some() && native_session_identity(input).is_none() {
+            return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
+                "native WebSocket requires host-owned session identity"
+            )));
+        }
         let session_key = websocket_session_key(config, input);
         if input.native_transport.is_some() {
             if let Some(response_id) = responses_body_previous_response_id(&body) {
@@ -1477,6 +1483,16 @@ impl OpenAiProviderRuntime {
             }
         }
         if !self.websocket_sessions.contains_key(&session_key) {
+            // Bounded idle socket ownership. Evicted cursors remain known but cannot
+            // silently migrate to HTTP; recovery must re-establish the same owner.
+            if self.websocket_sessions.len() >= 64 {
+                if let Some(oldest) = self.websocket_response_order.iter()
+                    .filter_map(|id| self.websocket_response_owners.get(id))
+                    .find(|key| self.websocket_sessions.contains_key(*key)).cloned()
+                {
+                    self.websocket_sessions.remove(&oldest);
+                }
+            }
             let turn_state = responses_body_previous_response_id(&body)
                 .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
                 .map(String::as_str);
@@ -1516,7 +1532,18 @@ impl OpenAiProviderRuntime {
                         self.websocket_turn_states_by_response_id
                             .insert(response_id.to_string(), turn_state.to_string());
                     }
-                    self.record_websocket_response_chain(response_id, &body, &output.result);
+                    if input.native_transport.is_none() {
+                        self.record_websocket_response_chain(response_id, &body, &output.result);
+                    }
+                    self.websocket_response_order.push_back(response_id.to_string());
+                    while self.websocket_response_order.len() > 1024 {
+                        if let Some(expired) = self.websocket_response_order.pop_front() {
+                            self.websocket_response_ids_seen.remove(&expired);
+                            self.websocket_response_owners.remove(&expired);
+                            self.websocket_turn_states_by_response_id.remove(&expired);
+                            self.websocket_chain_inputs_by_response_id.remove(&expired);
+                        }
+                    }
                 }
                 if !response.session_reusable {
                     self.websocket_sessions.remove(&session_key);
@@ -2769,6 +2796,12 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
     Value::Object(object)
 }
 
+fn native_session_identity(input: &ProviderInvocationInput) -> Option<&str> {
+    input.client_protocol_envelope.as_ref()?.headers
+        .get("x-1flowbase-session-id")?.first().map(String::as_str)
+        .filter(|value| !value.is_empty() && value.len() <= 256)
+}
+
 fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
     format!(
         "{}\n{}\n{}\n{}\n{}\n{}",
@@ -2784,7 +2817,9 @@ fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInpu
             &input.model,
             input.client_protocol_envelope.as_ref().map(|context| (
                 &context.source_protocol,
-                &context.headers,
+                context.headers.iter().filter(|(name, _)| input.native_transport.is_none() || matches!(name.as_str(),
+                    "x-1flowbase-session-id" | "session_id" | "conversation_id" | "openai-organization" | "openai-project"
+                )).collect::<Vec<_>>(),
                 &context.query,
             )),
         ))
