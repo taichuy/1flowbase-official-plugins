@@ -81,3 +81,31 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
         drop(stdin);assert!(child.wait().unwrap().success());server.join().unwrap();
     }
 }
+
+#[test]
+fn paired_worker_preserves_native_incomplete_terminal() {
+    let listener=TcpListener::bind("127.0.0.1:0").unwrap();
+    let base=format!("http://{}",listener.local_addr().unwrap());
+    let item=json!({"id":"msg_partial","type":"message","role":"assistant","phase":"final_answer","status":"incomplete","content":[{"type":"output_text","text":"partial"}]});
+    let expected=item.clone();
+    let server=thread::spawn(move || {
+        let (stream,_)=listener.accept().unwrap();stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        let mut ws=tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        ws.read().unwrap();
+        for event in ["response.output_item.added","response.output_item.done"] {
+            ws.send(Message::Text(json!({"type":event,"output_index":0,"item":item}).to_string().into())).unwrap();
+        }
+        ws.send(Message::Text(json!({"type":"response.incomplete","response":{"id":"resp_partial","status":"incomplete","output":[item],"incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}}).to_string().into())).unwrap();
+    });
+    let mut child=Command::new(env!("CARGO_BIN_EXE_openai-provider")).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+    writeln!(child.stdin.take().unwrap(),"{}",input(&base,json!({"input":[]}),true)).unwrap();
+    let output=child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let lines:Vec<Value>=String::from_utf8(output.stdout).unwrap().lines().map(|s|serde_json::from_str(s).unwrap()).collect();
+    assert!(!lines.iter().any(|v|v["type"]=="error"));
+    assert_eq!(lines.last().unwrap()["result"]["finish_reason"],"length");
+    assert_eq!(lines.last().unwrap()["result"]["final_content"],"partial");
+    assert_eq!(lines.last().unwrap()["result"]["usage"]["total_tokens"],5);
+    assert!(lines.iter().any(|v|v["type"]=="output_item"&&v["phase"]=="done"&&v["item"]==expected));
+    server.join().unwrap();
+}

@@ -3656,10 +3656,7 @@ fn process_response_sse_payload(
         "response.failed" => {
             bail!("{}", response_failed_message(payload.get("response")));
         }
-        "response.incomplete" => {
-            bail!("{}", response_incomplete_message(payload.get("response")));
-        }
-        "response.completed" | "response.done" => {
+        "response.incomplete" | "response.completed" | "response.done" => {
             process_terminal_response_event(
                 &payload,
                 text,
@@ -3749,11 +3746,19 @@ fn process_terminal_response_event(
     if let Some(status) = response.get("status").and_then(Value::as_str) {
         match status {
             "failed" => bail!("{}", response_failed_message(Some(response))),
-            "incomplete" => bail!("{}", response_incomplete_message(Some(response))),
             "cancelled" => bail!("response.cancelled"),
             _ => {}
         }
     }
+    let incomplete_reason = if payload.get("type").and_then(Value::as_str) == Some("response.incomplete")
+        || response.get("status").and_then(Value::as_str) == Some("incomplete")
+    {
+        Some(match response.pointer("/incomplete_details/reason").and_then(Value::as_str) {
+            Some("max_output_tokens") => ProviderFinishReason::Length,
+            Some("content_filter") => ProviderFinishReason::ContentFilter,
+            _ => bail!("{}", response_incomplete_message(Some(response))),
+        })
+    } else { None };
     if let Some(id) = response.get("id") {
         *response_id = id.clone();
     }
@@ -3779,11 +3784,11 @@ fn process_terminal_response_event(
             text.push_str(&output_text);
         }
     }
-    *finish_reason = if tool_calls.is_empty() {
+    *finish_reason = incomplete_reason.unwrap_or_else(|| if tool_calls.is_empty() {
         ProviderFinishReason::Stop
     } else {
         ProviderFinishReason::ToolCall
-    };
+    });
     Ok(())
 }
 
@@ -4071,7 +4076,7 @@ mod tests {
     fn issue_1743_manifest_declares_output_and_continuation_without_history_input() {
         let manifest = include_str!("../manifest.yaml");
 
-        assert!(manifest.contains("version: 0.2.32"));
+        assert!(manifest.contains("version: 0.2.33"));
         assert!(manifest.contains("- reasoning_output_supported"));
         assert!(manifest.contains("- native_continuation_supported"));
         assert!(!manifest.contains("- reasoning_history_input_supported"));
@@ -6112,26 +6117,17 @@ mod tests {
     }
 
     #[test]
-    fn response_incomplete_event_returns_error() {
-        let mut events = Vec::new();
-        let mut text = String::new();
-        let mut tool_calls = ResponseToolCalls::default();
-        let mut usage = ProviderUsage::default();
-        let mut finish_reason = ProviderFinishReason::Unknown;
-        let mut response_id = Value::Null;
-
-        let error = process_response_sse_data(
-            r#"{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}"#,
-            &mut events,
-            &mut text,
-            &mut tool_calls,
-            &mut usage,
-            &mut finish_reason,
-            &mut response_id,
-        )
-        .unwrap_err();
-
-        assert_eq!(error.to_string(), "response.incomplete: max_output_tokens");
+    fn response_incomplete_preserves_partial_content_usage_and_finish_reason() {
+        for event_type in ["response.incomplete", "response.completed"] {
+            for (reason, expected) in [("max_output_tokens", ProviderFinishReason::Length), ("content_filter", ProviderFinishReason::ContentFilter)] {
+                let payload = json!({"type":event_type,"response":{"id":"resp_partial","status":"incomplete","incomplete_details":{"reason":reason},"output":[{"type":"message","content":[{"type":"output_text","text":"partial"}]}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}});
+                let mut events=vec![];let mut text=String::new();let mut calls=ResponseToolCalls::default();let mut usage=ProviderUsage::default();let mut finish=ProviderFinishReason::Unknown;let mut id=Value::Null;
+                process_response_sse_data(&payload.to_string(),&mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut id).unwrap();
+                assert_eq!(finish,expected);assert_eq!(text,"partial");assert_eq!(id,"resp_partial");assert_eq!(usage.total_tokens,Some(5));
+                let mut invalid=payload;invalid["response"]["incomplete_details"]["reason"]=json!("unknown");
+                assert!(process_response_sse_data(&invalid.to_string(),&mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut id).is_err());
+            }
+        }
     }
 
     #[test]
