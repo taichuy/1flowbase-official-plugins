@@ -62,3 +62,5 @@ Static token prices are intentionally omitted; pricing metadata is marked as dyn
    `cargo build --manifest-path Cargo.toml --release --target x86_64-unknown-linux-musl`
 2. Package the plugin with the host CLI:
    `node ../1flowbase/scripts/node/plugin.js package . --out ./dist --runtime-binary ./target/x86_64-unknown-linux-musl/release/openai-provider --target x86_64-unknown-linux-musl`
+
+Explicit native `responses_websocket` requests fail on WebSocket handshake errors; they never silently create an HTTP response cursor.

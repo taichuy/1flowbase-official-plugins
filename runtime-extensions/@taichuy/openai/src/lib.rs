@@ -1300,7 +1300,8 @@ impl OpenAiProviderRuntime {
                 {
                     Ok(output) => Ok(output),
                     Err(error)
-                        if error.fallback_allowed
+                        if !native_passthrough
+                            && error.fallback_allowed
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {

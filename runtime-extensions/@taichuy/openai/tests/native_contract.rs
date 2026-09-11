@@ -109,3 +109,42 @@ fn paired_worker_preserves_native_incomplete_terminal() {
     assert!(lines.iter().any(|v|v["type"]=="output_item"&&v["phase"]=="done"&&v["item"]==expected));
     server.join().unwrap();
 }
+
+// AC-008: an explicitly selected native WS transport must never create an HTTP cursor.
+#[test]
+fn explicit_native_websocket_handshake_failure_does_not_invoke_http() {
+    let listener=TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let base=format!("http://{}",listener.local_addr().unwrap());
+    let (stop_tx,stop_rx)=std::sync::mpsc::channel();
+    let server=thread::spawn(move || {
+        let mut requests=vec![];
+        loop {
+            match listener.accept() {
+                Ok((mut stream,_)) => {
+                    stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+                    let mut reader=BufReader::new(stream.try_clone().unwrap());
+                    let mut first=String::new();reader.read_line(&mut first).unwrap();
+                    requests.push(first);
+                    loop {let mut line=String::new();reader.read_line(&mut line).unwrap();if line=="\r\n"||line.is_empty(){break;}}
+                    stream.write_all(b"HTTP/1.1 426 Upgrade Required\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                }
+                Err(e) if e.kind()==std::io::ErrorKind::WouldBlock => {
+                    if stop_rx.recv_timeout(Duration::from_millis(10)).is_ok(){break;}
+                }
+                Err(e)=>panic!("{e}"),
+            }
+        }
+        requests
+    });
+    let mut child=Command::new(env!("CARGO_BIN_EXE_openai-provider")).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+    writeln!(child.stdin.take().unwrap(),"{}",input(&base,json!({"input":[]}),true)).unwrap();
+    let output=child.wait_with_output().unwrap();
+    stop_tx.send(()).unwrap();
+    let requests=server.join().unwrap();
+    assert!(!requests.is_empty());
+    assert!(requests.iter().all(|r|r.starts_with("GET ")),"HTTP model fallback observed: {requests:?}");
+    let lines:Vec<Value>=String::from_utf8(output.stdout).unwrap().lines().map(|s|serde_json::from_str(s).unwrap()).collect();
+    assert!(lines.iter().any(|v|v["type"]=="error"));
+    assert_eq!(lines.last().unwrap()["result"]["finish_reason"],"error");
+}
