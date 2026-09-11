@@ -63,6 +63,7 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
             provider_config: json!({"base_url":base_url,"api_key":"fixture-key","transport_mode":"responses_websocket"}),
             required_capabilities: BTreeSet::from([
                 ProviderInvocationCapability::ResponsesNativePassthrough,
+                ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
             native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".into(),
@@ -137,6 +138,7 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
         provider_config: json!({"base_url":"http://127.0.0.1:1","api_key":"fixture","transport_mode":"auto"}),
         required_capabilities: BTreeSet::from([
             ProviderInvocationCapability::ResponsesNativePassthrough,
+                ProviderInvocationCapability::ResponsesNativeOutputV1,
         ]),
         native_transport: Some(ProviderNativeTransport {
             protocol: "openai_responses".into(),
@@ -157,4 +159,48 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
             .to_string()
             .contains("unavailable for this provider session"));
     }
+}
+
+// AC-010: an old host must fail before even trying the deliberately invalid URL.
+#[tokio::test]
+async fn native_output_contract_rejects_old_host_before_network() {
+    let mut input = ProviderInvocationInput::default();
+    input.model = "fixture".into();
+    input.provider_config = json!({"base_url":"http://127.0.0.1:1","api_key":"fixture"});
+    input.required_capabilities.insert(ProviderInvocationCapability::ResponsesNativePassthrough);
+    input.native_transport = Some(ProviderNativeTransport {
+        protocol: "openai_responses".into(), wire_body: json!({"input":[]}),
+        digest: "fixture".into(), size_bytes: 1,
+    });
+    let error = OpenAiProviderRuntime::default().invoke_response(input).await.unwrap_err();
+    assert!(error.to_string().contains("responses.native_output.v1"), "{error}");
+}
+
+// AC-012: use the provider parser, including the same formal event serialization
+// that the stdio boundary consumes; diagnostic events cannot satisfy this oracle.
+#[test]
+fn native_output_inventory_preserves_phase_opaque_and_delta_identity() {
+    let items = [
+        json!({"id":"rs_1","type":"reasoning","summary":[{"type":"summary_text","text":"thinking"}],"encrypted_content":"opaque-fixture"}),
+        json!({"id":"msg_1","type":"message","role":"assistant","phase":"commentary","content":[{"type":"output_text","text":"reading"}]}),
+        json!({"id":"msg_2","type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":"done"}]}),
+    ];
+    let mut events = Vec::new();
+    let mut text = String::new();
+    let mut calls = ResponseToolCalls::default();
+    let mut usage = ProviderUsage::default();
+    let mut finish = ProviderFinishReason::Stop;
+    let mut response = Value::Null;
+    for (index, item) in items.iter().enumerate() {
+        for kind in ["response.output_item.added", "response.output_item.done"] {
+            process_response_sse_payload(&json!({"type":kind,"output_index":index,"item":item}).to_string(), &mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut response).unwrap();
+        }
+    }
+    let done: Vec<_> = events.iter().filter_map(|e| match e {
+        ProviderStreamEvent::OutputItem { phase: ProviderOutputItemPhase::Done, item, .. } => Some(item.clone()), _ => None,
+    }).collect();
+    assert_eq!(done, items);
+    let delta=json!({"type":"response.custom_tool_call_input.delta","item_id":"tool_1","call_id":"call_1","output_index":3,"delta":"text(await tools.exec_command({cmd:'cat fixture'}));"});
+    process_response_sse_payload(&delta.to_string(), &mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut response).unwrap();
+    assert!(events.iter().any(|e| serde_json::to_value(e).unwrap()==json!({"type":"responses_output_delta","event":delta})));
 }

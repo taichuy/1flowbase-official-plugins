@@ -293,6 +293,8 @@ pub enum ProviderInvocationCapability {
     CompactResponsesCompactionV2,
     #[serde(rename = "responses.native_passthrough")]
     ResponsesNativePassthrough,
+    #[serde(rename = "responses.native_output.v1")]
+    ResponsesNativeOutputV1,
     ReasoningOutputSupported,
     ReasoningHistoryInputSupported,
     NativeContinuationSupported,
@@ -539,6 +541,9 @@ pub enum ProviderStreamEvent {
     },
     ToolCallCommit {
         call: ProviderToolCall,
+    },
+    ResponsesOutputDelta {
+        event: Value,
     },
     OutputItem {
         phase: ProviderOutputItemPhase,
@@ -1259,7 +1264,7 @@ impl OpenAiProviderRuntime {
             bail!("native WebSocket continuation cannot switch to HTTP");
         }
         let mut on_event = |event: &ProviderStreamEvent| {
-            if !native_passthrough && is_client_tool_output_item(event) {
+            if !native_passthrough && is_native_output_event(event) {
                 return Ok(());
             }
             on_event(event)
@@ -1352,7 +1357,7 @@ impl OpenAiProviderRuntime {
         if !native_passthrough {
             output
                 .events
-                .retain(|event| !is_client_tool_output_item(event));
+                .retain(|event| !is_native_output_event(event));
         }
         attach_openai_model_intent(&mut output, &request.model_intent);
         append_request_translation_decisions(
@@ -1810,6 +1815,9 @@ fn build_native_responses_request_body(
         .contains(&ProviderInvocationCapability::ResponsesNativePassthrough)
     {
         bail!("native Responses transport requires responses.native_passthrough");
+    }
+    if !input.required_capabilities.contains(&ProviderInvocationCapability::ResponsesNativeOutputV1) {
+        bail!("native Responses transport requires responses.native_output.v1 from the host");
     }
     if input.model.trim().is_empty() {
         bail!("model is required");
@@ -3517,6 +3525,17 @@ fn process_response_sse_payload(
         .get("type")
         .and_then(Value::as_str)
         .unwrap_or_default();
+    if matches!(event_type,
+        "response.output_text.delta" | "response.output_text.done"
+        | "response.content_part.added" | "response.content_part.done"
+        | "response.reasoning_summary_part.added" | "response.reasoning_summary_part.done"
+        | "response.reasoning_summary_text.delta" | "response.reasoning_summary_text.done"
+        | "response.reasoning_text.delta" | "response.reasoning_text.done"
+        | "response.custom_tool_call_input.delta" | "response.custom_tool_call_input.done"
+        | "response.function_call_arguments.delta" | "response.function_call_arguments.done"
+    ) {
+        events.push(ProviderStreamEvent::ResponsesOutputDelta { event: payload.clone() });
+    }
     match event_type {
         "response.created" => {
             if let Some(id) = payload
@@ -3613,9 +3632,9 @@ fn process_response_sse_payload(
     Ok(())
 }
 
-fn is_client_tool_output_item(event: &ProviderStreamEvent) -> bool {
-    matches!(event, ProviderStreamEvent::OutputItem { item, .. }
-        if matches!(item.get("type").and_then(Value::as_str), Some("function_call" | "custom_tool_call")))
+fn is_native_output_event(event: &ProviderStreamEvent) -> bool {
+    matches!(event, ProviderStreamEvent::ResponsesOutputDelta { .. }) || matches!(event, ProviderStreamEvent::OutputItem { item, .. }
+        if matches!(item.get("type").and_then(Value::as_str), Some("message" | "reasoning" | "function_call" | "custom_tool_call")))
 }
 
 fn typed_response_output_item(
@@ -3628,7 +3647,9 @@ fn typed_response_output_item(
     if !matches!(
         item.get("type").and_then(Value::as_str),
         Some(
-            "function_call"
+            "message"
+                | "reasoning"
+                | "function_call"
                 | "custom_tool_call"
                 | "tool_search_call"
                 | "tool_search_output"
