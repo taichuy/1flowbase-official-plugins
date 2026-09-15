@@ -4960,6 +4960,16 @@ mod tests {
         }
     }
 
+    fn semantic_store_policy_input(policy: Value) -> ProviderInvocationInput {
+        ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            protocol: "openai_responses".to_string(),
+            model: "gpt-5.6-terra".to_string(),
+            model_parameters: BTreeMap::from([("store".to_string(), policy)]),
+            ..Default::default()
+        }
+    }
+
     #[test]
     fn responses_store_policy_inherit_preserves_client_presence_and_value() {
         let false_body =
@@ -4986,6 +4996,22 @@ mod tests {
             Some(true),
         ))
         .expect("force disabled should render");
+        assert_eq!(disabled["store"], false);
+    }
+
+    #[test]
+    fn responses_store_policy_semantic_inherit_omits_store_and_force_values_render() {
+        let inherited = build_responses_body(&semantic_store_policy_input(json!("inherit")))
+            .expect("semantic inherit should render without an explicit store value");
+        assert!(inherited.get("store").is_none());
+
+        let enabled = build_responses_body(&semantic_store_policy_input(json!("force_enabled")))
+            .expect("semantic force enabled should render");
+        assert_eq!(enabled["store"], true);
+
+        let disabled =
+            build_responses_body(&semantic_store_policy_input(json!("force_disabled")))
+                .expect("semantic force disabled should render");
         assert_eq!(disabled["store"], false);
     }
 
