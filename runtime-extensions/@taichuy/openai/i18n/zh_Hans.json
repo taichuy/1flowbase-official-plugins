@@ -124,8 +124,13 @@
       }
     },
     "store": {
-      "label": "存储响应",
-      "description": "开启后允许 OpenAI 持久保存响应，可在后续请求中通过 previous_response_id 延续上下文。关闭后不持久保存；同一 Responses WebSocket 连接内仍可短暂续接，但连接断开后不能依赖该响应 ID。此设置不影响 1flowbase 运行日志，也不代表允许用于模型训练。"
+      "label": "响应存储策略",
+      "description": "跟随客户端会原样保留 Responses 的 store 字段，包括保持省略。强制开启或关闭会覆盖此 LLM 节点的客户端请求。已存储响应可通过 previous_response_id 延续。此设置不影响 1flowbase 运行日志，也不代表允许用于模型训练。",
+      "options": {
+        "inherit": { "label": "跟随客户端" },
+        "force_enabled": { "label": "强制开启" },
+        "force_disabled": { "label": "强制关闭" }
+      }
     },
     "use_responses_websocket": {
       "label": "使用 Responses WebSocket",

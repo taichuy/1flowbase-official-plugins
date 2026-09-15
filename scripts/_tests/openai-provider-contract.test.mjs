@@ -88,17 +88,20 @@ test('openai provider registers a node-level Responses WebSocket switch', () => 
   assert.match(match[0], /^    default_value: false$/m);
 });
 
-test('openai provider registers response storage as an explicit default-on switch', () => {
+test('openai provider registers response storage as a default-inherit policy', () => {
   const provider = read('provider/openai.yaml');
   const match = provider.match(/- key: store\n[\s\S]*?(?=\n  - key:|\nconfig_schema:)/);
 
   assert.ok(match, 'store parameter field should be declared');
   assert.match(match[0], /^    label: parameters\.store\.label$/m);
   assert.match(match[0], /^    description: parameters\.store\.description$/m);
-  assert.match(match[0], /^    type: boolean$/m);
-  assert.match(match[0], /^    control: switch$/m);
+  assert.match(match[0], /^    type: enum$/m);
+  assert.match(match[0], /^    control: select$/m);
   assert.match(match[0], /^    send_mode: always$/m);
-  assert.match(match[0], /^    default_value: true$/m);
+  assert.match(match[0], /^    default_value: inherit$/m);
+  assert.match(match[0], /^      value: inherit$/m);
+  assert.match(match[0], /^      value: true$/m);
+  assert.match(match[0], /^      value: false$/m);
 });
 
 test('openai provider explains response storage and WebSocket continuation boundaries', () => {
@@ -109,11 +112,14 @@ test('openai provider explains response storage and WebSocket continuation bound
     assert.match(catalog.parameters.store.description, /previous_response_id/);
     assert.match(catalog.parameters.store.description, /1flowbase/);
     assert.match(catalog.parameters.use_responses_websocket.description, /previous_response_id/);
+    assert.equal(Object.keys(catalog.parameters.store.options).length, 3);
   }
 
   assert.match(zhHans.parameters.store.description, /模型训练/);
+  assert.equal(zhHans.parameters.store.options.inherit.label, '跟随客户端');
   assert.match(zhHans.parameters.use_responses_websocket.description, /HTTP SSE/);
   assert.match(enUs.parameters.store.description, /model training/i);
+  assert.equal(enUs.parameters.store.options.inherit.label, 'Follow client');
   assert.match(enUs.parameters.use_responses_websocket.description, /HTTP SSE/);
 });
 

@@ -124,8 +124,13 @@
       }
     },
     "store": {
-      "label": "Store",
-      "description": "When enabled, OpenAI may persist the response so later requests can continue from it with previous_response_id. When disabled, the response is not persisted; the same Responses WebSocket connection may still continue temporarily, but the response ID cannot be relied on after disconnecting. This setting does not affect 1flowbase run logs and does not grant permission for model training."
+      "label": "Response storage policy",
+      "description": "Follow client preserves the Responses store field exactly, including omission. Force enabled or disabled overrides the client for this LLM node. Stored responses may be continued with previous_response_id. This setting does not affect 1flowbase run logs and does not grant permission for model training.",
+      "options": {
+        "inherit": { "label": "Follow client" },
+        "force_enabled": { "label": "Force enabled" },
+        "force_disabled": { "label": "Force disabled" }
+      }
     },
     "use_responses_websocket": {
       "label": "Use Responses WebSocket",

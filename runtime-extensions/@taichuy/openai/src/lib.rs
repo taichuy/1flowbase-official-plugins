@@ -51,7 +51,6 @@ const PASSTHROUGH_RESPONSE_PARAMETERS: &[&str] = &[
     "top_p",
     "max_output_tokens",
     "tool_choice",
-    "store",
     "parallel_tool_calls",
     "include",
     "service_tier",
@@ -1859,6 +1858,7 @@ fn build_native_responses_request_body(
         "model".to_string(),
         Value::String(input.model.trim().to_string()),
     );
+    apply_responses_store_policy(input, &mut body, true)?;
     Ok(Value::Object(body))
 }
 
@@ -1941,7 +1941,41 @@ fn build_responses_typed_request_body(
             body.insert((*key).to_string(), value);
         }
     }
+    apply_responses_store_policy(input, &mut body, false)?;
     Ok(Value::Object(body))
+}
+
+fn apply_responses_store_policy(
+    input: &ProviderInvocationInput,
+    body: &mut Map<String, Value>,
+    native_passthrough: bool,
+) -> Result<()> {
+    match parameter_value(input, "store") {
+        None => Ok(()),
+        Some(Value::String(policy)) if policy == "inherit" => {
+            if !native_passthrough {
+                body.remove("store");
+            }
+            Ok(())
+        }
+        Some(Value::String(policy)) if policy == "force_enabled" => {
+            body.insert("store".to_string(), Value::Bool(true));
+            Ok(())
+        }
+        Some(Value::String(policy)) if policy == "force_disabled" => {
+            body.insert("store".to_string(), Value::Bool(false));
+            Ok(())
+        }
+        // Released versions before 0.2.36 persisted this field as a boolean.
+        // Keep those nodes editable and preserve their explicit wire behavior.
+        Some(Value::Bool(store)) => {
+            body.insert("store".to_string(), Value::Bool(store));
+            Ok(())
+        }
+        Some(_) => bail!(
+            "OpenAI Responses store policy must be inherit, force_enabled, force_disabled, or a legacy boolean"
+        ),
+    }
 }
 
 fn ensure_openai_semantic_capabilities(input: &ProviderInvocationInput) -> Result<()> {
@@ -4895,6 +4929,75 @@ mod tests {
         assert_eq!(body["future_extension"]["opaque"], true);
         assert_eq!(body["stream"], true);
         assert!(!format!("{input:?}").contains(SECRET));
+    }
+
+    fn native_store_policy_input(
+        policy: Value,
+        client_store: Option<bool>,
+    ) -> ProviderInvocationInput {
+        let mut wire_body = json!({
+            "model": "1flowbase",
+            "input": [{"type": "message", "role": "user", "content": "inspect"}]
+        });
+        if let Some(store) = client_store {
+            wire_body["store"] = Value::Bool(store);
+        }
+        ProviderInvocationInput {
+            contract_version: ProviderInvocationContractVersion::Current,
+            model: "gpt-5.6-terra".to_string(),
+            model_parameters: BTreeMap::from([("store".to_string(), policy)]),
+            required_capabilities: BTreeSet::from([
+                ProviderInvocationCapability::ResponsesNativePassthrough,
+                ProviderInvocationCapability::ResponsesNativeOutputV1,
+            ]),
+            native_transport: Some(ProviderNativeTransport {
+                protocol: "openai_responses".to_string(),
+                wire_body,
+                digest: "sha256:store-policy".to_string(),
+                size_bytes: 128,
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn responses_store_policy_inherit_preserves_client_presence_and_value() {
+        let false_body =
+            build_responses_body(&native_store_policy_input(json!("inherit"), Some(false)))
+                .expect("inherit should preserve explicit client false");
+        assert_eq!(false_body["store"], false);
+
+        let omitted_body = build_responses_body(&native_store_policy_input(json!("inherit"), None))
+            .expect("inherit should preserve client omission");
+        assert!(omitted_body.get("store").is_none());
+    }
+
+    #[test]
+    fn responses_store_policy_force_values_override_native_client_input() {
+        let enabled = build_responses_body(&native_store_policy_input(
+            json!("force_enabled"),
+            Some(false),
+        ))
+        .expect("force enabled should render");
+        assert_eq!(enabled["store"], true);
+
+        let disabled = build_responses_body(&native_store_policy_input(
+            json!("force_disabled"),
+            Some(true),
+        ))
+        .expect("force disabled should render");
+        assert_eq!(disabled["store"], false);
+    }
+
+    #[test]
+    fn responses_store_policy_accepts_legacy_boolean_and_rejects_unknown_values() {
+        let legacy = build_responses_body(&native_store_policy_input(json!(false), Some(true)))
+            .expect("legacy boolean should preserve released node behavior");
+        assert_eq!(legacy["store"], false);
+
+        let error = build_responses_body(&native_store_policy_input(json!("sometimes"), None))
+            .expect_err("unknown store policy must fail before upstream invocation");
+        assert!(error.to_string().contains("store policy"));
     }
 
     #[test]
