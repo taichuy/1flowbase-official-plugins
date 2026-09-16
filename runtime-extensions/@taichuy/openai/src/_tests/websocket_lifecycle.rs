@@ -40,6 +40,7 @@ fn websocket_input(base_url: &str) -> ProviderInvocationInput {
             TRANSPORT_SESSION_CONTEXT_KEY.into(),
             json!({
                 "logical_session_id":"logical-fixture",
+                "generation":9,
                 "task_id":"task-fixture",
                 "state":"active",
                 "physical_deadline_unix_ms":4_102_444_800_000_i64
@@ -110,10 +111,22 @@ fn typed_session_context_rejects_unknown_fields_and_capacity_is_not_evicted() {
         TRANSPORT_SESSION_CONTEXT_KEY.into(),
         json!({
             "logical_session_id":"logical-fixture",
+            "generation":9,
             "task_id":"task-fixture",
             "state":"idle",
             "physical_deadline_unix_ms":4_102_444_800_000_i64,
             "session_key":"must-not-cross"
+        }),
+    );
+    assert!(transport_session_directive(&input).is_err());
+
+    input.run_context.insert(
+        TRANSPORT_SESSION_CONTEXT_KEY.into(),
+        json!({
+            "logical_session_id":"logical-fixture",
+            "task_id":"task-fixture",
+            "state":"idle",
+            "physical_deadline_unix_ms":4_102_444_800_000_i64
         }),
     );
     assert!(transport_session_directive(&input).is_err());
@@ -318,6 +331,7 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
         None,
         &RestoredProtocolContext::default(),
         9,
+        Some(9),
         Instant::now(),
     )
     .await
@@ -329,6 +343,22 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
     runtime
         .websocket_logical_sessions
         .insert("logical-fixture".into(), "physical-fixture".into());
+    let stale = runtime
+        .control_transport_session(TransportSessionCommand {
+            logical_session_id: "logical-fixture".into(),
+            generation: 8,
+            action: TransportSessionAction::Drain,
+            deadline_unix_ms: 4_102_444_800_000,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(
+        stale
+            .downcast_ref::<ProviderRuntimeError>()
+            .map(|error| &error.kind),
+        Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
+    );
+    assert!(runtime.websocket_sessions.contains_key("physical-fixture"));
     let receipt = runtime
         .control_transport_session(TransportSessionCommand {
             logical_session_id: "logical-fixture".into(),

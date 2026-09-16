@@ -19,7 +19,7 @@ fn input(base: &str, body: Value, current: bool) -> Value {
         "provider_code":"openai","protocol":"openai_responses","model":"fixture",
         "provider_config":{"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"},
         "required_capabilities":capabilities,
-        "run_context":{"physical_transport_session":{"logical_session_id":"logical-fixture","task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}},
+        "run_context":{"physical_transport_session":{"logical_session_id":"logical-fixture","generation":41,"task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}},
         "client_protocol_envelope":{"source_protocol":"openai_responses","headers":{"session-id":["fixture-session"],"thread-id":["fixture-thread"],"openai-beta":["responses_websockets=2026-02-06"],"x-codex-turn-state":["client-turn"]}},
         "native_transport":{"protocol":"openai_responses","wire_body":body,"digest":"fixture","size_bytes":1}
     }})

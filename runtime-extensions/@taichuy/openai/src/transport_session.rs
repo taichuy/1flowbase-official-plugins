@@ -21,6 +21,7 @@ pub(crate) enum LogicalSessionState {
 #[serde(deny_unknown_fields)]
 pub(crate) struct TransportSessionDirective {
     pub logical_session_id: String,
+    pub generation: u64,
     pub task_id: String,
     pub state: LogicalSessionState,
     pub physical_deadline_unix_ms: i64,
@@ -29,6 +30,9 @@ pub(crate) struct TransportSessionDirective {
 impl TransportSessionDirective {
     pub(crate) fn validate(&self) -> Result<()> {
         validate_opaque_id("logical_session_id", &self.logical_session_id)?;
+        if self.generation == 0 {
+            bail!("transport session directive generation must be positive");
+        }
         validate_opaque_id("task_id", &self.task_id)?;
         if self.physical_deadline_unix_ms <= 0 {
             bail!("transport session physical_deadline_unix_ms must be positive");
@@ -127,13 +131,14 @@ pub(crate) fn transport_session_directive(
 
 pub(crate) fn ready_receipt(
     session: &ResponsesWebsocketSession,
+    contract_generation: u64,
     now: Instant,
     reused: bool,
     policy: WebsocketLifecyclePolicy,
 ) -> TransportSessionReceipt {
     let age = now.saturating_duration_since(session.created_at);
     TransportSessionReceipt {
-        generation: session.generation,
+        generation: contract_generation,
         reused,
         physical_state: PhysicalTransportState::Ready,
         connection_age_ms: bounded_millis(age),

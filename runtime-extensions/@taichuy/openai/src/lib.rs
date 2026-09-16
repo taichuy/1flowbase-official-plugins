@@ -780,7 +780,7 @@ pub struct OpenAiProviderRuntime {
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
     websocket_clock: Arc<dyn WebsocketClock>,
     websocket_lifecycle_policy: WebsocketLifecyclePolicy,
-    websocket_next_generation: u64,
+    websocket_next_socket_generation: u64,
     websocket_logical_sessions: HashMap<String, String>,
 }
 
@@ -794,7 +794,10 @@ impl fmt::Debug for OpenAiProviderRuntime {
                 &self.websocket_response_ids_seen,
             )
             .field("websocket_response_owners", &self.websocket_response_owners)
-            .field("websocket_next_generation", &self.websocket_next_generation)
+            .field(
+                "websocket_next_socket_generation",
+                &self.websocket_next_socket_generation,
+            )
             .finish_non_exhaustive()
     }
 }
@@ -810,7 +813,7 @@ impl Default for OpenAiProviderRuntime {
             websocket_chain_inputs_by_response_id: HashMap::new(),
             websocket_clock: Arc::new(SystemWebsocketClock),
             websocket_lifecycle_policy: WebsocketLifecyclePolicy::default(),
-            websocket_next_generation: 1,
+            websocket_next_socket_generation: 1,
             websocket_logical_sessions: HashMap::new(),
         }
     }
@@ -929,7 +932,7 @@ impl OpenAiProviderRuntime {
                     provider_details: None,
                 })
             })?;
-        if session.generation != command.generation {
+        if session.contract_generation != Some(command.generation) {
             self.websocket_sessions.insert(session_key, session);
             return Err(anyhow::Error::new(ProviderRuntimeError {
                 kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
@@ -1584,10 +1587,23 @@ impl OpenAiProviderRuntime {
                 ));
             }
         }
+        if directive.as_ref().is_some_and(|directive| {
+            self.websocket_sessions
+                .get(&session_key)
+                .is_some_and(|session| session.contract_generation != Some(directive.generation))
+        }) {
+            if let Some(session) = self.websocket_sessions.remove(&session_key) {
+                close_websocket_session(session, self.websocket_lifecycle_policy.close_ack_timeout)
+                    .await;
+            }
+        }
         let now = self.websocket_clock.now();
         if let Some(state) = self.websocket_sessions.get(&session_key).map(|session| {
-            self.websocket_lifecycle_policy
-                .state_at(session.generation, session.created_at, now)
+            self.websocket_lifecycle_policy.state_at(
+                session.socket_generation,
+                session.created_at,
+                now,
+            )
         }) {
             if state != WebsocketConnectionState::Ready {
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
@@ -1611,7 +1627,7 @@ impl OpenAiProviderRuntime {
                 let active_generation = self
                     .websocket_sessions
                     .get(&session_key)
-                    .map(|session| session.generation);
+                    .map(|session| session.socket_generation);
                 if owner.session_key != session_key || active_generation != Some(owner.generation) {
                     if input.native_transport.is_none() {
                         body = self
@@ -1645,14 +1661,16 @@ impl OpenAiProviderRuntime {
                 })
                 .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
                 .map(String::as_str);
-            let generation = self.websocket_next_generation;
-            self.websocket_next_generation = self.websocket_next_generation.saturating_add(1);
+            let socket_generation = self.websocket_next_socket_generation;
+            self.websocket_next_socket_generation =
+                self.websocket_next_socket_generation.saturating_add(1);
             let connect_started = Instant::now();
             let session = connect_responses_websocket(
                 config,
                 turn_state,
                 protocol_context,
-                generation,
+                socket_generation,
+                directive.as_ref().map(|directive| directive.generation),
                 self.websocket_clock.now(),
             )
             .await
@@ -1682,16 +1700,17 @@ impl OpenAiProviderRuntime {
                     .websocket_sessions
                     .get(&session_key)
                     .and_then(|session| session.turn_state.clone());
-                let generation = self
+                let socket_generation = self
                     .websocket_sessions
                     .get(&session_key)
-                    .map(|session| session.generation)
+                    .map(|session| session.socket_generation)
                     .expect("completed websocket session should exist");
-                if directive.is_some() {
+                if let Some(directive) = &directive {
                     let receipt = ready_receipt(
                         self.websocket_sessions
                             .get(&session_key)
                             .expect("completed websocket session should exist"),
+                        directive.generation,
                         self.websocket_clock.now(),
                         reused,
                         self.websocket_lifecycle_policy,
@@ -1717,7 +1736,7 @@ impl OpenAiProviderRuntime {
                         response_id.to_string(),
                         WebsocketResponseOwner {
                             session_key: session_key.clone(),
-                            generation,
+                            generation: socket_generation,
                         },
                     );
                     if let Some(turn_state) = turn_state.as_deref() {
@@ -2869,7 +2888,8 @@ struct WebsocketResponseOwner {
 struct ResponsesWebsocketSession {
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     turn_state: Option<String>,
-    generation: u64,
+    socket_generation: u64,
+    contract_generation: Option<u64>,
     created_at: Instant,
     last_activity: Instant,
     state: WebsocketConnectionState,
@@ -2947,7 +2967,8 @@ async fn connect_responses_websocket(
     config: &ProviderConfig,
     turn_state: Option<&str>,
     protocol_context: &RestoredProtocolContext,
-    generation: u64,
+    socket_generation: u64,
+    contract_generation: Option<u64>,
     now: Instant,
 ) -> Result<ResponsesWebsocketSession> {
     let url = build_websocket_url(config, protocol_context)?;
@@ -2980,7 +3001,8 @@ async fn connect_responses_websocket(
     Ok(ResponsesWebsocketSession {
         stream,
         turn_state,
-        generation,
+        socket_generation,
+        contract_generation,
         created_at: now,
         last_activity: now,
         state: WebsocketConnectionState::Ready,
@@ -7019,6 +7041,7 @@ mod tests {
             None,
             &RestoredProtocolContext::default(),
             1,
+            None,
             Instant::now(),
         )
         .await

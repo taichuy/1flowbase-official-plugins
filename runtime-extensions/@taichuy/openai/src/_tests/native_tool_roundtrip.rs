@@ -67,7 +67,7 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
                 ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
             client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
-            run_context: [(TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
+            run_context: [(TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","generation":41,"task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
         native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".into(),
                 wire_body: body,
@@ -145,7 +145,7 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
                 ProviderInvocationCapability::ResponsesNativeOutputV1,
         ]),
         client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
-        run_context: [(TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
+        run_context: [(TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","generation":41,"task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
         native_transport: Some(ProviderNativeTransport {
             protocol: "openai_responses".into(),
             wire_body: json!({"previous_response_id":"resp_foreign","input":[]}),
@@ -283,20 +283,21 @@ async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
         provider_config:json!({"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"}),
         required_capabilities:[ProviderInvocationCapability::ResponsesNativePassthrough,ProviderInvocationCapability::ResponsesNativeOutputV1].into(),
         client_protocol_envelope:Some(ProtocolContextEnvelope{source_protocol:"openai_responses".into(),headers:[("session-id".into(),vec![nonce.into()])].into(),..Default::default()}),
-        run_context:[(TRANSPORT_SESSION_CONTEXT_KEY.into(),json!({"logical_session_id":format!("logical-{nonce}"),"task_id":format!("task-{nonce}"),"state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
+        run_context:[(TRANSPORT_SESSION_CONTEXT_KEY.into(),json!({"logical_session_id":format!("logical-{nonce}"),"generation":if nonce == "a" { 101 } else { 202 },"task_id":format!("task-{nonce}"),"state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
         native_transport:Some(ProviderNativeTransport{protocol:"openai_responses".into(),wire_body:body,digest:"fixture".into(),size_bytes:1}),..Default::default()
     }
     };
     let mut runtime = OpenAiProviderRuntime::default();
     for nonce in ["a", "b"] {
+        let expected_generation = if nonce == "a" { 101 } else { 202 };
+        let output = runtime
+            .invoke_response(make(nonce, json!({"input":nonce})))
+            .await
+            .unwrap();
+        assert_eq!(output.result.response_id, Some(format!("resp_{nonce}")));
         assert_eq!(
-            runtime
-                .invoke_response(make(nonce, json!({"input":nonce})))
-                .await
-                .unwrap()
-                .result
-                .response_id,
-            Some(format!("resp_{nonce}"))
+            output.result.provider_metadata[TRANSPORT_SESSION_RECEIPT_METADATA_KEY]["generation"],
+            expected_generation
         );
     }
     assert_eq!(runtime.websocket_sessions.len(), 2);
