@@ -30,6 +30,9 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+mod transport_session;
+use transport_session::*;
+
 mod count_tokens;
 mod protocol_context;
 mod sse_codec;
@@ -698,6 +701,7 @@ pub enum ProviderRuntimeErrorKind {
     ProviderUpstreamError,
     ProviderInvalidResponse,
     ProviderTransportUnavailable,
+    ProviderTransportAdmissionFailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -777,6 +781,7 @@ pub struct OpenAiProviderRuntime {
     websocket_clock: Arc<dyn WebsocketClock>,
     websocket_lifecycle_policy: WebsocketLifecyclePolicy,
     websocket_next_generation: u64,
+    websocket_logical_sessions: HashMap<String, String>,
 }
 
 impl fmt::Debug for OpenAiProviderRuntime {
@@ -806,6 +811,7 @@ impl Default for OpenAiProviderRuntime {
             websocket_clock: Arc::new(SystemWebsocketClock),
             websocket_lifecycle_policy: WebsocketLifecyclePolicy::default(),
             websocket_next_generation: 1,
+            websocket_logical_sessions: HashMap::new(),
         }
     }
 }
@@ -867,6 +873,11 @@ impl OpenAiProviderRuntime {
                 };
                 Ok(ProviderStdioResponse::ok(output))
             }
+            "transport_session" => {
+                let command: TransportSessionCommand = serde_json::from_value(request.input)?;
+                let receipt = self.control_transport_session(command).await?;
+                Ok(ProviderStdioResponse::ok(serde_json::to_value(receipt)?))
+            }
             other => Ok(ProviderStdioResponse::error(
                 "provider_invalid_response",
                 format!("unsupported method: {other}"),
@@ -888,6 +899,81 @@ impl OpenAiProviderRuntime {
             .invoke_response_with_event_sink(input, on_event)
             .await?;
         Ok(output.result)
+    }
+
+    async fn control_transport_session(
+        &mut self,
+        command: TransportSessionCommand,
+    ) -> Result<TransportSessionReceipt> {
+        command.validate()?;
+        let session_key = self
+            .websocket_logical_sessions
+            .get(&command.logical_session_id)
+            .cloned()
+            .ok_or_else(|| {
+                anyhow::Error::new(ProviderRuntimeError {
+                    kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+                    message: "physical transport session is unavailable".into(),
+                    provider_summary: None,
+                    provider_details: None,
+                })
+            })?;
+        let session = self
+            .websocket_sessions
+            .remove(&session_key)
+            .ok_or_else(|| {
+                anyhow::Error::new(ProviderRuntimeError {
+                    kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+                    message: "physical transport session is unavailable".into(),
+                    provider_summary: None,
+                    provider_details: None,
+                })
+            })?;
+        if session.generation != command.generation {
+            self.websocket_sessions.insert(session_key, session);
+            return Err(anyhow::Error::new(ProviderRuntimeError {
+                kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+                message: "transport session generation fence rejected the command".into(),
+                provider_summary: None,
+                provider_details: None,
+            }));
+        }
+        self.websocket_logical_sessions
+            .remove(&command.logical_session_id);
+        let now = self.websocket_clock.now();
+        let connection_age_ms = u64::try_from(
+            now.saturating_duration_since(session.created_at)
+                .as_millis(),
+        )
+        .unwrap_or(u64::MAX)
+        .min(24 * 60 * 60 * 1_000);
+        let deadline_remaining_ms = command.deadline_unix_ms.saturating_sub(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+                .try_into()
+                .unwrap_or(i64::MAX),
+        );
+        let close_timeout =
+            self.websocket_lifecycle_policy
+                .close_ack_timeout
+                .min(Duration::from_millis(
+                    u64::try_from(deadline_remaining_ms).unwrap_or(0),
+                ));
+        let acknowledged = close_websocket_session(session, close_timeout).await;
+        Ok(TransportSessionReceipt {
+            generation: command.generation,
+            reused: true,
+            physical_state: PhysicalTransportState::Closed,
+            connection_age_ms,
+            ttl_remaining_ms: 0,
+            close_reason: Some(match command.action {
+                TransportSessionAction::Drain => TransportSessionCloseReason::RequestedDrain,
+                TransportSessionAction::Close => TransportSessionCloseReason::RequestedClose,
+            }),
+            close_acknowledged: Some(acknowledged),
+        })
     }
 
     async fn invoke_response(
@@ -1479,12 +1565,25 @@ impl OpenAiProviderRuntime {
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
-        if input.native_transport.is_some() && native_session_identity(input).is_none() {
+        let directive = transport_session_directive(input)
+            .map_err(WebsocketInvocationError::fallback_blocked)?;
+        if input.native_transport.is_some() && directive.is_none() {
             return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
                 "native WebSocket requires host-owned session identity"
             )));
         }
-        let session_key = websocket_session_key(config, input);
+        let session_key = websocket_session_key(config, input, directive.as_ref());
+        if let Some(directive) = &directive {
+            if self
+                .websocket_logical_sessions
+                .get(&directive.logical_session_id)
+                .is_some_and(|existing| existing != &session_key)
+            {
+                return Err(WebsocketInvocationError::transport_unavailable(
+                    "logical transport session is already owned by another physical session",
+                ));
+            }
+        }
         let now = self.websocket_clock.now();
         if let Some(state) = self.websocket_sessions.get(&session_key).map(|session| {
             self.websocket_lifecycle_policy
@@ -1498,9 +1597,13 @@ impl OpenAiProviderRuntime {
                         self.websocket_lifecycle_policy.close_ack_timeout,
                     )
                     .await;
+                    self.websocket_logical_sessions
+                        .retain(|_, key| key != &session_key);
                 }
             }
         }
+
+        let reused = self.websocket_sessions.contains_key(&session_key);
 
         if let Some(response_id) = responses_body_previous_response_id(&body).map(ToOwned::to_owned)
         {
@@ -1531,26 +1634,8 @@ impl OpenAiProviderRuntime {
             }
         }
         if !self.websocket_sessions.contains_key(&session_key) {
-            // Bounded idle socket ownership. Evicted cursors remain known but cannot
-            // silently migrate to HTTP; recovery must re-establish the same owner.
-            if self.websocket_sessions.len() >= 64 {
-                if let Some(oldest) = self
-                    .websocket_response_order
-                    .iter()
-                    .filter_map(|id| self.websocket_response_owners.get(id))
-                    .map(|owner| &owner.session_key)
-                    .find(|key| self.websocket_sessions.contains_key(*key))
-                    .cloned()
-                {
-                    if let Some(session) = self.websocket_sessions.remove(&oldest) {
-                        close_websocket_session(
-                            session,
-                            self.websocket_lifecycle_policy.close_ack_timeout,
-                        )
-                        .await;
-                    }
-                }
-            }
+            ensure_transport_session_capacity(self.websocket_sessions.len())
+                .map_err(WebsocketInvocationError::fallback_blocked)?;
             let turn_state = responses_body_previous_response_id(&body)
                 .filter(|response_id| {
                     self.websocket_response_owners
@@ -1571,6 +1656,10 @@ impl OpenAiProviderRuntime {
             .await
             .map_err(WebsocketInvocationError::connect_unavailable)?;
             self.websocket_sessions.insert(session_key.clone(), session);
+            if let Some(directive) = &directive {
+                self.websocket_logical_sessions
+                    .insert(directive.logical_session_id.clone(), session_key.clone());
+            }
         }
 
         let session = self
@@ -1583,7 +1672,7 @@ impl OpenAiProviderRuntime {
 
         match result {
             Ok(response) => {
-                let output = response.envelope;
+                let mut output = response.envelope;
                 let turn_state = self
                     .websocket_sessions
                     .get(&session_key)
@@ -1593,6 +1682,18 @@ impl OpenAiProviderRuntime {
                     .get(&session_key)
                     .map(|session| session.generation)
                     .expect("completed websocket session should exist");
+                if directive.is_some() {
+                    let receipt = ready_receipt(
+                        self.websocket_sessions
+                            .get(&session_key)
+                            .expect("completed websocket session should exist"),
+                        self.websocket_clock.now(),
+                        reused,
+                        self.websocket_lifecycle_policy,
+                    );
+                    attach_receipt(&mut output.result.provider_metadata, receipt)
+                        .map_err(WebsocketInvocationError::fallback_blocked)?;
+                }
                 if let Some(response_id) = output
                     .result
                     .response_id
@@ -1633,6 +1734,8 @@ impl OpenAiProviderRuntime {
                             self.websocket_lifecycle_policy.close_ack_timeout,
                         )
                         .await;
+                        self.websocket_logical_sessions
+                            .retain(|_, key| key != &session_key);
                     }
                 }
                 Ok(output)
@@ -1645,6 +1748,8 @@ impl OpenAiProviderRuntime {
                         self.websocket_lifecycle_policy.close_ack_timeout,
                     )
                     .await;
+                    self.websocket_logical_sessions
+                        .retain(|_, key| key != &session_key);
                 }
                 Err(error)
             }
@@ -3037,18 +3142,11 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
     Value::Object(object)
 }
 
-fn native_session_identity(input: &ProviderInvocationInput) -> Option<&str> {
-    input
-        .client_protocol_envelope
-        .as_ref()?
-        .headers
-        .get("session-id")?
-        .first()
-        .map(String::as_str)
-        .filter(|value| !value.is_empty() && value.len() <= 256)
-}
-
-fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
+fn websocket_session_key(
+    config: &ProviderConfig,
+    input: &ProviderInvocationInput,
+    directive: Option<&TransportSessionDirective>,
+) -> String {
     let credential_fingerprint = credential_fingerprint(&config.api_key);
     format!(
         "{}\n{}\n{}\n{}\n{}\n{}",
@@ -3062,6 +3160,7 @@ fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInpu
         serde_json::to_string(&(
             &input.protocol,
             &input.model,
+            directive.map(|directive| &directive.logical_session_id),
             input.client_protocol_envelope.as_ref().map(|context| (
                 &context.source_protocol,
                 context
@@ -3087,6 +3186,18 @@ fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInpu
 fn credential_fingerprint(api_key: &str) -> String {
     let digest = Sha256::digest(api_key.as_bytes());
     format!("sha256:{digest:x}")
+}
+
+fn ensure_transport_session_capacity(active_sessions: usize) -> Result<()> {
+    if active_sessions >= 64 {
+        return Err(anyhow::Error::new(ProviderRuntimeError {
+            kind: ProviderRuntimeErrorKind::ProviderTransportAdmissionFailed,
+            message: "physical transport session capacity is exhausted".into(),
+            provider_summary: None,
+            provider_details: None,
+        }));
+    }
+    Ok(())
 }
 
 fn can_fallback_to_http(error: &anyhow::Error) -> bool {

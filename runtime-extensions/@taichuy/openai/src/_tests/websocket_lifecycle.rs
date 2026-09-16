@@ -36,6 +36,15 @@ fn websocket_input(base_url: &str) -> ProviderInvocationInput {
             tool_calls: None,
         }],
         model_parameters: BTreeMap::from([("store".into(), Value::Bool(false))]),
+        run_context: BTreeMap::from([(
+            TRANSPORT_SESSION_CONTEXT_KEY.into(),
+            json!({
+                "logical_session_id":"logical-fixture",
+                "task_id":"task-fixture",
+                "state":"active",
+                "physical_deadline_unix_ms":4_102_444_800_000_i64
+            }),
+        )]),
         ..Default::default()
     }
 }
@@ -91,6 +100,30 @@ fn transport_unavailable_survives_stdio_serialization() {
     assert_eq!(
         serde_json::to_value(response).unwrap()["error"]["kind"],
         "provider_transport_unavailable"
+    );
+}
+
+#[test]
+fn typed_session_context_rejects_unknown_fields_and_capacity_is_not_evicted() {
+    let mut input = websocket_input("https://example.test/v1");
+    input.run_context.insert(
+        TRANSPORT_SESSION_CONTEXT_KEY.into(),
+        json!({
+            "logical_session_id":"logical-fixture",
+            "task_id":"task-fixture",
+            "state":"idle",
+            "physical_deadline_unix_ms":4_102_444_800_000_i64,
+            "session_key":"must-not-cross"
+        }),
+    );
+    assert!(transport_session_directive(&input).is_err());
+
+    let error = ensure_transport_session_capacity(64).unwrap_err();
+    assert_eq!(
+        error
+            .downcast_ref::<ProviderRuntimeError>()
+            .map(|error| &error.kind),
+        Some(&ProviderRuntimeErrorKind::ProviderTransportAdmissionFailed)
     );
 }
 
@@ -207,7 +240,8 @@ fn lifecycle_policy_soft_drains_between_50_and_55_minutes_and_hard_closes_at_58(
 fn credential_and_generation_ownership_are_explicit() {
     let input = websocket_input("https://example.test/v1");
     let config = normalize_provider_config(&input.provider_config).unwrap();
-    let key = websocket_session_key(&config, &input);
+    let directive = transport_session_directive(&input).unwrap();
+    let key = websocket_session_key(&config, &input, directive.as_ref());
     assert!(!key.contains("credential-canary"));
     assert!(key.contains("sha256:"));
 
@@ -260,8 +294,31 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
     )
     .await
     .unwrap();
+    let mut runtime = OpenAiProviderRuntime::default();
+    runtime
+        .websocket_sessions
+        .insert("physical-fixture".into(), session);
+    runtime
+        .websocket_logical_sessions
+        .insert("logical-fixture".into(), "physical-fixture".into());
+    let receipt = runtime
+        .control_transport_session(TransportSessionCommand {
+            logical_session_id: "logical-fixture".into(),
+            generation: 9,
+            action: TransportSessionAction::Drain,
+            deadline_unix_ms: 4_102_444_800_000,
+        })
+        .await
+        .unwrap();
 
-    assert!(close_websocket_session(session, Duration::from_secs(1)).await);
+    assert_eq!(receipt.generation, 9);
+    assert_eq!(receipt.physical_state, PhysicalTransportState::Closed);
+    assert_eq!(
+        receipt.close_reason,
+        Some(TransportSessionCloseReason::RequestedDrain)
+    );
+    assert_eq!(receipt.close_acknowledged, Some(true));
+    assert!(runtime.websocket_sessions.is_empty());
     assert!(close_rx.recv_timeout(Duration::from_secs(1)).unwrap());
     upstream.join().unwrap();
 }

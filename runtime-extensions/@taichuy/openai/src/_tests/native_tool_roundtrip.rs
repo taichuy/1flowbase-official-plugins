@@ -54,7 +54,8 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
             );
             ws.send(Message::Text(json!({"type":"response.completed","response":{"id":"resp_2","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"random-fixture-result"}]}]}}).to_string().into())).unwrap();
         });
-        let make_input = |body| ProviderInvocationInput {
+        let make_input = |body| {
+            ProviderInvocationInput {
             contract_version: ProviderInvocationContractVersion::Current,
             provider_instance_id: "fixture".into(),
             provider_code: "openai".into(),
@@ -66,6 +67,7 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
                 ProviderInvocationCapability::ResponsesNativeOutputV1,
             ]),
             client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
+            run_context: [(TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
         native_transport: Some(ProviderNativeTransport {
                 protocol: "openai_responses".into(),
                 wire_body: body,
@@ -73,6 +75,7 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
                 size_bytes: 1,
             }),
             ..Default::default()
+        }
         };
         let mut runtime = OpenAiProviderRuntime::default();
         let mut events = Vec::new();
@@ -142,6 +145,7 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
                 ProviderInvocationCapability::ResponsesNativeOutputV1,
         ]),
         client_protocol_envelope: Some(ProtocolContextEnvelope { source_protocol: "openai_responses".into(), headers: [("session-id".into(), vec!["fixture-session".into()])].into(), ..Default::default() }),
+        run_context: [(TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
         native_transport: Some(ProviderNativeTransport {
             protocol: "openai_responses".into(),
             wire_body: json!({"previous_response_id":"resp_foreign","input":[]}),
@@ -152,15 +156,13 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
     };
     for owner in [None, Some("another-session")] {
         if let Some(session_key) = owner {
-            runtime
-                .websocket_response_owners
-                .insert(
-                    "resp_foreign".into(),
-                    WebsocketResponseOwner {
-                        session_key: session_key.into(),
-                        generation: 41,
-                    },
-                );
+            runtime.websocket_response_owners.insert(
+                "resp_foreign".into(),
+                WebsocketResponseOwner {
+                    session_key: session_key.into(),
+                    generation: 41,
+                },
+            );
         }
         let error = runtime.invoke_response(input.clone()).await.unwrap_err();
         assert_eq!(
@@ -178,13 +180,23 @@ async fn native_output_contract_rejects_old_host_before_network() {
     let mut input = ProviderInvocationInput::default();
     input.model = "fixture".into();
     input.provider_config = json!({"base_url":"http://127.0.0.1:1","api_key":"fixture"});
-    input.required_capabilities.insert(ProviderInvocationCapability::ResponsesNativePassthrough);
+    input
+        .required_capabilities
+        .insert(ProviderInvocationCapability::ResponsesNativePassthrough);
     input.native_transport = Some(ProviderNativeTransport {
-        protocol: "openai_responses".into(), wire_body: json!({"input":[]}),
-        digest: "fixture".into(), size_bytes: 1,
+        protocol: "openai_responses".into(),
+        wire_body: json!({"input":[]}),
+        digest: "fixture".into(),
+        size_bytes: 1,
     });
-    let error = OpenAiProviderRuntime::default().invoke_response(input).await.unwrap_err();
-    assert!(error.to_string().contains("responses.native_output.v1"), "{error}");
+    let error = OpenAiProviderRuntime::default()
+        .invoke_response(input)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("responses.native_output.v1"),
+        "{error}"
+    );
 }
 
 // AC-012: use the provider parser, including the same formal event serialization
@@ -204,62 +216,124 @@ fn native_output_inventory_preserves_phase_opaque_and_delta_identity() {
     let mut response = Value::Null;
     for (index, item) in items.iter().enumerate() {
         for kind in ["response.output_item.added", "response.output_item.done"] {
-            process_response_sse_payload(&json!({"type":kind,"output_index":index,"item":item}).to_string(), &mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut response).unwrap();
+            process_response_sse_payload(
+                &json!({"type":kind,"output_index":index,"item":item}).to_string(),
+                &mut events,
+                &mut text,
+                &mut calls,
+                &mut usage,
+                &mut finish,
+                &mut response,
+            )
+            .unwrap();
         }
     }
-    let done: Vec<_> = events.iter().filter_map(|e| match e {
-        ProviderStreamEvent::OutputItem { phase: ProviderOutputItemPhase::Done, item, .. } => Some(item.clone()), _ => None,
-    }).collect();
+    let done: Vec<_> = events
+        .iter()
+        .filter_map(|e| match e {
+            ProviderStreamEvent::OutputItem {
+                phase: ProviderOutputItemPhase::Done,
+                item,
+                ..
+            } => Some(item.clone()),
+            _ => None,
+        })
+        .collect();
     assert_eq!(done, items);
-    let delta=json!({"type":"response.custom_tool_call_input.delta","item_id":"tool_1","call_id":"call_1","output_index":3,"delta":"text(await tools.exec_command({cmd:'cat fixture'}));"});
-    process_response_sse_payload(&delta.to_string(), &mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut response).unwrap();
-    assert!(events.iter().any(|e| serde_json::to_value(e).unwrap()==json!({"type":"responses_output_delta","event":delta})));
+    let delta = json!({"type":"response.custom_tool_call_input.delta","item_id":"tool_1","call_id":"call_1","output_index":3,"delta":"text(await tools.exec_command({cmd:'cat fixture'}));"});
+    process_response_sse_payload(
+        &delta.to_string(),
+        &mut events,
+        &mut text,
+        &mut calls,
+        &mut usage,
+        &mut finish,
+        &mut response,
+    )
+    .unwrap();
+    assert!(events.iter().any(|e| serde_json::to_value(e).unwrap()
+        == json!({"type":"responses_output_delta","event":delta})));
 }
 
 // AC-014/015: two upstream sockets remain alive at an explicit channel barrier;
 // cursor ownership is generation-bound; a missing physical owner must fail before I/O.
 #[tokio::test]
 async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
-    let listener=TcpListener::bind("127.0.0.1:0").unwrap();
-    let base=format!("http://{}",listener.local_addr().unwrap());
-    let (release_tx,release_rx)=std::sync::mpsc::channel::<()>();
-    let server=std::thread::spawn(move || {
-        let mut sockets=Vec::new();
-        for nonce in ["a","b"] {
-            let (stream,_)=listener.accept().unwrap();stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
-            let mut ws=tokio_tungstenite::tungstenite::accept(stream).unwrap();
-            let frame:Value=serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
-            assert_eq!(frame["input"],nonce);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+    let server = std::thread::spawn(move || {
+        let mut sockets = Vec::new();
+        for nonce in ["a", "b"] {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(10)))
+                .unwrap();
+            let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+            let frame: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
+            assert_eq!(frame["input"], nonce);
             ws.send(Message::Text(json!({"type":"response.completed","response":{"id":format!("resp_{nonce}"),"output":[]}}).to_string().into())).unwrap();
             sockets.push(ws);
         }
         release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
     });
-    let make=|nonce:&str,body:Value| ProviderInvocationInput {
+    let make = |nonce: &str, body: Value| {
+        ProviderInvocationInput {
         provider_instance_id:"fixture".into(),model:"fixture".into(),protocol:"openai_responses".into(),
         provider_config:json!({"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"}),
         required_capabilities:[ProviderInvocationCapability::ResponsesNativePassthrough,ProviderInvocationCapability::ResponsesNativeOutputV1].into(),
         client_protocol_envelope:Some(ProtocolContextEnvelope{source_protocol:"openai_responses".into(),headers:[("session-id".into(),vec![nonce.into()])].into(),..Default::default()}),
+        run_context:[(TRANSPORT_SESSION_CONTEXT_KEY.into(),json!({"logical_session_id":format!("logical-{nonce}"),"task_id":format!("task-{nonce}"),"state":"active","physical_deadline_unix_ms":4102444800000_i64}))].into(),
         native_transport:Some(ProviderNativeTransport{protocol:"openai_responses".into(),wire_body:body,digest:"fixture".into(),size_bytes:1}),..Default::default()
+    }
     };
-    let mut runtime=OpenAiProviderRuntime::default();
-    for nonce in ["a","b"] {assert_eq!(runtime.invoke_response(make(nonce,json!({"input":nonce}))).await.unwrap().result.response_id,Some(format!("resp_{nonce}")));}
-    assert_eq!(runtime.websocket_sessions.len(),2);
-    let continuation=json!({"previous_response_id":"resp_a","input":"a-result"});
+    let mut runtime = OpenAiProviderRuntime::default();
+    for nonce in ["a", "b"] {
+        assert_eq!(
+            runtime
+                .invoke_response(make(nonce, json!({"input":nonce})))
+                .await
+                .unwrap()
+                .result
+                .response_id,
+            Some(format!("resp_{nonce}"))
+        );
+    }
+    assert_eq!(runtime.websocket_sessions.len(), 2);
+    let continuation = json!({"previous_response_id":"resp_a","input":"a-result"});
     for error in [
-        runtime.invoke_response(make("b",continuation.clone())).await.unwrap_err(),
-        OpenAiProviderRuntime::default().invoke_response(make("a",continuation.clone())).await.unwrap_err(),
+        runtime
+            .invoke_response(make("b", continuation.clone()))
+            .await
+            .unwrap_err(),
+        OpenAiProviderRuntime::default()
+            .invoke_response(make("a", continuation.clone()))
+            .await
+            .unwrap_err(),
     ] {
         assert_eq!(
-            error.downcast_ref::<ProviderRuntimeError>().map(|error| &error.kind),
+            error
+                .downcast_ref::<ProviderRuntimeError>()
+                .map(|error| &error.kind),
             Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
         );
     }
-    let config=normalize_provider_config(&make("a",Value::Null).provider_config).unwrap();
-    runtime.websocket_sessions.remove(&websocket_session_key(&config,&make("a",Value::Null)));
-    let error = runtime.invoke_response(make("a",continuation)).await.unwrap_err();
+    let disconnected = make("a", Value::Null);
+    let config = normalize_provider_config(&disconnected.provider_config).unwrap();
+    let directive = transport_session_directive(&disconnected).unwrap();
+    runtime.websocket_sessions.remove(&websocket_session_key(
+        &config,
+        &disconnected,
+        directive.as_ref(),
+    ));
+    let error = runtime
+        .invoke_response(make("a", continuation))
+        .await
+        .unwrap_err();
     assert_eq!(
-        error.downcast_ref::<ProviderRuntimeError>().map(|error| &error.kind),
+        error
+            .downcast_ref::<ProviderRuntimeError>()
+            .map(|error| &error.kind),
         Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
     );
     release_tx.send(()).unwrap();
