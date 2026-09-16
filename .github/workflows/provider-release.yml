@@ -57,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          source_release_matrix_json="$(node scripts/list-provider-package-targets.mjs --format release-matrix)"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             provider_code="${{ inputs.provider_code }}"
             if [ "${provider_code}" = "all" ]; then
@@ -64,29 +65,15 @@ jobs:
                 echo "version override is not supported when provider_code=all" >&2
                 exit 1
               fi
-              release_matrix_json="$(node scripts/list-provider-package-targets.mjs --format release-matrix)"
+              release_matrix_json="${source_release_matrix_json}"
             else
-              plugin_dir="runtime-extensions/@taichuy/${provider_code}"
-              if [ ! -f "${plugin_dir}/manifest.yaml" ]; then
-                echo "Provider manifest not found: ${plugin_dir}/manifest.yaml" >&2
-                exit 1
-              fi
-
               version="${{ inputs.version }}"
-              if [ -z "${version}" ]; then
-                version="$(sed -n 's/^version:\s*//p' "${plugin_dir}/manifest.yaml" | head -n 1)"
-              fi
-
-              if [ -z "${version}" ]; then
-                echo "Unable to resolve release version for ${provider_code}" >&2
-                exit 1
-              fi
-
-              release_matrix_json="$(node --input-type=module -e 'process.stdout.write(JSON.stringify({ include: [{ plugin_dir: process.argv[1], provider_code: process.argv[2], release_tag: `${process.argv[2]}-v${process.argv[3]}`, version: process.argv[3] }] }));' "${plugin_dir}" "${provider_code}" "${version}")"
+              release_matrix_json="$(node --input-type=module -e 'const matrix = JSON.parse(process.argv[1]); const providerCode = process.argv[2]; const override = process.argv[3]; const source = matrix.include.find((item) => item.provider_code === providerCode); if (!source) throw new Error(`Provider manifest not found for ${providerCode}`); const version = override || source.version; process.stdout.write(JSON.stringify({ include: [{ ...source, version, release_tag: `${providerCode}-v${version}` }] }));' "${source_release_matrix_json}" "${provider_code}" "${version}")"
             fi
           else
             release_matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
           fi
+          release_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]); const sources = JSON.parse(process.argv[2]); process.stdout.write(JSON.stringify({ include: releases.include.map((release) => { const source = sources.include.find((item) => item.provider_code === release.provider_code); if (!source) throw new Error(`Provider manifest not found for ${release.provider_code}`); return { ...release, asset_vendor: source.asset_vendor, asset_plugin_code: source.asset_plugin_code }; }) }));' "${release_matrix_json}" "${source_release_matrix_json}")"
 
           release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${release_matrix_json}")"
           package_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]).include; const targets = [{ runs_on: "ubuntu-latest", rust_target: "x86_64-unknown-linux-musl", os: "linux", arch: "amd64", libc: "musl" }, { runs_on: "ubuntu-latest", rust_target: "aarch64-unknown-linux-musl", os: "linux", arch: "arm64", libc: "musl" }, { runs_on: "macos-latest", rust_target: "x86_64-apple-darwin", os: "darwin", arch: "amd64", libc: "" }, { runs_on: "macos-latest", rust_target: "aarch64-apple-darwin", os: "darwin", arch: "arm64", libc: "" }, { runs_on: "windows-latest", rust_target: "x86_64-pc-windows-msvc", os: "windows", arch: "amd64", libc: "msvc" }, { runs_on: "windows-latest", rust_target: "aarch64-pc-windows-msvc", os: "windows", arch: "arm64", libc: "msvc" }]; process.stdout.write(JSON.stringify({ include: releases.flatMap((release) => targets.map((target) => ({ ...release, ...target }))) }));' "${release_matrix_json}")"
@@ -331,7 +318,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ matrix.release_tag }}
-          ASSET_BASENAME: 1flowbase@${{ matrix.provider_code }}@${{ matrix.version }}@${{ matrix.os }}-${{ matrix.arch }}
+          ASSET_BASENAME: ${{ matrix.asset_vendor }}@${{ matrix.asset_plugin_code }}@${{ matrix.version }}@${{ matrix.os }}-${{ matrix.arch }}
         shell: bash
         run: |
           set -euo pipefail

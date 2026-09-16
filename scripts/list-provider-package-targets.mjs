@@ -149,10 +149,16 @@ export function listProviderReleaseTargets(rootDir = repoRoot) {
   return listProviderPackageTargets(rootDir).map(({ provider_code, plugin_dir }) => {
     const manifest = fs.readFileSync(path.join(rootDir, plugin_dir, 'manifest.yaml'), 'utf8');
     const version = readManifestField(manifest, 'version');
+    const rawPluginId = readManifestField(manifest, 'plugin_id', path.basename(plugin_dir));
+    const assetPluginCode = rawPluginId.includes('@')
+      ? rawPluginId.slice(0, rawPluginId.indexOf('@'))
+      : rawPluginId;
     if (!/^\d+\.\d+\.\d+$/.test(version)) {
       throw new Error(`provider ${provider_code} 缺少稳定 semver version`);
     }
     return {
+      asset_plugin_code: assetPluginCode,
+      asset_vendor: readManifestField(manifest, 'vendor', '1flowbase'),
       plugin_dir,
       provider_code,
       release_tag: `${provider_code}-v${version}`,

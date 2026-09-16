@@ -10,7 +10,7 @@ import {
   readProviderPackageTarget,
 } from '../list-provider-package-targets.mjs';
 
-function writeManifestV1(root, pluginDirName, { pluginId, entry }) {
+function writeManifestV1(root, pluginDirName, { pluginId, entry, vendor = '1flowbase' }) {
   const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', pluginDirName);
   fs.mkdirSync(pluginDir, { recursive: true });
   fs.writeFileSync(
@@ -19,7 +19,7 @@ function writeManifestV1(root, pluginDirName, { pluginId, entry }) {
       'manifest_version: 1',
       pluginId ? `plugin_id: ${pluginId}` : null,
       'version: 0.3.8',
-      'vendor: 1flowbase',
+      `vendor: ${vendor}`,
       'display_name: OpenAI Compatible',
       'description: OpenAI-compatible provider runtime extension',
       'source_kind: official_registry',
@@ -109,17 +109,22 @@ test('listProviderReleaseTargets plans every source provider at its manifest ver
   writeManifestV1(root, 'alpha_provider', {
     pluginId: 'alpha_provider',
     entry: 'bin/alpha-provider',
+    vendor: 'Taichuy',
   });
   writeManifestV2(root, 'beta-provider', 'bin/beta-provider');
 
   assert.deepEqual(listProviderReleaseTargets(root), [
     {
+      asset_plugin_code: 'alpha_provider',
+      asset_vendor: 'Taichuy',
       plugin_dir: 'runtime-extensions/@taichuy/alpha_provider',
       provider_code: 'alpha_provider',
       release_tag: 'alpha_provider-v0.3.8',
       version: '0.3.8',
     },
     {
+      asset_plugin_code: 'beta-provider',
+      asset_vendor: '1flowbase',
       plugin_dir: 'runtime-extensions/@taichuy/beta-provider',
       provider_code: 'beta-provider',
       release_tag: 'beta-provider-v0.1.0',

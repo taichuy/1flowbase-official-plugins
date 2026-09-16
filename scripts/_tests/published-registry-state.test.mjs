@@ -29,6 +29,34 @@ function readProviderManifestField(providerCode, fieldName) {
   return match[1].trim();
 }
 
+function expectedSourceAssetNames(plugin, artifact) {
+  const manifestPath = path.join(
+    repoRoot,
+    'runtime-extensions',
+    '@taichuy',
+    plugin.provider_code,
+    'manifest.yaml'
+  );
+  if (!fs.existsSync(manifestPath)) {
+    return null;
+  }
+
+  const manifest = fs.readFileSync(manifestPath, 'utf8');
+  const vendor = manifest.match(/^vendor:\s*(.+)$/m)?.[1].trim() || '1flowbase';
+  const rawPluginId =
+    manifest.match(/^plugin_id:\s*([^\s#]+)\s*$/m)?.[1] || plugin.provider_code;
+  const pluginCode = rawPluginId.includes('@')
+    ? rawPluginId.slice(0, rawPluginId.indexOf('@'))
+    : rawPluginId;
+  const base = `${vendor}@${pluginCode}@${plugin.latest_version}@${artifact.os}-${artifact.arch}`;
+  const checksumHex = artifact.checksum.slice('sha256:'.length);
+  return [`${base}.1flowbasepkg`, `${base}@${checksumHex}.1flowbasepkg`];
+}
+
+function decodedAssetName(downloadUrl) {
+  return decodeURIComponent(new URL(downloadUrl).pathname.split('/').at(-1));
+}
+
 function parseStableSemver(value) {
   const match = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
   assert.ok(match, `invalid stable semver: ${value}`);
@@ -154,14 +182,22 @@ test('official-registry.json stores normalized sha256 checksums independently fr
         `${plugin.provider_code} ${artifact.os}-${artifact.arch} has invalid checksum`
       );
       const checksumHex = artifact.checksum.slice('sha256:'.length);
-      const assetBase = `https://github.com/taichuy/1flowbase-official-plugins/releases/download/${plugin.provider_code}-v${plugin.latest_version}/1flowbase@${plugin.provider_code}@${plugin.latest_version}@${artifact.os}-${artifact.arch}`;
-      assert.ok(
-        [
-          `${assetBase}.1flowbasepkg`,
-          `${assetBase}@${checksumHex}.1flowbasepkg`,
-        ].includes(artifact.download_url),
-        `${plugin.provider_code} ${artifact.os}-${artifact.arch} has an unsupported package URL`
-      );
+      const assetName = decodedAssetName(artifact.download_url);
+      const sourceNames = expectedSourceAssetNames(plugin, artifact);
+      if (sourceNames) {
+        assert.ok(
+          sourceNames.includes(assetName),
+          `${plugin.provider_code} ${artifact.os}-${artifact.arch} has an unsupported package URL`
+        );
+      } else {
+        assert.match(
+          assetName,
+          new RegExp(
+            `^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+@${plugin.latest_version}@${artifact.os}-${artifact.arch}@${checksumHex}\\.1flowbasepkg$`
+          ),
+          `${plugin.provider_code} ${artifact.os}-${artifact.arch} historical package URL is invalid`
+        );
+      }
     }
   }
 });
