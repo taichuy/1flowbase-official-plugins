@@ -3,6 +3,9 @@ use super::*;
 pub(crate) const TRANSPORT_SESSION_CONTEXT_KEY: &str = "physical_transport_session";
 pub(crate) const TRANSPORT_SESSION_RECEIPT_METADATA_KEY: &str =
     "1flowbase_physical_transport_session";
+pub(crate) const INVOCATION_TIMING_RECEIPT_METADATA_KEY: &str =
+    "1flowbase_provider_invocation_timing";
+const INVOCATION_TIMING_SCHEMA_VERSION: u8 = 1;
 const MAX_OPAQUE_ID_BYTES: usize = 256;
 const MAX_CONNECTION_LIFETIME_MS: u64 = 24 * 60 * 60 * 1_000;
 
@@ -91,6 +94,22 @@ pub(crate) struct TransportSessionReceipt {
     pub close_acknowledged: Option<bool>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum InvocationTerminationKind {
+    Completed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct InvocationTimingReceipt {
+    pub schema_version: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connect_ms: Option<u64>,
+    pub upstream_ms: u64,
+    pub termination_kind: InvocationTerminationKind,
+}
+
 pub(crate) fn transport_session_directive(
     input: &ProviderInvocationInput,
 ) -> Result<Option<TransportSessionDirective>> {
@@ -131,6 +150,26 @@ pub(crate) fn attach_receipt(metadata: &mut Value, receipt: TransportSessionRece
     object.insert(
         TRANSPORT_SESSION_RECEIPT_METADATA_KEY.to_string(),
         serde_json::to_value(receipt)?,
+    );
+    Ok(())
+}
+
+pub(crate) fn attach_invocation_timing_receipt(
+    metadata: &mut Value,
+    connect: Option<Duration>,
+    upstream: Duration,
+) -> Result<()> {
+    let object = metadata
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("provider_metadata must be an object"))?;
+    object.insert(
+        INVOCATION_TIMING_RECEIPT_METADATA_KEY.to_string(),
+        serde_json::to_value(InvocationTimingReceipt {
+            schema_version: INVOCATION_TIMING_SCHEMA_VERSION,
+            connect_ms: connect.map(bounded_millis),
+            upstream_ms: bounded_millis(upstream),
+            termination_kind: InvocationTerminationKind::Completed,
+        })?,
     );
     Ok(())
 }

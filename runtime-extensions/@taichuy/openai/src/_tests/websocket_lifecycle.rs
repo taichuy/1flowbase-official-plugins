@@ -271,6 +271,34 @@ fn credential_and_generation_ownership_are_explicit() {
     assert_eq!(replay["input"].as_array().unwrap().len(), 2);
 }
 
+#[test]
+fn invocation_timing_receipt_is_bounded_and_payload_free() {
+    let mut metadata = json!({});
+    attach_invocation_timing_receipt(
+        &mut metadata,
+        Some(Duration::from_millis(17)),
+        Duration::from_millis(241),
+    )
+    .unwrap();
+
+    let receipt = &metadata[INVOCATION_TIMING_RECEIPT_METADATA_KEY];
+    assert_eq!(receipt["schema_version"], 1);
+    assert_eq!(receipt["connect_ms"], 17);
+    assert_eq!(receipt["upstream_ms"], 241);
+    assert_eq!(receipt["termination_kind"], "completed");
+    let serialized = serde_json::to_string(&metadata).unwrap();
+    for forbidden in [
+        "api_key",
+        "prompt",
+        "tool_output",
+        "encrypted_content",
+        "previous_response_id",
+        "response_id",
+    ] {
+        assert!(!serialized.contains(forbidden));
+    }
+}
+
 #[tokio::test]
 async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

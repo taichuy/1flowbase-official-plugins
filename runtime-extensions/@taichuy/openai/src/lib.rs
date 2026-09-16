@@ -1633,6 +1633,7 @@ impl OpenAiProviderRuntime {
                 ));
             }
         }
+        let mut connect_duration = None;
         if !self.websocket_sessions.contains_key(&session_key) {
             ensure_transport_session_capacity(self.websocket_sessions.len())
                 .map_err(WebsocketInvocationError::fallback_blocked)?;
@@ -1646,6 +1647,7 @@ impl OpenAiProviderRuntime {
                 .map(String::as_str);
             let generation = self.websocket_next_generation;
             self.websocket_next_generation = self.websocket_next_generation.saturating_add(1);
+            let connect_started = Instant::now();
             let session = connect_responses_websocket(
                 config,
                 turn_state,
@@ -1655,6 +1657,7 @@ impl OpenAiProviderRuntime {
             )
             .await
             .map_err(WebsocketInvocationError::connect_unavailable)?;
+            connect_duration = Some(connect_started.elapsed());
             self.websocket_sessions.insert(session_key.clone(), session);
             if let Some(directive) = &directive {
                 self.websocket_logical_sessions
@@ -1667,7 +1670,9 @@ impl OpenAiProviderRuntime {
             .get_mut(&session_key)
             .expect("websocket session should be initialized");
         let mut request_body = build_websocket_response_create_body(body.clone());
+        let upstream_started = Instant::now();
         let result = read_websocket_response(session, &mut request_body, input, on_event).await;
+        let upstream_duration = upstream_started.elapsed();
         session.last_activity = self.websocket_clock.now();
 
         match result {
@@ -1694,6 +1699,12 @@ impl OpenAiProviderRuntime {
                     attach_receipt(&mut output.result.provider_metadata, receipt)
                         .map_err(WebsocketInvocationError::fallback_blocked)?;
                 }
+                attach_invocation_timing_receipt(
+                    &mut output.result.provider_metadata,
+                    connect_duration,
+                    upstream_duration,
+                )
+                .map_err(WebsocketInvocationError::fallback_blocked)?;
                 if let Some(response_id) = output
                     .result
                     .response_id
