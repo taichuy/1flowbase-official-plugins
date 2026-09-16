@@ -151,15 +151,24 @@ async fn issue_2028_native_cursor_rejects_foreign_session_and_unknown_owner() {
         ..Default::default()
     };
     for owner in [None, Some("another-session")] {
-        if let Some(owner) = owner {
+        if let Some(session_key) = owner {
             runtime
                 .websocket_response_owners
-                .insert("resp_foreign".into(), owner.into());
+                .insert(
+                    "resp_foreign".into(),
+                    WebsocketResponseOwner {
+                        session_key: session_key.into(),
+                        generation: 41,
+                    },
+                );
         }
         let error = runtime.invoke_response(input.clone()).await.unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("unavailable for this provider session"));
+        assert_eq!(
+            error
+                .downcast_ref::<ProviderRuntimeError>()
+                .map(|error| &error.kind),
+            Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
+        );
     }
 }
 
@@ -208,9 +217,9 @@ fn native_output_inventory_preserves_phase_opaque_and_delta_identity() {
 }
 
 // AC-014/015: two upstream sockets remain alive at an explicit channel barrier;
-// valid owner recovery preserves the cursor, a new worker rejects it before I/O.
+// cursor ownership is generation-bound; a missing physical owner must fail before I/O.
 #[tokio::test]
-async fn native_sessions_are_isolated_and_owner_survives_socket_reconnect() {
+async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
     let listener=TcpListener::bind("127.0.0.1:0").unwrap();
     let base=format!("http://{}",listener.local_addr().unwrap());
     let (release_tx,release_rx)=std::sync::mpsc::channel::<()>();
@@ -225,14 +234,6 @@ async fn native_sessions_are_isolated_and_owner_survives_socket_reconnect() {
             sockets.push(ws);
         }
         release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
-        // A fresh physical socket must receive the same owned cursor, not a
-        // guessed full-context request or a request belonging to session b.
-        let (stream,_)=listener.accept().unwrap();stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
-        let mut ws=tokio_tungstenite::tungstenite::accept(stream).unwrap();
-        let frame:Value=serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
-        assert_eq!(frame["previous_response_id"],"resp_a");
-        assert_eq!(frame["input"],"a-result");
-        ws.send(Message::Text(json!({"type":"response.completed","response":{"id":"resp_a2","output":[]}}).to_string().into())).unwrap();
     });
     let make=|nonce:&str,body:Value| ProviderInvocationInput {
         provider_instance_id:"fixture".into(),model:"fixture".into(),protocol:"openai_responses".into(),
@@ -245,11 +246,22 @@ async fn native_sessions_are_isolated_and_owner_survives_socket_reconnect() {
     for nonce in ["a","b"] {assert_eq!(runtime.invoke_response(make(nonce,json!({"input":nonce}))).await.unwrap().result.response_id,Some(format!("resp_{nonce}")));}
     assert_eq!(runtime.websocket_sessions.len(),2);
     let continuation=json!({"previous_response_id":"resp_a","input":"a-result"});
-    assert!(runtime.invoke_response(make("b",continuation.clone())).await.unwrap_err().to_string().contains("unavailable for this provider session"));
-    assert!(OpenAiProviderRuntime::default().invoke_response(make("a",continuation.clone())).await.unwrap_err().to_string().contains("unavailable for this provider session"));
+    for error in [
+        runtime.invoke_response(make("b",continuation.clone())).await.unwrap_err(),
+        OpenAiProviderRuntime::default().invoke_response(make("a",continuation.clone())).await.unwrap_err(),
+    ] {
+        assert_eq!(
+            error.downcast_ref::<ProviderRuntimeError>().map(|error| &error.kind),
+            Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
+        );
+    }
     let config=normalize_provider_config(&make("a",Value::Null).provider_config).unwrap();
     runtime.websocket_sessions.remove(&websocket_session_key(&config,&make("a",Value::Null)));
+    let error = runtime.invoke_response(make("a",continuation)).await.unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<ProviderRuntimeError>().map(|error| &error.kind),
+        Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
+    );
     release_tx.send(()).unwrap();
-    assert_eq!(runtime.invoke_response(make("a",continuation)).await.unwrap().result.response_id.as_deref(),Some("resp_a2"));
     server.join().unwrap();
 }

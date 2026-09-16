@@ -1,7 +1,8 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt,
-    time::Duration,
+    sync::Arc,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -14,6 +15,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -43,6 +45,10 @@ const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_VALIDATE_MODEL: bool = true;
 const STREAM_IDLE_TIMEOUT: Duration = Duration::from_millis(300_000);
+const WEBSOCKET_SOFT_DRAIN_MIN: Duration = Duration::from_secs(50 * 60);
+const WEBSOCKET_SOFT_DRAIN_MAX: Duration = Duration::from_secs(55 * 60);
+const WEBSOCKET_HARD_MAX_AGE: Duration = Duration::from_secs(58 * 60);
+const WEBSOCKET_CLOSE_ACK_TIMEOUT: Duration = Duration::from_secs(2);
 const WEBSOCKET_CURSOR_RECONNECT_ATTEMPTS: usize = 3;
 const RESPONSES_WEBSOCKETS_BETA: &str = "responses_websockets=2026-02-06";
 const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
@@ -691,6 +697,7 @@ pub enum ProviderRuntimeErrorKind {
     RateLimited,
     ProviderUpstreamError,
     ProviderInvalidResponse,
+    ProviderTransportUnavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -760,14 +767,47 @@ impl fmt::Display for ProviderRuntimeError {
 
 impl std::error::Error for ProviderRuntimeError {}
 
-#[derive(Debug, Default)]
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
-    websocket_response_owners: HashMap<String, String>,
+    websocket_response_owners: HashMap<String, WebsocketResponseOwner>,
     websocket_response_order: std::collections::VecDeque<String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
+    websocket_clock: Arc<dyn WebsocketClock>,
+    websocket_lifecycle_policy: WebsocketLifecyclePolicy,
+    websocket_next_generation: u64,
+}
+
+impl fmt::Debug for OpenAiProviderRuntime {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("OpenAiProviderRuntime")
+            .field("websocket_sessions", &self.websocket_sessions)
+            .field(
+                "websocket_response_ids_seen",
+                &self.websocket_response_ids_seen,
+            )
+            .field("websocket_response_owners", &self.websocket_response_owners)
+            .field("websocket_next_generation", &self.websocket_next_generation)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Default for OpenAiProviderRuntime {
+    fn default() -> Self {
+        Self {
+            websocket_sessions: HashMap::new(),
+            websocket_response_ids_seen: HashSet::new(),
+            websocket_response_owners: HashMap::new(),
+            websocket_response_order: std::collections::VecDeque::new(),
+            websocket_turn_states_by_response_id: HashMap::new(),
+            websocket_chain_inputs_by_response_id: HashMap::new(),
+            websocket_clock: Arc::new(SystemWebsocketClock),
+            websocket_lifecycle_policy: WebsocketLifecyclePolicy::default(),
+            websocket_next_generation: 1,
+        }
+    }
 }
 
 impl OpenAiProviderRuntime {
@@ -1283,42 +1323,16 @@ impl OpenAiProviderRuntime {
                 )
                 .await
             }
-            OpenAiTransportMode::ResponsesWebsocket => {
-                let requires_websocket_cursor = self
-                    .responses_body_uses_websocket_response_cursor(&body)
-                    || (native_passthrough && responses_body_previous_response_id(&body).is_some());
-                match self
-                    .invoke_response_websocket_with_cursor_retry(
-                        &config,
-                        &input,
-                        body.clone(),
-                        &request.protocol_context,
-                        &mut on_event,
-                    )
-                    .await
-                {
-                    Ok(output) => Ok(output),
-                    Err(error)
-                        if !native_passthrough
-                            && error.fallback_allowed
-                            && !requires_websocket_cursor
-                            && can_fallback_to_http(&error.source) =>
-                    {
-                        invoke_openai_http_sse(
-                            &config,
-                            request.protocol,
-                            request.pathname,
-                            body,
-                            input.model.clone(),
-                            &mut on_event,
-                            native_passthrough,
-                            &request.protocol_context,
-                        )
-                        .await
-                    }
-                    Err(error) => Err(error.source),
-                }
-            }
+            OpenAiTransportMode::ResponsesWebsocket => self
+                .invoke_response_websocket_with_cursor_retry(
+                    &config,
+                    &input,
+                    body,
+                    &request.protocol_context,
+                    &mut on_event,
+                )
+                .await
+                .map_err(|error| error.source),
             OpenAiTransportMode::Auto => {
                 let requires_websocket_cursor = self
                     .responses_body_uses_websocket_response_cursor(&body)
@@ -1356,9 +1370,7 @@ impl OpenAiProviderRuntime {
             }
         }?;
         if !native_passthrough {
-            output
-                .events
-                .retain(|event| !is_native_output_event(event));
+            output.events.retain(|event| !is_native_output_event(event));
         }
         attach_openai_model_intent(&mut output, &request.model_intent);
         append_request_translation_decisions(
@@ -1460,7 +1472,7 @@ impl OpenAiProviderRuntime {
         &mut self,
         config: &ProviderConfig,
         input: &ProviderInvocationInput,
-        body: Value,
+        mut body: Value,
         protocol_context: &RestoredProtocolContext,
         on_event: &mut F,
     ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
@@ -1473,32 +1485,91 @@ impl OpenAiProviderRuntime {
             )));
         }
         let session_key = websocket_session_key(config, input);
-        if input.native_transport.is_some() {
-            if let Some(response_id) = responses_body_previous_response_id(&body) {
-                if self.websocket_response_owners.get(response_id) != Some(&session_key) {
-                    return Err(WebsocketInvocationError::fallback_blocked(anyhow!(
-                        "native WebSocket continuation is unavailable for this provider session"
-                    )));
+        let now = self.websocket_clock.now();
+        if let Some(state) = self.websocket_sessions.get(&session_key).map(|session| {
+            self.websocket_lifecycle_policy
+                .state_at(session.generation, session.created_at, now)
+        }) {
+            if state != WebsocketConnectionState::Ready {
+                if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
+                    session.state = state;
+                    close_websocket_session(
+                        session,
+                        self.websocket_lifecycle_policy.close_ack_timeout,
+                    )
+                    .await;
                 }
+            }
+        }
+
+        if let Some(response_id) = responses_body_previous_response_id(&body).map(ToOwned::to_owned)
+        {
+            if let Some(owner) = self.websocket_response_owners.get(&response_id) {
+                let active_generation = self
+                    .websocket_sessions
+                    .get(&session_key)
+                    .map(|session| session.generation);
+                if owner.session_key != session_key || active_generation != Some(owner.generation) {
+                    if input.native_transport.is_none() {
+                        body = self
+                            .websocket_full_context_retry_body(&response_id, &body)
+                            .ok_or_else(|| {
+                                WebsocketInvocationError::transport_unavailable(format!(
+                                    "Responses websocket continuation interrupted: cursor {response_id} belongs to an unavailable connection generation"
+                                ))
+                            })?;
+                    } else {
+                        return Err(WebsocketInvocationError::transport_unavailable(format!(
+                            "native WebSocket continuation interrupted: cursor {response_id} belongs to an unavailable connection generation"
+                        )));
+                    }
+                }
+            } else if input.native_transport.is_some() {
+                return Err(WebsocketInvocationError::transport_unavailable(
+                    "native WebSocket continuation interrupted: cursor owner is unavailable",
+                ));
             }
         }
         if !self.websocket_sessions.contains_key(&session_key) {
             // Bounded idle socket ownership. Evicted cursors remain known but cannot
             // silently migrate to HTTP; recovery must re-establish the same owner.
             if self.websocket_sessions.len() >= 64 {
-                if let Some(oldest) = self.websocket_response_order.iter()
+                if let Some(oldest) = self
+                    .websocket_response_order
+                    .iter()
                     .filter_map(|id| self.websocket_response_owners.get(id))
-                    .find(|key| self.websocket_sessions.contains_key(*key)).cloned()
+                    .map(|owner| &owner.session_key)
+                    .find(|key| self.websocket_sessions.contains_key(*key))
+                    .cloned()
                 {
-                    self.websocket_sessions.remove(&oldest);
+                    if let Some(session) = self.websocket_sessions.remove(&oldest) {
+                        close_websocket_session(
+                            session,
+                            self.websocket_lifecycle_policy.close_ack_timeout,
+                        )
+                        .await;
+                    }
                 }
             }
             let turn_state = responses_body_previous_response_id(&body)
+                .filter(|response_id| {
+                    self.websocket_response_owners
+                        .get(*response_id)
+                        .is_some_and(|owner| owner.session_key == session_key)
+                })
                 .and_then(|response_id| self.websocket_turn_states_by_response_id.get(response_id))
                 .map(String::as_str);
-            let session = connect_responses_websocket(config, turn_state, protocol_context)
-                .await
-                .map_err(WebsocketInvocationError::fallback_allowed)?;
+            let generation = self.websocket_next_generation;
+            self.websocket_next_generation = self.websocket_next_generation.saturating_add(1);
+            let session = connect_responses_websocket(
+                config,
+                turn_state,
+                protocol_context,
+                generation,
+                self.websocket_clock.now(),
+            )
+            .await
+            .map_err(WebsocketInvocationError::connect_unavailable)?;
             self.websocket_sessions.insert(session_key.clone(), session);
         }
 
@@ -1507,9 +1578,8 @@ impl OpenAiProviderRuntime {
             .get_mut(&session_key)
             .expect("websocket session should be initialized");
         let mut request_body = build_websocket_response_create_body(body.clone());
-        let result =
-            read_websocket_response(session, &mut request_body, input, on_event)
-                .await;
+        let result = read_websocket_response(session, &mut request_body, input, on_event).await;
+        session.last_activity = self.websocket_clock.now();
 
         match result {
             Ok(response) => {
@@ -1518,6 +1588,11 @@ impl OpenAiProviderRuntime {
                     .websocket_sessions
                     .get(&session_key)
                     .and_then(|session| session.turn_state.clone());
+                let generation = self
+                    .websocket_sessions
+                    .get(&session_key)
+                    .map(|session| session.generation)
+                    .expect("completed websocket session should exist");
                 if let Some(response_id) = output
                     .result
                     .response_id
@@ -1526,8 +1601,13 @@ impl OpenAiProviderRuntime {
                 {
                     self.websocket_response_ids_seen
                         .insert(response_id.to_string());
-                    self.websocket_response_owners
-                        .insert(response_id.to_string(), session_key.clone());
+                    self.websocket_response_owners.insert(
+                        response_id.to_string(),
+                        WebsocketResponseOwner {
+                            session_key: session_key.clone(),
+                            generation,
+                        },
+                    );
                     if let Some(turn_state) = turn_state.as_deref() {
                         self.websocket_turn_states_by_response_id
                             .insert(response_id.to_string(), turn_state.to_string());
@@ -1535,7 +1615,8 @@ impl OpenAiProviderRuntime {
                     if input.native_transport.is_none() {
                         self.record_websocket_response_chain(response_id, &body, &output.result);
                     }
-                    self.websocket_response_order.push_back(response_id.to_string());
+                    self.websocket_response_order
+                        .push_back(response_id.to_string());
                     while self.websocket_response_order.len() > 1024 {
                         if let Some(expired) = self.websocket_response_order.pop_front() {
                             self.websocket_response_ids_seen.remove(&expired);
@@ -1546,12 +1627,25 @@ impl OpenAiProviderRuntime {
                     }
                 }
                 if !response.session_reusable {
-                    self.websocket_sessions.remove(&session_key);
+                    if let Some(session) = self.websocket_sessions.remove(&session_key) {
+                        close_websocket_session(
+                            session,
+                            self.websocket_lifecycle_policy.close_ack_timeout,
+                        )
+                        .await;
+                    }
                 }
                 Ok(output)
             }
             Err(error) => {
-                self.websocket_sessions.remove(&session_key);
+                if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
+                    session.state = WebsocketConnectionState::Faulted;
+                    close_websocket_session(
+                        session,
+                        self.websocket_lifecycle_policy.close_ack_timeout,
+                    )
+                    .await;
+                }
                 Err(error)
             }
         }
@@ -1843,7 +1937,10 @@ fn build_native_responses_request_body(
     {
         bail!("native Responses transport requires responses.native_passthrough");
     }
-    if !input.required_capabilities.contains(&ProviderInvocationCapability::ResponsesNativeOutputV1) {
+    if !input
+        .required_capabilities
+        .contains(&ProviderInvocationCapability::ResponsesNativeOutputV1)
+    {
         bail!("native Responses transport requires responses.native_output.v1 from the host");
     }
     if input.model.trim().is_empty() {
@@ -2580,10 +2677,86 @@ fn response_tool_arguments(arguments: &Value) -> String {
     }
 }
 
+trait WebsocketClock: Send + Sync {
+    fn now(&self) -> Instant;
+}
+
+#[derive(Debug)]
+struct SystemWebsocketClock;
+
+impl WebsocketClock for SystemWebsocketClock {
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WebsocketLifecyclePolicy {
+    soft_drain_min: Duration,
+    soft_drain_max: Duration,
+    hard_max_age: Duration,
+    close_ack_timeout: Duration,
+}
+
+impl Default for WebsocketLifecyclePolicy {
+    fn default() -> Self {
+        Self {
+            soft_drain_min: WEBSOCKET_SOFT_DRAIN_MIN,
+            soft_drain_max: WEBSOCKET_SOFT_DRAIN_MAX,
+            hard_max_age: WEBSOCKET_HARD_MAX_AGE,
+            close_ack_timeout: WEBSOCKET_CLOSE_ACK_TIMEOUT,
+        }
+    }
+}
+
+impl WebsocketLifecyclePolicy {
+    fn soft_drain_age(self, generation: u64) -> Duration {
+        let span = self
+            .soft_drain_max
+            .saturating_sub(self.soft_drain_min)
+            .as_secs();
+        self.soft_drain_min + Duration::from_secs(generation % (span + 1))
+    }
+
+    fn state_at(
+        self,
+        generation: u64,
+        created_at: Instant,
+        now: Instant,
+    ) -> WebsocketConnectionState {
+        let age = now.saturating_duration_since(created_at);
+        if age >= self.hard_max_age {
+            WebsocketConnectionState::Closing
+        } else if age >= self.soft_drain_age(generation) {
+            WebsocketConnectionState::Draining
+        } else {
+            WebsocketConnectionState::Ready
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WebsocketConnectionState {
+    Ready,
+    Draining,
+    Closing,
+    Faulted,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WebsocketResponseOwner {
+    session_key: String,
+    generation: u64,
+}
+
 #[derive(Debug)]
 struct ResponsesWebsocketSession {
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     turn_state: Option<String>,
+    generation: u64,
+    created_at: Instant,
+    last_activity: Instant,
+    state: WebsocketConnectionState,
 }
 
 #[derive(Debug)]
@@ -2600,6 +2773,19 @@ struct WebsocketInvocationError {
 }
 
 impl WebsocketInvocationError {
+    fn transport_unavailable(message: impl Into<String>) -> Self {
+        Self::reconnect_allowed(anyhow::Error::new(ProviderRuntimeError {
+            kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+            message: message.into(),
+            provider_summary: None,
+            provider_details: None,
+        }))
+    }
+
+    fn connect_unavailable(source: anyhow::Error) -> Self {
+        Self::transport_unavailable(source.to_string())
+    }
+
     fn fallback_allowed(source: anyhow::Error) -> Self {
         Self {
             source,
@@ -2636,7 +2822,7 @@ impl WebsocketInvocationError {
         if fallback_blocked {
             Self::fallback_blocked(source)
         } else {
-            Self::reconnect_allowed(source)
+            Self::transport_unavailable(source.to_string())
         }
     }
 }
@@ -2645,6 +2831,8 @@ async fn connect_responses_websocket(
     config: &ProviderConfig,
     turn_state: Option<&str>,
     protocol_context: &RestoredProtocolContext,
+    generation: u64,
+    now: Instant,
 ) -> Result<ResponsesWebsocketSession> {
     let url = build_websocket_url(config, protocol_context)?;
     let mut request = url
@@ -2673,7 +2861,14 @@ async fn connect_responses_websocket(
             .filter(|value| !value.trim().is_empty())
             .map(ToOwned::to_owned)
     });
-    Ok(ResponsesWebsocketSession { stream, turn_state })
+    Ok(ResponsesWebsocketSession {
+        stream,
+        turn_state,
+        generation,
+        created_at: now,
+        last_activity: now,
+        state: WebsocketConnectionState::Ready,
+    })
 }
 
 async fn connect_responses_websocket_through_proxy(
@@ -2806,7 +3001,11 @@ fn build_websocket_headers(
     // transport beta may be repeated by Codex, but must match our wire version.
     append_protocol_headers(&mut headers, protocol_context)?;
     let beta = headers.get_all("openai-beta").iter().collect::<Vec<_>>();
-    if beta.len() > 1 || beta.first().is_some_and(|value| value.as_bytes() != RESPONSES_WEBSOCKETS_BETA.as_bytes()) {
+    if beta.len() > 1
+        || beta
+            .first()
+            .is_some_and(|value| value.as_bytes() != RESPONSES_WEBSOCKETS_BETA.as_bytes())
+    {
         bail!("protocol context header collides with an owned field: openai-beta");
     }
     // A provider-issued sticky token owns reconnects after the first handshake.
@@ -2839,17 +3038,23 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
 }
 
 fn native_session_identity(input: &ProviderInvocationInput) -> Option<&str> {
-    input.client_protocol_envelope.as_ref()?.headers
-        .get("session-id")?.first().map(String::as_str)
+    input
+        .client_protocol_envelope
+        .as_ref()?
+        .headers
+        .get("session-id")?
+        .first()
+        .map(String::as_str)
         .filter(|value| !value.is_empty() && value.len() <= 256)
 }
 
 fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
+    let credential_fingerprint = credential_fingerprint(&config.api_key);
     format!(
         "{}\n{}\n{}\n{}\n{}\n{}",
         input.provider_instance_id,
         config.base_url,
-        config.api_key,
+        credential_fingerprint,
         config.organization.as_deref().unwrap_or_default(),
         config.project.as_deref().unwrap_or_default(),
         // Request body extensions vary between turns; only handshake context owns
@@ -2859,14 +3064,29 @@ fn websocket_session_key(config: &ProviderConfig, input: &ProviderInvocationInpu
             &input.model,
             input.client_protocol_envelope.as_ref().map(|context| (
                 &context.source_protocol,
-                context.headers.iter().filter(|(name, _)| input.native_transport.is_none() || matches!(name.as_str(),
-                    "session-id" | "thread-id" | "conversation_id" | "openai-organization" | "openai-project"
-                )).collect::<Vec<_>>(),
+                context
+                    .headers
+                    .iter()
+                    .filter(|(name, _)| input.native_transport.is_none()
+                        || matches!(
+                            name.as_str(),
+                            "session-id"
+                                | "thread-id"
+                                | "conversation_id"
+                                | "openai-organization"
+                                | "openai-project"
+                        ))
+                    .collect::<Vec<_>>(),
                 &context.query,
             )),
         ))
         .unwrap_or_default(),
     )
+}
+
+fn credential_fingerprint(api_key: &str) -> String {
+    let digest = Sha256::digest(api_key.as_bytes());
+    format!("sha256:{digest:x}")
 }
 
 fn can_fallback_to_http(error: &anyhow::Error) -> bool {
@@ -2900,6 +3120,40 @@ async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Val
         .map_err(map_websocket_error)
 }
 
+async fn close_websocket_session(
+    mut session: ResponsesWebsocketSession,
+    timeout: Duration,
+) -> bool {
+    session.state = WebsocketConnectionState::Closing;
+    if session.stream.send(Message::Close(None)).await.is_err()
+        || session.stream.flush().await.is_err()
+    {
+        session.state = WebsocketConnectionState::Faulted;
+        return false;
+    }
+    let acknowledged = tokio::time::timeout(timeout, async {
+        while let Some(message) = session.stream.next().await {
+            match message {
+                Ok(Message::Close(_)) => return true,
+                Ok(Message::Ping(payload)) => {
+                    if session.stream.send(Message::Pong(payload)).await.is_err() {
+                        return false;
+                    }
+                }
+                Ok(_) => {}
+                Err(_) => return false,
+            }
+        }
+        false
+    })
+    .await
+    .unwrap_or(false);
+    if !acknowledged {
+        session.state = WebsocketConnectionState::Faulted;
+    }
+    acknowledged
+}
+
 async fn send_websocket_response_processed(
     session: &mut ResponsesWebsocketSession,
     response_id: &str,
@@ -2925,7 +3179,7 @@ where
 {
     send_websocket_json(session, request_body)
         .await
-        .map_err(WebsocketInvocationError::reconnect_allowed)?;
+        .map_err(WebsocketInvocationError::connect_unavailable)?;
 
     let mut events = Vec::new();
     let mut all_events = Vec::new();
@@ -2996,9 +3250,9 @@ where
                     )
                 })?;
                 if !events.is_empty() {
+                    visible_output_started |= events.iter().any(websocket_event_commits_output);
                     emit_new_events(&events, on_event)
                         .map_err(WebsocketInvocationError::fallback_blocked)?;
-                    visible_output_started = true;
                     all_events.append(&mut events);
                 }
                 if response_stream_finished(&finish_reason) {
@@ -3024,11 +3278,18 @@ where
                     session_reusable = false;
                     break;
                 }
+                let recoverable_close = frame.as_ref().is_some_and(|frame| {
+                    websocket_close_code_is_recoverable(u16::from(frame.code))
+                });
                 let error = websocket_closed_before_completed_error(frame);
-                return Err(WebsocketInvocationError::from_reconnectable_stream_state(
-                    error,
-                    visible_output_started || semantic_terminal_failure_seen,
-                ));
+                return Err(if recoverable_close {
+                    WebsocketInvocationError::from_reconnectable_stream_state(
+                        error,
+                        visible_output_started || semantic_terminal_failure_seen,
+                    )
+                } else {
+                    WebsocketInvocationError::fallback_blocked(error)
+                });
             }
             Message::Binary(_) | Message::Frame(_) => {}
         }
@@ -3066,9 +3327,10 @@ where
         .as_deref()
         .filter(|value| !value.trim().is_empty())
     {
-        if input.native_transport.is_none() && send_websocket_response_processed(session, response_id)
-            .await
-            .is_err()
+        if input.native_transport.is_none()
+            && send_websocket_response_processed(session, response_id)
+                .await
+                .is_err()
         {
             session_reusable = false;
         }
@@ -3101,6 +3363,10 @@ fn websocket_closed_before_completed_error(
             frame.reason
         )
     }
+}
+
+fn websocket_close_code_is_recoverable(code: u16) -> bool {
+    matches!(code, 1011 | 1012 | 1013)
 }
 
 fn websocket_error_message(payload: &str) -> Option<String> {
@@ -3151,6 +3417,18 @@ fn response_status_blocks_http_fallback(response: &Value) -> bool {
 
 fn response_stream_finished(finish_reason: &ProviderFinishReason) -> bool {
     !matches!(finish_reason, ProviderFinishReason::Unknown)
+}
+
+fn websocket_event_commits_output(event: &ProviderStreamEvent) -> bool {
+    matches!(
+        event,
+        ProviderStreamEvent::TextDelta { .. }
+            | ProviderStreamEvent::ReasoningDelta { .. }
+            | ProviderStreamEvent::ToolCallDelta { .. }
+            | ProviderStreamEvent::ToolCallCommit { .. }
+            | ProviderStreamEvent::ResponsesOutputDelta { .. }
+            | ProviderStreamEvent::OutputItem { .. }
+    )
 }
 
 #[derive(Debug, Default)]
@@ -3602,16 +3880,26 @@ fn process_response_sse_payload(
         .get("type")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    if matches!(event_type,
-        "response.output_text.delta" | "response.output_text.done"
-        | "response.content_part.added" | "response.content_part.done"
-        | "response.reasoning_summary_part.added" | "response.reasoning_summary_part.done"
-        | "response.reasoning_summary_text.delta" | "response.reasoning_summary_text.done"
-        | "response.reasoning_text.delta" | "response.reasoning_text.done"
-        | "response.custom_tool_call_input.delta" | "response.custom_tool_call_input.done"
-        | "response.function_call_arguments.delta" | "response.function_call_arguments.done"
+    if matches!(
+        event_type,
+        "response.output_text.delta"
+            | "response.output_text.done"
+            | "response.content_part.added"
+            | "response.content_part.done"
+            | "response.reasoning_summary_part.added"
+            | "response.reasoning_summary_part.done"
+            | "response.reasoning_summary_text.delta"
+            | "response.reasoning_summary_text.done"
+            | "response.reasoning_text.delta"
+            | "response.reasoning_text.done"
+            | "response.custom_tool_call_input.delta"
+            | "response.custom_tool_call_input.done"
+            | "response.function_call_arguments.delta"
+            | "response.function_call_arguments.done"
     ) {
-        events.push(ProviderStreamEvent::ResponsesOutputDelta { event: payload.clone() });
+        events.push(ProviderStreamEvent::ResponsesOutputDelta {
+            event: payload.clone(),
+        });
     }
     match event_type {
         "response.created" => {
@@ -3707,7 +3995,8 @@ fn process_response_sse_payload(
 }
 
 fn is_native_output_event(event: &ProviderStreamEvent) -> bool {
-    matches!(event, ProviderStreamEvent::ResponsesOutputDelta { .. }) || matches!(event, ProviderStreamEvent::OutputItem { item, .. }
+    matches!(event, ProviderStreamEvent::ResponsesOutputDelta { .. })
+        || matches!(event, ProviderStreamEvent::OutputItem { item, .. }
         if matches!(item.get("type").and_then(Value::as_str), Some("message" | "reasoning" | "function_call" | "custom_tool_call")))
 }
 
@@ -3785,15 +4074,23 @@ fn process_terminal_response_event(
             _ => {}
         }
     }
-    let incomplete_reason = if payload.get("type").and_then(Value::as_str) == Some("response.incomplete")
+    let incomplete_reason = if payload.get("type").and_then(Value::as_str)
+        == Some("response.incomplete")
         || response.get("status").and_then(Value::as_str) == Some("incomplete")
     {
-        Some(match response.pointer("/incomplete_details/reason").and_then(Value::as_str) {
-            Some("max_output_tokens") => ProviderFinishReason::Length,
-            Some("content_filter") => ProviderFinishReason::ContentFilter,
-            _ => bail!("{}", response_incomplete_message(Some(response))),
-        })
-    } else { None };
+        Some(
+            match response
+                .pointer("/incomplete_details/reason")
+                .and_then(Value::as_str)
+            {
+                Some("max_output_tokens") => ProviderFinishReason::Length,
+                Some("content_filter") => ProviderFinishReason::ContentFilter,
+                _ => bail!("{}", response_incomplete_message(Some(response))),
+            },
+        )
+    } else {
+        None
+    };
     if let Some(id) = response.get("id") {
         *response_id = id.clone();
     }
@@ -3819,10 +4116,12 @@ fn process_terminal_response_event(
             text.push_str(&output_text);
         }
     }
-    *finish_reason = incomplete_reason.unwrap_or_else(|| if tool_calls.is_empty() {
-        ProviderFinishReason::Stop
-    } else {
-        ProviderFinishReason::ToolCall
+    *finish_reason = incomplete_reason.unwrap_or_else(|| {
+        if tool_calls.is_empty() {
+            ProviderFinishReason::Stop
+        } else {
+            ProviderFinishReason::ToolCall
+        }
     });
     Ok(())
 }
@@ -5009,9 +5308,8 @@ mod tests {
             .expect("semantic force enabled should render");
         assert_eq!(enabled["store"], true);
 
-        let disabled =
-            build_responses_body(&semantic_store_policy_input(json!("force_disabled")))
-                .expect("semantic force disabled should render");
+        let disabled = build_responses_body(&semantic_store_policy_input(json!("force_disabled")))
+            .expect("semantic force disabled should render");
         assert_eq!(disabled["store"], false);
     }
 
@@ -6232,11 +6530,15 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                ProviderStreamEvent::ResponsesOutputDelta { event: json!({"type":"response.reasoning_text.delta","item_id":"rs_1","output_index":0,"content_index":0,"delta":"thinking"}) },
+                ProviderStreamEvent::ResponsesOutputDelta {
+                    event: json!({"type":"response.reasoning_text.delta","item_id":"rs_1","output_index":0,"content_index":0,"delta":"thinking"})
+                },
                 ProviderStreamEvent::ReasoningDelta {
                     delta: "thinking".to_string()
                 },
-                ProviderStreamEvent::ResponsesOutputDelta { event: json!({"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","output_index":1,"delta":"{\"cmd\":\"pwd\"}"}) },
+                ProviderStreamEvent::ResponsesOutputDelta {
+                    event: json!({"type":"response.custom_tool_call_input.delta","item_id":"call_custom","call_id":"call_custom","output_index":1,"delta":"{\"cmd\":\"pwd\"}"})
+                },
                 ProviderStreamEvent::ToolCallDelta {
                     call_id: "call_custom".to_string(),
                     delta: json!("{\"cmd\":\"pwd\"}")
@@ -6248,13 +6550,43 @@ mod tests {
     #[test]
     fn response_incomplete_preserves_partial_content_usage_and_finish_reason() {
         for event_type in ["response.incomplete", "response.completed"] {
-            for (reason, expected) in [("max_output_tokens", ProviderFinishReason::Length), ("content_filter", ProviderFinishReason::ContentFilter)] {
+            for (reason, expected) in [
+                ("max_output_tokens", ProviderFinishReason::Length),
+                ("content_filter", ProviderFinishReason::ContentFilter),
+            ] {
                 let payload = json!({"type":event_type,"response":{"id":"resp_partial","status":"incomplete","incomplete_details":{"reason":reason},"output":[{"type":"message","content":[{"type":"output_text","text":"partial"}]}],"usage":{"input_tokens":2,"output_tokens":3,"total_tokens":5}}});
-                let mut events=vec![];let mut text=String::new();let mut calls=ResponseToolCalls::default();let mut usage=ProviderUsage::default();let mut finish=ProviderFinishReason::Unknown;let mut id=Value::Null;
-                process_response_sse_data(&payload.to_string(),&mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut id).unwrap();
-                assert_eq!(finish,expected);assert_eq!(text,"partial");assert_eq!(id,"resp_partial");assert_eq!(usage.total_tokens,Some(5));
-                let mut invalid=payload;invalid["response"]["incomplete_details"]["reason"]=json!("unknown");
-                assert!(process_response_sse_data(&invalid.to_string(),&mut events,&mut text,&mut calls,&mut usage,&mut finish,&mut id).is_err());
+                let mut events = vec![];
+                let mut text = String::new();
+                let mut calls = ResponseToolCalls::default();
+                let mut usage = ProviderUsage::default();
+                let mut finish = ProviderFinishReason::Unknown;
+                let mut id = Value::Null;
+                process_response_sse_data(
+                    &payload.to_string(),
+                    &mut events,
+                    &mut text,
+                    &mut calls,
+                    &mut usage,
+                    &mut finish,
+                    &mut id,
+                )
+                .unwrap();
+                assert_eq!(finish, expected);
+                assert_eq!(text, "partial");
+                assert_eq!(id, "resp_partial");
+                assert_eq!(usage.total_tokens, Some(5));
+                let mut invalid = payload;
+                invalid["response"]["incomplete_details"]["reason"] = json!("unknown");
+                assert!(process_response_sse_data(
+                    &invalid.to_string(),
+                    &mut events,
+                    &mut text,
+                    &mut calls,
+                    &mut usage,
+                    &mut finish,
+                    &mut id
+                )
+                .is_err());
             }
         }
     }
@@ -6560,10 +6892,15 @@ mod tests {
             proxy_url: Some(proxy_url),
         };
 
-        let session =
-            connect_responses_websocket(&config, None, &RestoredProtocolContext::default())
-                .await
-                .expect("websocket should connect through configured proxy");
+        let session = connect_responses_websocket(
+            &config,
+            None,
+            &RestoredProtocolContext::default(),
+            1,
+            Instant::now(),
+        )
+        .await
+        .expect("websocket should connect through configured proxy");
 
         assert_eq!(session.turn_state.as_deref(), Some("proxy-turn"));
         drop(session);
@@ -6634,13 +6971,10 @@ mod tests {
             "source_protocol": "openai_responses",
             "headers": {"openai-beta": [RESPONSES_WEBSOCKETS_BETA], "x-codex-turn-state": ["client-original"]}
         })).unwrap();
-        let (_, context) = restore_protocol_context(OpenAiWireProtocol::Responses, json!({}), Some(&envelope)).unwrap();
-        let headers = build_websocket_headers(
-            &config,
-            Some("sticky-turn-1"),
-            &context,
-        )
-        .unwrap();
+        let (_, context) =
+            restore_protocol_context(OpenAiWireProtocol::Responses, json!({}), Some(&envelope))
+                .unwrap();
+        let headers = build_websocket_headers(&config, Some("sticky-turn-1"), &context).unwrap();
 
         assert_eq!(
             headers
@@ -6713,3 +7047,7 @@ mod cache_write_usage_tests;
 #[cfg(test)]
 #[path = "_tests/native_tool_roundtrip.rs"]
 mod native_tool_roundtrip;
+
+#[cfg(test)]
+#[path = "_tests/websocket_lifecycle.rs"]
+mod websocket_lifecycle_tests;
