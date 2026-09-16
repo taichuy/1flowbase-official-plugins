@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       provider_code:
-        description: Provider code under runtime-extensions/@taichuy
+        description: Provider code under runtime-extensions/@taichuy, or all
         required: true
         type: string
       version:
@@ -59,23 +59,31 @@ jobs:
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             provider_code="${{ inputs.provider_code }}"
-            plugin_dir="runtime-extensions/@taichuy/${provider_code}"
-            if [ ! -f "${plugin_dir}/manifest.yaml" ]; then
-              echo "Provider manifest not found: ${plugin_dir}/manifest.yaml" >&2
-              exit 1
-            fi
+            if [ "${provider_code}" = "all" ]; then
+              if [ -n "${{ inputs.version }}" ]; then
+                echo "version override is not supported when provider_code=all" >&2
+                exit 1
+              fi
+              release_matrix_json="$(node scripts/list-provider-package-targets.mjs --format release-matrix)"
+            else
+              plugin_dir="runtime-extensions/@taichuy/${provider_code}"
+              if [ ! -f "${plugin_dir}/manifest.yaml" ]; then
+                echo "Provider manifest not found: ${plugin_dir}/manifest.yaml" >&2
+                exit 1
+              fi
 
-            version="${{ inputs.version }}"
-            if [ -z "${version}" ]; then
-              version="$(sed -n 's/^version:\s*//p' "${plugin_dir}/manifest.yaml" | head -n 1)"
-            fi
+              version="${{ inputs.version }}"
+              if [ -z "${version}" ]; then
+                version="$(sed -n 's/^version:\s*//p' "${plugin_dir}/manifest.yaml" | head -n 1)"
+              fi
 
-            if [ -z "${version}" ]; then
-              echo "Unable to resolve release version for ${provider_code}" >&2
-              exit 1
-            fi
+              if [ -z "${version}" ]; then
+                echo "Unable to resolve release version for ${provider_code}" >&2
+                exit 1
+              fi
 
-            release_matrix_json="$(node --input-type=module -e 'process.stdout.write(JSON.stringify({ include: [{ plugin_dir: process.argv[1], provider_code: process.argv[2], release_tag: `${process.argv[2]}-v${process.argv[3]}`, version: process.argv[3] }] }));' "${plugin_dir}" "${provider_code}" "${version}")"
+              release_matrix_json="$(node --input-type=module -e 'process.stdout.write(JSON.stringify({ include: [{ plugin_dir: process.argv[1], provider_code: process.argv[2], release_tag: `${process.argv[2]}-v${process.argv[3]}`, version: process.argv[3] }] }));' "${plugin_dir}" "${provider_code}" "${version}")"
+            fi
           else
             release_matrix_json="$(node scripts/detect-version-releases.mjs "${{ github.event.before }}" "${{ github.sha }}")"
           fi
@@ -323,7 +331,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ matrix.release_tag }}
-          ASSET_PREFIX: 1flowbase@${{ matrix.provider_code }}@${{ matrix.version }}@${{ matrix.os }}-${{ matrix.arch }}@
+          ASSET_BASENAME: 1flowbase@${{ matrix.provider_code }}@${{ matrix.version }}@${{ matrix.os }}-${{ matrix.arch }}
         shell: bash
         run: |
           set -euo pipefail
@@ -333,10 +341,10 @@ jobs:
             exit 0
           fi
 
-          asset_lines="$(node --input-type=module -e 'const release = JSON.parse(process.argv[1]); const prefix = process.argv[2]; for (const asset of release.assets) { if (asset.name.startsWith(prefix)) { process.stdout.write(`${asset.id}\t${asset.name}\n`); } }' "${existing_release_json}" "${ASSET_PREFIX}")"
+          asset_lines="$(printf '%s' "${existing_release_json}" | node scripts/provider-release/assets.mjs cleanup-lines --base "${ASSET_BASENAME}")"
 
           if [ -z "${asset_lines}" ]; then
-            echo "No existing assets matched ${ASSET_PREFIX}."
+            echo "No existing assets matched ${ASSET_BASENAME}."
             exit 0
           fi
 

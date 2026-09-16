@@ -130,16 +130,20 @@ test('official-registry.json keeps the published openai_compatible state consist
       `${entry.provider_code} ${artifact.os}-${artifact.arch} has invalid checksum`
     );
     const checksumHex = artifact.checksum.slice('sha256:'.length);
-    assert.equal(
-      artifact.download_url,
-      `https://github.com/taichuy/1flowbase-official-plugins/releases/download/${entry.provider_code}-v${entry.latest_version}/1flowbase@${entry.provider_code}@${entry.latest_version}@${artifact.os}-${artifact.arch}@${checksumHex}.1flowbasepkg`
+    const assetBase = `https://github.com/taichuy/1flowbase-official-plugins/releases/download/${entry.provider_code}-v${entry.latest_version}/1flowbase@${entry.provider_code}@${entry.latest_version}@${artifact.os}-${artifact.arch}`;
+    assert.ok(
+      [
+        `${assetBase}.1flowbasepkg`,
+        `${assetBase}@${checksumHex}.1flowbasepkg`,
+      ].includes(artifact.download_url),
+      `${entry.provider_code} ${artifact.os}-${artifact.arch} has an unsupported package URL`
     );
     assert.equal(artifact.signature_algorithm, 'ed25519');
     assert.equal(artifact.signing_key_id, 'official-key-2026-04');
   }
 });
 
-test('official-registry.json stores normalized sha256 checksums', () => {
+test('official-registry.json stores normalized sha256 checksums independently from asset names', () => {
   const registry = readRepoJson('official-registry.json');
 
   for (const plugin of registry.plugins) {
@@ -149,9 +153,14 @@ test('official-registry.json stores normalized sha256 checksums', () => {
         /^sha256:[0-9a-f]{64}$/i,
         `${plugin.provider_code} ${artifact.os}-${artifact.arch} has invalid checksum`
       );
+      const checksumHex = artifact.checksum.slice('sha256:'.length);
+      const assetBase = `https://github.com/taichuy/1flowbase-official-plugins/releases/download/${plugin.provider_code}-v${plugin.latest_version}/1flowbase@${plugin.provider_code}@${plugin.latest_version}@${artifact.os}-${artifact.arch}`;
       assert.ok(
-        artifact.download_url.includes(artifact.checksum.slice('sha256:'.length)),
-        `${plugin.provider_code} ${artifact.os}-${artifact.arch} checksum does not match URL`
+        [
+          `${assetBase}.1flowbasepkg`,
+          `${assetBase}@${checksumHex}.1flowbasepkg`,
+        ].includes(artifact.download_url),
+        `${plugin.provider_code} ${artifact.os}-${artifact.arch} has an unsupported package URL`
       );
     }
   }

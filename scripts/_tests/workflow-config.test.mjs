@@ -162,6 +162,11 @@ test('provider-release supports manual repair dispatches', () => {
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /allow_existing_tag_repair:/);
   assert.match(workflow, /provider_code:/);
+  assert.match(workflow, /if \[ "\$\{provider_code\}" = "all" \]; then/);
+  assert.match(
+    workflow,
+    /node scripts\/list-provider-package-targets\.mjs --format release-matrix/
+  );
 });
 
 test('provider-release can reuse an existing tag during repair runs', () => {
@@ -245,11 +250,14 @@ test('provider-release removes same-platform release assets before uploading rep
   assert.match(workflow, /- name: Remove existing platform assets for repair-safe uploads/);
   assert.match(
     workflow,
-    /ASSET_PREFIX: 1flowbase@\$\{\{ matrix\.provider_code \}\}@\$\{\{ matrix\.version \}\}@\$\{\{ matrix\.os \}\}-\$\{\{ matrix\.arch \}\}@/
+    /ASSET_BASENAME: 1flowbase@\$\{\{ matrix\.provider_code \}\}@\$\{\{ matrix\.version \}\}@\$\{\{ matrix\.os \}\}-\$\{\{ matrix\.arch \}\}/
   );
   assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(workflow, /gh release view "\$\{RELEASE_TAG\}" --json assets --repo "\$\{GITHUB_REPOSITORY\}"/);
-  assert.match(workflow, /asset\.name\.startsWith\(prefix\)/);
+  assert.match(
+    workflow,
+    /node scripts\/provider-release\/assets\.mjs cleanup-lines --base "\$\{ASSET_BASENAME\}"/
+  );
   assert.match(workflow, /gh release delete-asset "\$\{RELEASE_TAG\}" "\$\{asset_name\}" --repo "\$\{GITHUB_REPOSITORY\}" --yes/);
 
   assert.ok(

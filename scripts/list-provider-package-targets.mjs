@@ -145,6 +145,22 @@ export function listProviderPackageTargets(rootDir = repoRoot) {
     .sort((left, right) => left.provider_code.localeCompare(right.provider_code));
 }
 
+export function listProviderReleaseTargets(rootDir = repoRoot) {
+  return listProviderPackageTargets(rootDir).map(({ provider_code, plugin_dir }) => {
+    const manifest = fs.readFileSync(path.join(rootDir, plugin_dir, 'manifest.yaml'), 'utf8');
+    const version = readManifestField(manifest, 'version');
+    if (!/^\d+\.\d+\.\d+$/.test(version)) {
+      throw new Error(`provider ${provider_code} 缺少稳定 semver version`);
+    }
+    return {
+      plugin_dir,
+      provider_code,
+      release_tag: `${provider_code}-v${version}`,
+      version,
+    };
+  });
+}
+
 function parseCliArgs(argv) {
   const options = {
     format: 'json',
@@ -201,7 +217,9 @@ function parseCliArgs(argv) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const options = parseCliArgs(process.argv.slice(2));
-  const payload = options.pluginDir
+  const payload = options.format === 'release-matrix'
+    ? { include: listProviderReleaseTargets(repoRoot) }
+    : options.pluginDir
     ? readProviderPackageTarget(path.resolve(repoRoot, options.pluginDir), repoRoot, {
         rustTargetTriple: options.rustTarget,
       })

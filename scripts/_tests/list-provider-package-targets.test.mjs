@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import {
   listProviderPackageTargets,
+  listProviderReleaseTargets,
   readProviderPackageTarget,
 } from '../list-provider-package-targets.mjs';
 
@@ -99,6 +100,30 @@ test('listProviderPackageTargets supports manifest v1 stable plugin_id and basen
       provider_code: 'fallback-provider',
       plugin_dir: 'runtime-extensions/@taichuy/fallback-provider',
       binary_name: 'fallback-provider',
+    },
+  ]);
+});
+
+test('listProviderReleaseTargets plans every source provider at its manifest version', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-releases-'));
+  writeManifestV1(root, 'alpha_provider', {
+    pluginId: 'alpha_provider',
+    entry: 'bin/alpha-provider',
+  });
+  writeManifestV2(root, 'beta-provider', 'bin/beta-provider');
+
+  assert.deepEqual(listProviderReleaseTargets(root), [
+    {
+      plugin_dir: 'runtime-extensions/@taichuy/alpha_provider',
+      provider_code: 'alpha_provider',
+      release_tag: 'alpha_provider-v0.3.8',
+      version: '0.3.8',
+    },
+    {
+      plugin_dir: 'runtime-extensions/@taichuy/beta-provider',
+      provider_code: 'beta-provider',
+      release_tag: 'beta-provider-v0.1.0',
+      version: '0.1.0',
     },
   ]);
 });

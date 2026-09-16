@@ -119,6 +119,7 @@ git config alias.sync-main '!node scripts/sync-main.mjs'
 当某个 `<provider_code>-v<version>` tag 已经存在，但需要对同一版本补发或修复多平台产物时，可手动触发 `provider-release` workflow，并设置：
 
 - `provider_code`：目标 provider，例如 `openai_compatible`
+- `provider_code=all`：按各自 `manifest.yaml` 当前版本重打全部有源码 provider
 - `version`：目标版本，例如 `0.3.9`
 - `allow_existing_tag_repair`：设为 `true`
 
@@ -127,7 +128,7 @@ git config alias.sync-main '!node scripts/sync-main.mjs'
 - 某些平台在首次发布时失败，需要补齐缺失产物
 - workflow 本身修复后，需要对同一版本重新打包验证
 
-`provider-release` 在 repair 模式下会先删除同一 `provider + version + os/arch` 的旧 release asset，再上传新包。因此即使包名中的 checksum 发生变化，同一平台最终也只会保留一份 `.1flowbasepkg`。
+`provider-release` 在 repair 模式下会先删除同一 `provider + version + os/arch` 的旧 release asset（兼容历史 checksum 长文件名与当前短文件名），再上传新包。因此同一平台最终只会保留一份 `.1flowbasepkg`。完整 SHA-256 独立保存在 Registry 与 artifact metadata 中，不依赖文件名传递。
 
 ## Release Assets 说明
 
