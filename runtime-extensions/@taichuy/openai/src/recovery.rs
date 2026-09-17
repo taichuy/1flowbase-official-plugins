@@ -573,4 +573,176 @@ mod tests {
         assert_eq!(transition.reason, RecoveryReason::DeadlineExceeded);
         assert_eq!(transition.commit_level, CommitLevel::Terminal);
     }
+
+    #[test]
+    fn d4_managed_and_standalone_execute_the_same_mapped_transition_matrix() {
+        let cases = [
+            (
+                RecoveryFacts {
+                    signal: RecoverySignal::TransportRejected,
+                    cursor: CursorState::None,
+                    full_context_available: false,
+                },
+                RecoveryDisposition::PreCommitHttpFallback,
+            ),
+            (
+                RecoveryFacts {
+                    signal: RecoverySignal::TransportDisconnected,
+                    cursor: CursorState::ConnectionBound {
+                        same_epoch: true,
+                        owner_available: true,
+                        turn_state_available: true,
+                    },
+                    full_context_available: false,
+                },
+                RecoveryDisposition::SameEpochReconnect,
+            ),
+            (
+                RecoveryFacts {
+                    signal: RecoverySignal::PreviousResponseUnavailable,
+                    cursor: CursorState::ConnectionBound {
+                        same_epoch: true,
+                        owner_available: true,
+                        turn_state_available: true,
+                    },
+                    full_context_available: true,
+                },
+                RecoveryDisposition::OneFullContextRebuild,
+            ),
+        ];
+
+        for (facts, expected) in cases {
+            let mut standalone = fsm(RecoveryPolicyKind::SemanticMapped);
+            let mut managed = RecoveryFsm::new(RecoveryConstraints {
+                policy: RecoveryPolicyKind::SemanticMapped,
+                max_inner_attempts: STANDALONE_MAX_INNER_ATTEMPTS,
+                absolute_deadline_unix_ms: None,
+                initial_commit_level: CommitLevel::LifecycleOnly,
+            });
+            assert_eq!(standalone.decide(facts), expected);
+            assert_eq!(managed.decide(facts), expected);
+        }
+    }
+
+    #[test]
+    fn d4_connection_bound_cursor_never_crosses_epoch_or_http() {
+        for cursor in [
+            CursorState::ConnectionBound {
+                same_epoch: false,
+                owner_available: true,
+                turn_state_available: true,
+            },
+            CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: false,
+                turn_state_available: true,
+            },
+            CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: true,
+                turn_state_available: false,
+            },
+        ] {
+            let mut machine = fsm(RecoveryPolicyKind::SemanticMapped);
+            let disposition = machine.decide(RecoveryFacts {
+                signal: RecoverySignal::TransportDisconnected,
+                cursor,
+                full_context_available: true,
+            });
+            assert_eq!(disposition, RecoveryDisposition::TerminalInterruption);
+            assert_ne!(disposition, RecoveryDisposition::PreCommitHttpFallback);
+        }
+    }
+
+    #[test]
+    fn d4_unavailable_cursor_rebuild_is_single_use_even_with_remaining_budget() {
+        let mut machine = RecoveryFsm::new(RecoveryConstraints {
+            policy: RecoveryPolicyKind::SemanticMapped,
+            max_inner_attempts: 8,
+            absolute_deadline_unix_ms: None,
+            initial_commit_level: CommitLevel::LifecycleOnly,
+        });
+        let unavailable = RecoveryFacts {
+            signal: RecoverySignal::PreviousResponseUnavailable,
+            cursor: CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: true,
+                turn_state_available: true,
+            },
+            full_context_available: true,
+        };
+        assert_eq!(
+            machine.decide(unavailable),
+            RecoveryDisposition::OneFullContextRebuild
+        );
+        assert_eq!(
+            machine.decide(unavailable),
+            RecoveryDisposition::TerminalInterruption
+        );
+    }
+
+    #[test]
+    fn d4_native_opaque_and_post_commit_paths_never_select_provider_http() {
+        let retryable = RecoveryFacts {
+            signal: RecoverySignal::TransportRejected,
+            cursor: CursorState::None,
+            full_context_available: true,
+        };
+        let mut native = fsm(RecoveryPolicyKind::NativeOpaque);
+        assert_eq!(
+            native.decide(retryable),
+            RecoveryDisposition::TerminalInterruption
+        );
+
+        let mut mapped = fsm(RecoveryPolicyKind::SemanticMapped);
+        mapped.observe_semantic_event();
+        assert_eq!(
+            mapped.decide(retryable),
+            RecoveryDisposition::TerminalInterruption
+        );
+
+        let mut terminal = fsm(RecoveryPolicyKind::SemanticMapped);
+        assert_eq!(
+            terminal.decide(RecoveryFacts {
+                signal: RecoverySignal::SemanticTerminal,
+                cursor: CursorState::None,
+                full_context_available: true,
+            }),
+            RecoveryDisposition::SemanticTerminal
+        );
+    }
+
+    #[test]
+    fn d4_attempt_cap_is_absolute_and_never_resets_after_recoverable_transitions() {
+        let mut machine = RecoveryFsm::new(RecoveryConstraints {
+            policy: RecoveryPolicyKind::SemanticMapped,
+            max_inner_attempts: 2,
+            absolute_deadline_unix_ms: None,
+            initial_commit_level: CommitLevel::LifecycleOnly,
+        });
+        let reconnect = RecoveryFacts {
+            signal: RecoverySignal::TransportDisconnected,
+            cursor: CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: true,
+                turn_state_available: true,
+            },
+            full_context_available: false,
+        };
+        assert_eq!(
+            machine.decide_transition(reconnect).disposition,
+            RecoveryDisposition::SameEpochReconnect
+        );
+        assert_eq!(
+            machine.decide_transition(reconnect).disposition,
+            RecoveryDisposition::SameEpochReconnect
+        );
+        let exhausted = machine.decide_transition(reconnect);
+        assert_eq!(
+            exhausted.disposition,
+            RecoveryDisposition::TerminalInterruption
+        );
+        assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
+        assert_eq!(exhausted.commit_level, CommitLevel::Terminal);
+    }
 }
