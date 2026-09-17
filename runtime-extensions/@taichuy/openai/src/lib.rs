@@ -1438,7 +1438,7 @@ impl OpenAiProviderRuntime {
                             == Some(RecoveryDisposition::PreCommitHttpFallback)
                             && can_fallback_to_http(&error.source) =>
                     {
-                        let mut output = invoke_openai_http_sse(
+                        let fallback = invoke_openai_http_sse(
                             &config,
                             request.protocol,
                             request.pathname,
@@ -1448,7 +1448,17 @@ impl OpenAiProviderRuntime {
                             native_passthrough,
                             &request.protocol_context,
                         )
-                        .await?;
+                        .await;
+                        let mut output = match fallback {
+                            Ok(output) => output,
+                            Err(fallback_error) => {
+                                return Err(recovery_fallback_error_source(
+                                    error,
+                                    recovery_directive.as_ref(),
+                                    fallback_error,
+                                ));
+                            }
+                        };
                         attach_managed_recovery_receipt(
                             &mut output,
                             recovery_directive.as_ref(),
@@ -1483,7 +1493,7 @@ impl OpenAiProviderRuntime {
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {
-                        let mut output = invoke_openai_http_sse(
+                        let fallback = invoke_openai_http_sse(
                             &config,
                             request.protocol,
                             request.pathname,
@@ -1493,7 +1503,17 @@ impl OpenAiProviderRuntime {
                             native_passthrough,
                             &request.protocol_context,
                         )
-                        .await?;
+                        .await;
+                        let mut output = match fallback {
+                            Ok(output) => output,
+                            Err(fallback_error) => {
+                                return Err(recovery_fallback_error_source(
+                                    error,
+                                    recovery_directive.as_ref(),
+                                    fallback_error,
+                                ));
+                            }
+                        };
                         attach_managed_recovery_receipt(
                             &mut output,
                             recovery_directive.as_ref(),
@@ -1592,8 +1612,12 @@ impl OpenAiProviderRuntime {
                     } else {
                         RecoverySignal::ProtocolError
                     };
-                    let cursor = self
-                        .recovery_cursor_state(retry_response_id.as_deref(), recovery_directive);
+                    let cursor = self.recovery_cursor_state(
+                        retry_response_id.as_deref(),
+                        recovery_directive,
+                        signal,
+                        error.socket_incarnation,
+                    );
                     let full_context_body = retry_response_id.as_deref().and_then(|response_id| {
                         self.websocket_full_context_retry_body(response_id, &retry_body)
                     });
@@ -1636,6 +1660,8 @@ impl OpenAiProviderRuntime {
         &self,
         response_id: Option<&str>,
         directive: Option<&ProviderRecoveryDirective>,
+        signal: RecoverySignal,
+        invocation_socket_incarnation: Option<u64>,
     ) -> CursorState {
         let Some(response_id) = response_id else {
             return CursorState::None;
@@ -1666,9 +1692,21 @@ impl OpenAiProviderRuntime {
             CursorState::ConnectionBound {
                 same_epoch: true,
                 owner_available: true,
-                turn_state_available: self
-                    .websocket_turn_states_by_response_id
-                    .contains_key(response_id),
+                // Legacy upstreams do not always issue a turn-state header. A
+                // locally recorded owner makes that absence valid rather than
+                // stale; managed provenance keeps its stricter check above.
+                turn_state_available: true,
+            }
+        } else if signal == RecoverySignal::TransportDisconnected
+            && invocation_socket_incarnation.is_some()
+        {
+            // A successful handshake followed by a stream close binds an
+            // otherwise unseen legacy cursor to this invocation's WS path.
+            // It may reconnect in the same invocation, but must not cross HTTP.
+            CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: true,
+                turn_state_available: true,
             }
         } else {
             CursorState::OpaqueUnowned
@@ -2033,6 +2071,26 @@ fn recovery_error_source(
         );
     }
     anyhow::Error::new(runtime_error)
+}
+
+fn recovery_fallback_error_source(
+    original_error: WebsocketInvocationError,
+    directive: Option<&ProviderRecoveryDirective>,
+    fallback_error: anyhow::Error,
+) -> anyhow::Error {
+    let original_is_typed_transport = original_error
+        .source
+        .downcast_ref::<ProviderRuntimeError>()
+        .is_some_and(|error| error.kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable);
+    if original_is_typed_transport
+        && fallback_error
+            .downcast_ref::<ProviderRuntimeError>()
+            .is_none()
+    {
+        recovery_error_source(original_error, directive)
+    } else {
+        fallback_error
+    }
 }
 
 fn websocket_session_incarnation(
