@@ -169,12 +169,13 @@ async fn close_without_ack_is_local_release_and_concurrent_duplicates_share_one_
 async fn close_unknown_unbound_and_failed_handshake_never_fabricate_peer_ack() {
     let mut runtime = OpenAiProviderRuntime::default();
     let id = identity("failed-handshake", 1);
-    assert!(runtime
+    let missing = runtime
         .control_transport_session(command(&id))
         .await
-        .unwrap()
-        .closure_evidence
-        .is_none());
+        .unwrap();
+    assert!(missing.closure_evidence.is_none());
+    assert_eq!(missing.physical_state, PhysicalTransportState::Faulted);
+    assert_eq!(missing.close_acknowledged, None);
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     drop(listener);

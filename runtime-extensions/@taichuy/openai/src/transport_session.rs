@@ -85,6 +85,7 @@ impl TransportSessionCommand {
 pub(crate) enum PhysicalTransportState {
     Ready,
     Closed,
+    Faulted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

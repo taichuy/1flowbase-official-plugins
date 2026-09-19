@@ -168,7 +168,7 @@ pub(crate) fn missing_receipt(command: &TransportSessionCommand) -> TransportSes
     TransportSessionReceipt {
         generation: command.generation,
         reused: false,
-        physical_state: PhysicalTransportState::Closed,
+        physical_state: PhysicalTransportState::Faulted,
         connection_age_ms: 0,
         ttl_remaining_ms: 0,
         close_reason: Some(TransportSessionCloseReason::RequestedClose),
