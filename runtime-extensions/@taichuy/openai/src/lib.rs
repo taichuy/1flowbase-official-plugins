@@ -1947,6 +1947,8 @@ impl OpenAiProviderRuntime {
                 Ok(output)
             }
             Err(mut error) => {
+                error.source =
+                    attach_failed_timing(error.source, connect_duration, upstream_duration);
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
                     error.socket_incarnation = Some(session.socket_generation);
                     session.state = WebsocketConnectionState::Faulted;
@@ -2078,19 +2080,54 @@ fn recovery_fallback_error_source(
     directive: Option<&ProviderRecoveryDirective>,
     fallback_error: anyhow::Error,
 ) -> anyhow::Error {
-    let original_is_typed_transport = original_error
+    // The first typed failure remains primary even when the authorized HTTP
+    // attempt also fails. Its recovery diagnostic describes the actual final
+    // HTTP attempt, not a successful fallback or a WebSocket receipt.
+    let Some(mut primary) = original_error
         .source
         .downcast_ref::<ProviderRuntimeError>()
-        .is_some_and(|error| error.kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable);
-    if original_is_typed_transport
-        && fallback_error
+        .cloned()
+        .or_else(|| {
+            fallback_error
+                .downcast_ref::<ProviderRuntimeError>()
+                .cloned()
+        })
+    else {
+        return fallback_error;
+    };
+    let details = primary.provider_details.get_or_insert_with(|| json!({}));
+    if let Some(details) = details.as_object_mut() {
+        if let Some(secondary) = fallback_error
             .downcast_ref::<ProviderRuntimeError>()
-            .is_none()
-    {
-        recovery_error_source(original_error, directive)
-    } else {
-        fallback_error
+            .filter(|_| {
+                original_error
+                    .source
+                    .downcast_ref::<ProviderRuntimeError>()
+                    .is_some()
+            })
+        {
+            details.insert(
+                "fallback_error".into(),
+                serde_json::to_value(secondary).expect("typed error must serialize"),
+            );
+        }
+        if let (Some(directive), Some(transition)) = (directive, original_error.transition) {
+            details.insert(
+                recovery::RECOVERY_RECEIPT_METADATA_KEY.into(),
+                serde_json::to_value(ProviderRecoveryReceipt {
+                    attempt: transition.attempt,
+                    transport: RecoveryTransport::ProviderHttp,
+                    transport_epoch: directive.transport_epoch,
+                    socket_incarnation: None,
+                    commit_level: recovery::CommitLevel::Terminal,
+                    disposition: RecoveryDisposition::TerminalInterruption,
+                    reason: recovery::RecoveryReason::SemanticFailed,
+                })
+                .expect("typed recovery receipt must serialize"),
+            );
+        }
     }
+    anyhow::Error::new(primary)
 }
 
 fn websocket_session_incarnation(
@@ -2118,6 +2155,7 @@ async fn invoke_openai_http_sse<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let upstream_started = Instant::now();
     let response = build_http_client(config)?
         .request(
             Method::POST,
@@ -2128,14 +2166,22 @@ where
         .send()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
-    match protocol {
+    let result = match protocol {
         OpenAiWireProtocol::Chat => {
             read_chat_streaming_response(response, request_model, on_event).await
         }
         OpenAiWireProtocol::Responses => {
             read_streaming_response(response, request_model, on_event, native_passthrough).await
         }
-    }
+    };
+    let mut output =
+        result.map_err(|error| attach_failed_timing(error, None, upstream_started.elapsed()))?;
+    attach_invocation_timing_receipt(
+        &mut output.result.provider_metadata,
+        None,
+        upstream_started.elapsed(),
+    )?;
+    Ok(output)
 }
 
 #[cfg(test)]

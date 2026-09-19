@@ -158,6 +158,20 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
             first.last().unwrap()["result"]["provider_metadata"]["transport"],
             "responses_websocket"
         );
+        let metadata = &first.last().unwrap()["result"]["provider_metadata"];
+        assert_eq!(
+            metadata["1flowbase_physical_transport_session"]["generation"],
+            41
+        );
+        assert_eq!(
+            metadata["1flowbase_physical_transport_session"]["physical_state"],
+            "ready"
+        );
+        assert_eq!(
+            metadata["1flowbase_provider_invocation_timing"]["termination_kind"],
+            "completed"
+        );
+        assert!(metadata.get("1flowbase_provider_recovery").is_none());
         let second = turn(
             json!({"previous_response_id":"resp_1","input":[{"type":result_kind,"call_id":"call_1","output":"nonce"}]}),
         );

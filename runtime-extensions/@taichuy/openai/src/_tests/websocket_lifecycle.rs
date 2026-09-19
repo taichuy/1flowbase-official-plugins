@@ -380,3 +380,83 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
     assert!(close_rx.recv_timeout(Duration::from_secs(1)).unwrap());
     upstream.join().unwrap();
 }
+
+#[test]
+fn failed_fallback_preserves_first_typed_error_and_terminal_http_evidence() {
+    let directive: ProviderRecoveryDirective = serde_json::from_value(json!({
+        "policy":{"type":"semantic_mapped","budget":{"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},
+        "transport_epoch":19,"initial_commit_level":"lifecycle_only"
+    })).unwrap();
+    let mut original = WebsocketInvocationError::transport_unavailable("first websocket failure");
+    original.transition = Some(RecoveryTransition {
+        attempt: 1,
+        commit_level: recovery::CommitLevel::LifecycleOnly,
+        disposition: RecoveryDisposition::PreCommitHttpFallback,
+        reason: recovery::RecoveryReason::TransportDisconnected,
+    });
+    original.socket_incarnation = Some(4);
+    let secondary = ProviderRuntimeError::normalize("auth", "HTTP denied", None);
+    let error =
+        recovery_fallback_error_source(original, Some(&directive), anyhow::Error::new(secondary));
+    let primary = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    assert_eq!(
+        primary.kind,
+        ProviderRuntimeErrorKind::ProviderTransportUnavailable
+    );
+    assert_eq!(primary.message, "first websocket failure");
+    assert_eq!(
+        primary.provider_details.as_ref().unwrap()["fallback_error"]["kind"],
+        "auth_failed"
+    );
+    let metadata = primary.failure_metadata();
+    let receipt = &metadata[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+    assert_eq!(receipt["transport"], "provider_http");
+    assert_eq!(receipt["transport_epoch"], 19);
+    assert_eq!(receipt["attempt"], 1);
+    assert_eq!(receipt["disposition"], "terminal_interruption");
+    assert_eq!(receipt["commit_level"], "terminal");
+    assert_eq!(receipt["reason"], "semantic_failed");
+    assert!(receipt.get("socket_incarnation").is_none());
+    assert!(metadata
+        .get(TRANSPORT_SESSION_RECEIPT_METADATA_KEY)
+        .is_none());
+    assert!(metadata.get("fallback_error").is_none());
+}
+
+#[test]
+fn failure_timing_never_claims_completed_or_ready() {
+    let original = ProviderRuntimeError::normalize("auth", "denied", None);
+    let error = attach_failed_timing(
+        anyhow::Error::new(original),
+        Some(Duration::from_millis(7)),
+        Duration::from_millis(23),
+    );
+    let metadata = error
+        .downcast_ref::<ProviderRuntimeError>()
+        .unwrap()
+        .failure_metadata();
+    let timing = &metadata[INVOCATION_TIMING_RECEIPT_METADATA_KEY];
+    assert_eq!(timing["termination_kind"], "upstream_error");
+    assert_eq!(timing["connect_ms"], 7);
+    assert_eq!(timing["upstream_ms"], 23);
+    assert!(metadata
+        .get(TRANSPORT_SESSION_RECEIPT_METADATA_KEY)
+        .is_none());
+    let transport = WebsocketInvocationError::transport_unavailable("socket closed").source;
+    let error = attach_failed_timing(transport, None, Duration::from_millis(11));
+    assert_eq!(
+        error
+            .downcast_ref::<ProviderRuntimeError>()
+            .unwrap()
+            .failure_metadata()[INVOCATION_TIMING_RECEIPT_METADATA_KEY]["termination_kind"],
+        "transport_error"
+    );
+    // Untyped errors retain their original downcast identity and gain no made-up receipt.
+    let original = anyhow::Error::new(std::io::Error::new(
+        std::io::ErrorKind::UnexpectedEof,
+        "EOF",
+    ));
+    assert!(attach_failed_timing(original, None, Duration::ZERO)
+        .downcast_ref::<std::io::Error>()
+        .is_some());
+}

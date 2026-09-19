@@ -114,7 +114,7 @@ async fn run_streaming_invoke(runtime: &mut OpenAiProviderRuntime, request: Prov
                         mcp_calls: Vec::new(),
                         usage: ProviderUsage::default(),
                         finish_reason: Some(ProviderFinishReason::Error),
-                        provider_metadata: serde_json::json!({}),
+                        provider_metadata: runtime_error.failure_metadata(),
                     },
                 }))
                 .unwrap()

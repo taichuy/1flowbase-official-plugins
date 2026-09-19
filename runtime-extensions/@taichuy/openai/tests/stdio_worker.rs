@@ -1420,9 +1420,10 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
         .as_str()
         .expect("error message should be a string")
         .contains("OpenAI codex passthrough requires a non-empty instructions field"));
+    assert_eq!(error_line["error"]["provider_details"]["status"], 400);
     assert_eq!(
-        error_line["error"]["provider_details"],
-        json!({ "status": 400, "request_id": "req_mixed_body" })
+        error_line["error"]["provider_details"]["request_id"],
+        "req_mixed_body"
     );
     let encoded_error = error_line.to_string();
     assert!(!encoded_error.contains("should-not-leak"));
@@ -1431,6 +1432,19 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
     let result_line = next_json_line(&mut stdout);
     assert_eq!(result_line["type"], "result");
     assert_eq!(result_line["result"]["finish_reason"], "error");
+
+    let metadata = &result_line["result"]["provider_metadata"];
+    assert_eq!(
+        metadata["1flowbase_provider_invocation_timing"]["termination_kind"],
+        "upstream_error"
+    );
+    assert_eq!(
+        metadata["1flowbase_provider_invocation_timing"],
+        error_line["error"]["provider_details"]["1flowbase_provider_invocation_timing"]
+    );
+    assert!(metadata
+        .get("1flowbase_physical_transport_session")
+        .is_none());
 
     writeln!(stdin, "{}", invoke_line(&base_url, "http_sse")).expect("second request should write");
     stdin.flush().expect("second request should flush");
@@ -1446,6 +1460,15 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
             Some("result") => {
                 assert_eq!(line["result"]["final_content"], "ok");
                 assert_eq!(line["result"]["response_id"], "resp_ok");
+                let metadata = &line["result"]["provider_metadata"];
+                assert_eq!(
+                    metadata["1flowbase_provider_invocation_timing"]["termination_kind"],
+                    "completed"
+                );
+                assert!(metadata
+                    .get("1flowbase_physical_transport_session")
+                    .is_none());
+                assert!(metadata.get("1flowbase_provider_recovery").is_none());
                 break;
             }
             _ => {}
@@ -1471,8 +1494,13 @@ fn websocket_transport_falls_back_to_sse_before_response_events() {
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
-    writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
-        .expect("request should write");
+    let mut request: Value =
+        serde_json::from_str(&invoke_line(&base_url, "responses_websocket")).unwrap();
+    request["input"]["run_context"]["provider_recovery"] = json!({
+        "policy": {"type":"semantic_mapped", "budget": {"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},
+        "transport_epoch": 17, "initial_commit_level":"lifecycle_only"
+    });
+    writeln!(stdin, "{}", request).expect("request should write");
     stdin.flush().expect("request should flush");
 
     let mut saw_text_delta = false;
@@ -1487,6 +1515,29 @@ fn websocket_transport_falls_back_to_sse_before_response_events() {
                 assert_eq!(line["result"]["final_content"], "fallback ok");
                 assert_eq!(line["result"]["response_id"], "resp_fallback");
                 assert_eq!(line["result"]["provider_metadata"]["transport"], "http_sse");
+                let metadata = &line["result"]["provider_metadata"];
+                assert!(metadata
+                    .get("1flowbase_physical_transport_session")
+                    .is_none());
+                assert_eq!(
+                    metadata["1flowbase_provider_invocation_timing"]["termination_kind"],
+                    "completed"
+                );
+                assert_eq!(
+                    metadata["1flowbase_provider_recovery"]["transport"],
+                    "provider_http"
+                );
+                assert_eq!(
+                    metadata["1flowbase_provider_recovery"]["transport_epoch"],
+                    17
+                );
+                assert_eq!(
+                    metadata["1flowbase_provider_recovery"]["disposition"],
+                    "pre_commit_http_fallback"
+                );
+                assert!(metadata["1flowbase_provider_recovery"]
+                    .get("socket_incarnation")
+                    .is_none());
                 break;
             }
             Some("error") => panic!("fallback should not emit an error line: {line}"),

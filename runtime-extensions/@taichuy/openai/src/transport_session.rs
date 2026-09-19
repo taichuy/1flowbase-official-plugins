@@ -102,6 +102,8 @@ pub(crate) struct TransportSessionReceipt {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum InvocationTerminationKind {
     Completed,
+    UpstreamError,
+    TransportError,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -204,4 +206,57 @@ fn validate_opaque_id(field: &str, value: &str) -> Result<()> {
         bail!("transport session {field} must be an opaque URL-safe identifier");
     }
     Ok(())
+}
+
+// A failure carries only observed diagnostics, never a fabricated Ready receipt.
+impl ProviderRuntimeError {
+    pub fn failure_metadata(&self) -> Value {
+        let mut metadata = Map::new();
+        if let Some(details) = self.provider_details.as_ref().and_then(Value::as_object) {
+            for key in [
+                recovery::RECOVERY_RECEIPT_METADATA_KEY,
+                INVOCATION_TIMING_RECEIPT_METADATA_KEY,
+            ] {
+                if let Some(value) = details.get(key) {
+                    metadata.insert(key.to_string(), value.clone());
+                }
+            }
+        }
+        Value::Object(metadata)
+    }
+}
+
+pub(crate) fn attach_failed_timing(
+    error: anyhow::Error,
+    connect: Option<Duration>,
+    upstream: Duration,
+) -> anyhow::Error {
+    let Some(mut runtime_error) = error.downcast_ref::<ProviderRuntimeError>().cloned() else {
+        return error;
+    };
+    let termination_kind = if matches!(
+        runtime_error.kind,
+        ProviderRuntimeErrorKind::ProviderTransportUnavailable
+            | ProviderRuntimeErrorKind::EndpointUnreachable
+    ) {
+        InvocationTerminationKind::TransportError
+    } else {
+        InvocationTerminationKind::UpstreamError
+    };
+    let details = runtime_error
+        .provider_details
+        .get_or_insert_with(|| json!({}));
+    if let Some(details) = details.as_object_mut() {
+        details.insert(
+            INVOCATION_TIMING_RECEIPT_METADATA_KEY.to_string(),
+            serde_json::to_value(InvocationTimingReceipt {
+                schema_version: INVOCATION_TIMING_SCHEMA_VERSION,
+                connect_ms: connect.map(bounded_millis),
+                upstream_ms: bounded_millis(upstream),
+                termination_kind,
+            })
+            .expect("typed timing receipt must serialize"),
+        );
+    }
+    anyhow::Error::new(runtime_error)
 }
