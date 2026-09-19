@@ -2076,39 +2076,33 @@ fn recovery_error_source(
 }
 
 fn recovery_fallback_error_source(
-    original_error: WebsocketInvocationError,
+    mut original_error: WebsocketInvocationError,
     directive: Option<&ProviderRecoveryDirective>,
     fallback_error: anyhow::Error,
 ) -> anyhow::Error {
-    // The first typed failure remains primary even when the authorized HTTP
+    // The first failure remains primary even when the authorized HTTP
     // attempt also fails. Its recovery diagnostic describes the actual final
     // HTTP attempt, not a successful fallback or a WebSocket receipt.
-    let Some(mut primary) = original_error
-        .source
-        .downcast_ref::<ProviderRuntimeError>()
-        .cloned()
-        .or_else(|| {
-            fallback_error
-                .downcast_ref::<ProviderRuntimeError>()
-                .cloned()
-        })
-    else {
-        return fallback_error;
+    let Some(primary) = original_error.source.downcast_mut::<ProviderRuntimeError>() else {
+        // Preserve the original concrete error and its Display without a new
+        // wrapper. There is no typed details slot; report only a fixed safe
+        // secondary diagnostic, never raw error text or provider configuration.
+        eprintln!("provider HTTP fallback also failed; retaining original transport error");
+        return original_error.source;
     };
     let details = primary.provider_details.get_or_insert_with(|| json!({}));
     if let Some(details) = details.as_object_mut() {
-        if let Some(secondary) = fallback_error
-            .downcast_ref::<ProviderRuntimeError>()
-            .filter(|_| {
-                original_error
-                    .source
-                    .downcast_ref::<ProviderRuntimeError>()
-                    .is_some()
-            })
-        {
+        if let Some(secondary) = fallback_error.downcast_ref::<ProviderRuntimeError>() {
             details.insert(
                 "fallback_error".into(),
                 serde_json::to_value(secondary).expect("typed error must serialize"),
+            );
+        } else {
+            details.insert(
+                "fallback_error".into(),
+                json!({
+                    "message": "HTTP fallback also failed; untyped secondary error details omitted"
+                }),
             );
         }
         if let (Some(directive), Some(transition)) = (directive, original_error.transition) {
@@ -2127,7 +2121,7 @@ fn recovery_fallback_error_source(
             );
         }
     }
-    anyhow::Error::new(primary)
+    original_error.source
 }
 
 fn websocket_session_incarnation(

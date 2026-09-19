@@ -460,3 +460,67 @@ fn failure_timing_never_claims_completed_or_ready() {
         .downcast_ref::<std::io::Error>()
         .is_some());
 }
+
+#[test]
+fn failed_fallback_preserves_untyped_original_identity_for_both_secondary_kinds() {
+    for secondary in [
+        anyhow::Error::new(ProviderRuntimeError::normalize(
+            "auth",
+            "secondary denied",
+            None,
+        )),
+        anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "secondary denied",
+        )),
+    ] {
+        let original = anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "first websocket EOF",
+        ));
+        let original_display = original.to_string();
+        let original_identity =
+            original.downcast_ref::<std::io::Error>().unwrap() as *const std::io::Error;
+        let error = recovery_fallback_error_source(
+            WebsocketInvocationError::fallback_allowed(original),
+            None,
+            secondary,
+        );
+        assert_eq!(error.to_string(), original_display);
+        let retained = error
+            .downcast_ref::<std::io::Error>()
+            .expect("original concrete error must survive fallback");
+        assert_eq!(retained as *const std::io::Error, original_identity);
+        assert_eq!(retained.kind(), std::io::ErrorKind::UnexpectedEof);
+        assert!(error.downcast_ref::<ProviderRuntimeError>().is_none());
+    }
+}
+
+#[test]
+fn failed_fallback_keeps_typed_primary_display_with_untyped_secondary() {
+    let original = WebsocketInvocationError::transport_unavailable("first websocket failure");
+    let original_display = original.source.to_string();
+    let original_identity = original
+        .source
+        .downcast_ref::<ProviderRuntimeError>()
+        .unwrap() as *const ProviderRuntimeError;
+    let secondary = anyhow::Error::new(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "secondary contains fixture-secret",
+    ));
+    let error = recovery_fallback_error_source(original, None, secondary);
+    assert_eq!(error.to_string(), original_display);
+    let primary = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    assert_eq!(
+        primary.kind,
+        ProviderRuntimeErrorKind::ProviderTransportUnavailable
+    );
+    assert_eq!(primary as *const ProviderRuntimeError, original_identity);
+    assert_eq!(
+        primary.provider_details.as_ref().unwrap()["fallback_error"]["message"],
+        "HTTP fallback also failed; untyped secondary error details omitted"
+    );
+    assert!(!serde_json::to_string(primary)
+        .unwrap()
+        .contains("fixture-secret"));
+}
