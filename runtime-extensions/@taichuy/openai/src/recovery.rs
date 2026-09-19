@@ -322,7 +322,12 @@ impl RecoveryFsm {
                     RecoveryDisposition::PreCommitHttpFallback
                 }
                 CursorState::OpaqueUnowned => RecoveryDisposition::TerminalInterruption,
-                CursorState::None => RecoveryDisposition::PreCommitHttpFallback,
+                CursorState::None
+                    if self.constraints.policy == RecoveryPolicyKind::SemanticMapped =>
+                {
+                    RecoveryDisposition::PreCommitHttpFallback
+                }
+                CursorState::None => RecoveryDisposition::TerminalInterruption,
             },
             RecoverySignal::ProxyFailed => match facts.cursor {
                 CursorState::ConnectionBound {
@@ -501,6 +506,47 @@ mod tests {
             }),
             RecoveryDisposition::TerminalInterruption
         );
+    }
+
+    #[test]
+    fn disconnected_without_cursor_respects_native_and_mapped_policy() {
+        for deadline in [None, Some(4_102_444_800_000)] {
+            for (policy, expected, commit_level, consumed) in [
+                (
+                    RecoveryPolicyKind::NativeOpaque,
+                    RecoveryDisposition::TerminalInterruption,
+                    CommitLevel::Terminal,
+                    0,
+                ),
+                (
+                    RecoveryPolicyKind::SemanticMapped,
+                    RecoveryDisposition::PreCommitHttpFallback,
+                    CommitLevel::LifecycleOnly,
+                    1,
+                ),
+            ] {
+                let mut machine = RecoveryFsm::new(RecoveryConstraints {
+                    policy,
+                    max_inner_attempts: 3,
+                    absolute_deadline_unix_ms: deadline,
+                    initial_commit_level: CommitLevel::LifecycleOnly,
+                });
+                let transition = machine.decide_transition(RecoveryFacts {
+                    signal: RecoverySignal::TransportDisconnected,
+                    cursor: CursorState::None,
+                    full_context_available: false,
+                });
+                assert_eq!(
+                    transition.disposition, expected,
+                    "policy={policy:?}, deadline={deadline:?}"
+                );
+                assert_eq!(transition.commit_level, commit_level);
+                assert_eq!(transition.reason, RecoveryReason::TransportDisconnected);
+                assert_eq!(transition.attempt, 0);
+                assert_eq!(machine.attempt, consumed);
+                assert_eq!(machine.constraints.absolute_deadline_unix_ms, deadline);
+            }
+        }
     }
 
     #[test]
