@@ -30,6 +30,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+mod close;
 mod transport_session;
 use transport_session::*;
 
@@ -788,6 +789,8 @@ pub struct OpenAiProviderRuntime {
     websocket_lifecycle_policy: WebsocketLifecyclePolicy,
     websocket_next_socket_generation: u64,
     websocket_logical_sessions: HashMap<String, String>,
+    close_ledger: close::CloseLedger,
+    close_worker_incarnation: Option<u64>,
 }
 
 impl fmt::Debug for OpenAiProviderRuntime {
@@ -821,6 +824,8 @@ impl Default for OpenAiProviderRuntime {
             websocket_lifecycle_policy: WebsocketLifecyclePolicy::default(),
             websocket_next_socket_generation: 1,
             websocket_logical_sessions: HashMap::new(),
+            close_ledger: close::CloseLedger::default(),
+            close_worker_incarnation: None,
         }
     }
 }
@@ -915,74 +920,82 @@ impl OpenAiProviderRuntime {
         command: TransportSessionCommand,
     ) -> Result<TransportSessionReceipt> {
         command.validate()?;
-        let session_key = self
-            .websocket_logical_sessions
-            .get(&command.logical_session_id)
-            .cloned()
-            .ok_or_else(|| {
-                anyhow::Error::new(ProviderRuntimeError {
-                    kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
-                    message: "physical transport session is unavailable".into(),
-                    provider_summary: None,
-                    provider_details: None,
-                })
-            })?;
-        let session = self
+        let identity = close::CloseIdentity::command(&command);
+        let Some(identity) = identity else {
+            return Ok(close::missing_receipt(&command));
+        };
+        if self.close_worker_incarnation != Some(identity.worker_incarnation) {
+            return Ok(close::missing_receipt(&command));
+        }
+        let now = self.websocket_clock.now();
+        self.close_ledger.prune(now);
+        if let Some(receipt) = self.close_ledger.completed(&identity) {
+            return Ok(receipt);
+        }
+        let keys: Vec<_> = self
             .websocket_sessions
-            .remove(&session_key)
-            .ok_or_else(|| {
-                anyhow::Error::new(ProviderRuntimeError {
-                    kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
-                    message: "physical transport session is unavailable".into(),
-                    provider_summary: None,
-                    provider_details: None,
-                })
-            })?;
-        if session.contract_generation != Some(command.generation) {
-            self.websocket_sessions.insert(session_key, session);
+            .iter()
+            .filter(|(_, session)| session.close_identity.as_ref() == Some(&identity))
+            .map(|(key, _)| key.clone())
+            .collect();
+        if keys.is_empty() {
+            if let Some(receipt) = self.close_ledger.complete(&identity, &command, now) {
+                return Ok(receipt);
+            }
+        }
+        if keys.is_empty()
+            && self.websocket_sessions.values().any(|session| {
+                session
+                    .close_identity
+                    .as_ref()
+                    .is_some_and(|bound| bound.logical_session_id == identity.logical_session_id)
+            })
+        {
             return Err(anyhow::Error::new(ProviderRuntimeError {
                 kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
-                message: "transport session generation fence rejected the command".into(),
+                message: "transport session identity fence rejected the command".into(),
                 provider_summary: None,
                 provider_details: None,
             }));
         }
-        self.websocket_logical_sessions
-            .remove(&command.logical_session_id);
-        let now = self.websocket_clock.now();
-        let connection_age_ms = u64::try_from(
-            now.saturating_duration_since(session.created_at)
-                .as_millis(),
-        )
-        .unwrap_or(u64::MAX)
-        .min(24 * 60 * 60 * 1_000);
-        let deadline_remaining_ms = command.deadline_unix_ms.saturating_sub(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis()
-                .try_into()
-                .unwrap_or(i64::MAX),
+        if command.deadline_unix_ms <= close::unix_time_ms() {
+            bail!("transport session command deadline has expired");
+        }
+        let remaining = Duration::from_millis(
+            u64::try_from(
+                command
+                    .deadline_unix_ms
+                    .saturating_sub(close::unix_time_ms()),
+            )
+            .unwrap_or(0),
         );
-        let close_timeout =
-            self.websocket_lifecycle_policy
-                .close_ack_timeout
-                .min(Duration::from_millis(
-                    u64::try_from(deadline_remaining_ms).unwrap_or(0),
-                ));
-        let acknowledged = close_websocket_session(session, close_timeout).await;
-        Ok(TransportSessionReceipt {
-            generation: command.generation,
-            reused: true,
-            physical_state: PhysicalTransportState::Closed,
-            connection_age_ms,
-            ttl_remaining_ms: 0,
-            close_reason: Some(match command.action {
-                TransportSessionAction::Drain => TransportSessionCloseReason::RequestedDrain,
-                TransportSessionAction::Close => TransportSessionCloseReason::RequestedClose,
-            }),
-            close_acknowledged: Some(acknowledged),
-        })
+        let deadline = tokio::time::Instant::now()
+            + remaining.min(self.websocket_lifecycle_policy.close_ack_timeout);
+        for key in keys {
+            if let Some(session) = self.websocket_sessions.remove(&key) {
+                let timeout = deadline.saturating_duration_since(tokio::time::Instant::now());
+                self.release_session(session, timeout).await;
+                self.websocket_logical_sessions
+                    .retain(|_, candidate| candidate != &key);
+            }
+        }
+        Ok(self
+            .close_ledger
+            .complete(&identity, &command, self.websocket_clock.now())
+            .unwrap_or_else(|| close::missing_receipt(&command)))
+    }
+
+    async fn release_session(&mut self, session: ResponsesWebsocketSession, timeout: Duration) {
+        let identity = session.close_identity.clone();
+        let age = self
+            .websocket_clock
+            .now()
+            .saturating_duration_since(session.created_at);
+        let observation = close::release_socket(session, timeout).await;
+        if let Some(identity) = identity {
+            self.close_ledger
+                .released(&identity, observation, age, self.websocket_clock.now());
+        }
     }
 
     async fn invoke_response(
@@ -1733,6 +1746,39 @@ impl OpenAiProviderRuntime {
             )));
         }
         let session_key = websocket_session_key(config, input, directive.as_ref());
+        let close_identity = directive.as_ref().and_then(close::CloseIdentity::directive);
+        if let Some(identity) = &close_identity {
+            if self
+                .close_worker_incarnation
+                .is_some_and(|bound| bound != identity.worker_incarnation)
+            {
+                return Err(WebsocketInvocationError::transport_unavailable(
+                    "worker incarnation fence rejected invocation",
+                ));
+            }
+            self.close_worker_incarnation = Some(identity.worker_incarnation);
+            self.close_ledger
+                .reserve(identity.clone(), self.websocket_clock.now())
+                .map_err(WebsocketInvocationError::fallback_blocked)?;
+        }
+        if self
+            .websocket_sessions
+            .get(&session_key)
+            .is_some_and(|session| {
+                session
+                    .close_identity
+                    .as_ref()
+                    .map(|identity| identity.worker_incarnation)
+                    != close_identity
+                        .as_ref()
+                        .map(|identity| identity.worker_incarnation)
+            })
+        {
+            return Err(WebsocketInvocationError::transport_unavailable(
+                "worker incarnation fence rejected invocation",
+            ));
+        }
+
         if let Some(directive) = &directive {
             if self
                 .websocket_logical_sessions
@@ -1750,7 +1796,7 @@ impl OpenAiProviderRuntime {
                 .is_some_and(|session| session.contract_generation != Some(directive.generation))
         }) {
             if let Some(session) = self.websocket_sessions.remove(&session_key) {
-                close_websocket_session(session, self.websocket_lifecycle_policy.close_ack_timeout)
+                self.release_session(session, self.websocket_lifecycle_policy.close_ack_timeout)
                     .await;
             }
         }
@@ -1765,7 +1811,7 @@ impl OpenAiProviderRuntime {
             if state != WebsocketConnectionState::Ready {
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
                     session.state = state;
-                    close_websocket_session(
+                    self.release_session(
                         session,
                         self.websocket_lifecycle_policy.close_ack_timeout,
                     )
@@ -1841,7 +1887,7 @@ impl OpenAiProviderRuntime {
             self.websocket_next_socket_generation =
                 self.websocket_next_socket_generation.saturating_add(1);
             let connect_started = Instant::now();
-            let session = connect_responses_websocket(
+            let mut session = connect_responses_websocket(
                 config,
                 turn_state,
                 protocol_context,
@@ -1852,6 +1898,10 @@ impl OpenAiProviderRuntime {
             .await
             .map_err(WebsocketInvocationError::connect_unavailable)?;
             connect_duration = Some(connect_started.elapsed());
+            session.close_identity = close_identity.clone();
+            if let Some(identity) = &close_identity {
+                self.close_ledger.activated(identity);
+            }
             self.websocket_sessions.insert(session_key.clone(), session);
             if let Some(directive) = &directive {
                 self.websocket_logical_sessions
@@ -1935,7 +1985,7 @@ impl OpenAiProviderRuntime {
                 }
                 if !response.session_reusable {
                     if let Some(session) = self.websocket_sessions.remove(&session_key) {
-                        close_websocket_session(
+                        self.release_session(
                             session,
                             self.websocket_lifecycle_policy.close_ack_timeout,
                         )
@@ -1952,7 +2002,7 @@ impl OpenAiProviderRuntime {
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
                     error.socket_incarnation = Some(session.socket_generation);
                     session.state = WebsocketConnectionState::Faulted;
-                    close_websocket_session(
+                    self.release_session(
                         session,
                         self.websocket_lifecycle_policy.close_ack_timeout,
                     )
@@ -3201,6 +3251,7 @@ struct ResponsesWebsocketSession {
     turn_state: Option<String>,
     socket_generation: u64,
     contract_generation: Option<u64>,
+    close_identity: Option<close::CloseIdentity>,
     created_at: Instant,
     last_activity: Instant,
     state: WebsocketConnectionState,
@@ -3334,6 +3385,7 @@ async fn connect_responses_websocket(
         turn_state,
         socket_generation,
         contract_generation,
+        close_identity: None,
         created_at: now,
         last_activity: now,
         state: WebsocketConnectionState::Ready,
@@ -3593,40 +3645,6 @@ async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Val
         .send(Message::Text(payload.into()))
         .await
         .map_err(map_websocket_error)
-}
-
-async fn close_websocket_session(
-    mut session: ResponsesWebsocketSession,
-    timeout: Duration,
-) -> bool {
-    session.state = WebsocketConnectionState::Closing;
-    if session.stream.send(Message::Close(None)).await.is_err()
-        || session.stream.flush().await.is_err()
-    {
-        session.state = WebsocketConnectionState::Faulted;
-        return false;
-    }
-    let acknowledged = tokio::time::timeout(timeout, async {
-        while let Some(message) = session.stream.next().await {
-            match message {
-                Ok(Message::Close(_)) => return true,
-                Ok(Message::Ping(payload)) => {
-                    if session.stream.send(Message::Pong(payload)).await.is_err() {
-                        return false;
-                    }
-                }
-                Ok(_) => {}
-                Err(_) => return false,
-            }
-        }
-        false
-    })
-    .await
-    .unwrap_or(false);
-    if !acknowledged {
-        session.state = WebsocketConnectionState::Faulted;
-    }
-    acknowledged
 }
 
 async fn send_websocket_response_processed(

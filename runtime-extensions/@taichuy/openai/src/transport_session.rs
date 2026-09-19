@@ -22,6 +22,8 @@ pub(crate) enum LogicalSessionState {
 pub(crate) struct TransportSessionDirective {
     pub logical_session_id: String,
     pub generation: u64,
+    #[serde(default)]
+    pub worker_incarnation: Option<u64>,
     pub task_id: String,
     pub state: LogicalSessionState,
     pub physical_deadline_unix_ms: i64,
@@ -30,6 +32,9 @@ pub(crate) struct TransportSessionDirective {
 impl TransportSessionDirective {
     pub(crate) fn validate(&self) -> Result<()> {
         validate_opaque_id("logical_session_id", &self.logical_session_id)?;
+        if self.worker_incarnation == Some(0) {
+            bail!("worker incarnation must be positive");
+        }
         if self.generation == 0 {
             bail!("transport session directive generation must be positive");
         }
@@ -53,6 +58,8 @@ pub(crate) enum TransportSessionAction {
 pub(crate) struct TransportSessionCommand {
     pub logical_session_id: String,
     pub generation: u64,
+    #[serde(default)]
+    pub worker_incarnation: Option<u64>,
     pub action: TransportSessionAction,
     pub deadline_unix_ms: i64,
 }
@@ -60,11 +67,14 @@ pub(crate) struct TransportSessionCommand {
 impl TransportSessionCommand {
     pub(crate) fn validate(&self) -> Result<()> {
         validate_opaque_id("logical_session_id", &self.logical_session_id)?;
+        if self.worker_incarnation == Some(0) {
+            bail!("worker incarnation must be positive");
+        }
         if self.generation == 0 {
             bail!("transport session generation must be positive");
         }
-        if self.deadline_unix_ms <= unix_time_ms() {
-            bail!("transport session command deadline has expired");
+        if self.deadline_unix_ms <= 0 {
+            bail!("transport session deadline must be positive");
         }
         Ok(())
     }
@@ -96,6 +106,8 @@ pub(crate) struct TransportSessionReceipt {
     pub close_reason: Option<TransportSessionCloseReason>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub close_acknowledged: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub closure_evidence: Option<close::ClosureEvidence>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -147,6 +159,7 @@ pub(crate) fn ready_receipt(
         ttl_remaining_ms: bounded_millis(policy.hard_max_age.saturating_sub(age)),
         close_reason: None,
         close_acknowledged: None,
+        closure_evidence: None,
     }
 }
 

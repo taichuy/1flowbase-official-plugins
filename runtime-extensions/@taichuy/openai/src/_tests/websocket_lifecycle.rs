@@ -41,6 +41,7 @@ fn websocket_input(base_url: &str) -> ProviderInvocationInput {
             json!({
                 "logical_session_id":"logical-fixture",
                 "generation":9,
+                "worker_incarnation":1,
                 "task_id":"task-fixture",
                 "state":"active",
                 "physical_deadline_unix_ms":4_102_444_800_000_i64
@@ -337,6 +338,19 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
     .await
     .unwrap();
     let mut runtime = OpenAiProviderRuntime::default();
+    let identity = close::CloseIdentity {
+        logical_session_id: "logical-fixture".into(),
+        generation: 9,
+        worker_incarnation: 1,
+    };
+    let mut session = session;
+    session.close_identity = Some(identity.clone());
+    runtime.close_worker_incarnation = Some(1);
+    runtime
+        .close_ledger
+        .reserve(identity.clone(), Instant::now())
+        .unwrap();
+    runtime.close_ledger.activated(&identity);
     runtime
         .websocket_sessions
         .insert("physical-fixture".into(), session);
@@ -347,6 +361,7 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
         .control_transport_session(TransportSessionCommand {
             logical_session_id: "logical-fixture".into(),
             generation: 8,
+            worker_incarnation: Some(1),
             action: TransportSessionAction::Drain,
             deadline_unix_ms: 4_102_444_800_000,
         })
@@ -363,6 +378,7 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
         .control_transport_session(TransportSessionCommand {
             logical_session_id: "logical-fixture".into(),
             generation: 9,
+            worker_incarnation: Some(1),
             action: TransportSessionAction::Drain,
             deadline_unix_ms: 4_102_444_800_000,
         })

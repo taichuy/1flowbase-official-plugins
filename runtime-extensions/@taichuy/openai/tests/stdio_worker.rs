@@ -1656,3 +1656,116 @@ fn websocket_close_after_function_call_done_finalizes_tool_call() {
     let _ = child.wait();
     server.join().expect("server thread should finish");
 }
+
+#[test]
+fn close_without_peer_ack_and_rejected_control_preserve_other_session_cursor_in_same_worker() {
+    let (base_b, server_b) = start_websocket_same_session_continuation_server();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base_a = format!("http://{}", listener.local_addr().unwrap());
+    let server_a = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut socket = accept(stream).unwrap();
+        socket.read().unwrap();
+        socket
+            .send(Message::Text(
+                json!({"type":"response.completed", "response":{"id":"resp_a","output":[]}})
+                    .to_string()
+                    .into(),
+            ))
+            .unwrap();
+        loop {
+            if matches!(socket.read().unwrap(), Message::Close(_)) {
+                break;
+            }
+        }
+        // Do not flush tungstenite's queued peer ACK.
+        thread::sleep(Duration::from_millis(250));
+    });
+    struct Worker(std::process::Child);
+    impl Drop for Worker {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    let mut child = Worker(
+        Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let mut input = child.0.stdin.take().unwrap();
+    let mut output = BufReader::new(child.0.stdout.take().unwrap());
+    let bind = |line: String, session: &str| {
+        let mut value: Value = serde_json::from_str(&line).unwrap();
+        value["input"]["run_context"] = json!({"physical_transport_session":{
+            "logical_session_id":session, "generation":1, "worker_incarnation":11,
+            "task_id":"task", "state":"active", "physical_deadline_unix_ms":4_102_444_800_000_i64
+        }});
+        value
+    };
+    for request in [
+        bind(invoke_line(&base_a, "responses_websocket"), "session-a"),
+        bind(invoke_line(&base_b, "responses_websocket"), "session-b"),
+    ] {
+        writeln!(input, "{request}").unwrap();
+        input.flush().unwrap();
+        loop {
+            let frame = next_json_line(&mut output);
+            assert_ne!(frame["type"], "error", "{frame}");
+            if frame["type"] == "result" {
+                break;
+            }
+        }
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let close = json!({"method":"transport_session", "input":{
+        "logical_session_id":"session-a", "generation":1, "worker_incarnation":11,
+        "action":"close", "deadline_unix_ms":now+100
+    }});
+    writeln!(input, "{close}").unwrap();
+    input.flush().unwrap();
+    let first = next_json_line(&mut output);
+    assert_eq!(first["ok"], true);
+    assert_eq!(first["result"]["closure_evidence"]["local_released"], true);
+    assert_eq!(
+        first["result"]["closure_evidence"]["no_ack_reason"],
+        "timeout"
+    );
+    assert_eq!(first["result"]["close_acknowledged"], false);
+    writeln!(input, "{close}").unwrap();
+    input.flush().unwrap();
+    assert_eq!(next_json_line(&mut output), first);
+    let mut stale = close.clone();
+    stale["input"]["logical_session_id"] = json!("session-b");
+    stale["input"]["generation"] = json!(999);
+    stale["input"]["deadline_unix_ms"] = json!(4_102_444_800_000_i64);
+    writeln!(input, "{stale}").unwrap();
+    input.flush().unwrap();
+    assert_eq!(next_json_line(&mut output)["ok"], false);
+    let continuation = bind(
+        invoke_line_with_previous_response_id(&base_b, "responses_websocket", "resp_previous"),
+        "session-b",
+    );
+    writeln!(input, "{continuation}").unwrap();
+    input.flush().unwrap();
+    loop {
+        let frame = next_json_line(&mut output);
+        assert_ne!(frame["type"], "error", "{frame}");
+        if frame["type"] == "result" {
+            assert_eq!(frame["result"]["response_id"], "resp_final");
+            break;
+        }
+    }
+    drop(child);
+    server_a.join().unwrap();
+    server_b.join().unwrap();
+}
