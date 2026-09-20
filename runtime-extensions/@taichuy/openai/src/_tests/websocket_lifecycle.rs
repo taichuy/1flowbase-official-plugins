@@ -54,7 +54,7 @@ fn websocket_input(base_url: &str) -> ProviderInvocationInput {
 fn start_closing_websocket(
     visible_output: bool,
     semantic_terminal: bool,
-) -> (String, thread::JoinHandle<()>) {
+) -> (String, thread::JoinHandle<TcpListener>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     let handle = thread::spawn(move || {
@@ -73,7 +73,7 @@ fn start_closing_websocket(
         if semantic_terminal {
             websocket
                 .send(Message::Text(
-                    json!({"type":"error","error":{"code":"invalid_request","message":"terminal"}})
+                    json!({"type":"response.failed","response":{"error":{"code":"invalid_request","message":"terminal private-canary"}}})
                         .to_string()
                         .into(),
                 ))
@@ -86,6 +86,8 @@ fn start_closing_websocket(
                 })))
                 .unwrap();
         }
+        listener.set_nonblocking(true).unwrap();
+        listener
     });
     (base_url, handle)
 }
@@ -141,84 +143,122 @@ fn typed_session_context_rejects_unknown_fields_and_capacity_is_not_evicted() {
     );
 }
 
+fn managed_closing_input(base_url: &str, budget: u16) -> ProviderInvocationInput {
+    let mut input = websocket_input(base_url);
+    input.run_context.insert(recovery::RECOVERY_DIRECTIVE_CONTEXT_KEY.into(), json!({
+        "policy":{"type":"semantic_mapped","budget":{"max_inner_attempts":budget,"absolute_deadline_unix_ms":4102444800000_i64}},
+        "transport_epoch":9,"initial_commit_level":"lifecycle_only"
+    }));
+    input
+}
+
+fn assert_no_replacement_connection(upstream: thread::JoinHandle<TcpListener>) {
+    let listener = upstream.join().unwrap();
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "terminal failure must not perform additional network I/O"
+    );
+}
+
+fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> &'a Value {
+    let typed = error
+        .downcast_ref::<ProviderRuntimeError>()
+        .expect("recovery boundary returns a safe canonical error");
+    assert_eq!(
+        typed.kind,
+        ProviderRuntimeErrorKind::ProviderTransportUnavailable
+    );
+    let details = typed.provider_details.as_ref().unwrap();
+    let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+    assert_eq!(receipt["disposition"], "terminal_interruption");
+    assert_eq!(receipt["commit_level"], "terminal");
+    assert_eq!(receipt["reason"], expected_reason);
+    assert_eq!(receipt["attempt"], 0);
+    let diagnostics = &details[recovery_diagnostics::KEY];
+    assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
+    assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
+    assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
+    let serialized = serde_json::to_string(typed).unwrap();
+    assert!(!serialized.contains("credential-canary"));
+    assert!(!serialized.contains("private-canary"));
+    diagnostics
+}
+
 #[test]
 fn recoverable_transport_classification_covers_close_reset_eof_and_idle() {
     for code in [1011, 1012, 1013] {
-        assert!(websocket_close_code_is_recoverable(code));
-    }
-    for code in [1000, 1008] {
-        assert!(!websocket_close_code_is_recoverable(code));
+        let source = websocket_closed_before_completed_error(Some(CloseFrame {
+            code: CloseCode::from(code),
+            reason: "private-canary".into(),
+        }));
+        let diagnostic = recovery_diagnostics::failure(&source, None, None);
+        assert_eq!(diagnostic["kind"], "websocket_close");
+        assert_eq!(diagnostic["close_code"], code);
+        assert_eq!(diagnostic["reason_category"], "transport_disconnected");
     }
     for message in [
         "connection reset by peer",
         "websocket closed before response.completed",
         "idle timeout waiting for Responses websocket",
     ] {
-        let error =
+        let mut error =
             WebsocketInvocationError::from_reconnectable_stream_state(anyhow!(message), false);
-        assert_eq!(
-            error
-                .source
-                .downcast_ref::<ProviderRuntimeError>()
-                .map(|error| &error.kind),
-            Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
-        );
         assert!(error.reconnect_allowed);
+        assert!(!error.semantic_committed);
+        error
+            .failure_diagnostics
+            .push(recovery_diagnostics::failure(&error.source, None, None));
+        let normalized = recovery_error_source(error, None);
+        let typed = normalized.downcast_ref::<ProviderRuntimeError>().unwrap();
+        assert_eq!(
+            typed.kind,
+            ProviderRuntimeErrorKind::ProviderTransportUnavailable
+        );
+        assert_eq!(
+            typed.provider_details.as_ref().unwrap()[recovery_diagnostics::KEY]["first_failure"]
+                ["kind"],
+            "provider_untyped"
+        );
     }
 }
 
 #[tokio::test]
-async fn recoverable_close_is_typed_only_before_visible_output() {
+async fn recoverable_close_type_is_independent_of_semantic_replay_permission() {
     let (base_url, upstream) = start_closing_websocket(false, false);
     let error = OpenAiProviderRuntime::default()
-        .invoke_response(websocket_input(&base_url))
+        .invoke_response(managed_closing_input(&base_url, 1))
         .await
         .unwrap_err();
-    assert_eq!(
-        error
-            .downcast_ref::<ProviderRuntimeError>()
-            .map(|error| &error.kind),
-        Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable),
-        "unexpected error: {error:?}"
-    );
-    upstream.join().unwrap();
+    let diagnostics = assert_safe_terminal(&error, "budget_exhausted");
+    assert_eq!(diagnostics["first_failure"]["kind"], "websocket_close");
+    assert_eq!(diagnostics["first_failure"]["close_code"], 1011);
+    assert_no_replacement_connection(upstream);
 
     let (base_url, upstream) = start_closing_websocket(true, false);
     let mut emitted = Vec::new();
     let error = OpenAiProviderRuntime::default()
-        .invoke_response_with_event_sink(websocket_input(&base_url), |event| {
+        .invoke_response_with_event_sink(managed_closing_input(&base_url, 3), |event| {
             emitted.push(event.clone());
             Ok(())
         })
         .await
         .unwrap_err();
-    assert!(emitted.iter().any(
-        |event| matches!(event, ProviderStreamEvent::TextDelta { delta } if delta == "visible")
-    ));
-    assert_ne!(
-        error
-            .downcast_ref::<ProviderRuntimeError>()
-            .map(|error| &error.kind),
-        Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
-    );
-    upstream.join().unwrap();
+    assert_eq!(emitted.iter().filter(|event| matches!(event, ProviderStreamEvent::TextDelta { delta } if delta == "visible")).count(), 1);
+    let diagnostics = assert_safe_terminal(&error, "semantic_failed");
+    assert_eq!(diagnostics["last_failure"]["close_code"], 1011);
+    assert_no_replacement_connection(upstream);
 }
 
 #[tokio::test]
 async fn semantic_terminal_is_never_marked_replayable() {
     let (base_url, upstream) = start_closing_websocket(false, true);
     let error = OpenAiProviderRuntime::default()
-        .invoke_response(websocket_input(&base_url))
+        .invoke_response(managed_closing_input(&base_url, 3))
         .await
         .unwrap_err();
-
-    assert_ne!(
-        error
-            .downcast_ref::<ProviderRuntimeError>()
-            .map(|error| &error.kind),
-        Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
-    );
-    upstream.join().unwrap();
+    let diagnostics = assert_safe_terminal(&error, "semantic_failed");
+    assert_eq!(diagnostics["first_failure"]["kind"], "provider_untyped");
+    assert_no_replacement_connection(upstream);
 }
 
 #[test]

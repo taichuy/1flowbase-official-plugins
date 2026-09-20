@@ -4162,11 +4162,6 @@ fn websocket_closed_before_completed_error(
     recovery_diagnostics::close_error(frame)
 }
 
-#[cfg(test)]
-fn websocket_close_code_is_recoverable(code: u16) -> bool {
-    matches!(code, 1011 | 1012 | 1013)
-}
-
 fn websocket_error_message(payload: &str) -> Option<String> {
     let value: Value = serde_json::from_str(payload).ok()?;
     if value.get("type").and_then(Value::as_str) != Some("error") {
@@ -5508,6 +5503,69 @@ mod tests {
         (base_url, request_rx)
     }
 
+    fn start_counted_http_failure(
+        status: &str,
+        content_type: &str,
+        body: &str,
+        declared_length: Option<usize>,
+    ) -> (String, thread::JoinHandle<TcpListener>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let status = status.to_owned();
+        let content_type = content_type.to_owned();
+        let body = body.to_owned();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_http_request_with_body(&mut stream);
+            assert!(request.starts_with("POST /responses HTTP/1.1"));
+            write!(stream, "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", declared_length.unwrap_or(body.len()), body).unwrap();
+            listener.set_nonblocking(true).unwrap();
+            listener
+        });
+        (base, server)
+    }
+
+    fn assert_single_safe_http_failure(
+        error: &anyhow::Error,
+        server: thread::JoinHandle<TcpListener>,
+    ) {
+        let typed = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .expect("recovery diagnostics require a canonical typed boundary");
+        assert_eq!(
+            typed.kind,
+            ProviderRuntimeErrorKind::ProviderTransportUnavailable
+        );
+        assert_eq!(
+            typed.message,
+            "provider failure; unclassified details redacted"
+        );
+        let details = typed.provider_details.as_ref().unwrap();
+        let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+        assert_eq!(receipt["transport"], "provider_http");
+        assert_eq!(receipt["attempt"], 0);
+        assert_eq!(receipt["commit_level"], "terminal");
+        assert_eq!(receipt["disposition"], "terminal_interruption");
+        let diagnostics = &details[recovery_diagnostics::KEY];
+        assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
+        assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
+        assert_eq!(diagnostics["first_failure"]["kind"], "provider_untyped");
+        assert_eq!(diagnostics["first_failure"]["consumed_attempts"], 1);
+        assert_eq!(
+            diagnostics["first_failure"]["reason_category"],
+            "unclassified"
+        );
+        assert!(diagnostics["first_failure"]["socket_incarnation"].is_null());
+        let serialized = serde_json::to_string(typed).unwrap();
+        assert!(!serialized.contains("wire-secret"));
+        assert!(!serialized.contains("transport-fixture-secret"));
+        let listener = server.join().unwrap();
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "terminal HTTP failure must not perform another request with remaining budget"
+        );
+    }
+
     fn start_chunked_sse_server(chunks: Vec<Vec<u8>>) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("SSE listener should bind");
         let address = format!("http://{}", listener.local_addr().expect("listener addr"));
@@ -5887,9 +5945,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn wp_d3a_error_body_transport_failure_is_not_a_provider_runtime_error() {
+    async fn wp_d3a_error_body_transport_failure_has_safe_canonical_evidence() {
         let raw_body = "truncated";
-        let (base_url, _) = start_generate_http_server(
+        let (base_url, server) = start_counted_http_failure(
             "502 Bad Gateway",
             "text/plain",
             raw_body,
@@ -5906,6 +5964,7 @@ mod tests {
                 "api_key": "transport-fixture-secret",
                 "transport_mode": "http_sse"
             },
+            "run_context":{"provider_recovery":{"policy":{"type":"semantic_mapped","budget":{"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":9,"initial_commit_level":"lifecycle_only"}},
             "messages": [{ "role": "user", "content": "fixture" }]
         }))
         .expect("transport failure fixture input should deserialize");
@@ -5915,8 +5974,7 @@ mod tests {
             .await
             .expect_err("truncated upstream body should remain a transport failure");
 
-        assert!(error.downcast_ref::<ProviderRuntimeError>().is_none());
-        assert!(error.downcast_ref::<reqwest::Error>().is_some());
+        assert_single_safe_http_failure(&error, server);
     }
 
     #[test]
@@ -6429,10 +6487,10 @@ mod tests {
 
     #[tokio::test]
     async fn responses_http_stream_eof_before_completed_is_an_error() {
-        let (base_url, _) = start_generate_sse_server_with_body(concat!(
+        let (base_url, server) = start_counted_http_failure("200 OK", "text/event-stream", concat!(
             "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_truncated\"}}\n\n",
             "data: {\"type\":\"response.output_text.delta\",\"response_id\":\"resp_truncated\",\"delta\":\"partial\"}\n\n"
-        ));
+        ), None);
         let input: ProviderInvocationInput = serde_json::from_value(json!({
             "contract_version": "1flowbase.provider/v2",
             "provider_instance_id": "provider-openai",
@@ -6444,16 +6502,22 @@ mod tests {
                 "api_key": "wire-secret",
                 "transport_mode": "http_sse"
             },
+            "run_context":{"provider_recovery":{"policy":{"type":"semantic_mapped","budget":{"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":9,"initial_commit_level":"lifecycle_only"}},
             "messages": [{ "role": "user", "content": "wire prompt" }]
         }))
         .unwrap();
 
+        let mut emitted = Vec::new();
         let error = OpenAiProviderRuntime::default()
-            .invoke_response(input)
+            .invoke_response_with_event_sink(input, |event| {
+                emitted.push(event.clone());
+                Ok(())
+            })
             .await
             .expect_err("EOF before response.completed must fail");
 
-        assert!(error.to_string().contains("before response.completed"));
+        assert_eq!(emitted.iter().filter(|event| matches!(event, ProviderStreamEvent::TextDelta { delta } if delta == "partial")).count(), 1);
+        assert_single_safe_http_failure(&error, server);
     }
 
     #[tokio::test]

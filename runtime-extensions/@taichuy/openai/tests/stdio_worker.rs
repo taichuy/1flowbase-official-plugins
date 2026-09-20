@@ -465,8 +465,7 @@ fn start_websocket_proxy_failure_with_preserved_turn_state_server(
     (address, handle)
 }
 
-fn start_websocket_previous_response_unavailable_full_context_server(
-) -> (String, thread::JoinHandle<()>) {
+fn start_websocket_unknown_policy_close_server() -> (String, thread::JoinHandle<TcpListener>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
@@ -522,49 +521,12 @@ fn start_websocket_previous_response_unavailable_full_context_server(
         websocket
             .send(Message::Close(Some(CloseFrame {
                 code: CloseCode::Policy,
-                reason: "previous_response_id resp_previous is no longer available".into(),
+                reason: "previous_response_id resp_previous is no longer available; private-policy-secret".into(),
             })))
             .expect("unavailable cursor close should be writable");
 
-        let (retry_stream, _) = listener
-            .accept()
-            .expect("full-context retry websocket should connect");
-        let mut websocket =
-            accept(retry_stream).expect("full-context retry handshake should succeed");
-        let request = websocket
-            .read()
-            .expect("full-context response.create should be readable")
-            .into_text()
-            .expect("full-context request should be text");
-        let request_json: Value =
-            serde_json::from_str(&request).expect("full-context request should be JSON");
-        assert_eq!(request_json["type"], "response.create");
-        assert!(
-            request_json.get("previous_response_id").is_none(),
-            "full-context retry must not reuse the unavailable cursor: {request}"
-        );
-        assert_eq!(request_json["input"][0]["role"], "user");
-        assert_eq!(request_json["input"][0]["content"], "hello");
-        assert_eq!(request_json["input"][1]["type"], "function_call");
-        assert_eq!(request_json["input"][1]["call_id"], "call_lookup");
-        assert_eq!(request_json["input"][1]["name"], "lookup");
-        assert_eq!(
-            request_json["input"][1]["arguments"],
-            r#"{"query":"refund"}"#
-        );
-        assert_eq!(request_json["input"][2]["type"], "function_call_output");
-        assert_eq!(request_json["input"][2]["call_id"], "call_lookup");
-        assert_eq!(request_json["input"][2]["output"], "tool result");
-        websocket
-            .send(Message::Text(
-                r#"{"type":"response.output_text.delta","response_id":"resp_recovered","delta":"full context recovered"}"#.into(),
-            ))
-            .expect("full-context delta should be writable");
-        websocket
-            .send(Message::Text(
-                r#"{"type":"response.completed","response":{"id":"resp_recovered","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
-            ))
-            .expect("full-context completion should be writable");
+        listener.set_nonblocking(true).unwrap();
+        listener
     });
 
     (address, handle)
@@ -1298,8 +1260,8 @@ fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
 }
 
 #[test]
-fn websocket_previous_response_unavailable_retries_with_full_context() {
-    let (base_url, server) = start_websocket_previous_response_unavailable_full_context_server();
+fn websocket_unknown_1008_policy_no_replay() {
+    let (base_url, server) = start_websocket_unknown_policy_close_server();
     let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1331,39 +1293,52 @@ fn websocket_previous_response_unavailable_retries_with_full_context() {
     writeln!(
         stdin,
         "{}",
-        invoke_line_with_previous_response_id(&base_url, "responses_websocket", "resp_previous")
+        invoke_line_with_managed_recovery(&base_url, "responses_websocket", "resp_previous")
     )
     .expect("continuation request should write");
     stdin.flush().expect("continuation request should flush");
 
-    let mut saw_text_delta = false;
+    let mut observed_error = None;
     loop {
         let line = next_json_line(&mut stdout);
         match line["type"].as_str() {
             Some("text_delta") => {
-                saw_text_delta = true;
-                assert_eq!(line["delta"], "full context recovered");
-            }
-            Some("result") => {
-                assert_eq!(line["result"]["final_content"], "full context recovered");
-                assert_eq!(line["result"]["response_id"], "resp_recovered");
-                assert_eq!(
-                    line["result"]["provider_metadata"]["transport"],
-                    "responses_websocket"
-                );
-                break;
+                panic!("unknown policy close must not replay tool output: {line}")
             }
             Some("error") => {
-                panic!("unavailable cursor should recover with full-context retry: {line}")
+                observed_error = Some(line);
             }
+            Some("result") => break,
             _ => {}
         }
     }
-    assert!(saw_text_delta);
-
+    let error = observed_error.expect("unknown policy close must terminate without replay");
+    assert_eq!(error["error"]["kind"], "provider_transport_unavailable");
+    let details = &error["error"]["provider_details"];
+    let receipt = &details["1flowbase_provider_recovery"];
+    assert_eq!(receipt["attempt"], 0);
+    assert_eq!(receipt["disposition"], "terminal_interruption");
+    assert_eq!(receipt["commit_level"], "terminal");
+    assert_eq!(receipt["reason"], "protocol_error");
+    let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
+    assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
+    assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
+    assert_eq!(
+        diagnostics["last_failure"]["reason_category"],
+        "policy_rejected"
+    );
+    assert_eq!(diagnostics["last_failure"]["kind"], "websocket_close");
+    assert_eq!(diagnostics["last_failure"]["close_code"], 1008);
+    assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
+    assert!(!error.to_string().contains("private-policy-secret"));
+    assert!(!error.to_string().contains("resp_previous"));
+    let listener = server.join().expect("server thread should finish");
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "unknown1008 must not connect for full-context rebuild or fallback"
+    );
     let _ = child.kill();
     let _ = child.wait();
-    server.join().expect("server thread should finish");
 }
 
 #[test]
