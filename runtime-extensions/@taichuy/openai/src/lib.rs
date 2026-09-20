@@ -1417,7 +1417,11 @@ impl OpenAiProviderRuntime {
         {
             bail!("native WebSocket continuation cannot switch to HTTP");
         }
+        let semantic_output = std::sync::atomic::AtomicBool::new(false);
         let mut on_event = |event: &ProviderStreamEvent| {
+            if websocket_event_commits_output(event) {
+                semantic_output.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
             if !native_passthrough && is_native_output_event(event) {
                 return Ok(());
             }
@@ -1481,12 +1485,11 @@ impl OpenAiProviderRuntime {
                     Err(source) => {
                         let mut error = WebsocketInvocationError::fallback_blocked(source);
                         error.recovery_transport = RecoveryTransport::ProviderHttp;
-                        error.transition = Some(RecoveryTransition {
-                            attempt: 0,
-                            commit_level: recovery::CommitLevel::Terminal,
-                            disposition: RecoveryDisposition::TerminalInterruption,
-                            reason: recovery::RecoveryReason::SemanticFailed,
-                        });
+                        error.transition = Some(http_failure_transition(
+                            &mut recovery,
+                            &error.source,
+                            semantic_output.load(std::sync::atomic::Ordering::Relaxed),
+                        ));
                         let mut diagnostic =
                             recovery_diagnostics::failure(&error.source, None, None);
                         diagnostic["attempt"] = json!(0);
@@ -1535,6 +1538,7 @@ impl OpenAiProviderRuntime {
                                     error,
                                     recovery_directive.as_ref(),
                                     fallback_error,
+                                    semantic_output.load(std::sync::atomic::Ordering::Relaxed),
                                 ));
                             }
                         };
@@ -1597,6 +1601,7 @@ impl OpenAiProviderRuntime {
                                     error,
                                     recovery_directive.as_ref(),
                                     fallback_error,
+                                    semantic_output.load(std::sync::atomic::Ordering::Relaxed),
                                 ));
                             }
                         };
@@ -1788,7 +1793,11 @@ impl OpenAiProviderRuntime {
                             RecoverySignal::PreviousResponseUnavailable
                         } else if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
                             RecoverySignal::ProxyFailed
-                        } else if error.reconnect_allowed {
+                        } else if error.reconnect_allowed
+                            || error.failure_diagnostics.last().is_some_and(|value| {
+                                value["reason_category"] == "transport_disconnected"
+                            })
+                        {
                             RecoverySignal::TransportDisconnected
                         } else if error.fallback_allowed {
                             RecoverySignal::TransportRejected
@@ -2397,12 +2406,14 @@ fn recovery_error_source(
         recovery_transport,
         ..
     } = error;
-    // A terminal transition makes no reconnect claim, so a failure that happened
-    // before any socket existed keeps a truthful receipt instead of fabricating
-    // an incarnation or dropping the recovery record entirely.
+    // Terminal outcomes and logical retries make no physical reconnect claim.
+    // Preserve their facts even when connection establishment failed before
+    // any socket incarnation existed.
     let receipt = match (directive, transition) {
         (Some(directive), Some(transition))
-            if socket_incarnation.is_some() || transition.disposition.is_terminal() =>
+            if socket_incarnation.is_some()
+                || transition.disposition.is_terminal()
+                || transition.disposition == RecoveryDisposition::LogicalInvocationRetry =>
         {
             Some(ProviderRecoveryReceipt {
                 attempt: transition.attempt,
@@ -2456,6 +2467,31 @@ fn recovery_error_source(
     anyhow::Error::new(runtime_error)
 }
 
+// HTTP cannot continue within this invocation. Only a typed transport failure
+// before semantic output offers the host a logical retry; authentication, parsing
+// and upstream semantic errors remain refusals.
+fn http_failure_transition(
+    machine: &mut RecoveryFsm,
+    source: &anyhow::Error,
+    semantic_committed: bool,
+) -> RecoveryTransition {
+    if semantic_committed {
+        machine.observe_semantic_event();
+    }
+    let transport_failure = source
+        .downcast_ref::<ProviderRuntimeError>()
+        .is_some_and(|error| error.kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable);
+    machine.decide_transition(RecoveryFacts {
+        signal: if transport_failure {
+            RecoverySignal::ProxyFailed
+        } else {
+            RecoverySignal::PolicyRejected
+        },
+        cursor: CursorState::None,
+        full_context_available: false,
+    })
+}
+
 fn begin_http_fallback(error: &mut WebsocketInvocationError) -> bool {
     let Some(machine) = error.recovery_state.as_mut() else {
         return false;
@@ -2480,6 +2516,7 @@ fn recovery_fallback_error_source(
     mut error: WebsocketInvocationError,
     directive: Option<&ProviderRecoveryDirective>,
     fallback_error: anyhow::Error,
+    semantic_committed: bool,
 ) -> anyhow::Error {
     if error.original_failure.is_none() {
         error.original_failure = Some(recovery_diagnostics::safe_error(&error.source));
@@ -2499,9 +2536,23 @@ fn recovery_fallback_error_source(
     if let Some(transition) = &mut error.transition {
         diagnostic["attempt"] = json!(transition.attempt);
         diagnostic["consumed_attempts"] = json!(transition.attempt + 1);
-        transition.commit_level = recovery::CommitLevel::Terminal;
-        transition.disposition = RecoveryDisposition::TerminalInterruption;
-        transition.reason = recovery::RecoveryReason::SemanticFailed;
+        let attempt = transition.attempt;
+        let mut standalone;
+        let machine = match error.recovery_state.as_mut() {
+            Some(machine) => machine,
+            None => {
+                standalone = RecoveryFsm::new(
+                    directive
+                        .map(ProviderRecoveryDirective::constraints)
+                        .unwrap_or_else(|| {
+                            RecoveryConstraints::standalone(RecoveryPolicyKind::SemanticMapped)
+                        }),
+                );
+                &mut standalone
+            }
+        };
+        *transition = http_failure_transition(machine, &fallback_error, semantic_committed);
+        transition.attempt = attempt;
     }
     if error.failure_diagnostics.len() < 16 {
         error.failure_diagnostics.push(diagnostic);
@@ -2545,7 +2596,9 @@ where
         .json(&body)
         .send()
         .await
-        .map_err(|error| sanitize_reqwest_error(error, config))?;
+        .map_err(|_| {
+            recovery_diagnostics::transport_error("http_send", "transport_disconnected", None)
+        })?;
     let result = match protocol {
         OpenAiWireProtocol::Chat => {
             read_chat_streaming_response(response, request_model, on_event).await
@@ -4318,18 +4371,23 @@ where
     let mut response_id = Value::Null;
     let mut size_guard = SseEventSizeGuard::default();
     let raw_stream = response.bytes_stream().map(move |chunk| {
-        let chunk = chunk.map_err(anyhow::Error::from)?;
+        let chunk = chunk.map_err(|_| {
+            recovery_diagnostics::transport_error("http_body", "transport_disconnected", None)
+        })?;
         size_guard.observe(&chunk)?;
         Ok::<_, anyhow::Error>(chunk)
     });
     let mut stream = raw_stream.eventsource();
     while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
-        .context("idle timeout waiting for Chat Completions SSE")?
+        .map_err(|_| {
+            recovery_diagnostics::transport_error("http_idle", "transport_disconnected", None)
+        })?
     {
         let event = match event {
             Ok(event) => event,
             Err(_) if response_stream_finished(&finish_reason) => break,
+            Err(eventsource_stream::EventStreamError::Transport(error)) => return Err(error),
             Err(error) => return Err(anyhow!("invalid Chat Completions SSE stream: {error}")),
         };
         process_chat_sse_data(
@@ -4345,7 +4403,11 @@ where
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
-        bail!("stream closed before Chat Completions finished");
+        return Err(recovery_diagnostics::transport_error(
+            "http_eof",
+            "transport_disconnected",
+            None,
+        ));
     }
     let tool_calls = tool_calls
         .into_iter()
@@ -4534,18 +4596,23 @@ where
     let mut response_id = Value::Null;
     let mut size_guard = SseEventSizeGuard::default();
     let raw_stream = response.bytes_stream().map(move |chunk| {
-        let chunk = chunk.map_err(anyhow::Error::from)?;
+        let chunk = chunk.map_err(|_| {
+            recovery_diagnostics::transport_error("http_body", "transport_disconnected", None)
+        })?;
         size_guard.observe(&chunk)?;
         Ok::<_, anyhow::Error>(chunk)
     });
     let mut stream = raw_stream.eventsource();
     while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
-        .context("idle timeout waiting for Responses SSE")?
+        .map_err(|_| {
+            recovery_diagnostics::transport_error("http_idle", "transport_disconnected", None)
+        })?
     {
         let event = match event {
             Ok(event) => event,
             Err(_) if response_stream_finished(&finish_reason) => break,
+            Err(eventsource_stream::EventStreamError::Transport(error)) => return Err(error),
             Err(error) => return Err(anyhow!("invalid Responses SSE stream: {error}")),
         };
         if native_passthrough {
@@ -4564,7 +4631,11 @@ where
         all_events.append(&mut events);
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
-        bail!("stream closed before response.completed");
+        return Err(recovery_diagnostics::transport_error(
+            "http_eof",
+            "transport_disconnected",
+            None,
+        ));
     }
     if usage.has_any_value() {
         events.push(ProviderStreamEvent::UsageSnapshot {

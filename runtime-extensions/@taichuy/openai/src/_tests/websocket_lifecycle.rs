@@ -82,7 +82,7 @@ fn start_closing_websocket(
             websocket
                 .send(Message::Close(Some(CloseFrame {
                     code: CloseCode::Error,
-                    reason: "fixture unavailable".into(),
+                    reason: "upstream websocket proxy failed".into(),
                 })))
                 .unwrap();
         }
@@ -171,7 +171,14 @@ fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> 
     let details = typed.provider_details.as_ref().unwrap();
     let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
     assert_eq!(receipt["disposition"], "terminal_interruption");
-    assert_eq!(receipt["commit_level"], "terminal");
+    assert_eq!(
+        receipt["commit_level"],
+        if expected_reason == "semantic_failed" {
+            "terminal"
+        } else {
+            "lifecycle_only"
+        }
+    );
     assert_eq!(receipt["reason"], expected_reason);
     assert_eq!(receipt["attempt"], 0);
     let diagnostics = &details[recovery_diagnostics::KEY];
@@ -452,8 +459,12 @@ fn failed_fallback_preserves_first_typed_diagnostic_and_terminal_http_evidence()
     });
     original.socket_incarnation = Some(4);
     let secondary = ProviderRuntimeError::normalize("auth", "HTTP denied", None);
-    let error =
-        recovery_fallback_error_source(original, Some(&directive), anyhow::Error::new(secondary));
+    let error = recovery_fallback_error_source(
+        original,
+        Some(&directive),
+        anyhow::Error::new(secondary),
+        false,
+    );
     let primary = error.downcast_ref::<ProviderRuntimeError>().unwrap();
     assert_eq!(primary.kind, ProviderRuntimeErrorKind::AuthFailed);
     assert_eq!(primary.message, "HTTP denied");
@@ -469,8 +480,8 @@ fn failed_fallback_preserves_first_typed_diagnostic_and_terminal_http_evidence()
     assert_eq!(receipt["transport_epoch"], 19);
     assert_eq!(receipt["attempt"], 1);
     assert_eq!(receipt["disposition"], "terminal_interruption");
-    assert_eq!(receipt["commit_level"], "terminal");
-    assert_eq!(receipt["reason"], "semantic_failed");
+    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["reason"], "protocol_error");
     assert!(receipt.get("socket_incarnation").is_none());
     assert!(metadata
         .get(TRANSPORT_SESSION_RECEIPT_METADATA_KEY)
@@ -532,6 +543,7 @@ fn failed_fallback_keeps_safe_untyped_first_and_independent_last_failure() {
             )),
             None,
             secondary,
+            false,
         );
         let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
         let details = typed.provider_details.as_ref().unwrap();
@@ -561,6 +573,7 @@ fn failed_fallback_keeps_typed_first_with_redacted_untyped_last() {
         WebsocketInvocationError::transport_unavailable("first websocket failure"),
         None,
         anyhow::anyhow!("secondary contains fixture-secret"),
+        false,
     );
     let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
     let details = typed.provider_details.as_ref().unwrap();
@@ -575,4 +588,153 @@ fn failed_fallback_keeps_typed_first_with_redacted_untyped_last() {
     assert!(!serde_json::to_string(typed)
         .unwrap()
         .contains("fixture-secret"));
+}
+
+#[test]
+fn precommit_transport_receipt_survives_without_socket_incarnation() {
+    let directive: ProviderRecoveryDirective = serde_json::from_value(json!({
+        "policy":{"type":"native_opaque","budget":{"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},
+        "transport_epoch":19,"initial_commit_level":"lifecycle_only"
+    })).unwrap();
+    let mut machine = RecoveryFsm::new(directive.constraints());
+    machine.begin_attempt().unwrap();
+    let mut error = WebsocketInvocationError::transport_unavailable("connection unavailable");
+    error.transition = Some(machine.decide_transition(RecoveryFacts {
+        signal: RecoverySignal::TransportDisconnected,
+        cursor: CursorState::None,
+        full_context_available: false,
+    }));
+    let error = recovery_error_source(error, Some(&directive));
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    let receipt =
+        &typed.provider_details.as_ref().unwrap()[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+    assert_eq!(receipt["disposition"], "logical_invocation_retry");
+    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert!(receipt.get("socket_incarnation").is_none());
+}
+
+#[tokio::test]
+async fn http_eof_reports_precommit_but_output_and_tool_commit_refuse_retry() {
+    use std::io::{Read, Write};
+    for (event, committed) in [
+        (
+            json!({"type":"response.created","response":{"id":"http_lifecycle"}}),
+            false,
+        ),
+        (
+            json!({"type":"response.output_text.delta","delta":"visible"}),
+            true,
+        ),
+        (
+            json!({"type":"response.function_call_arguments.delta","item_id":"call_once","delta":"{}"}),
+            true,
+        ),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut request = [0; 8192];
+            stream.read(&mut request).unwrap();
+            let body = format!("data: {event}\n\n");
+            write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
+            listener.set_nonblocking(true).unwrap();
+            listener
+        });
+        let mut input = managed_closing_input(&base, 3);
+        input.provider_config["transport_mode"] = json!("http_sse");
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .unwrap_err();
+        let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+        let receipt =
+            &typed.provider_details.as_ref().unwrap()[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+        assert_eq!(receipt["transport"], "provider_http");
+        assert_eq!(receipt["attempt"], 0);
+        assert_eq!(
+            receipt["commit_level"],
+            if committed {
+                "terminal"
+            } else {
+                "lifecycle_only"
+            }
+        );
+        assert_eq!(
+            receipt["disposition"],
+            if committed {
+                "terminal_interruption"
+            } else {
+                "logical_invocation_retry"
+            }
+        );
+        assert_no_replacement_connection(server);
+    }
+}
+
+#[test]
+fn http_failure_preserves_shared_budget_and_initial_commit_barrier() {
+    for (budget, initial, disposition, reason) in [
+        (
+            1,
+            recovery::CommitLevel::LifecycleOnly,
+            RecoveryDisposition::TerminalInterruption,
+            recovery::RecoveryReason::BudgetExhausted,
+        ),
+        (
+            3,
+            recovery::CommitLevel::LifecycleOnly,
+            RecoveryDisposition::LogicalInvocationRetry,
+            recovery::RecoveryReason::TransportDisconnected,
+        ),
+        (
+            3,
+            recovery::CommitLevel::SemanticCommitted,
+            RecoveryDisposition::TerminalInterruption,
+            recovery::RecoveryReason::SemanticFailed,
+        ),
+    ] {
+        let mut machine = RecoveryFsm::new(RecoveryConstraints {
+            policy: RecoveryPolicyKind::NativeOpaque,
+            max_inner_attempts: budget,
+            absolute_deadline_unix_ms: None,
+            initial_commit_level: initial,
+        });
+        machine.begin_attempt().unwrap();
+        let source =
+            recovery_diagnostics::transport_error("http_send", "transport_disconnected", None);
+        let transition = http_failure_transition(&mut machine, &source, false);
+        assert_eq!(transition.disposition, disposition);
+        assert_eq!(transition.reason, reason);
+        assert_eq!(machine.consumed_attempts(), 1);
+    }
+}
+
+#[tokio::test]
+async fn fresh_proxy_1011_without_output_or_route_delegates_without_reconnect() {
+    let (base, server) = start_closing_websocket(false, false);
+    let mut emitted = Vec::new();
+    let error = OpenAiProviderRuntime::default()
+        .invoke_response_with_event_sink(managed_closing_input(&base, 3), |event| {
+            emitted.push(event.clone());
+            Ok(())
+        })
+        .await
+        .unwrap_err();
+    assert!(!emitted.iter().any(websocket_event_commits_output));
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    let details = typed.provider_details.as_ref().unwrap();
+    let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+    assert_eq!(receipt["disposition"], "logical_invocation_retry");
+    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["reason"], "transport_disconnected");
+    assert_eq!(receipt["attempt"], 0);
+    let diagnostics = &details[recovery_diagnostics::KEY];
+    assert_eq!(diagnostics["first_failure"]["close_code"], 1011);
+    assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
+    assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
+    assert_no_replacement_connection(server);
 }
