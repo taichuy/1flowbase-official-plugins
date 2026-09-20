@@ -276,6 +276,11 @@ async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
             sockets.push(ws);
         }
         release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "lost owner without routing evidence must not open a third connection"
+        );
     });
     let make = |nonce: &str, body: Value| {
         ProviderInvocationInput {
@@ -337,6 +342,15 @@ async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
             .map(|error| &error.kind),
         Some(&ProviderRuntimeErrorKind::ProviderTransportUnavailable)
     );
+    let diagnostic = &error
+        .downcast_ref::<ProviderRuntimeError>()
+        .unwrap()
+        .provider_details
+        .as_ref()
+        .unwrap()[recovery_diagnostics::KEY]["last_failure"];
+    assert_eq!(diagnostic["kind"], "owner_rejected");
+    assert_eq!(diagnostic["owner_socket_incarnation"], 1);
+    assert!(diagnostic["socket_incarnation"].is_null());
     release_tx.send(()).unwrap();
     server.join().unwrap();
 }

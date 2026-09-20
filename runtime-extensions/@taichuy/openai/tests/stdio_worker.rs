@@ -349,8 +349,8 @@ fn start_websocket_unseen_cursor_close_then_reconnect_server() -> (String, threa
     (address, handle)
 }
 
-fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
-) -> (String, thread::JoinHandle<()>) {
+fn start_websocket_proxy_failure_with_preserved_turn_state_server(
+) -> (String, thread::JoinHandle<(TcpListener, u16)>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
@@ -388,6 +388,7 @@ fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
             })))
             .expect("proxy failure close should be writable");
 
+        let mut continuation_sends = 1_u16;
         let (retry_stream, _) = listener
             .accept()
             .expect("retry websocket should connect before fallback");
@@ -397,8 +398,9 @@ fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
                 .get("x-codex-turn-state")
                 .and_then(|value| value.to_str().ok());
             assert_eq!(
-                got, None,
-                "retry after proxy failure should not replay stale turn state"
+                got,
+                Some("sticky-turn-1"),
+                "retry must retain the original peer-accepted routing token"
             );
             Ok(response)
         })
@@ -412,6 +414,7 @@ fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "retry should carry the response cursor: {request}"
         );
+        continuation_sends += 1;
         websocket
             .send(Message::Close(Some(CloseFrame {
                 code: CloseCode::Error,
@@ -428,8 +431,9 @@ fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
                 .get("x-codex-turn-state")
                 .and_then(|value| value.to_str().ok());
             assert_eq!(
-                got, None,
-                "second retry after proxy failure should not replay stale turn state"
+                got,
+                Some("sticky-turn-1"),
+                "second retry must retain the same peer-accepted routing token"
             );
             Ok(response)
         })
@@ -443,6 +447,7 @@ fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "second retry should carry the response cursor: {request}"
         );
+        continuation_sends += 1;
         websocket
             .send(Message::Text(
                 r#"{"type":"response.output_text.delta","response_id":"resp_retry","delta":"retry after proxy"}"#.into(),
@@ -453,6 +458,8 @@ fn start_websocket_proxy_failure_then_fresh_turn_state_retry_server(
                 r#"{"type":"response.completed","response":{"id":"resp_retry","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
             ))
             .expect("retry completion should be writable");
+        listener.set_nonblocking(true).unwrap();
+        (listener, continuation_sends)
     });
 
     (address, handle)
@@ -1220,7 +1227,7 @@ fn websocket_previous_response_retries_stream_close_without_seen_cursor() {
 
 #[test]
 fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
-    let (base_url, server) = start_websocket_proxy_failure_then_fresh_turn_state_retry_server();
+    let (base_url, server) = start_websocket_proxy_failure_with_preserved_turn_state_server();
     let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1279,7 +1286,15 @@ fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
 
     let _ = child.kill();
     let _ = child.wait();
-    server.join().expect("server thread should finish");
+    let (listener, sends) = server.join().expect("server thread should finish");
+    assert_eq!(
+        sends, 3,
+        "initial continuation plus two retries share a total budget of three"
+    );
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "successful recovery must not issue a fourth continuation attempt"
+    );
 }
 
 #[test]
@@ -1802,7 +1817,7 @@ fn invoke_line_with_managed_recovery(
 
 #[test]
 fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() {
-    let (base_url, server) = start_websocket_proxy_failure_then_fresh_turn_state_retry_server();
+    let (base_url, server) = start_websocket_proxy_failure_with_preserved_turn_state_server();
     let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1832,11 +1847,7 @@ fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() 
     writeln!(
         stdin,
         "{}",
-        invoke_line_with_managed_recovery(
-            &base_url,
-            "responses_websocket",
-            "resp_previous"
-        )
+        invoke_line_with_managed_recovery(&base_url, "responses_websocket", "resp_previous")
     )
     .expect("managed continuation request should write");
     stdin.flush().expect("managed continuation should flush");
@@ -1851,16 +1862,21 @@ fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() 
             }
             Some("result") => {
                 assert_eq!(line["result"]["final_content"], "retry after proxy");
-                let recovery =
-                    &line["result"]["provider_metadata"]["1flowbase_provider_recovery"];
+                let recovery = &line["result"]["provider_metadata"]["1flowbase_provider_recovery"];
                 assert_eq!(recovery["disposition"], json!("same_epoch_reconnect"));
                 assert_eq!(recovery["transport_epoch"], json!(149));
+                assert_eq!(recovery["attempt"], 2);
+                let diagnostics =
+                    &line["result"]["provider_metadata"]["1flowbase_provider_recovery_diagnostics"];
+                assert_eq!(diagnostics["first_failure"]["attempt"], 0);
+                assert_eq!(diagnostics["last_failure"]["attempt"], 1);
+                assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 2);
                 assert_eq!(recovery["commit_level"], json!("lifecycle_only"));
                 break;
             }
-            Some("error") => panic!(
-                "a managed cursor with a verified owner must reconnect: {line}"
-            ),
+            Some("error") => {
+                panic!("a managed cursor with a verified owner must reconnect: {line}")
+            }
             _ => {}
         }
     }
@@ -1868,7 +1884,15 @@ fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() 
 
     let _ = child.kill();
     let _ = child.wait();
-    server.join().expect("server thread should finish");
+    let (listener, sends) = server.join().expect("server thread should finish");
+    assert_eq!(
+        sends, 3,
+        "initial continuation plus two retries share a total budget of three"
+    );
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "successful recovery must not issue a fourth continuation attempt"
+    );
 }
 
 #[path = "continuation/fallback.rs"]

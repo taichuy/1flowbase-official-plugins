@@ -1779,10 +1779,10 @@ impl OpenAiProviderRuntime {
                             value["reason_category"] == "continuation_unavailable"
                         }) {
                             RecoverySignal::ContinuationUnavailable
-                        } else if websocket_previous_response_unavailable(&error.source) {
-                            RecoverySignal::PreviousResponseUnavailable
                         } else if policy_rejected {
                             RecoverySignal::PolicyRejected
+                        } else if websocket_previous_response_unavailable(&error.source) {
+                            RecoverySignal::PreviousResponseUnavailable
                         } else if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
                             RecoverySignal::ProxyFailed
                         } else if error.reconnect_allowed {
@@ -1810,14 +1810,6 @@ impl OpenAiProviderRuntime {
                     error.transition = Some(transition);
                     match transition.disposition {
                         RecoveryDisposition::SameEpochReconnect => {
-                            if signal == RecoverySignal::ProxyFailed
-                                && input.native_transport.is_none()
-                            {
-                                if let Some(response_id) = retry_response_id.as_deref() {
-                                    self.websocket_turn_states_by_response_id
-                                        .remove(response_id);
-                                }
-                            }
                             remember_first_failure(&mut first_failure, &error.source);
                             sleep_before_inner_retry(transition.attempt).await;
                             continue;
@@ -2051,6 +2043,22 @@ impl OpenAiProviderRuntime {
                     .websocket_sessions
                     .get(&session_key)
                     .map(|session| session.socket_generation);
+                if owner.session_key == session_key
+                    && active_generation.is_none()
+                    && !self
+                        .websocket_turn_states_by_response_id
+                        .contains_key(&response_id)
+                {
+                    // A historical owner alone does not authorize replacing its socket.
+                    // Reject before connect/response.create when no routing evidence survives.
+                    return Err(WebsocketInvocationError::fallback_blocked(
+                        recovery_diagnostics::transport_error(
+                            "owner_rejected",
+                            "transport_disconnected",
+                            None,
+                        ),
+                    ));
+                }
                 if bound_incarnation.is_some_and(|bound| owner.generation != bound) {
                     return Err(WebsocketInvocationError::transport_unavailable(
                         "connection-bound cursor owner is unavailable",
