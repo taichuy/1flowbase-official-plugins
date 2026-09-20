@@ -3,6 +3,10 @@ use serde_json::Value;
 
 pub(crate) const RECOVERY_DIRECTIVE_CONTEXT_KEY: &str = "provider_recovery";
 pub(crate) const RECOVERY_RECEIPT_METADATA_KEY: &str = "1flowbase_provider_recovery";
+/// Typed details slot that keeps the failure which preceded a bounded recovery
+/// attempt visible next to the final recovery outcome.
+pub(crate) const RECOVERY_ORIGINAL_ERROR_METADATA_KEY: &str =
+    "1flowbase_provider_recovery_original_error";
 pub(crate) const STANDALONE_MAX_INNER_ATTEMPTS: u16 = 3;
 const MAX_RECOVERY_INNER_ATTEMPTS: u16 = 16;
 
@@ -143,6 +147,38 @@ pub(crate) enum RecoveryDisposition {
     LogicalInvocationRetry,
     TerminalInterruption,
     SemanticTerminal,
+}
+
+impl RecoveryDisposition {
+    /// A terminal disposition claims no reconnect and no resumption, so its
+    /// receipt needs no socket incarnation to stay truthful.
+    pub(crate) const fn is_terminal(self) -> bool {
+        matches!(self, Self::TerminalInterruption | Self::SemanticTerminal)
+    }
+}
+
+/// Bounded full-jitter backoff between provider-internal recovery attempts.
+/// The attempt budget belongs to the AI Native directive; this only spaces the
+/// attempts it already authorized and never extends the deadline.
+const WEBSOCKET_INNER_RETRY_BASE_MS: u64 = 100;
+const WEBSOCKET_INNER_RETRY_CAP_MS: u64 = 500;
+
+pub(crate) fn inner_retry_delay_ms(attempt: u16, random_sample: u64) -> u64 {
+    let exponent = u32::from(attempt).min(16);
+    let upper_bound = WEBSOCKET_INNER_RETRY_BASE_MS
+        .saturating_mul(1_u64 << exponent)
+        .min(WEBSOCKET_INNER_RETRY_CAP_MS);
+    random_sample % (upper_bound + 1)
+}
+
+/// Jitter source for [`inner_retry_delay_ms`]. Nanosecond wall-clock noise is
+/// sufficient here: the value only de-correlates co-scheduled reconnects.
+pub(crate) fn inner_retry_random_sample() -> u64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos();
+    u64::from(nanos)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -759,8 +795,7 @@ mod tests {
     }
 
     #[test]
-    fn d4_attempt_cap_is_absolute_and_never_resets_after_recoverable_transitions() {
-        let mut machine = RecoveryFsm::new(RecoveryConstraints {
+    fn d4_attempt_cap_is_absolute_and_never_resets_after_recoverable_transitions() {        let mut machine = RecoveryFsm::new(RecoveryConstraints {
             policy: RecoveryPolicyKind::SemanticMapped,
             max_inner_attempts: 2,
             absolute_deadline_unix_ms: None,
@@ -790,5 +825,33 @@ mod tests {
         );
         assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
         assert_eq!(exhausted.commit_level, CommitLevel::Terminal);
+    }
+
+    #[test]
+    fn inner_retry_backoff_is_bounded_exponential_and_full_jitter() {
+        // Full jitter: the sample selects within [0, upper_bound(attempt)].
+        assert_eq!(inner_retry_delay_ms(0, 0), 0);
+        assert_eq!(inner_retry_delay_ms(0, 100), 100);
+        assert_eq!(inner_retry_delay_ms(0, 101), 0);
+        assert_eq!(inner_retry_delay_ms(1, 200), 200);
+        assert_eq!(inner_retry_delay_ms(1, 201), 0);
+        // The cap holds for arbitrarily large attempt counters and samples.
+        assert_eq!(inner_retry_delay_ms(u16::MAX, u64::MAX), u64::MAX % 501);
+        assert!(inner_retry_delay_ms(u16::MAX, u64::MAX) <= WEBSOCKET_INNER_RETRY_CAP_MS);
+        assert!(inner_retry_delay_ms(3, u64::MAX) <= WEBSOCKET_INNER_RETRY_CAP_MS);
+    }
+
+    #[test]
+    fn terminal_dispositions_are_the_only_ones_needing_no_socket_incarnation() {
+        assert!(RecoveryDisposition::TerminalInterruption.is_terminal());
+        assert!(RecoveryDisposition::SemanticTerminal.is_terminal());
+        for recoverable in [
+            RecoveryDisposition::SameEpochReconnect,
+            RecoveryDisposition::OneFullContextRebuild,
+            RecoveryDisposition::LogicalInvocationRetry,
+            RecoveryDisposition::PreCommitHttpFallback,
+        ] {
+            assert!(!recoverable.is_terminal(), "{recoverable:?}");
+        }
     }
 }

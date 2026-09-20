@@ -1769,3 +1769,104 @@ fn close_without_peer_ack_and_rejected_control_preserve_other_session_cursor_in_
     server_a.join().unwrap();
     server_b.join().unwrap();
 }
+
+/// #2085: the incident directive. The host emits no cursor provenance claim, so
+/// the provider must decide from its own verified owner record instead of
+/// downgrading the cursor to `opaque_unowned` and terminating.
+fn invoke_line_with_managed_recovery(
+    base_url: &str,
+    transport_mode: &str,
+    previous_response_id: &str,
+) -> String {
+    let mut value: Value = serde_json::from_str(&invoke_line_with_previous_response_id(
+        base_url,
+        transport_mode,
+        previous_response_id,
+    ))
+    .expect("base invoke line should parse");
+    value["input"]["run_context"] = json!({
+        "provider_recovery": {
+            "policy": {
+                "type": "semantic_mapped",
+                "budget": {
+                    "max_inner_attempts": 3,
+                    "absolute_deadline_unix_ms": 4_102_444_800_000_i64
+                }
+            },
+            "transport_epoch": 149,
+            "initial_commit_level": "lifecycle_only"
+        }
+    });
+    serde_json::to_string(&value).expect("managed invoke request should serialize")
+}
+
+#[test]
+fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() {
+    let (base_url, server) = start_websocket_proxy_failure_then_fresh_turn_state_retry_server();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("openai provider binary should spawn");
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let mut stdout = BufReader::new(stdout);
+
+    writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
+        .expect("first request should write");
+    stdin.flush().expect("first request should flush");
+
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("result") => {
+                assert_eq!(line["result"]["response_id"], "resp_previous");
+                break;
+            }
+            Some("error") => panic!("first websocket request should succeed: {line}"),
+            _ => {}
+        }
+    }
+
+    writeln!(
+        stdin,
+        "{}",
+        invoke_line_with_managed_recovery(
+            &base_url,
+            "responses_websocket",
+            "resp_previous"
+        )
+    )
+    .expect("managed continuation request should write");
+    stdin.flush().expect("managed continuation should flush");
+
+    let mut saw_text_delta = false;
+    loop {
+        let line = next_json_line(&mut stdout);
+        match line["type"].as_str() {
+            Some("text_delta") => {
+                saw_text_delta = true;
+                assert_eq!(line["delta"], "retry after proxy");
+            }
+            Some("result") => {
+                assert_eq!(line["result"]["final_content"], "retry after proxy");
+                let recovery =
+                    &line["result"]["provider_metadata"]["1flowbase_provider_recovery"];
+                assert_eq!(recovery["disposition"], json!("same_epoch_reconnect"));
+                assert_eq!(recovery["transport_epoch"], json!(149));
+                assert_eq!(recovery["commit_level"], json!("lifecycle_only"));
+                break;
+            }
+            Some("error") => panic!(
+                "a managed cursor with a verified owner must reconnect: {line}"
+            ),
+            _ => {}
+        }
+    }
+    assert!(saw_text_delta);
+
+    let _ = child.kill();
+    let _ = child.wait();
+    server.join().expect("server thread should finish");
+}

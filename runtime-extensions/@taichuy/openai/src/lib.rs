@@ -1583,6 +1583,10 @@ impl OpenAiProviderRuntime {
         }
         let mut recovery = RecoveryFsm::new(constraints);
         let mut last_transition = None;
+        // The first failure is never dropped: when a bounded recovery attempt
+        // fails too, both the original transport failure and the final state
+        // stay auditable on the returned typed error.
+        let mut first_failure: Option<ProviderRuntimeError> = None;
         loop {
             let retry_response_id =
                 responses_body_previous_response_id(&retry_body).map(ToOwned::to_owned);
@@ -1649,20 +1653,28 @@ impl OpenAiProviderRuntime {
                                         .remove(response_id);
                                 }
                             }
+                            remember_first_failure(&mut first_failure, &error.source);
+                            sleep_before_inner_retry(transition.attempt).await;
                             continue;
                         }
                         RecoveryDisposition::OneFullContextRebuild => {
                             retry_body = full_context_body
                                 .expect("FSM only rebuilds when full context is available");
+                            remember_first_failure(&mut first_failure, &error.source);
+                            sleep_before_inner_retry(transition.attempt).await;
                             continue;
                         }
                         RecoveryDisposition::PreCommitHttpFallback => {
                             error.disposition = Some(transition.disposition);
+                            error.original_failure = first_failure.take();
                             return Err(error);
                         }
                         RecoveryDisposition::LogicalInvocationRetry
                         | RecoveryDisposition::TerminalInterruption
-                        | RecoveryDisposition::SemanticTerminal => return Err(error),
+                        | RecoveryDisposition::SemanticTerminal => {
+                            error.original_failure = first_failure.take();
+                            return Err(error);
+                        }
                     }
                 }
             }
@@ -1679,35 +1691,47 @@ impl OpenAiProviderRuntime {
         let Some(response_id) = response_id else {
             return CursorState::None;
         };
-        if let Some(directive) = directive {
-            return match directive.cursor_provenance.map(|value| value.binding) {
-                Some(CursorBinding::ConnectionBound {
-                    transport_epoch,
-                    socket_incarnation,
-                }) => {
-                    let owner_available = self
-                        .websocket_response_owners
-                        .get(response_id)
-                        .is_some_and(|owner| owner.generation == socket_incarnation)
-                        && self.websocket_next_socket_generation > socket_incarnation;
-                    CursorState::ConnectionBound {
-                        same_epoch: transport_epoch == directive.transport_epoch,
-                        owner_available,
-                        turn_state_available: self
-                            .websocket_turn_states_by_response_id
-                            .contains_key(response_id),
-                    }
-                }
-                Some(CursorBinding::Durable) | None => CursorState::OpaqueUnowned,
+        // A directive may add a host binding claim, but the *absence* of one is
+        // not an affirmative "unowned" fact: the provider owns the physical
+        // connection and the cursor owner records, so it must fall back to its
+        // own verified observations instead of terminating on `None`.
+        let bound = directive.and_then(|directive| {
+            directive
+                .cursor_provenance
+                .map(|provenance| (directive.transport_epoch, provenance.binding))
+        });
+        if let Some((
+            directive_epoch,
+            CursorBinding::ConnectionBound {
+                transport_epoch,
+                socket_incarnation,
+            },
+        )) = bound
+        {
+            let owner_available = self
+                .websocket_response_owners
+                .get(response_id)
+                .is_some_and(|owner| owner.generation == socket_incarnation)
+                && self.websocket_next_socket_generation > socket_incarnation;
+            return CursorState::ConnectionBound {
+                same_epoch: transport_epoch == directive_epoch,
+                owner_available,
+                turn_state_available: self
+                    .websocket_turn_states_by_response_id
+                    .contains_key(response_id),
             };
         }
         if self.websocket_response_owners.contains_key(response_id) {
+            // The recorded owner binds this cursor to a concrete session and
+            // generation. Socket age says nothing about whether the upstream
+            // association behind that generation is still valid, so the decision
+            // uses the association facts only.
             CursorState::ConnectionBound {
                 same_epoch: true,
                 owner_available: true,
                 // Legacy upstreams do not always issue a turn-state header. A
                 // locally recorded owner makes that absence valid rather than
-                // stale; managed provenance keeps its stricter check above.
+                // stale; an explicit host provenance keeps its stricter check above.
                 turn_state_available: true,
             }
         } else if signal == RecoverySignal::TransportDisconnected
@@ -2088,39 +2112,82 @@ fn attach_managed_recovery_receipt(
     .map_err(anyhow::Error::msg)
 }
 
+fn remember_first_failure(
+    slot: &mut Option<ProviderRuntimeError>,
+    source: &anyhow::Error,
+) {
+    if slot.is_some() {
+        return;
+    }
+    *slot = source.downcast_ref::<ProviderRuntimeError>().cloned();
+}
+
+async fn sleep_before_inner_retry(attempt: u16) {
+    let delay_ms = recovery::inner_retry_delay_ms(attempt, recovery::inner_retry_random_sample());
+    if delay_ms > 0 {
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+    }
+}
+
 fn recovery_error_source(
     error: WebsocketInvocationError,
     directive: Option<&ProviderRecoveryDirective>,
 ) -> anyhow::Error {
-    let (Some(directive), Some(transition), Some(socket_incarnation)) =
-        (directive, error.transition, error.socket_incarnation)
-    else {
-        return error.source;
+    let WebsocketInvocationError {
+        source,
+        transition,
+        socket_incarnation,
+        original_failure,
+        ..
+    } = error;
+    // A terminal transition makes no reconnect claim, so a failure that happened
+    // before any socket existed keeps a truthful receipt instead of fabricating
+    // an incarnation or dropping the recovery record entirely.
+    let receipt = match (directive, transition) {
+        (Some(directive), Some(transition))
+            if socket_incarnation.is_some() || transition.disposition.is_terminal() =>
+        {
+            Some(ProviderRecoveryReceipt {
+                attempt: transition.attempt,
+                transport: RecoveryTransport::AiNativeWebSocket,
+                transport_epoch: directive.transport_epoch,
+                socket_incarnation,
+                commit_level: transition.commit_level,
+                disposition: transition.disposition,
+                reason: transition.reason,
+            })
+        }
+        _ => None,
     };
-    let receipt = ProviderRecoveryReceipt {
-        attempt: transition.attempt,
-        transport: RecoveryTransport::AiNativeWebSocket,
-        transport_epoch: directive.transport_epoch,
-        socket_incarnation: Some(socket_incarnation),
-        commit_level: transition.commit_level,
-        disposition: transition.disposition,
-        reason: transition.reason,
+    if receipt.is_none() && original_failure.is_none() {
+        return source;
+    }
+    let mut runtime_error = match source.downcast_ref::<ProviderRuntimeError>().cloned() {
+        Some(runtime_error) => runtime_error,
+        // Only a receipt justifies introducing a typed wrapper around an
+        // untyped error; without one the concrete error is returned unchanged.
+        None if receipt.is_some() => {
+            ProviderRuntimeError::normalize("invoke", source.to_string(), None)
+        }
+        None => return source,
     };
-    let mut runtime_error = error
-        .source
-        .downcast_ref::<ProviderRuntimeError>()
-        .cloned()
-        .unwrap_or_else(|| {
-            ProviderRuntimeError::normalize("invoke", error.source.to_string(), None)
-        });
     let details = runtime_error
         .provider_details
         .get_or_insert_with(|| json!({}));
     if let Some(object) = details.as_object_mut() {
-        object.insert(
-            recovery::RECOVERY_RECEIPT_METADATA_KEY.to_string(),
-            serde_json::to_value(receipt).expect("ProviderRecoveryReceipt must always serialize"),
-        );
+        if let Some(receipt) = receipt {
+            object.insert(
+                recovery::RECOVERY_RECEIPT_METADATA_KEY.to_string(),
+                serde_json::to_value(receipt).expect("ProviderRecoveryReceipt must always serialize"),
+            );
+        }
+        if let Some(original_failure) = original_failure {
+            object.insert(
+                recovery::RECOVERY_ORIGINAL_ERROR_METADATA_KEY.to_string(),
+                serde_json::to_value(original_failure)
+                    .expect("ProviderRuntimeError must always serialize"),
+            );
+        }
     }
     anyhow::Error::new(runtime_error)
 }
@@ -3272,6 +3339,10 @@ struct WebsocketInvocationError {
     disposition: Option<RecoveryDisposition>,
     transition: Option<RecoveryTransition>,
     socket_incarnation: Option<u64>,
+    /// Typed failure that preceded a bounded recovery attempt, preserved so the
+    /// original transport error and the final recovery outcome stay separately
+    /// auditable.
+    original_failure: Option<ProviderRuntimeError>,
 }
 
 impl WebsocketInvocationError {
@@ -3297,6 +3368,7 @@ impl WebsocketInvocationError {
             disposition: None,
             transition: None,
             socket_incarnation: None,
+            original_failure: None,
         }
     }
 
@@ -3309,6 +3381,7 @@ impl WebsocketInvocationError {
             disposition: None,
             transition: None,
             socket_incarnation: None,
+            original_failure: None,
         }
     }
 
@@ -3331,6 +3404,7 @@ impl WebsocketInvocationError {
             disposition: None,
             transition: None,
             socket_incarnation: None,
+            original_failure: None,
         }
     }
 
