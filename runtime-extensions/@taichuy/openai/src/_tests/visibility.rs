@@ -174,3 +174,56 @@ fn successful_empty_response_flushes_once_and_pending_limits_refuse_without_expo
         .is_err());
     assert_eq!(visibility.snapshot().bytes, 0);
 }
+
+#[test]
+fn control_metadata_is_visible_without_committing_or_flushing_content_slots() {
+    for kind in ["codex.rate_limits", "codex.response.metadata"] {
+        let mut visibility = Visibility::default();
+        let mut all = Vec::new();
+        let mut emitted = Vec::new();
+        visibility
+            .publish(&mut vec![scaffold()], &mut all, &mut |event| {
+                emitted.push(event.clone());
+                Ok(())
+            })
+            .unwrap();
+        let raw = json!({"type":kind,"headers":{"x-models-etag":"fixture"}});
+        let metadata = ProviderStreamEvent::NativeEvent {
+            protocol: "openai_responses".into(),
+            event: raw.clone(),
+        };
+        visibility.observe(&raw);
+        visibility
+            .publish(&mut vec![metadata.clone()], &mut all, &mut |event| {
+                emitted.push(event.clone());
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(emitted, vec![metadata]);
+        assert!(!visibility.committed());
+        assert_eq!(visibility.snapshot().count, 1);
+        assert!(all.is_empty());
+        let mut diagnostic = json!({});
+        visibility.snapshot().annotate(&mut diagnostic);
+        assert!(diagnostic["semantic_event_type_digest"].is_null());
+    }
+}
+
+#[test]
+fn unknown_event_remains_protected_and_only_its_type_digest_is_recorded() {
+    let mut visibility = Visibility::default();
+    visibility.observe(&json!({"type":"PRIVATE_CANARY","content":"PRIVATE_CANARY"}));
+    assert!(visibility.committed());
+    let mut diagnostic = json!({});
+    visibility.snapshot().annotate(&mut diagnostic);
+    assert_eq!(diagnostic["semantic_event_kind"], "other");
+    let digest = diagnostic["semantic_event_type_digest"].as_str().unwrap();
+    assert!(digest.starts_with("sha256:"));
+    assert_eq!(digest.len(), 71);
+    assert!(!diagnostic.to_string().contains("PRIVATE_CANARY"));
+    visibility.observe(&json!({"type":"codex.rate_limits"}));
+    assert!(
+        visibility.committed(),
+        "metadata cannot roll back an earlier commit"
+    );
+}

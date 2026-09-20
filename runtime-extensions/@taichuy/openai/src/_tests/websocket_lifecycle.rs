@@ -961,3 +961,35 @@ async fn empty_scaffolding_does_not_make_response_failed_replayable() {
     assert_eq!(diagnostics["last_failure"]["semantic_event_kind"], "other");
     assert_no_replacement_connection(server);
 }
+
+#[tokio::test]
+async fn codex_control_metadata_before_proxy_close_does_not_commit_inference() {
+    for kind in ["codex.rate_limits", "codex.response.metadata"] {
+        let (base, server) = start_visibility_websocket(vec![(
+            vec![json!({"type":kind,"headers":{"x-models-etag":"fixture"}})],
+            false,
+        )]);
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(visibility_native_input(&base))
+            .await
+            .unwrap_err();
+        let details = error
+            .downcast_ref::<ProviderRuntimeError>()
+            .unwrap()
+            .provider_details
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            details[recovery::RECOVERY_RECEIPT_METADATA_KEY]["disposition"],
+            "logical_invocation_retry"
+        );
+        assert_eq!(
+            details[recovery::RECOVERY_RECEIPT_METADATA_KEY]["commit_level"],
+            "lifecycle_only"
+        );
+        assert!(
+            details[recovery_diagnostics::KEY]["last_failure"]["semantic_event_kind"].is_null()
+        );
+        assert_no_replacement_connection(server);
+    }
+}

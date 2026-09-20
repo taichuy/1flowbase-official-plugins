@@ -1,6 +1,7 @@
 //! Delay only recognized empty Responses scaffolding until it is safe to publish.
 use super::{ProviderStreamEvent, Result};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 pub(crate) const MAX_EVENTS: usize = 1024;
 pub(crate) const MAX_BYTES: usize = 16 * 1024 * 1024;
@@ -8,6 +9,7 @@ pub(crate) const MAX_BYTES: usize = 16 * 1024 * 1024;
 #[derive(Debug, Clone)]
 pub(crate) struct Snapshot {
     kind: Option<&'static str>,
+    event_type_digest: Option<String>,
     count: usize,
     bytes: usize,
 }
@@ -21,6 +23,7 @@ impl std::fmt::Display for Snapshot {
 impl Snapshot {
     pub(crate) fn annotate(&self, value: &mut Value) {
         value["semantic_event_kind"] = json!(self.kind);
+        value["semantic_event_type_digest"] = json!(self.event_type_digest);
         value["buffered_scaffold_events"] = json!(self.count);
         value["buffered_scaffold_bytes"] = json!(self.bytes);
     }
@@ -31,12 +34,20 @@ pub(crate) struct Visibility {
     pending: Vec<ProviderStreamEvent>,
     bytes: usize,
     first_semantic: Option<&'static str>,
+    first_semantic_type_digest: Option<String>,
+    control_frame: bool,
 }
 
 impl Visibility {
     pub(crate) fn observe(&mut self, payload: &Value) {
+        self.control_frame = is_control_frame(payload);
         if self.first_semantic.is_none() {
             self.first_semantic = semantic_kind(payload);
+            if self.first_semantic.is_some() {
+                self.first_semantic_type_digest = payload["type"]
+                    .as_str()
+                    .map(|kind| format!("sha256:{:x}", Sha256::digest(kind.as_bytes())));
+            }
         }
     }
 
@@ -47,6 +58,7 @@ impl Visibility {
     pub(crate) fn snapshot(&self) -> Snapshot {
         Snapshot {
             kind: self.first_semantic,
+            event_type_digest: self.first_semantic_type_digest.clone(),
             count: self.pending.len(),
             bytes: self.bytes,
         }
@@ -61,8 +73,11 @@ impl Visibility {
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
-        if self.committed() {
-            self.flush(all_events, sink)?;
+        if self.committed() || self.control_frame {
+            // Control metadata is independent of pending content slots.
+            if self.committed() {
+                self.flush(all_events, sink)?;
+            }
             for event in events.iter() {
                 sink(event)?;
             }
@@ -165,10 +180,19 @@ fn empty_part(part: &Value) -> bool {
         && absent_or_empty_array(part, "logprobs")
 }
 
+// Official Codex consumes these as rate-limit/model metadata, never output items.
+fn is_control_frame(payload: &Value) -> bool {
+    matches!(
+        payload["type"].as_str(),
+        Some("codex.rate_limits" | "codex.response.metadata")
+    )
+}
+
 /// Only returns a closed category; upstream strings never become diagnostic values.
 pub(crate) fn semantic_kind(payload: &Value) -> Option<&'static str> {
     let kind = payload["type"].as_str().unwrap_or_default();
     match kind {
+        "codex.rate_limits" | "codex.response.metadata" => None,
         "response.created" | "response.in_progress"
             if payload.get("response").is_none_or(|response| {
                 response.is_object() && absent_or_empty_array(response, "output")
