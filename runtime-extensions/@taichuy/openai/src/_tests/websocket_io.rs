@@ -46,28 +46,118 @@ async fn idle_ping_is_answered_without_invocation_and_other_socket_is_independen
     drop(other);
 }
 
-#[tokio::test]
-async fn event_count_overflow_retains_terminal_outside_full_queue() {
-    let (mut owner, mut peer) = pair().await;
-    for _ in 0..=EVENT_COUNT {
-        peer.send(Message::Text("x".into())).await.unwrap();
-    }
+// The regression tests exercise slow consumption rather than treating temporary
+// mailbox saturation as a corrupt stream.
+async fn wait_for_queued(owner: &SocketOwner, count: usize) {
     tokio::time::timeout(Duration::from_secs(1), async {
-        while owner.failure().is_none() {
+        while owner.events.len() != count {
+            assert!(owner.failure().is_none(), "{:?}", owner.failure());
             tokio::task::yield_now().await;
         }
     })
     .await
     .unwrap();
-    assert_eq!(owner.failure().unwrap().kind, "queue_count_limit");
-    assert!(owner
-        .next()
-        .await
-        .unwrap()
-        .unwrap_err()
-        .to_string()
-        .contains("queue_count_limit"));
-    assert!(owner.send(Message::Text("later".into())).await.is_err());
+}
+
+#[tokio::test]
+async fn event_count_backpressure_preserves_order_and_resumes() {
+    let frames = (0..EVENT_COUNT * 3)
+        .map(|i| Ok(Message::Text(i.to_string().into())))
+        .collect();
+    let reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed_reads = reads.clone();
+    let stream = ScriptedSocket(frames).inspect(move |_| {
+        observed_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    });
+    let mut owner = SocketOwner::new(stream);
+    wait_for_queued(&owner, EVENT_COUNT).await;
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while reads.load(std::sync::atomic::Ordering::SeqCst) < EVENT_COUNT + 1 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    // A command must still progress while admission waits for queue capacity.
+    tokio::time::timeout(
+        Duration::from_secs(1),
+        owner.send(Message::Text("command".into())),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(owner.failure().is_none());
+    assert_eq!(
+        reads.load(std::sync::atomic::Ordering::SeqCst),
+        EVENT_COUNT + 1,
+        "full queue allows only one pending frame, then stops polling the socket"
+    );
+    for i in 0..EVENT_COUNT * 3 {
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(1), owner.next())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap(),
+            Message::Text(i.to_string().into())
+        );
+    }
+    assert!(owner.next().await.is_none());
+}
+
+#[tokio::test]
+async fn close_and_cancel_remain_responsive_when_event_queue_is_full() {
+    for cancel in [false, true] {
+        let frames = (0..EVENT_COUNT * 3)
+            .map(|_| Ok(Message::Text("x".into())))
+            .collect();
+        let owner = SocketOwner::new(ScriptedSocket(frames));
+        let activity = owner.activity();
+        wait_for_queued(&owner, EVENT_COUNT).await;
+        if cancel {
+            let terminal = owner.terminal.clone();
+            let task = owner.task.abort_handle();
+            drop(activity);
+            tokio::time::timeout(Duration::from_secs(1), async {
+                while !task.is_finished() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(
+                terminal.lock().unwrap().failure.as_ref().unwrap().kind,
+                "owner_cancelled"
+            );
+        } else {
+            activity.complete();
+            // Peer need not acknowledge; local close remains bounded while full.
+            tokio::time::timeout(
+                Duration::from_secs(1),
+                owner.close(Duration::from_millis(20)),
+            )
+            .await
+            .unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn dropping_owner_while_backpressured_stops_pump() {
+    let frames = (0..EVENT_COUNT * 3)
+        .map(|_| Ok(Message::Text("x".into())))
+        .collect();
+    let owner = SocketOwner::new(ScriptedSocket(frames));
+    wait_for_queued(&owner, EVENT_COUNT).await;
+    let task = owner.task.abort_handle();
+    drop(owner);
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while !task.is_finished() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
 }
 
 #[test]
@@ -141,21 +231,35 @@ async fn command_count_overflow_invalidates_without_waiting_for_owner() {
 }
 
 #[tokio::test]
-async fn event_bytes_overflow_fails_even_below_count_limit() {
-    let (owner, mut peer) = pair().await;
+async fn cumulative_event_bytes_apply_backpressure_and_resume() {
     let payload = vec![0; BYTE_LIMIT / 2 + 1];
-    peer.send(Message::Binary(payload.clone().into()))
-        .await
-        .unwrap();
-    peer.send(Message::Binary(payload.into())).await.unwrap();
-    tokio::time::timeout(Duration::from_secs(2), async {
-        while owner.failure().is_none() {
-            tokio::task::yield_now().await;
-        }
-    })
+    let mut owner = SocketOwner::new(ScriptedSocket(std::collections::VecDeque::from([
+        Ok(Message::Binary(payload.clone().into())),
+        Ok(Message::Binary(payload.clone().into())),
+        Ok(completed_frame()),
+    ])));
+    wait_for_queued(&owner, 1).await;
+    tokio::time::timeout(
+        Duration::from_secs(1),
+        owner.send(Message::Text("command".into())),
+    )
     .await
+    .unwrap()
     .unwrap();
-    assert_eq!(owner.failure().unwrap().kind, "queue_bytes_limit");
+    assert_eq!(owner.events.len(), 1);
+    assert!(owner.failure().is_none());
+    for _ in 0..2 {
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(1), owner.next())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap(),
+            Message::Binary(payload.clone().into())
+        );
+    }
+    assert_eq!(owner.next().await.unwrap().unwrap(), completed_frame());
+    assert!(owner.next().await.is_none());
 }
 
 #[tokio::test]
@@ -315,32 +419,20 @@ async fn received_completion_precedes_later_io_protocol_close_and_eof() {
 }
 
 #[tokio::test]
-async fn queued_completion_cannot_hide_count_or_byte_overflow() {
-    for bytes in [false, true] {
-        let mut frames = std::collections::VecDeque::from([Ok(completed_frame())]);
-        if bytes {
-            frames.push_back(Ok(Message::Binary(vec![0; BYTE_LIMIT].into())));
-        } else {
-            for _ in 0..EVENT_COUNT {
-                frames.push_back(Ok(Message::Text("extra".into())));
-            }
-        }
-        let mut owner = SocketOwner::new(ScriptedSocket(frames));
-        (&mut owner.task).await.unwrap();
-        let expected = if bytes {
-            "queue_bytes_limit"
-        } else {
-            "queue_count_limit"
-        };
-        assert_eq!(owner.failure().unwrap().kind, expected);
-        assert!(owner
-            .next()
-            .await
-            .unwrap()
-            .unwrap_err()
-            .to_string()
-            .contains(expected));
-    }
+async fn queued_completion_cannot_hide_single_oversized_frame() {
+    let mut owner = SocketOwner::new(ScriptedSocket(std::collections::VecDeque::from([
+        Ok(completed_frame()),
+        Ok(Message::Binary(vec![0; BYTE_LIMIT + 1].into())),
+    ])));
+    (&mut owner.task).await.unwrap();
+    assert_eq!(owner.failure().unwrap().kind, "queue_bytes_limit");
+    assert!(owner
+        .next()
+        .await
+        .unwrap()
+        .unwrap_err()
+        .to_string()
+        .contains("queue_bytes_limit"));
 }
 
 #[tokio::test]

@@ -193,6 +193,10 @@ impl SocketOwner {
         let acknowledged = peer_ack.clone();
         let event_bytes = Arc::new(Semaphore::new(BYTE_LIMIT));
         let task = tokio::spawn(async move {
+            // At most 16 MiB queued plus one pending message of at most 16 MiB:
+            // the owner’s queued + pending payload is bounded by 32 MiB (excluding transport
+            // buffers). Stop reading while pending; TCP supplies upstream backpressure.
+            let mut pending: Option<Message> = None;
             let failure = loop {
                 tokio::select! {
                     biased;
@@ -212,7 +216,24 @@ impl SocketOwner {
                         let _ = command.ack.send(result);
                         if let Some(error) = failure { break error; }
                     }
-                    incoming = socket.next() => {
+                    admission = async {
+                        let slot = tx.reserve().await.map_err(|_| Failure::new("owner_cancelled"))?;
+                        let size = pending.as_ref().expect("pending admission").len();
+                        let bytes = event_bytes.clone().acquire_many_owned(size as u32).await
+                            .map_err(|_| Failure::new("owner_stopped"))?;
+                        Ok::<_, Failure>((slot, bytes))
+                    }, if pending.is_some() => {
+                        match admission {
+                            Ok((slot, bytes)) => {
+                                slot.send(Buffered {
+                                    message: pending.take().expect("admitted message"),
+                                    _bytes: bytes,
+                                });
+                            }
+                            Err(error) => break error,
+                        }
+                    }
+                    incoming = socket.next(), if pending.is_none() => {
                         match incoming {
                             Some(Ok(Message::Ping(_))) => {
                                 // tungstenite queued the matching Pong; flush it exactly once.
@@ -226,10 +247,10 @@ impl SocketOwner {
                                 break failure;
                             }
                             Some(Ok(message)) => {
-                                let buffered = match buffer(message, &event_bytes) { Ok(v) => v, Err(e) => break e };
-                                if let Err(error) = tx.try_send(buffered) {
-                                    break Failure::new(if matches!(error, mpsc::error::TrySendError::Full(_)) { "queue_count_limit" } else { "owner_cancelled" });
+                                if message.len() > BYTE_LIMIT {
+                                    break Failure::new("queue_bytes_limit");
                                 }
+                                pending = Some(message);
                             }
                             Some(Err(error)) => break Failure::websocket(error),
                             None => break Failure { end: StreamEnd::Eof, ..Failure::new("connection_closed") },
