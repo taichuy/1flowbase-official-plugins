@@ -6,7 +6,8 @@ use openai_provider::{
     ProviderWireOperation,
 };
 
-#[tokio::main]
+// Serial stdin stays on the main thread; one independent I/O worker fits the RLIMIT_AS budget.
+#[tokio::main(flavor = "multi_thread", worker_threads = 1)]
 async fn main() {
     let stdin = io::stdin();
     let mut runtime = OpenAiProviderRuntime::default();
