@@ -166,6 +166,7 @@ pub(crate) fn decision(transition: super::RecoveryTransition, committed: bool) -
     match transition.disposition {
         D::SameEpochReconnect | D::OneFullContextRebuild => "retry_websocket",
         D::PreCommitHttpFallback => "retry_http",
+        D::LogicalInvocationRetry => "logical_invocation_retry",
         _ if committed => "committed",
         _ => "terminal",
     }

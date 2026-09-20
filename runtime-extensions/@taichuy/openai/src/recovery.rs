@@ -317,10 +317,9 @@ impl RecoveryFsm {
             None
         };
         if let Some(reason) = reason {
-            self.observe_terminal();
             return Err(RecoveryTransition {
                 attempt: self.last_attempt(),
-                commit_level: CommitLevel::Terminal,
+                commit_level: self.commit_level,
                 disposition: RecoveryDisposition::TerminalInterruption,
                 reason,
             });
@@ -362,7 +361,6 @@ impl RecoveryFsm {
             .is_some_and(|deadline| deadline <= unix_time_ms())
             || self.consumed_attempts >= self.constraints.max_inner_attempts
         {
-            self.observe_terminal();
             return RecoveryDisposition::TerminalInterruption;
         }
 
@@ -384,27 +382,27 @@ impl RecoveryFsm {
                     owner_available: true,
                     turn_state_available: true,
                 } => RecoveryDisposition::SameEpochReconnect,
-                CursorState::ConnectionBound { .. } => RecoveryDisposition::TerminalInterruption,
+                CursorState::ConnectionBound { .. } => RecoveryDisposition::LogicalInvocationRetry,
                 CursorState::OpaqueUnowned
                     if self.constraints.policy == RecoveryPolicyKind::SemanticMapped =>
                 {
                     RecoveryDisposition::PreCommitHttpFallback
                 }
-                CursorState::OpaqueUnowned => RecoveryDisposition::TerminalInterruption,
+                CursorState::OpaqueUnowned => RecoveryDisposition::LogicalInvocationRetry,
                 CursorState::None
                     if self.constraints.policy == RecoveryPolicyKind::SemanticMapped =>
                 {
                     RecoveryDisposition::PreCommitHttpFallback
                 }
-                CursorState::None => RecoveryDisposition::TerminalInterruption,
+                CursorState::None => RecoveryDisposition::LogicalInvocationRetry,
             },
             RecoverySignal::ProxyFailed => match facts.cursor {
                 CursorState::ConnectionBound {
                     same_epoch: true,
                     owner_available: true,
-                    ..
+                    turn_state_available: true,
                 } => RecoveryDisposition::SameEpochReconnect,
-                _ => RecoveryDisposition::TerminalInterruption,
+                _ => RecoveryDisposition::LogicalInvocationRetry,
             },
             RecoverySignal::PolicyRejected | RecoverySignal::ContinuationUnavailable => {
                 RecoveryDisposition::TerminalInterruption
@@ -414,15 +412,15 @@ impl RecoveryFsm {
                     && !matches!(facts.cursor, CursorState::ConnectionBound { .. })
                 {
                     RecoveryDisposition::PreCommitHttpFallback
+                } else if facts.signal == RecoverySignal::TransportRejected {
+                    RecoveryDisposition::LogicalInvocationRetry
                 } else {
                     RecoveryDisposition::TerminalInterruption
                 }
             }
             RecoverySignal::SemanticTerminal => unreachable!("handled above"),
         };
-        if disposition == RecoveryDisposition::TerminalInterruption {
-            self.observe_terminal();
-        }
+        // Stopping this invocation is not evidence of semantic commitment.
         disposition
     }
 
@@ -546,7 +544,7 @@ mod tests {
         };
         assert_eq!(
             machine.decide(facts),
-            RecoveryDisposition::TerminalInterruption
+            RecoveryDisposition::LogicalInvocationRetry
         );
     }
 
@@ -581,7 +579,7 @@ mod tests {
                 cursor: CursorState::None,
                 full_context_available: false,
             }),
-            RecoveryDisposition::TerminalInterruption
+            RecoveryDisposition::LogicalInvocationRetry
         );
     }
 
@@ -591,8 +589,8 @@ mod tests {
             for (policy, expected, commit_level, consumed) in [
                 (
                     RecoveryPolicyKind::NativeOpaque,
-                    RecoveryDisposition::TerminalInterruption,
-                    CommitLevel::Terminal,
+                    RecoveryDisposition::LogicalInvocationRetry,
+                    CommitLevel::LifecycleOnly,
                     0,
                 ),
                 (
@@ -694,7 +692,7 @@ mod tests {
             RecoveryDisposition::TerminalInterruption
         );
         assert_eq!(transition.reason, RecoveryReason::DeadlineExceeded);
-        assert_eq!(transition.commit_level, CommitLevel::Terminal);
+        assert_eq!(transition.commit_level, CommitLevel::LifecycleOnly);
     }
 
     #[test]
@@ -772,7 +770,7 @@ mod tests {
                 cursor,
                 full_context_available: true,
             });
-            assert_eq!(disposition, RecoveryDisposition::TerminalInterruption);
+            assert_eq!(disposition, RecoveryDisposition::LogicalInvocationRetry);
             assert_ne!(disposition, RecoveryDisposition::PreCommitHttpFallback);
         }
     }
@@ -814,7 +812,7 @@ mod tests {
         let mut native = fsm(RecoveryPolicyKind::NativeOpaque);
         assert_eq!(
             native.decide(retryable),
-            RecoveryDisposition::TerminalInterruption
+            RecoveryDisposition::LogicalInvocationRetry
         );
 
         let mut mapped = fsm(RecoveryPolicyKind::SemanticMapped);
@@ -870,6 +868,7 @@ mod tests {
             let exhausted = machine.begin_attempt().unwrap_err();
             assert_eq!(exhausted.attempt, budget - 1);
             assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
+            assert_eq!(exhausted.commit_level, CommitLevel::LifecycleOnly);
             assert_eq!(machine.consumed_attempts(), budget);
         }
     }
@@ -889,7 +888,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_dispositions_are_the_only_ones_needing_no_socket_incarnation() {
+    fn terminal_dispositions_do_not_include_logical_retry() {
         assert!(RecoveryDisposition::TerminalInterruption.is_terminal());
         assert!(RecoveryDisposition::SemanticTerminal.is_terminal());
         for recoverable in [

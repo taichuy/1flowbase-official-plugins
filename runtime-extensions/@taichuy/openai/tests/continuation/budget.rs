@@ -148,3 +148,63 @@ fn expired_deadline_has_zero_connections_and_no_fabricated_receipt() {
 fn failed_reconnect_handshake_consumes_the_second_attempt_without_an_extra_send() {
     bounded_continuation(2, false, true);
 }
+
+#[test]
+fn proxy_failure_without_route_returns_precommit_fact_without_replaying_cursor() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        // No routing token in the handshake: a historical response owner is not
+        // permission to replay its cursor on a different physical connection.
+        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        create(&mut ws);
+        completed(&mut ws, "resp_no_route", json!([]));
+        assert_eq!(create(&mut ws)["previous_response_id"], "resp_no_route");
+        ws.send(Message::Close(Some(CloseFrame {
+            code: CloseCode::Error,
+            reason: "upstream websocket proxy failed".into(),
+        })))
+        .unwrap();
+        listener.set_nonblocking(true).unwrap();
+        listener
+    });
+    let (mut child, mut stdin, mut stdout) = spawn_native_worker();
+    next_turn(
+        &mut stdin,
+        &mut stdout,
+        native_managed_input(&base, json!({"input":[]}), native_opaque_directive(3)),
+    );
+    let result = next_turn(
+        &mut stdin,
+        &mut stdout,
+        native_managed_input(
+            &base,
+            json!({"previous_response_id":"resp_no_route","input":[]}),
+            native_opaque_directive(3),
+        ),
+    );
+    let details = &result
+        .iter()
+        .find(|value| value["type"] == "error")
+        .unwrap()["error"]["provider_details"];
+    let receipt = &details["1flowbase_provider_recovery"];
+    assert_eq!(receipt["attempt"], 0);
+    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["disposition"], "logical_invocation_retry");
+    assert_eq!(receipt["reason"], "transport_disconnected");
+    let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
+    assert_eq!(diagnostics["first_failure"]["close_code"], 1011);
+    assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
+    assert_eq!(diagnostics["last_failure"]["routing_token_present"], false);
+    let listener = server.join().unwrap();
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
+    );
+    drop(stdin);
+    let _ = child.kill();
+    let _ = child.wait();
+}
