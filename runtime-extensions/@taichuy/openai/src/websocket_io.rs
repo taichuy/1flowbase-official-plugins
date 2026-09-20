@@ -15,6 +15,13 @@ pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketCon
         .max_write_buffer_size(BYTE_LIMIT + 1024)
 }
 
+#[derive(Debug, Clone, Copy)]
+enum StreamEnd {
+    Error,
+    Close,
+    Eof,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct Failure {
     pub kind: &'static str,
@@ -23,6 +30,7 @@ pub(super) struct Failure {
     pub io_kind: Option<&'static str>,
     pub phase: &'static str,
     pub idle_duration_ms: u64,
+    end: StreamEnd,
 }
 impl fmt::Display for Failure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -43,6 +51,25 @@ impl Failure {
             io_kind: None,
             phase: "idle",
             idle_duration_ms: 0,
+            end: StreamEnd::Error,
+        }
+    }
+    fn invalidates_buffered_events(&self) -> bool {
+        matches!(
+            self.kind,
+            "queue_count_limit"
+                | "queue_bytes_limit"
+                | "capacity"
+                | "write_buffer_full"
+                | "owner_cancelled"
+                | "owner_stopped"
+        )
+    }
+    fn stream_end(self) -> Option<Result<Message>> {
+        match self.end {
+            StreamEnd::Close => Some(Ok(Message::Close(None))),
+            StreamEnd::Eof => None,
+            StreamEnd::Error => Some(Err(self.into())),
         }
     }
     fn websocket(error: WebSocketError) -> Self {
@@ -193,7 +220,7 @@ impl SocketOwner {
                             }
                             Some(Ok(Message::Pong(_))) => {}
                             Some(Ok(Message::Close(frame))) => {
-                                let failure = Failure { category: recovery_diagnostics::close_category(frame.as_ref()), close_code: frame.as_ref().map(|f| u16::from(f.code)), ..Failure::new("connection_closed") };
+                                let failure = Failure { end: StreamEnd::Close, category: recovery_diagnostics::close_category(frame.as_ref()), close_code: frame.as_ref().map(|f| u16::from(f.code)), ..Failure::new("connection_closed") };
                                 retain_failure(&first, failure.clone());
                                 if flush(&mut socket).await.is_ok() { acknowledged.store(true, std::sync::atomic::Ordering::Release); }
                                 break failure;
@@ -205,7 +232,7 @@ impl SocketOwner {
                                 }
                             }
                             Some(Err(error)) => break Failure::websocket(error),
-                            None => break Failure::new("connection_closed"),
+                            None => break Failure { end: StreamEnd::Eof, ..Failure::new("connection_closed") },
                         }
                     }
                 }
@@ -265,19 +292,24 @@ impl SocketOwner {
             .map_err(Into::into)
     }
     pub async fn next(&mut self) -> Option<Result<Message>> {
-        // Resource faults invalidate buffered success; orderly peer close preserves prior frames.
-        if let Some(error) = self.failure() {
-            if error.kind == "connection_closed" {
-                if let Ok(event) = self.events.try_recv() {
-                    return Some(Ok(event.message));
-                }
+        // Resource/cancellation faults invalidate the mailbox. Transport end is
+        // ordered after all frames already read, even when the consumer is slow.
+        if let Some(failure) = self.failure() {
+            if failure.invalidates_buffered_events() {
+                return Some(Err(failure.into()));
             }
-            return Some(Err(error.into()));
+            if let Ok(event) = self.events.try_recv() {
+                return Some(Ok(event.message));
+            }
+            return failure.stream_end();
         }
         let event = self.events.recv().await;
-        if let Some(error) = self.failure() {
-            if error.kind != "connection_closed" || event.is_none() {
-                return Some(Err(error.into()));
+        if let Some(failure) = self.failure() {
+            if failure.invalidates_buffered_events() {
+                return Some(Err(failure.into()));
+            }
+            if event.is_none() {
+                return failure.stream_end();
             }
         }
         event.map(|event| Ok(event.message))

@@ -228,3 +228,141 @@ fn owner_network_diagnostic_preserves_enum_without_raw_error_text() {
     assert_eq!(diagnostic["io_error_kind"], "connection_reset");
     assert!(!diagnostic.to_string().contains("sentinel"));
 }
+
+// Deterministic peer order: run the physical reader to its terminal state before
+// allowing the application to consume any queued frames.
+struct ScriptedSocket(std::collections::VecDeque<Result<Message, WebSocketError>>);
+impl futures_util::Stream for ScriptedSocket {
+    type Item = Result<Message, WebSocketError>;
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        std::task::Poll::Ready(self.0.pop_front())
+    }
+}
+impl futures_util::Sink<Message> for ScriptedSocket {
+    type Error = WebSocketError;
+    fn poll_ready(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn start_send(self: std::pin::Pin<&mut Self>, _: Message) -> Result<(), Self::Error> {
+        Ok(())
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+}
+fn completed_frame() -> Message {
+    Message::Text(
+        r#"{"type":"response.completed","response":{"id":"ordered-response","output":[]}}"#.into(),
+    )
+}
+
+#[tokio::test]
+async fn received_completion_precedes_later_io_protocol_close_and_eof() {
+    let endings = [
+        Some(Err(WebSocketError::Io(std::io::Error::from(
+            std::io::ErrorKind::ConnectionReset,
+        )))),
+        Some(Err(WebSocketError::Protocol(
+            tokio_tungstenite::tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
+        ))),
+        Some(Ok(Message::Close(None))),
+        None,
+    ];
+    for ending in endings {
+        let expects_close = matches!(&ending, Some(Ok(Message::Close(_))));
+        let expects_eof = ending.is_none();
+        let mut frames = std::collections::VecDeque::from([Ok(completed_frame())]);
+        if let Some(ending) = ending {
+            frames.push_back(ending);
+        }
+        let mut owner = SocketOwner::new(ScriptedSocket(frames));
+        (&mut owner.task).await.unwrap();
+        let first_kind = owner.failure().unwrap().kind;
+        assert_eq!(owner.next().await.unwrap().unwrap(), completed_frame());
+        let terminal = owner.next().await;
+        if expects_close {
+            assert!(matches!(terminal, Some(Ok(Message::Close(_)))));
+        } else if expects_eof {
+            assert!(terminal.is_none());
+        } else {
+            assert!(terminal.unwrap().is_err());
+        }
+        assert_eq!(
+            owner.failure().unwrap().kind,
+            first_kind,
+            "delivery must retain the physical first failure"
+        );
+        assert!(owner
+            .send(Message::Text("must-not-reuse".into()))
+            .await
+            .is_err());
+    }
+}
+
+#[tokio::test]
+async fn queued_completion_cannot_hide_count_or_byte_overflow() {
+    for bytes in [false, true] {
+        let mut frames = std::collections::VecDeque::from([Ok(completed_frame())]);
+        if bytes {
+            frames.push_back(Ok(Message::Binary(vec![0; BYTE_LIMIT].into())));
+        } else {
+            for _ in 0..EVENT_COUNT {
+                frames.push_back(Ok(Message::Text("extra".into())));
+            }
+        }
+        let mut owner = SocketOwner::new(ScriptedSocket(frames));
+        (&mut owner.task).await.unwrap();
+        let expected = if bytes {
+            "queue_bytes_limit"
+        } else {
+            "queue_count_limit"
+        };
+        assert_eq!(owner.failure().unwrap().kind, expected);
+        assert!(owner
+            .next()
+            .await
+            .unwrap()
+            .unwrap_err()
+            .to_string()
+            .contains(expected));
+    }
+}
+
+#[tokio::test]
+async fn close_follows_tool_frames_and_retains_safe_policy_details() {
+    let tool = Message::Text(
+        r#"{"type":"response.function_call_arguments.done","call_id":"call_1","arguments":"{}"}"#
+            .into(),
+    );
+    let mut owner = SocketOwner::new(ScriptedSocket(std::collections::VecDeque::from([
+        Ok(tool.clone()),
+        Ok(Message::Close(Some(
+            tokio_tungstenite::tungstenite::protocol::CloseFrame {
+                code: tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Policy,
+                reason: "upstream continuation connection is unavailable secret-sentinel".into(),
+            },
+        ))),
+    ])));
+    (&mut owner.task).await.unwrap();
+    assert_eq!(owner.next().await.unwrap().unwrap(), tool);
+    assert!(matches!(owner.next().await, Some(Ok(Message::Close(_)))));
+    let failure = owner.failure().unwrap();
+    assert_eq!(failure.close_code, Some(1008));
+    assert_eq!(failure.category, "continuation_unavailable");
+    assert!(!failure.to_string().contains("sentinel"));
+}

@@ -4062,7 +4062,11 @@ where
                 session_reusable = false;
                 break;
             }
-            let error = anyhow!("websocket closed before response.completed");
+            let error = session
+                .stream
+                .failure()
+                .map(anyhow::Error::new)
+                .unwrap_or_else(|| anyhow!("websocket closed before response.completed"));
             return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
                 visible_output_started || semantic_terminal_failure_seen,
@@ -4119,7 +4123,11 @@ where
                     session_reusable = false;
                     break;
                 }
-                let error = websocket_closed_before_completed_error(frame);
+                let error = session
+                    .stream
+                    .failure()
+                    .map(anyhow::Error::new)
+                    .unwrap_or_else(|| websocket_closed_before_completed_error(frame));
                 return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                     error,
                     visible_output_started || semantic_terminal_failure_seen,
