@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    client_async_tls_with_config, connect_async,
+    client_async_tls_with_config, connect_async_with_config,
     tungstenite::{
         client::IntoClientRequest,
         handshake::client::{
@@ -32,6 +32,7 @@ use tokio_tungstenite::{
 
 mod close;
 mod transport_session;
+mod websocket_io;
 use transport_session::*;
 
 mod count_tokens;
@@ -3540,7 +3541,7 @@ struct WebsocketResponseOwner {
 
 #[derive(Debug)]
 struct ResponsesWebsocketSession {
-    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    stream: websocket_io::SocketOwner,
     turn_state: Option<String>,
     socket_generation: u64,
     contract_generation: Option<u64>,
@@ -3684,7 +3685,9 @@ async fn connect_responses_websocket(
     let (stream, response) = if config.proxy_url.is_some() {
         connect_responses_websocket_through_proxy(config, &url, request).await
     } else {
-        connect_async(request).await.map_err(map_websocket_error)
+        connect_async_with_config(request, Some(websocket_io::config()), false)
+            .await
+            .map_err(map_websocket_error)
     }?;
     // Codex turn state is first-writer-wins within a turn; continuation handshakes
     // must not rotate the sticky routing token for later tool callbacks.
@@ -3697,7 +3700,7 @@ async fn connect_responses_websocket(
             .map(ToOwned::to_owned)
     });
     Ok(ResponsesWebsocketSession {
-        stream,
+        stream: websocket_io::SocketOwner::new(stream),
         turn_state,
         socket_generation,
         contract_generation,
@@ -3722,7 +3725,7 @@ async fn connect_responses_websocket_through_proxy(
         .ok_or_else(|| anyhow!("proxy_url is required"))?;
     let target = proxy_connect_target(url)?;
     let stream = connect_http_proxy_tunnel(proxy_url, &target).await?;
-    client_async_tls_with_config(request, stream, None, None)
+    client_async_tls_with_config(request, stream, Some(websocket_io::config()), None)
         .await
         .map_err(map_websocket_error)
 }
@@ -3957,11 +3960,7 @@ fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
 
 async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
     let payload = serde_json::to_string(body)?;
-    session
-        .stream
-        .send(Message::Text(payload.into()))
-        .await
-        .map_err(map_websocket_error)
+    session.stream.send(Message::Text(payload.into())).await
 }
 
 async fn send_websocket_response_processed(
@@ -4028,7 +4027,7 @@ where
         };
         let message = message.map_err(|error| {
             WebsocketInvocationError::from_reconnectable_stream_state(
-                map_websocket_error(error),
+                error,
                 visible_output_started || semantic_terminal_failure_seen,
             )
         })?;
@@ -4069,18 +4068,7 @@ where
                     break;
                 }
             }
-            Message::Ping(payload) => {
-                session
-                    .stream
-                    .send(Message::Pong(payload))
-                    .await
-                    .map_err(|error| {
-                        WebsocketInvocationError::from_reconnectable_stream_state(
-                            map_websocket_error(error),
-                            visible_output_started || semantic_terminal_failure_seen,
-                        )
-                    })?;
-            }
+            Message::Ping(_) => {}
             Message::Pong(_) => {}
             Message::Close(frame) => {
                 if !tool_calls.is_empty() && !response_id.is_null() {

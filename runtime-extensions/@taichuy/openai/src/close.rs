@@ -192,10 +192,10 @@ pub(crate) async fn release_socket(
     timeout: Duration,
 ) -> Option<NoAckReason> {
     session.state = WebsocketConnectionState::Closing;
-    release_stream(session.stream, timeout).await
+    session.stream.close(timeout).await
 }
 
-async fn release_stream<S>(mut stream: S, timeout: Duration) -> Option<NoAckReason>
+pub(super) async fn release_stream<S>(mut stream: S, timeout: Duration) -> Option<NoAckReason>
 where
     S: futures_util::Sink<Message>
         + futures_util::Stream<
