@@ -1424,7 +1424,33 @@ impl OpenAiProviderRuntime {
         };
         let mut output = match transport_mode {
             OpenAiTransportMode::HttpSse => {
-                invoke_openai_http_sse(
+                let constraints = recovery_directive
+                    .as_ref()
+                    .map(ProviderRecoveryDirective::constraints)
+                    .unwrap_or_else(|| {
+                        RecoveryConstraints::standalone(if native_passthrough {
+                            RecoveryPolicyKind::NativeOpaque
+                        } else {
+                            RecoveryPolicyKind::SemanticMapped
+                        })
+                    });
+                let mut recovery = RecoveryFsm::new(constraints);
+                if recovery.begin_attempt().is_err() {
+                    let mut error = WebsocketInvocationError::fallback_blocked(
+                        recovery_diagnostics::transport_error(
+                            "attempt_admission",
+                            "deadline_exceeded",
+                            None,
+                        ),
+                    );
+                    error.recovery_transport = RecoveryTransport::ProviderHttp;
+                    let mut diagnostic = recovery_diagnostics::failure(&error.source, None, None);
+                    diagnostic["attempt"] = Value::Null;
+                    diagnostic["consumed_attempts"] = json!(0);
+                    error.failure_diagnostics.push(diagnostic);
+                    return Err(recovery_error_source(error, recovery_directive.as_ref()));
+                }
+                match invoke_openai_http_sse(
                     &config,
                     request.protocol,
                     request.pathname,
@@ -1435,6 +1461,39 @@ impl OpenAiProviderRuntime {
                     &request.protocol_context,
                 )
                 .await
+                {
+                    Ok(mut output) => {
+                        attach_managed_recovery_receipt(
+                            &mut output,
+                            recovery_directive.as_ref(),
+                            Some(RecoveryTransition {
+                                attempt: 0,
+                                commit_level: recovery::CommitLevel::Terminal,
+                                disposition: RecoveryDisposition::SemanticTerminal,
+                                reason: recovery::RecoveryReason::SemanticCompleted,
+                            }),
+                            RecoveryTransport::ProviderHttp,
+                            None,
+                        )?;
+                        Ok(output)
+                    }
+                    Err(source) => {
+                        let mut error = WebsocketInvocationError::fallback_blocked(source);
+                        error.recovery_transport = RecoveryTransport::ProviderHttp;
+                        error.transition = Some(RecoveryTransition {
+                            attempt: 0,
+                            commit_level: recovery::CommitLevel::Terminal,
+                            disposition: RecoveryDisposition::TerminalInterruption,
+                            reason: recovery::RecoveryReason::SemanticFailed,
+                        });
+                        let mut diagnostic =
+                            recovery_diagnostics::failure(&error.source, None, None);
+                        diagnostic["attempt"] = json!(0);
+                        diagnostic["consumed_attempts"] = json!(1);
+                        error.failure_diagnostics.push(diagnostic);
+                        Err(recovery_error_source(error, recovery_directive.as_ref()))
+                    }
+                }
             }
             OpenAiTransportMode::ResponsesWebsocket => {
                 match self
@@ -1449,11 +1508,14 @@ impl OpenAiProviderRuntime {
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(error)
+                    Err(mut error)
                         if error.disposition
                             == Some(RecoveryDisposition::PreCommitHttpFallback)
                             && can_fallback_to_http(&error.source) =>
                     {
+                        if !begin_http_fallback(&mut error) {
+                            return Err(recovery_error_source(error, recovery_directive.as_ref()));
+                        }
                         let fallback = invoke_openai_http_sse(
                             &config,
                             request.protocol,
@@ -1482,6 +1544,10 @@ impl OpenAiProviderRuntime {
                             RecoveryTransport::ProviderHttp,
                             None,
                         )?;
+                        if !error.failure_diagnostics.is_empty() {
+                            output.result.provider_metadata[recovery_diagnostics::KEY] =
+                                recovery_diagnostics::summary(&error.failure_diagnostics);
+                        }
                         Ok(output)
                     }
                     Err(error) => Err(recovery_error_source(error, recovery_directive.as_ref())),
@@ -1503,12 +1569,15 @@ impl OpenAiProviderRuntime {
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(error)
+                    Err(mut error)
                         if error.disposition
                             == Some(RecoveryDisposition::PreCommitHttpFallback)
                             && !requires_websocket_cursor
                             && can_fallback_to_http(&error.source) =>
                     {
+                        if !begin_http_fallback(&mut error) {
+                            return Err(recovery_error_source(error, recovery_directive.as_ref()));
+                        }
                         let fallback = invoke_openai_http_sse(
                             &config,
                             request.protocol,
@@ -1537,6 +1606,10 @@ impl OpenAiProviderRuntime {
                             RecoveryTransport::ProviderHttp,
                             None,
                         )?;
+                        if !error.failure_diagnostics.is_empty() {
+                            output.result.provider_metadata[recovery_diagnostics::KEY] =
+                                recovery_diagnostics::summary(&error.failure_diagnostics);
+                        }
                         Ok(output)
                     }
                     Err(error) => Err(recovery_error_source(error, recovery_directive.as_ref())),
@@ -1585,13 +1658,45 @@ impl OpenAiProviderRuntime {
             )));
         }
         let mut recovery = RecoveryFsm::new(constraints);
-        let mut last_transition = None;
+        let mut last_transition: Option<RecoveryTransition> = None;
         // The first failure is never dropped: when a bounded recovery attempt
         // fails too, both the original transport failure and the final state
         // stay auditable on the returned typed error.
         let mut first_failure: Option<ProviderRuntimeError> = None;
         let mut failure_diagnostics = Vec::new();
         loop {
+            let attempt = match recovery.begin_attempt() {
+                Ok(attempt) => attempt,
+                Err(transition) => {
+                    let mut error = WebsocketInvocationError::fallback_blocked(
+                        recovery_diagnostics::transport_error(
+                            "attempt_admission",
+                            if transition.reason == recovery::RecoveryReason::DeadlineExceeded {
+                                "deadline_exceeded"
+                            } else {
+                                "budget_exhausted"
+                            },
+                            None,
+                        ),
+                    );
+                    if recovery.consumed_attempts() > 0 {
+                        error.transition = Some(transition);
+                    }
+                    let mut diagnostic = recovery_diagnostics::failure(&error.source, None, None);
+                    diagnostic["attempt"] = if recovery.consumed_attempts() == 0 {
+                        Value::Null
+                    } else {
+                        json!(recovery.last_attempt())
+                    };
+                    diagnostic["consumed_attempts"] = json!(recovery.consumed_attempts());
+                    if failure_diagnostics.len() < 16 {
+                        failure_diagnostics.push(diagnostic);
+                    }
+                    error.original_failure = first_failure;
+                    error.failure_diagnostics = failure_diagnostics;
+                    return Err(error);
+                }
+            };
             let retry_response_id =
                 responses_body_previous_response_id(&retry_body).map(ToOwned::to_owned);
             match self
@@ -1607,11 +1712,30 @@ impl OpenAiProviderRuntime {
             {
                 Ok(mut output) => {
                     let socket_incarnation =
-                        websocket_session_incarnation(&self.websocket_sessions, config, input);
+                        websocket_session_incarnation(&self.websocket_sessions, config, input)
+                            .or_else(|| {
+                                output
+                                    .result
+                                    .response_id
+                                    .as_deref()
+                                    .and_then(|id| self.websocket_response_owners.get(id))
+                                    .map(|owner| owner.generation)
+                            });
                     attach_managed_recovery_receipt(
                         &mut output,
                         recovery_directive,
-                        last_transition,
+                        Some(match last_transition {
+                            Some(mut transition) => {
+                                transition.attempt = attempt;
+                                transition
+                            }
+                            None => RecoveryTransition {
+                                attempt,
+                                commit_level: recovery::CommitLevel::Terminal,
+                                disposition: RecoveryDisposition::SemanticTerminal,
+                                reason: recovery::RecoveryReason::SemanticCompleted,
+                            },
+                        }),
                         RecoveryTransport::AiNativeWebSocket,
                         socket_incarnation,
                     )
@@ -1634,8 +1758,9 @@ impl OpenAiProviderRuntime {
                             .and_then(|id| self.websocket_response_owners.get(id))
                             .map(|owner| owner.generation),
                     );
-                    diagnostic["attempt"] = json!(failure_diagnostics.len());
-                    diagnostic["consumed_attempts"] = json!(failure_diagnostics.len() + 1);
+                    diagnostic["transport_generation"] = json!(error.transport_generation);
+                    diagnostic["attempt"] = json!(attempt);
+                    diagnostic["consumed_attempts"] = json!(recovery.consumed_attempts());
                     let association_invalid = diagnostic["reason_category"]
                         == "continuation_unavailable"
                         || diagnostic["reason_category"] == "previous_response_unavailable";
@@ -1649,21 +1774,24 @@ impl OpenAiProviderRuntime {
                         failure_diagnostics.push(diagnostic);
                     }
                     error.failure_diagnostics = failure_diagnostics.clone();
-                    let signal = if association_invalid
-                        || websocket_previous_response_unavailable(&error.source)
-                    {
-                        RecoverySignal::PreviousResponseUnavailable
-                    } else if policy_rejected {
-                        RecoverySignal::ProtocolError
-                    } else if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
-                        RecoverySignal::ProxyFailed
-                    } else if error.reconnect_allowed {
-                        RecoverySignal::TransportDisconnected
-                    } else if error.fallback_allowed {
-                        RecoverySignal::TransportRejected
-                    } else {
-                        RecoverySignal::ProtocolError
-                    };
+                    let signal =
+                        if error.failure_diagnostics.last().is_some_and(|value| {
+                            value["reason_category"] == "continuation_unavailable"
+                        }) {
+                            RecoverySignal::ContinuationUnavailable
+                        } else if websocket_previous_response_unavailable(&error.source) {
+                            RecoverySignal::PreviousResponseUnavailable
+                        } else if policy_rejected {
+                            RecoverySignal::PolicyRejected
+                        } else if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
+                            RecoverySignal::ProxyFailed
+                        } else if error.reconnect_allowed {
+                            RecoverySignal::TransportDisconnected
+                        } else if error.fallback_allowed {
+                            RecoverySignal::TransportRejected
+                        } else {
+                            RecoverySignal::ProtocolError
+                        };
                     let cursor = self.recovery_cursor_state(
                         retry_response_id.as_deref(),
                         recovery_directive,
@@ -1673,21 +1801,18 @@ impl OpenAiProviderRuntime {
                     let full_context_body = retry_response_id.as_deref().and_then(|response_id| {
                         self.websocket_full_context_retry_body(response_id, &retry_body)
                     });
-                    let mut transition = recovery.decide_transition(RecoveryFacts {
+                    let transition = recovery.decide_transition(RecoveryFacts {
                         signal,
                         cursor,
                         full_context_available: full_context_body.is_some(),
                     });
-                    if policy_rejected {
-                        transition.disposition = RecoveryDisposition::TerminalInterruption;
-                        transition.commit_level = recovery::CommitLevel::Terminal;
-                        transition.reason = recovery::RecoveryReason::ProtocolError;
-                    }
                     last_transition = Some(transition);
                     error.transition = Some(transition);
                     match transition.disposition {
                         RecoveryDisposition::SameEpochReconnect => {
-                            if signal == RecoverySignal::ProxyFailed {
+                            if signal == RecoverySignal::ProxyFailed
+                                && input.native_transport.is_none()
+                            {
                                 if let Some(response_id) = retry_response_id.as_deref() {
                                     self.websocket_turn_states_by_response_id
                                         .remove(response_id);
@@ -1705,6 +1830,7 @@ impl OpenAiProviderRuntime {
                             continue;
                         }
                         RecoveryDisposition::PreCommitHttpFallback => {
+                            error.recovery_state = Some(recovery);
                             error.disposition = Some(transition.disposition);
                             error.original_failure = first_failure.take();
                             return Err(error);
@@ -1768,29 +1894,31 @@ impl OpenAiProviderRuntime {
                     .contains_key(response_id),
             };
         }
-        if self.websocket_response_owners.contains_key(response_id) {
-            // The recorded owner binds this cursor to a concrete session and
-            // generation. Socket age says nothing about whether the upstream
-            // association behind that generation is still valid, so the decision
-            // uses the association facts only.
+        if let Some(owner) = self.websocket_response_owners.get(response_id) {
+            let same_socket = self
+                .websocket_sessions
+                .get(&owner.session_key)
+                .is_some_and(|session| session.socket_generation == owner.generation);
+            let route_available = self
+                .websocket_turn_states_by_response_id
+                .contains_key(response_id);
+            // History identifies the owner. Only a live owning socket or an observed
+            // routing token supports bounded continuation after transport loss.
             CursorState::ConnectionBound {
                 same_epoch: true,
-                owner_available: true,
-                // Legacy upstreams do not always issue a turn-state header. A
-                // locally recorded owner makes that absence valid rather than
-                // stale; an explicit host provenance keeps its stricter check above.
-                turn_state_available: true,
+                owner_available: same_socket || route_available,
+                turn_state_available: same_socket || route_available,
             }
         } else if signal == RecoverySignal::TransportDisconnected
             && invocation_socket_incarnation.is_some()
         {
-            // A successful handshake followed by a stream close binds an
-            // otherwise unseen legacy cursor to this invocation's WS path.
-            // It may reconnect in the same invocation, but must not cross HTTP.
+            let route_available = self
+                .websocket_turn_states_by_response_id
+                .contains_key(response_id);
             CursorState::ConnectionBound {
                 same_epoch: true,
-                owner_available: true,
-                turn_state_available: true,
+                owner_available: route_available,
+                turn_state_available: route_available,
             }
         } else {
             CursorState::OpaqueUnowned
@@ -1995,7 +2123,20 @@ impl OpenAiProviderRuntime {
             .expect("websocket session should be initialized");
         let mut request_body = build_websocket_response_create_body(body.clone());
         let upstream_started = Instant::now();
-        let result = read_websocket_response(session, &mut request_body, input, on_event).await;
+        let result = if recovery::deadline_expired(
+            recovery_directive
+                .and_then(|directive| directive.constraints().absolute_deadline_unix_ms),
+        ) {
+            Err(WebsocketInvocationError::fallback_blocked(
+                recovery_diagnostics::transport_error(
+                    "attempt_admission",
+                    "deadline_exceeded",
+                    None,
+                ),
+            ))
+        } else {
+            read_websocket_response(session, &mut request_body, input, on_event).await
+        };
         let upstream_duration = upstream_started.elapsed();
         session.last_activity = self.websocket_clock.now();
 
@@ -2082,6 +2223,15 @@ impl OpenAiProviderRuntime {
                     attach_failed_timing(error.source, connect_duration, upstream_duration);
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
                     error.socket_incarnation = Some(session.socket_generation);
+                    error.transport_generation = session.contract_generation;
+                    if let (Some(id), Some(turn_state)) = (
+                        responses_body_previous_response_id(&body),
+                        session.turn_state.as_ref(),
+                    ) {
+                        self.websocket_turn_states_by_response_id
+                            .entry(id.to_owned())
+                            .or_insert_with(|| turn_state.clone());
+                    }
                     session.state = WebsocketConnectionState::Faulted;
                     self.release_session(
                         session,
@@ -2193,6 +2343,7 @@ fn recovery_error_source(
         socket_incarnation,
         original_failure,
         failure_diagnostics,
+        recovery_transport,
         ..
     } = error;
     // A terminal transition makes no reconnect claim, so a failure that happened
@@ -2204,7 +2355,7 @@ fn recovery_error_source(
         {
             Some(ProviderRecoveryReceipt {
                 attempt: transition.attempt,
-                transport: RecoveryTransport::AiNativeWebSocket,
+                transport: recovery_transport,
                 transport_epoch: directive.transport_epoch,
                 socket_incarnation,
                 commit_level: transition.commit_level,
@@ -2219,10 +2370,10 @@ fn recovery_error_source(
     }
     let mut runtime_error = match source.downcast_ref::<ProviderRuntimeError>().cloned() {
         Some(runtime_error) => runtime_error,
-        // Only a receipt justifies introducing a typed wrapper around an
-        // untyped error; without one the concrete error is returned unchanged.
+        // A recovery receipt or diagnostic requires a serializable safe error.
+        // Unrelated errors retain their concrete identity.
         None if receipt.is_some() || !failure_diagnostics.is_empty() => {
-            ProviderRuntimeError::normalize("invoke", source.to_string(), None)
+            recovery_diagnostics::safe_error(&source)
         }
         None => return source,
     };
@@ -2254,53 +2405,58 @@ fn recovery_error_source(
     anyhow::Error::new(runtime_error)
 }
 
+fn begin_http_fallback(error: &mut WebsocketInvocationError) -> bool {
+    let Some(machine) = error.recovery_state.as_mut() else {
+        return false;
+    };
+    match machine.begin_attempt() {
+        Ok(attempt) => {
+            if let Some(transition) = &mut error.transition {
+                transition.attempt = attempt;
+            }
+            error.recovery_transport = RecoveryTransport::ProviderHttp;
+            error.socket_incarnation = None;
+            true
+        }
+        Err(transition) => {
+            error.transition = Some(transition);
+            false
+        }
+    }
+}
+
 fn recovery_fallback_error_source(
-    mut original_error: WebsocketInvocationError,
+    mut error: WebsocketInvocationError,
     directive: Option<&ProviderRecoveryDirective>,
     fallback_error: anyhow::Error,
 ) -> anyhow::Error {
-    // The first failure remains primary even when the authorized HTTP
-    // attempt also fails. Its recovery diagnostic describes the actual final
-    // HTTP attempt, not a successful fallback or a WebSocket receipt.
-    let Some(primary) = original_error.source.downcast_mut::<ProviderRuntimeError>() else {
-        // Preserve the original concrete error and its Display without a new
-        // wrapper. There is no typed details slot; report only a fixed safe
-        // secondary diagnostic, never raw error text or provider configuration.
-        eprintln!("provider HTTP fallback also failed; retaining original transport error");
-        return original_error.source;
-    };
-    let details = primary.provider_details.get_or_insert_with(|| json!({}));
-    if let Some(details) = details.as_object_mut() {
-        if let Some(secondary) = fallback_error.downcast_ref::<ProviderRuntimeError>() {
-            details.insert(
-                "fallback_error".into(),
-                serde_json::to_value(secondary).expect("typed error must serialize"),
-            );
-        } else {
-            details.insert(
-                "fallback_error".into(),
-                json!({
-                    "message": "HTTP fallback also failed; untyped secondary error details omitted"
-                }),
-            );
-        }
-        if let (Some(directive), Some(transition)) = (directive, original_error.transition) {
-            details.insert(
-                recovery::RECOVERY_RECEIPT_METADATA_KEY.into(),
-                serde_json::to_value(ProviderRecoveryReceipt {
-                    attempt: transition.attempt,
-                    transport: RecoveryTransport::ProviderHttp,
-                    transport_epoch: directive.transport_epoch,
-                    socket_incarnation: None,
-                    commit_level: recovery::CommitLevel::Terminal,
-                    disposition: RecoveryDisposition::TerminalInterruption,
-                    reason: recovery::RecoveryReason::SemanticFailed,
-                })
-                .expect("typed recovery receipt must serialize"),
-            );
-        }
+    if error.original_failure.is_none() {
+        error.original_failure = Some(recovery_diagnostics::safe_error(&error.source));
     }
-    original_error.source
+    if error.failure_diagnostics.is_empty() {
+        error
+            .failure_diagnostics
+            .push(recovery_diagnostics::failure(
+                &error.source,
+                error.socket_incarnation,
+                None,
+            ));
+    }
+    error.recovery_transport = RecoveryTransport::ProviderHttp;
+    error.socket_incarnation = None;
+    let mut diagnostic = recovery_diagnostics::failure(&fallback_error, None, None);
+    if let Some(transition) = &mut error.transition {
+        diagnostic["attempt"] = json!(transition.attempt);
+        diagnostic["consumed_attempts"] = json!(transition.attempt + 1);
+        transition.commit_level = recovery::CommitLevel::Terminal;
+        transition.disposition = RecoveryDisposition::TerminalInterruption;
+        transition.reason = recovery::RecoveryReason::SemanticFailed;
+    }
+    if error.failure_diagnostics.len() < 16 {
+        error.failure_diagnostics.push(diagnostic);
+    }
+    error.source = fallback_error;
+    recovery_error_source(error, directive)
 }
 
 fn websocket_session_incarnation(
@@ -3401,11 +3557,14 @@ struct WebsocketInvocationError {
     disposition: Option<RecoveryDisposition>,
     transition: Option<RecoveryTransition>,
     socket_incarnation: Option<u64>,
+    transport_generation: Option<u64>,
     /// Typed failure that preceded a bounded recovery attempt, preserved so the
     /// original transport error and the final recovery outcome stay separately
     /// auditable.
     original_failure: Option<ProviderRuntimeError>,
     failure_diagnostics: Vec<Value>,
+    recovery_state: Option<RecoveryFsm>,
+    recovery_transport: RecoveryTransport,
 }
 
 impl WebsocketInvocationError {
@@ -3433,8 +3592,11 @@ impl WebsocketInvocationError {
             disposition: None,
             transition: None,
             socket_incarnation: None,
+            transport_generation: None,
             original_failure: None,
             failure_diagnostics: Vec::new(),
+            recovery_state: None,
+            recovery_transport: RecoveryTransport::AiNativeWebSocket,
         }
     }
 
@@ -3447,8 +3609,11 @@ impl WebsocketInvocationError {
             disposition: None,
             transition: None,
             socket_incarnation: None,
+            transport_generation: None,
             original_failure: None,
             failure_diagnostics: Vec::new(),
+            recovery_state: None,
+            recovery_transport: RecoveryTransport::AiNativeWebSocket,
         }
     }
 
@@ -3471,8 +3636,11 @@ impl WebsocketInvocationError {
             disposition: None,
             transition: None,
             socket_incarnation: None,
+            transport_generation: None,
             original_failure: None,
             failure_diagnostics: Vec::new(),
+            recovery_state: None,
+            recovery_transport: RecoveryTransport::AiNativeWebSocket,
         }
     }
 
@@ -3508,9 +3676,7 @@ async fn connect_responses_websocket(
     let (stream, response) = if config.proxy_url.is_some() {
         connect_responses_websocket_through_proxy(config, &url, request).await
     } else {
-        connect_async(request)
-            .await
-            .map_err(|error| anyhow!("failed to connect Responses websocket: {error}"))
+        connect_async(request).await.map_err(map_websocket_error)
     }?;
     // Codex turn state is first-writer-wins within a turn; continuation handshakes
     // must not rotate the sticky routing token for later tool callbacks.
@@ -3550,7 +3716,7 @@ async fn connect_responses_websocket_through_proxy(
     let stream = connect_http_proxy_tunnel(proxy_url, &target).await?;
     client_async_tls_with_config(request, stream, None, None)
         .await
-        .map_err(|error| anyhow!("failed to connect Responses websocket through proxy: {error}"))
+        .map_err(map_websocket_error)
 }
 
 fn proxy_connect_target(url: &Url) -> Result<String> {
@@ -3764,7 +3930,8 @@ fn can_fallback_to_http(error: &anyhow::Error) -> bool {
         || message.contains("403")
         || message.contains("unauthorized")
         || message.contains("forbidden")
-        || message.contains("invalid_api_key"))
+        || message.contains("invalid_api_key")
+        || message.contains("authorization rejected"))
 }
 
 fn websocket_proxy_failure_requires_fresh_turn_state(error: &anyhow::Error) -> bool {
@@ -3969,8 +4136,16 @@ where
     })
 }
 
-fn map_websocket_error(_error: WebSocketError) -> anyhow::Error {
-    recovery_diagnostics::transport_error("websocket_network", "transport_disconnected", None)
+fn map_websocket_error(error: WebSocketError) -> anyhow::Error {
+    match error {
+        WebSocketError::Io(error) => recovery_diagnostics::network_error(&error),
+        WebSocketError::Http(response) if matches!(response.status().as_u16(), 401 | 403) => {
+            recovery_diagnostics::transport_error("websocket_error", "authorization_rejected", None)
+        }
+        _ => {
+            recovery_diagnostics::transport_error("websocket_error", "transport_disconnected", None)
+        }
+    }
 }
 
 fn websocket_closed_before_completed_error(

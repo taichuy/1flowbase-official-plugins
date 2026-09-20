@@ -139,3 +139,5 @@ fn prewarm_first_tool_result_continuation_rejection_invalidates_owner() {
 fn unknown_policy_close_is_terminal_and_redacted() {
     warmup_tool_result(Some("unknown policy https://private/?token=secret"));
 }
+
+mod budget;

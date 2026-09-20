@@ -12,6 +12,9 @@ fn safe_reason(category: &str) -> &'static str {
         "previous_response_unavailable" => "previous_response_id is no longer available",
         "proxy_failed" => "upstream websocket proxy failed",
         "policy_rejected" => "upstream policy rejected the request; reason redacted",
+        "deadline_exceeded" => "provider recovery deadline exceeded",
+        "budget_exhausted" => "provider recovery attempt budget exhausted",
+        "authorization_rejected" => "upstream authorization rejected the request",
         "transport_disconnected" => "websocket disconnected before response.completed",
         _ => "provider failure; unclassified details redacted",
     }
@@ -63,15 +66,54 @@ pub(crate) fn failure(error: &anyhow::Error, socket: Option<u64>, owner: Option<
                 "previous_response_unavailable"
             } else if message.contains("upstream websocket proxy failed") {
                 "proxy_failed"
+            } else if message.contains("401")
+                || message.contains("403")
+                || message.contains("unauthorized")
+                || message.contains("forbidden")
+                || message.contains("invalid_api_key")
+            {
+                "authorization_rejected"
             } else {
                 "unclassified"
             };
             json!({"kind":if typed.is_some() {"provider_typed"} else {"provider_untyped"},
                 "reason_category":category,"reason":safe_reason(category)})
         });
+    if let Some(error) = typed {
+        value["provider_error_kind"] =
+            serde_json::to_value(&error.kind).expect("error kind serializes");
+    }
+    if let Some(error) = error.downcast_ref::<std::io::Error>() {
+        value["io_error_kind"] = json!(io_kind(error.kind()));
+    }
     value["socket_incarnation"] = json!(socket);
     value["owner_socket_incarnation"] = json!(owner);
     value
+}
+
+fn io_kind(kind: std::io::ErrorKind) -> &'static str {
+    use std::io::ErrorKind;
+    match kind {
+        ErrorKind::ConnectionRefused => "connection_refused",
+        ErrorKind::ConnectionReset => "connection_reset",
+        ErrorKind::ConnectionAborted => "connection_aborted",
+        ErrorKind::NotConnected => "not_connected",
+        ErrorKind::BrokenPipe => "broken_pipe",
+        ErrorKind::TimedOut => "timed_out",
+        ErrorKind::UnexpectedEof => "unexpected_eof",
+        ErrorKind::PermissionDenied => "permission_denied",
+        ErrorKind::Interrupted => "interrupted",
+        _ => "other",
+    }
+}
+
+pub(crate) fn network_error(error: &std::io::Error) -> anyhow::Error {
+    let mut typed = transport_error("network_error", "transport_disconnected", None)
+        .downcast::<ProviderRuntimeError>()
+        .expect("transport error is typed");
+    typed.provider_details.as_mut().unwrap()[FAILURE_KEY]["io_error_kind"] =
+        json!(io_kind(error.kind()));
+    anyhow::Error::new(typed)
 }
 
 pub(crate) fn safe_error(error: &anyhow::Error) -> ProviderRuntimeError {

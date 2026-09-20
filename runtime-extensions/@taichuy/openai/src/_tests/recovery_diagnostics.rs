@@ -62,3 +62,82 @@ fn first_typed_failure_is_not_overwritten_by_last_close() {
         .message
         .contains("upstream websocket proxy failed"));
 }
+
+#[test]
+fn network_first_failure_retains_closed_io_kind_and_typed_provider_kind() {
+    let source = network_error(&std::io::Error::new(
+        std::io::ErrorKind::ConnectionReset,
+        "https://private/?token=secret",
+    ));
+    let mut first = None;
+    crate::remember_first_failure(&mut first, &source);
+    crate::remember_first_failure(
+        &mut first,
+        &transport_error("websocket_close", "continuation_unavailable", Some(1008)),
+    );
+    let diagnostic = failure(&anyhow::Error::new(first.unwrap()), Some(1), Some(1));
+    assert_eq!(diagnostic["kind"], "network_error");
+    assert_eq!(diagnostic["io_error_kind"], "connection_reset");
+    assert_eq!(
+        diagnostic["provider_error_kind"],
+        "provider_transport_unavailable"
+    );
+    assert!(!diagnostic.to_string().contains("secret"));
+}
+
+#[test]
+fn historical_owner_without_live_socket_or_routing_evidence_is_not_available() {
+    let mut runtime = crate::OpenAiProviderRuntime::default();
+    runtime.websocket_response_owners.insert(
+        "resp".into(),
+        crate::WebsocketResponseOwner {
+            session_key: "old".into(),
+            generation: 3,
+        },
+    );
+    let state = runtime.recovery_cursor_state(
+        Some("resp"),
+        None,
+        crate::RecoverySignal::TransportDisconnected,
+        Some(3),
+    );
+    assert!(matches!(
+        state,
+        crate::CursorState::ConnectionBound {
+            owner_available: false,
+            turn_state_available: false,
+            ..
+        }
+    ));
+    runtime
+        .websocket_turn_states_by_response_id
+        .insert("resp".into(), "fixture-route".into());
+    let state = runtime.recovery_cursor_state(
+        Some("resp"),
+        None,
+        crate::RecoverySignal::TransportDisconnected,
+        Some(3),
+    );
+    assert!(matches!(
+        state,
+        crate::CursorState::ConnectionBound {
+            owner_available: true,
+            turn_state_available: true,
+            ..
+        }
+    ));
+    runtime.websocket_invalid_associations.insert("resp".into());
+    let state = runtime.recovery_cursor_state(
+        Some("resp"),
+        None,
+        crate::RecoverySignal::TransportDisconnected,
+        Some(3),
+    );
+    assert!(matches!(
+        state,
+        crate::CursorState::ConnectionBound {
+            owner_available: false,
+            ..
+        }
+    ));
+}

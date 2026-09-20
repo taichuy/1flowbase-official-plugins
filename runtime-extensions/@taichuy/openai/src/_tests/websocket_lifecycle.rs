@@ -398,7 +398,7 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
 }
 
 #[test]
-fn failed_fallback_preserves_first_typed_error_and_terminal_http_evidence() {
+fn failed_fallback_preserves_first_typed_diagnostic_and_terminal_http_evidence() {
     let directive: ProviderRecoveryDirective = serde_json::from_value(json!({
         "policy":{"type":"semantic_mapped","budget":{"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},
         "transport_epoch":19,"initial_commit_level":"lifecycle_only"
@@ -415,15 +415,14 @@ fn failed_fallback_preserves_first_typed_error_and_terminal_http_evidence() {
     let error =
         recovery_fallback_error_source(original, Some(&directive), anyhow::Error::new(secondary));
     let primary = error.downcast_ref::<ProviderRuntimeError>().unwrap();
-    assert_eq!(
-        primary.kind,
-        ProviderRuntimeErrorKind::ProviderTransportUnavailable
-    );
-    assert_eq!(primary.message, "first websocket failure");
-    assert_eq!(
-        primary.provider_details.as_ref().unwrap()["fallback_error"]["kind"],
-        "auth_failed"
-    );
+    assert_eq!(primary.kind, ProviderRuntimeErrorKind::AuthFailed);
+    assert_eq!(primary.message, "HTTP denied");
+    let original =
+        &primary.provider_details.as_ref().unwrap()[recovery::RECOVERY_ORIGINAL_ERROR_METADATA_KEY];
+    assert_eq!(original["kind"], "provider_transport_unavailable");
+    let diagnostics = &primary.provider_details.as_ref().unwrap()[recovery_diagnostics::KEY];
+    assert_eq!(diagnostics["first_failure"]["kind"], "provider_typed");
+    assert_eq!(diagnostics["last_failure"]["kind"], "provider_typed");
     let metadata = primary.failure_metadata();
     let receipt = &metadata[recovery::RECOVERY_RECEIPT_METADATA_KEY];
     assert_eq!(receipt["transport"], "provider_http");
@@ -478,65 +477,62 @@ fn failure_timing_never_claims_completed_or_ready() {
 }
 
 #[test]
-fn failed_fallback_preserves_untyped_original_identity_for_both_secondary_kinds() {
+fn failed_fallback_keeps_safe_untyped_first_and_independent_last_failure() {
     for secondary in [
         anyhow::Error::new(ProviderRuntimeError::normalize(
             "auth",
             "secondary denied",
             None,
         )),
-        anyhow::Error::new(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "secondary denied",
-        )),
+        anyhow::anyhow!("secondary https://private/?token=fixture-secret"),
     ] {
-        let original = anyhow::Error::new(std::io::Error::new(
-            std::io::ErrorKind::UnexpectedEof,
-            "first websocket EOF",
-        ));
-        let original_display = original.to_string();
-        let original_identity =
-            original.downcast_ref::<std::io::Error>().unwrap() as *const std::io::Error;
         let error = recovery_fallback_error_source(
-            WebsocketInvocationError::fallback_allowed(original),
+            WebsocketInvocationError::fallback_allowed(anyhow::anyhow!(
+                "first https://private/?token=fixture-secret"
+            )),
             None,
             secondary,
         );
-        assert_eq!(error.to_string(), original_display);
-        let retained = error
-            .downcast_ref::<std::io::Error>()
-            .expect("original concrete error must survive fallback");
-        assert_eq!(retained as *const std::io::Error, original_identity);
-        assert_eq!(retained.kind(), std::io::ErrorKind::UnexpectedEof);
-        assert!(error.downcast_ref::<ProviderRuntimeError>().is_none());
+        let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+        let details = typed.provider_details.as_ref().unwrap();
+        assert_eq!(
+            details[recovery_diagnostics::KEY]["first_failure"]["kind"],
+            "provider_untyped"
+        );
+        assert_eq!(
+            details[recovery_diagnostics::KEY]["attempts"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert!(details
+            .get(recovery::RECOVERY_ORIGINAL_ERROR_METADATA_KEY)
+            .is_some());
+        assert!(!serde_json::to_string(typed)
+            .unwrap()
+            .contains("fixture-secret"));
     }
 }
 
 #[test]
-fn failed_fallback_keeps_typed_primary_display_with_untyped_secondary() {
-    let original = WebsocketInvocationError::transport_unavailable("first websocket failure");
-    let original_display = original.source.to_string();
-    let original_identity = original
-        .source
-        .downcast_ref::<ProviderRuntimeError>()
-        .unwrap() as *const ProviderRuntimeError;
-    let secondary = anyhow::Error::new(std::io::Error::new(
-        std::io::ErrorKind::PermissionDenied,
-        "secondary contains fixture-secret",
-    ));
-    let error = recovery_fallback_error_source(original, None, secondary);
-    assert_eq!(error.to_string(), original_display);
-    let primary = error.downcast_ref::<ProviderRuntimeError>().unwrap();
-    assert_eq!(
-        primary.kind,
-        ProviderRuntimeErrorKind::ProviderTransportUnavailable
+fn failed_fallback_keeps_typed_first_with_redacted_untyped_last() {
+    let error = recovery_fallback_error_source(
+        WebsocketInvocationError::transport_unavailable("first websocket failure"),
+        None,
+        anyhow::anyhow!("secondary contains fixture-secret"),
     );
-    assert_eq!(primary as *const ProviderRuntimeError, original_identity);
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    let details = typed.provider_details.as_ref().unwrap();
     assert_eq!(
-        primary.provider_details.as_ref().unwrap()["fallback_error"]["message"],
-        "HTTP fallback also failed; untyped secondary error details omitted"
+        details[recovery_diagnostics::KEY]["first_failure"]["kind"],
+        "provider_typed"
     );
-    assert!(!serde_json::to_string(primary)
+    assert_eq!(
+        details[recovery_diagnostics::KEY]["last_failure"]["kind"],
+        "provider_untyped"
+    );
+    assert!(!serde_json::to_string(typed)
         .unwrap()
         .contains("fixture-secret"));
 }

@@ -234,7 +234,7 @@ fn start_websocket_close_then_reconnect_server() -> (String, thread::JoinHandle<
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (first_stream, _) = listener.accept().expect("first websocket should connect");
-        let mut websocket = accept(first_stream).expect("first websocket handshake should succeed");
+        let mut websocket = accept_with_turn_state(first_stream, "fixture-route");
         let _ = websocket
             .read()
             .expect("first response.create should be readable");
@@ -306,7 +306,7 @@ fn start_websocket_unseen_cursor_close_then_reconnect_server() -> (String, threa
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (first_stream, _) = listener.accept().expect("first websocket should connect");
-        let mut websocket = accept(first_stream).expect("first websocket handshake should succeed");
+        let mut websocket = accept_with_turn_state(first_stream, "fixture-route");
         let request = websocket
             .read()
             .expect("first response.create should be readable")
@@ -1870,3 +1870,6 @@ fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() 
     let _ = child.wait();
     server.join().expect("server thread should finish");
 }
+
+#[path = "continuation/fallback.rs"]
+mod fallback_budget;

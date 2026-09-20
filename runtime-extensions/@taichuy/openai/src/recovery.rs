@@ -242,7 +242,9 @@ pub(crate) enum RecoverySignal {
     TransportDisconnected,
     TransportRejected,
     PreviousResponseUnavailable,
+    ContinuationUnavailable,
     ProxyFailed,
+    PolicyRejected,
     ProtocolError,
     SemanticTerminal,
 }
@@ -289,7 +291,7 @@ impl RecoveryConstraints {
 #[derive(Debug, Clone)]
 pub(crate) struct RecoveryFsm {
     constraints: RecoveryConstraints,
-    attempt: u16,
+    consumed_attempts: u16,
     commit_level: CommitLevel,
     full_context_rebuild_used: bool,
 }
@@ -298,10 +300,41 @@ impl RecoveryFsm {
     pub(crate) const fn new(constraints: RecoveryConstraints) -> Self {
         Self {
             constraints,
-            attempt: 0,
+            consumed_attempts: 0,
             commit_level: constraints.initial_commit_level,
             full_context_rebuild_used: false,
         }
+    }
+
+    /// Count at the transport attempt entry, including connection and send failures.
+    /// Decisions authorize the next attempt; they do not consume it.
+    pub(crate) fn begin_attempt(&mut self) -> Result<u16, RecoveryTransition> {
+        let reason = if deadline_expired(self.constraints.absolute_deadline_unix_ms) {
+            Some(RecoveryReason::DeadlineExceeded)
+        } else if self.consumed_attempts >= self.constraints.max_inner_attempts {
+            Some(RecoveryReason::BudgetExhausted)
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            self.observe_terminal();
+            return Err(RecoveryTransition {
+                attempt: self.last_attempt(),
+                commit_level: CommitLevel::Terminal,
+                disposition: RecoveryDisposition::TerminalInterruption,
+                reason,
+            });
+        }
+        let attempt = self.consumed_attempts;
+        self.consumed_attempts += 1;
+        Ok(attempt)
+    }
+
+    pub(crate) fn consumed_attempts(&self) -> u16 {
+        self.consumed_attempts
+    }
+    pub(crate) fn last_attempt(&self) -> u16 {
+        self.consumed_attempts.saturating_sub(1)
     }
 
     pub(crate) fn observe_semantic_event(&mut self) {
@@ -327,7 +360,7 @@ impl RecoveryFsm {
             .constraints
             .absolute_deadline_unix_ms
             .is_some_and(|deadline| deadline <= unix_time_ms())
-            || self.attempt >= self.constraints.max_inner_attempts
+            || self.consumed_attempts >= self.constraints.max_inner_attempts
         {
             self.observe_terminal();
             return RecoveryDisposition::TerminalInterruption;
@@ -373,6 +406,9 @@ impl RecoveryFsm {
                 } => RecoveryDisposition::SameEpochReconnect,
                 _ => RecoveryDisposition::TerminalInterruption,
             },
+            RecoverySignal::PolicyRejected | RecoverySignal::ContinuationUnavailable => {
+                RecoveryDisposition::TerminalInterruption
+            }
             RecoverySignal::TransportRejected | RecoverySignal::ProtocolError => {
                 if self.constraints.policy == RecoveryPolicyKind::SemanticMapped
                     && !matches!(facts.cursor, CursorState::ConnectionBound { .. })
@@ -386,19 +422,17 @@ impl RecoveryFsm {
         };
         if disposition == RecoveryDisposition::TerminalInterruption {
             self.observe_terminal();
-        } else {
-            self.attempt = self.attempt.saturating_add(1);
         }
         disposition
     }
 
     pub(crate) fn decide_transition(&mut self, facts: RecoveryFacts) -> RecoveryTransition {
-        let attempt = self.attempt;
+        let attempt = self.last_attempt();
         let deadline_expired = self
             .constraints
             .absolute_deadline_unix_ms
             .is_some_and(|deadline| deadline <= unix_time_ms());
-        let budget_exhausted = self.attempt >= self.constraints.max_inner_attempts;
+        let budget_exhausted = self.consumed_attempts >= self.constraints.max_inner_attempts;
         let committed_before = self.commit_level != CommitLevel::LifecycleOnly;
         let disposition = self.decide(facts);
         let reason = if deadline_expired {
@@ -411,9 +445,12 @@ impl RecoveryFsm {
             match facts.signal {
                 RecoverySignal::TransportDisconnected
                 | RecoverySignal::PreviousResponseUnavailable
+                | RecoverySignal::ContinuationUnavailable
                 | RecoverySignal::ProxyFailed => RecoveryReason::TransportDisconnected,
                 RecoverySignal::TransportRejected => RecoveryReason::TransportRejected,
-                RecoverySignal::ProtocolError => RecoveryReason::ProtocolError,
+                RecoverySignal::ProtocolError | RecoverySignal::PolicyRejected => {
+                    RecoveryReason::ProtocolError
+                }
                 RecoverySignal::SemanticTerminal => RecoveryReason::SemanticFailed,
             }
         };
@@ -424,6 +461,10 @@ impl RecoveryFsm {
             reason,
         }
     }
+}
+
+pub(crate) fn deadline_expired(deadline: Option<i64>) -> bool {
+    deadline.is_some_and(|deadline| deadline <= unix_time_ms())
 }
 
 fn unix_time_ms() -> i64 {
@@ -558,7 +599,7 @@ mod tests {
                     RecoveryPolicyKind::SemanticMapped,
                     RecoveryDisposition::PreCommitHttpFallback,
                     CommitLevel::LifecycleOnly,
-                    1,
+                    0,
                 ),
             ] {
                 let mut machine = RecoveryFsm::new(RecoveryConstraints {
@@ -579,7 +620,7 @@ mod tests {
                 assert_eq!(transition.commit_level, commit_level);
                 assert_eq!(transition.reason, RecoveryReason::TransportDisconnected);
                 assert_eq!(transition.attempt, 0);
-                assert_eq!(machine.attempt, consumed);
+                assert_eq!(machine.consumed_attempts, consumed);
                 assert_eq!(machine.constraints.absolute_deadline_unix_ms, deadline);
             }
         }
@@ -795,36 +836,42 @@ mod tests {
     }
 
     #[test]
-    fn d4_attempt_cap_is_absolute_and_never_resets_after_recoverable_transitions() {        let mut machine = RecoveryFsm::new(RecoveryConstraints {
-            policy: RecoveryPolicyKind::SemanticMapped,
-            max_inner_attempts: 2,
-            absolute_deadline_unix_ms: None,
-            initial_commit_level: CommitLevel::LifecycleOnly,
-        });
-        let reconnect = RecoveryFacts {
-            signal: RecoverySignal::TransportDisconnected,
-            cursor: CursorState::ConnectionBound {
-                same_epoch: true,
-                owner_available: true,
-                turn_state_available: true,
-            },
-            full_context_available: false,
-        };
-        assert_eq!(
-            machine.decide_transition(reconnect).disposition,
-            RecoveryDisposition::SameEpochReconnect
-        );
-        assert_eq!(
-            machine.decide_transition(reconnect).disposition,
-            RecoveryDisposition::SameEpochReconnect
-        );
-        let exhausted = machine.decide_transition(reconnect);
-        assert_eq!(
-            exhausted.disposition,
-            RecoveryDisposition::TerminalInterruption
-        );
-        assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
-        assert_eq!(exhausted.commit_level, CommitLevel::Terminal);
+    fn d4_attempt_cap_is_absolute_and_never_resets_after_recoverable_transitions() {
+        for budget in [1, 2, 16] {
+            let mut machine = RecoveryFsm::new(RecoveryConstraints {
+                policy: RecoveryPolicyKind::NativeOpaque,
+                max_inner_attempts: budget,
+                absolute_deadline_unix_ms: None,
+                initial_commit_level: CommitLevel::LifecycleOnly,
+            });
+            let facts = RecoveryFacts {
+                signal: RecoverySignal::TransportDisconnected,
+                cursor: CursorState::ConnectionBound {
+                    same_epoch: true,
+                    owner_available: true,
+                    turn_state_available: true,
+                },
+                full_context_available: false,
+            };
+            for attempt in 0..budget {
+                assert_eq!(machine.begin_attempt().unwrap(), attempt);
+                let transition = machine.decide_transition(facts);
+                assert_eq!(transition.attempt, attempt);
+                assert_eq!(machine.consumed_attempts(), attempt + 1);
+                assert_eq!(
+                    transition.disposition,
+                    if attempt + 1 == budget {
+                        RecoveryDisposition::TerminalInterruption
+                    } else {
+                        RecoveryDisposition::SameEpochReconnect
+                    }
+                );
+            }
+            let exhausted = machine.begin_attempt().unwrap_err();
+            assert_eq!(exhausted.attempt, budget - 1);
+            assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
+            assert_eq!(machine.consumed_attempts(), budget);
+        }
     }
 
     #[test]
@@ -852,6 +899,40 @@ mod tests {
             RecoveryDisposition::PreCommitHttpFallback,
         ] {
             assert!(!recoverable.is_terminal(), "{recoverable:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod continuation_terminal_tests {
+    use super::*;
+    #[test]
+    fn explicit_association_and_policy_rejection_never_rebuild_even_with_full_context() {
+        for policy in [
+            RecoveryPolicyKind::NativeOpaque,
+            RecoveryPolicyKind::SemanticMapped,
+        ] {
+            for signal in [
+                RecoverySignal::ContinuationUnavailable,
+                RecoverySignal::PolicyRejected,
+            ] {
+                let mut machine = RecoveryFsm::new(RecoveryConstraints::standalone(policy));
+                machine.begin_attempt().unwrap();
+                let transition = machine.decide_transition(RecoveryFacts {
+                    signal,
+                    cursor: CursorState::ConnectionBound {
+                        same_epoch: true,
+                        owner_available: true,
+                        turn_state_available: true,
+                    },
+                    full_context_available: true,
+                });
+                assert_eq!(
+                    transition.disposition,
+                    RecoveryDisposition::TerminalInterruption
+                );
+                assert_eq!(machine.consumed_attempts(), 1);
+            }
         }
     }
 }

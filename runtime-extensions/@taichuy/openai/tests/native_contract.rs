@@ -402,13 +402,13 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
             retry_stream,
             |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
              response: tokio_tungstenite::tungstenite::handshake::server::Response| {
-                assert_ne!(
+                assert_eq!(
                     request
                         .headers()
                         .get("x-codex-turn-state")
                         .and_then(|value| value.to_str().ok()),
                     Some("provider-turn"),
-                    "a failed upstream association must not be replayed on the replacement socket"
+                    "native recovery must preserve the original routing token and require the peer to accept it"
                 );
                 Ok(response)
             },
@@ -455,6 +455,7 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
     let recovery =
         &second.last().unwrap()["result"]["provider_metadata"]["1flowbase_provider_recovery"];
     assert_eq!(recovery["disposition"], json!("same_epoch_reconnect"));
+    assert_eq!(recovery["attempt"], 1);
     assert_eq!(recovery["commit_level"], json!("lifecycle_only"));
     drop(stdin);
     let _ = child.kill();
@@ -497,14 +498,14 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
         let mut retry = tokio_tungstenite::tungstenite::accept(retry_stream).unwrap();
         let _ = retry.read().unwrap();
         retry
-            .send(Message::Text(
-                json!({
-                    "type": "error",
-                    "error": {"message": "previous_response_id is no longer available"}
-                })
-                .to_string()
-                .into(),
-            ))
+            .send(Message::Close(Some(
+                tokio_tungstenite::tungstenite::protocol::CloseFrame {
+                    code:
+                        tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Policy,
+                    reason: "upstream continuation connection is unavailable; private-token=secret"
+                        .into(),
+                },
+            )))
             .unwrap();
     });
 
@@ -531,7 +532,7 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
         error["error"]["message"]
             .as_str()
             .unwrap()
-            .contains("no longer available"),
+            .contains("continuation connection is unavailable"),
         "the final failure stays primary: {error}"
     );
     let details = &error["error"]["provider_details"];
@@ -542,6 +543,12 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
         receipt.get("socket_incarnation").is_some(),
         "a stream failure on a real socket reports its incarnation: {receipt}"
     );
+    let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
+    assert_eq!(diagnostics["first_failure"]["close_code"], 1011);
+    assert_eq!(diagnostics["last_failure"]["close_code"], 1008);
+    assert_eq!(diagnostics["first_failure"]["attempt"], 0);
+    assert_eq!(diagnostics["last_failure"]["attempt"], 1);
+    assert!(!details.to_string().contains("private-token"));
     let original = &details["1flowbase_provider_recovery_original_error"];
     assert!(
         original["message"]
