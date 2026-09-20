@@ -37,6 +37,7 @@ use transport_session::*;
 mod count_tokens;
 mod protocol_context;
 mod recovery;
+mod recovery_diagnostics;
 mod sse_codec;
 
 pub use protocol_context::ProtocolContextEnvelope;
@@ -782,6 +783,7 @@ pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
     websocket_response_owners: HashMap<String, WebsocketResponseOwner>,
+    websocket_invalid_associations: HashSet<String>,
     websocket_response_order: std::collections::VecDeque<String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
@@ -817,6 +819,7 @@ impl Default for OpenAiProviderRuntime {
             websocket_sessions: HashMap::new(),
             websocket_response_ids_seen: HashSet::new(),
             websocket_response_owners: HashMap::new(),
+            websocket_invalid_associations: HashSet::new(),
             websocket_response_order: std::collections::VecDeque::new(),
             websocket_turn_states_by_response_id: HashMap::new(),
             websocket_chain_inputs_by_response_id: HashMap::new(),
@@ -1587,6 +1590,7 @@ impl OpenAiProviderRuntime {
         // fails too, both the original transport failure and the final state
         // stay auditable on the returned typed error.
         let mut first_failure: Option<ProviderRuntimeError> = None;
+        let mut failure_diagnostics = Vec::new();
         loop {
             let retry_response_id =
                 responses_body_previous_response_id(&retry_body).map(ToOwned::to_owned);
@@ -1612,14 +1616,45 @@ impl OpenAiProviderRuntime {
                         socket_incarnation,
                     )
                     .map_err(WebsocketInvocationError::fallback_blocked)?;
+                    if !failure_diagnostics.is_empty() {
+                        output.result.provider_metadata[recovery_diagnostics::KEY] =
+                            recovery_diagnostics::summary(&failure_diagnostics);
+                    }
                     return Ok(output);
                 }
                 Err(mut error) => {
                     if error.semantic_committed {
                         recovery.observe_semantic_event();
                     }
-                    let signal = if websocket_previous_response_unavailable(&error.source) {
+                    let mut diagnostic = recovery_diagnostics::failure(
+                        &error.source,
+                        error.socket_incarnation,
+                        retry_response_id
+                            .as_deref()
+                            .and_then(|id| self.websocket_response_owners.get(id))
+                            .map(|owner| owner.generation),
+                    );
+                    diagnostic["attempt"] = json!(failure_diagnostics.len());
+                    diagnostic["consumed_attempts"] = json!(failure_diagnostics.len() + 1);
+                    let association_invalid = diagnostic["reason_category"]
+                        == "continuation_unavailable"
+                        || diagnostic["reason_category"] == "previous_response_unavailable";
+                    let policy_rejected = diagnostic["reason_category"] == "policy_rejected";
+                    if association_invalid {
+                        if let Some(id) = retry_response_id.as_deref() {
+                            self.websocket_invalid_associations.insert(id.to_owned());
+                        }
+                    }
+                    if failure_diagnostics.len() < 16 {
+                        failure_diagnostics.push(diagnostic);
+                    }
+                    error.failure_diagnostics = failure_diagnostics.clone();
+                    let signal = if association_invalid
+                        || websocket_previous_response_unavailable(&error.source)
+                    {
                         RecoverySignal::PreviousResponseUnavailable
+                    } else if policy_rejected {
+                        RecoverySignal::ProtocolError
                     } else if websocket_proxy_failure_requires_fresh_turn_state(&error.source) {
                         RecoverySignal::ProxyFailed
                     } else if error.reconnect_allowed {
@@ -1638,11 +1673,16 @@ impl OpenAiProviderRuntime {
                     let full_context_body = retry_response_id.as_deref().and_then(|response_id| {
                         self.websocket_full_context_retry_body(response_id, &retry_body)
                     });
-                    let transition = recovery.decide_transition(RecoveryFacts {
+                    let mut transition = recovery.decide_transition(RecoveryFacts {
                         signal,
                         cursor,
                         full_context_available: full_context_body.is_some(),
                     });
+                    if policy_rejected {
+                        transition.disposition = RecoveryDisposition::TerminalInterruption;
+                        transition.commit_level = recovery::CommitLevel::Terminal;
+                        transition.reason = recovery::RecoveryReason::ProtocolError;
+                    }
                     last_transition = Some(transition);
                     error.transition = Some(transition);
                     match transition.disposition {
@@ -1691,6 +1731,13 @@ impl OpenAiProviderRuntime {
         let Some(response_id) = response_id else {
             return CursorState::None;
         };
+        if self.websocket_invalid_associations.contains(response_id) {
+            return CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: false,
+                turn_state_available: false,
+            };
+        }
         // A directive may add a host binding claim, but the *absence* of one is
         // not an affirmative "unowned" fact: the provider owns the physical
         // connection and the cursor owner records, so it must fall back to its
@@ -1850,6 +1897,15 @@ impl OpenAiProviderRuntime {
 
         if let Some(response_id) = responses_body_previous_response_id(&body).map(ToOwned::to_owned)
         {
+            if self.websocket_invalid_associations.contains(&response_id) {
+                return Err(WebsocketInvocationError::fallback_blocked(
+                    recovery_diagnostics::transport_error(
+                        "owner_rejected",
+                        "continuation_unavailable",
+                        None,
+                    ),
+                ));
+            }
             let bound_incarnation = recovery_directive.and_then(|directive| {
                 directive.cursor_provenance.and_then(|provenance| {
                     if let CursorBinding::ConnectionBound {
@@ -2002,6 +2058,7 @@ impl OpenAiProviderRuntime {
                         if let Some(expired) = self.websocket_response_order.pop_front() {
                             self.websocket_response_ids_seen.remove(&expired);
                             self.websocket_response_owners.remove(&expired);
+                            self.websocket_invalid_associations.remove(&expired);
                             self.websocket_turn_states_by_response_id.remove(&expired);
                             self.websocket_chain_inputs_by_response_id.remove(&expired);
                         }
@@ -2112,14 +2169,11 @@ fn attach_managed_recovery_receipt(
     .map_err(anyhow::Error::msg)
 }
 
-fn remember_first_failure(
-    slot: &mut Option<ProviderRuntimeError>,
-    source: &anyhow::Error,
-) {
+fn remember_first_failure(slot: &mut Option<ProviderRuntimeError>, source: &anyhow::Error) {
     if slot.is_some() {
         return;
     }
-    *slot = source.downcast_ref::<ProviderRuntimeError>().cloned();
+    *slot = Some(recovery_diagnostics::safe_error(source));
 }
 
 async fn sleep_before_inner_retry(attempt: u16) {
@@ -2138,6 +2192,7 @@ fn recovery_error_source(
         transition,
         socket_incarnation,
         original_failure,
+        failure_diagnostics,
         ..
     } = error;
     // A terminal transition makes no reconnect claim, so a failure that happened
@@ -2159,14 +2214,14 @@ fn recovery_error_source(
         }
         _ => None,
     };
-    if receipt.is_none() && original_failure.is_none() {
+    if receipt.is_none() && original_failure.is_none() && failure_diagnostics.is_empty() {
         return source;
     }
     let mut runtime_error = match source.downcast_ref::<ProviderRuntimeError>().cloned() {
         Some(runtime_error) => runtime_error,
         // Only a receipt justifies introducing a typed wrapper around an
         // untyped error; without one the concrete error is returned unchanged.
-        None if receipt.is_some() => {
+        None if receipt.is_some() || !failure_diagnostics.is_empty() => {
             ProviderRuntimeError::normalize("invoke", source.to_string(), None)
         }
         None => return source,
@@ -2178,7 +2233,14 @@ fn recovery_error_source(
         if let Some(receipt) = receipt {
             object.insert(
                 recovery::RECOVERY_RECEIPT_METADATA_KEY.to_string(),
-                serde_json::to_value(receipt).expect("ProviderRecoveryReceipt must always serialize"),
+                serde_json::to_value(receipt)
+                    .expect("ProviderRecoveryReceipt must always serialize"),
+            );
+        }
+        if !failure_diagnostics.is_empty() {
+            object.insert(
+                recovery_diagnostics::KEY.into(),
+                recovery_diagnostics::summary(&failure_diagnostics),
             );
         }
         if let Some(original_failure) = original_failure {
@@ -3343,6 +3405,7 @@ struct WebsocketInvocationError {
     /// original transport error and the final recovery outcome stay separately
     /// auditable.
     original_failure: Option<ProviderRuntimeError>,
+    failure_diagnostics: Vec<Value>,
 }
 
 impl WebsocketInvocationError {
@@ -3356,7 +3419,9 @@ impl WebsocketInvocationError {
     }
 
     fn connect_unavailable(source: anyhow::Error) -> Self {
-        Self::transport_unavailable(source.to_string())
+        Self::reconnect_allowed(anyhow::Error::new(recovery_diagnostics::safe_error(
+            &source,
+        )))
     }
 
     fn fallback_allowed(source: anyhow::Error) -> Self {
@@ -3369,6 +3434,7 @@ impl WebsocketInvocationError {
             transition: None,
             socket_incarnation: None,
             original_failure: None,
+            failure_diagnostics: Vec::new(),
         }
     }
 
@@ -3382,6 +3448,7 @@ impl WebsocketInvocationError {
             transition: None,
             socket_incarnation: None,
             original_failure: None,
+            failure_diagnostics: Vec::new(),
         }
     }
 
@@ -3405,6 +3472,7 @@ impl WebsocketInvocationError {
             transition: None,
             socket_incarnation: None,
             original_failure: None,
+            failure_diagnostics: Vec::new(),
         }
     }
 
@@ -3414,7 +3482,7 @@ impl WebsocketInvocationError {
             error.semantic_committed = true;
             error
         } else {
-            Self::transport_unavailable(source.to_string())
+            Self::reconnect_allowed(source)
         }
     }
 }
@@ -3901,28 +3969,14 @@ where
     })
 }
 
-fn map_websocket_error(error: WebSocketError) -> anyhow::Error {
-    anyhow!("Responses websocket error: {error}")
+fn map_websocket_error(_error: WebSocketError) -> anyhow::Error {
+    recovery_diagnostics::transport_error("websocket_network", "transport_disconnected", None)
 }
 
 fn websocket_closed_before_completed_error(
     frame: Option<tokio_tungstenite::tungstenite::protocol::CloseFrame>,
 ) -> anyhow::Error {
-    let Some(frame) = frame else {
-        return anyhow!("websocket closed by server before response.completed");
-    };
-    if frame.reason.is_empty() {
-        anyhow!(
-            "websocket closed by server before response.completed (code: {})",
-            frame.code
-        )
-    } else {
-        anyhow!(
-            "websocket closed by server before response.completed (code: {}, reason: {})",
-            frame.code,
-            frame.reason
-        )
-    }
+    recovery_diagnostics::close_error(frame)
 }
 
 #[cfg(test)]

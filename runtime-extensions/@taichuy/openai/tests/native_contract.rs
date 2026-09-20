@@ -391,25 +391,28 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
         first
             .send(Message::Close(Some(
                 tokio_tungstenite::tungstenite::protocol::CloseFrame {
-                    code:
-                        tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Error,
+                    code: tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Error,
                     reason: "upstream websocket proxy failed".into(),
                 },
             )))
             .unwrap();
 
         let (retry_stream, _) = listener.accept().unwrap();
-        let mut retry = accept_hdr(retry_stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, response: tokio_tungstenite::tungstenite::handshake::server::Response| {
-            assert_ne!(
-                request
-                    .headers()
-                    .get("x-codex-turn-state")
-                    .and_then(|value| value.to_str().ok()),
-                Some("provider-turn"),
-                "a failed upstream association must not be replayed on the replacement socket"
-            );
-            Ok(response)
-        })
+        let mut retry = accept_hdr(
+            retry_stream,
+            |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
+             response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                assert_ne!(
+                    request
+                        .headers()
+                        .get("x-codex-turn-state")
+                        .and_then(|value| value.to_str().ok()),
+                    Some("provider-turn"),
+                    "a failed upstream association must not be replayed on the replacement socket"
+                );
+                Ok(response)
+            },
+        )
         .unwrap();
         let retried = retry.read().unwrap().into_text().unwrap();
         assert!(
@@ -484,8 +487,7 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
         first
             .send(Message::Close(Some(
                 tokio_tungstenite::tungstenite::protocol::CloseFrame {
-                    code:
-                        tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Error,
+                    code: tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Error,
                     reason: "upstream websocket proxy failed".into(),
                 },
             )))
@@ -581,3 +583,6 @@ fn native_managed_preconnect_failure_reports_a_socketless_terminal_receipt() {
     let _ = child.kill();
     let _ = child.wait();
 }
+
+#[path = "continuation/mod.rs"]
+mod continuation;
