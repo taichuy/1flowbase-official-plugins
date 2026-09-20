@@ -33,14 +33,17 @@ pub(crate) fn transport_error(kind: &str, category: &str, code: Option<u16>) -> 
 
 pub(crate) fn close_error(frame: Option<CloseFrame>) -> anyhow::Error {
     let code = frame.as_ref().map(|frame| u16::from(frame.code));
+    transport_error("websocket_close", close_category(frame.as_ref()), code)
+}
+
+pub(crate) fn close_category(frame: Option<&CloseFrame>) -> &'static str {
+    let code = frame.map(|frame| u16::from(frame.code));
     let reason = frame
         .as_ref()
         .map(|frame| frame.reason.as_ref())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let category = if code == Some(1008)
-        && reason.contains("upstream continuation connection is unavailable")
-    {
+    if code == Some(1008) && reason.contains("upstream continuation connection is unavailable") {
         "continuation_unavailable"
     } else if code == Some(1008) {
         "policy_rejected"
@@ -48,11 +51,32 @@ pub(crate) fn close_error(frame: Option<CloseFrame>) -> anyhow::Error {
         "proxy_failed"
     } else {
         "transport_disconnected"
-    };
-    transport_error("websocket_close", category, code)
+    }
 }
 
 pub(crate) fn failure(error: &anyhow::Error, socket: Option<u64>, owner: Option<u64>) -> Value {
+    if let Some(physical) = error.downcast_ref::<super::websocket_io::Failure>() {
+        let mut diagnostic = failure(
+            &transport_error(
+                if physical.close_code.is_some() {
+                    "websocket_close"
+                } else {
+                    "websocket_error"
+                },
+                physical.category,
+                physical.close_code,
+            ),
+            socket,
+            owner,
+        );
+        diagnostic["websocket_error_kind"] = json!(physical.kind);
+        diagnostic["failure_phase"] = json!(physical.phase);
+        diagnostic["idle_duration_ms"] = json!(physical.idle_duration_ms);
+        if let Some(kind) = physical.io_kind {
+            diagnostic["io_error_kind"] = json!(kind);
+        }
+        return diagnostic;
+    }
     let typed = error.downcast_ref::<ProviderRuntimeError>();
     let mut value = typed
         .and_then(|error| error.provider_details.as_ref())
@@ -91,7 +115,7 @@ pub(crate) fn failure(error: &anyhow::Error, socket: Option<u64>, owner: Option<
     value
 }
 
-fn io_kind(kind: std::io::ErrorKind) -> &'static str {
+pub(crate) fn io_kind(kind: std::io::ErrorKind) -> &'static str {
     use std::io::ErrorKind;
     match kind {
         ErrorKind::ConnectionRefused => "connection_refused",
@@ -129,6 +153,21 @@ pub(crate) fn safe_error(error: &anyhow::Error) -> ProviderRuntimeError {
             .into(),
         provider_summary: None,
         provider_details: Some(json!({FAILURE_KEY:diagnostic})),
+    }
+}
+
+pub(crate) fn decision(transition: super::RecoveryTransition, committed: bool) -> &'static str {
+    use super::recovery::{RecoveryDisposition as D, RecoveryReason as R};
+    match transition.reason {
+        R::DeadlineExceeded => return "deadline_exceeded",
+        R::BudgetExhausted => return "budget_exhausted",
+        _ => {}
+    }
+    match transition.disposition {
+        D::SameEpochReconnect | D::OneFullContextRebuild => "retry_websocket",
+        D::PreCommitHttpFallback => "retry_http",
+        _ if committed => "committed",
+        _ => "terminal",
     }
 }
 

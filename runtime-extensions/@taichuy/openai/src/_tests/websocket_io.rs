@@ -157,3 +157,74 @@ async fn event_bytes_overflow_fails_even_below_count_limit() {
     .unwrap();
     assert_eq!(owner.failure().unwrap().kind, "queue_bytes_limit");
 }
+
+#[tokio::test]
+async fn dropped_active_consumer_invalidates_socket_and_keeps_first_failure() {
+    let (owner, mut peer) = pair().await;
+    let activity = owner.activity();
+    drop(activity);
+    assert_eq!(owner.failure().unwrap().kind, "owner_cancelled");
+    assert_eq!(owner.failure().unwrap().phase, "active");
+    assert!(owner
+        .send(Message::Text("must-not-reuse".into()))
+        .await
+        .is_err());
+    tokio::time::timeout(Duration::from_secs(1), peer.next())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn completed_activity_marks_next_failure_idle_and_new_owner_isolated() {
+    let (old, mut peer) = pair().await;
+    old.activity().complete();
+    peer.send(Message::Close(None)).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while old.failure().is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(old.failure().unwrap().phase, "idle");
+    let (new, _) = pair().await;
+    assert!(new.failure().is_none());
+}
+
+#[tokio::test]
+async fn idle_session_ping_progresses_while_another_session_has_active_output() {
+    let (idle, mut idle_peer) = pair().await;
+    let (mut active, mut active_peer) = pair().await;
+    let activity = active.activity();
+    active_peer
+        .send(Message::Text("active-output".into()))
+        .await
+        .unwrap();
+    idle_peer.send(Message::Ping(vec![9].into())).await.unwrap();
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(1), idle_peer.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap(),
+        Message::Pong(vec![9].into())
+    );
+    assert_eq!(
+        active.next().await.unwrap().unwrap(),
+        Message::Text("active-output".into())
+    );
+    activity.complete();
+    assert!(idle.failure().is_none());
+}
+
+#[test]
+fn owner_network_diagnostic_preserves_enum_without_raw_error_text() {
+    let failure = Failure::websocket(WebSocketError::Io(std::io::Error::new(
+        std::io::ErrorKind::ConnectionReset,
+        "private-routing-sentinel",
+    )));
+    let diagnostic = recovery_diagnostics::failure(&failure.into(), Some(8), Some(7));
+    assert_eq!(diagnostic["websocket_error_kind"], "io");
+    assert_eq!(diagnostic["io_error_kind"], "connection_reset");
+    assert!(!diagnostic.to_string().contains("sentinel"));
+}

@@ -19,6 +19,10 @@ pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketCon
 pub(super) struct Failure {
     pub kind: &'static str,
     pub close_code: Option<u16>,
+    pub category: &'static str,
+    pub io_kind: Option<&'static str>,
+    pub phase: &'static str,
+    pub idle_duration_ms: u64,
 }
 impl fmt::Display for Failure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -35,9 +39,17 @@ impl Failure {
         Self {
             kind,
             close_code: None,
+            category: "transport_disconnected",
+            io_kind: None,
+            phase: "idle",
+            idle_duration_ms: 0,
         }
     }
     fn websocket(error: WebSocketError) -> Self {
+        let io_kind = match &error {
+            WebSocketError::Io(error) => Some(recovery_diagnostics::io_kind(error.kind())),
+            _ => None,
+        };
         let kind = match error {
             WebSocketError::ConnectionClosed => "connection_closed",
             WebSocketError::AlreadyClosed => "already_closed",
@@ -52,7 +64,10 @@ impl Failure {
             WebSocketError::Http(_) => "http",
             WebSocketError::HttpFormat(_) => "http_format",
         };
-        Self::new(kind)
+        Self {
+            io_kind,
+            ..Self::new(kind)
+        }
     }
 }
 
@@ -71,13 +86,48 @@ pub(super) struct SocketOwner {
     commands: mpsc::Sender<Command>,
     events: mpsc::Receiver<Buffered>,
     command_bytes: Arc<Semaphore>,
-    terminal: Arc<Mutex<Option<Failure>>>,
+    terminal: Arc<Mutex<Health>>,
     close: Option<oneshot::Sender<(Duration, oneshot::Sender<Option<close::NoAckReason>>)>>,
     task: tokio::task::JoinHandle<()>,
     peer_ack: Arc<std::sync::atomic::AtomicBool>,
 }
-fn retain_failure(terminal: &Mutex<Option<Failure>>, failure: Failure) -> Failure {
-    terminal.lock().unwrap().get_or_insert(failure).clone()
+#[derive(Debug)]
+struct Health {
+    failure: Option<Failure>,
+    phase: &'static str,
+    idle_since: Instant,
+}
+fn retain_failure(terminal: &Mutex<Health>, mut failure: Failure) -> Failure {
+    let mut health = terminal.lock().unwrap();
+    failure.phase = health.phase;
+    failure.idle_duration_ms = if health.phase == "idle" {
+        health.idle_since.elapsed().as_millis().min(86_400_000) as u64
+    } else {
+        0
+    };
+    health.failure.get_or_insert(failure).clone()
+}
+/// Dropping an incomplete invocation invalidates its socket; stale frames cannot be reused.
+pub(super) struct Activity {
+    terminal: Arc<Mutex<Health>>,
+    abort: tokio::task::AbortHandle,
+    completed: bool,
+}
+impl Activity {
+    pub fn complete(mut self) {
+        let mut health = self.terminal.lock().unwrap();
+        health.phase = "idle";
+        health.idle_since = Instant::now();
+        self.completed = true;
+    }
+}
+impl Drop for Activity {
+    fn drop(&mut self) {
+        if !self.completed {
+            retain_failure(&self.terminal, Failure::new("owner_cancelled"));
+            self.abort.abort();
+        }
+    }
 }
 fn buffer(message: Message, bytes: &Arc<Semaphore>) -> Result<Buffered, Failure> {
     let size = message.len();
@@ -106,7 +156,11 @@ impl SocketOwner {
         let (tx, events) = mpsc::channel(EVENT_COUNT);
         let (close, mut close_rx) =
             oneshot::channel::<(Duration, oneshot::Sender<Option<close::NoAckReason>>)>();
-        let terminal = Arc::new(Mutex::new(None));
+        let terminal = Arc::new(Mutex::new(Health {
+            failure: None,
+            phase: "idle",
+            idle_since: Instant::now(),
+        }));
         let first = terminal.clone();
         let peer_ack = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let acknowledged = peer_ack.clone();
@@ -139,7 +193,7 @@ impl SocketOwner {
                             }
                             Some(Ok(Message::Pong(_))) => {}
                             Some(Ok(Message::Close(frame))) => {
-                                let failure = Failure { kind: "connection_closed", close_code: frame.map(|f| u16::from(f.code)) };
+                                let failure = Failure { category: recovery_diagnostics::close_category(frame.as_ref()), close_code: frame.as_ref().map(|f| u16::from(f.code)), ..Failure::new("connection_closed") };
                                 retain_failure(&first, failure.clone());
                                 if flush(&mut socket).await.is_ok() { acknowledged.store(true, std::sync::atomic::Ordering::Release); }
                                 break failure;
@@ -169,7 +223,15 @@ impl SocketOwner {
         }
     }
     pub fn failure(&self) -> Option<Failure> {
-        self.terminal.lock().unwrap().clone()
+        self.terminal.lock().unwrap().failure.clone()
+    }
+    pub fn activity(&self) -> Activity {
+        self.terminal.lock().unwrap().phase = "active";
+        Activity {
+            terminal: self.terminal.clone(),
+            abort: self.task.abort_handle(),
+            completed: false,
+        }
     }
     fn invalidate(&self, failure: Failure) -> anyhow::Error {
         let failure = retain_failure(&self.terminal, failure);
@@ -221,6 +283,7 @@ impl SocketOwner {
         event.map(|event| Ok(event.message))
     }
     pub async fn close(mut self, timeout: Duration) -> Option<close::NoAckReason> {
+        self.terminal.lock().unwrap().phase = "closing";
         let (ack, result) = oneshot::channel();
         if self.close.take().unwrap().send((timeout, ack)).is_err() {
             let _ = tokio::time::timeout(timeout, &mut self.task).await;

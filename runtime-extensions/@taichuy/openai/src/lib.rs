@@ -1690,6 +1690,8 @@ impl OpenAiProviderRuntime {
                         json!(recovery.last_attempt())
                     };
                     diagnostic["consumed_attempts"] = json!(recovery.consumed_attempts());
+                    diagnostic["recovery_decision"] =
+                        json!(recovery_diagnostics::decision(transition, false));
                     if failure_diagnostics.len() < 16 {
                         failure_diagnostics.push(diagnostic);
                     }
@@ -1807,6 +1809,13 @@ impl OpenAiProviderRuntime {
                         cursor,
                         full_context_available: full_context_body.is_some(),
                     });
+                    if let Some(diagnostic) = failure_diagnostics.last_mut() {
+                        diagnostic["recovery_decision"] = json!(recovery_diagnostics::decision(
+                            transition,
+                            error.semantic_committed
+                        ));
+                    }
+                    error.failure_diagnostics = failure_diagnostics.clone();
                     last_transition = Some(transition);
                     error.transition = Some(transition);
                     match transition.disposition {
@@ -1888,10 +1897,13 @@ impl OpenAiProviderRuntime {
             };
         }
         if let Some(owner) = self.websocket_response_owners.get(response_id) {
-            let same_socket = self
-                .websocket_sessions
-                .get(&owner.session_key)
-                .is_some_and(|session| session.socket_generation == owner.generation);
+            let same_socket =
+                self.websocket_sessions
+                    .get(&owner.session_key)
+                    .is_some_and(|session| {
+                        session.socket_generation == owner.generation
+                            && session.stream.failure().is_none()
+                    });
             let route_available = self
                 .websocket_turn_states_by_response_id
                 .contains_key(response_id);
@@ -1993,13 +2005,18 @@ impl OpenAiProviderRuntime {
             }
         }
         let now = self.websocket_clock.now();
-        if let Some(state) = self.websocket_sessions.get(&session_key).map(|session| {
-            self.websocket_lifecycle_policy.state_at(
-                session.socket_generation,
-                session.created_at,
-                now,
-            )
-        }) {
+        if let Some(state) = self
+            .websocket_sessions
+            .get(&session_key)
+            .filter(|session| session.stream.failure().is_none())
+            .map(|session| {
+                self.websocket_lifecycle_policy.state_at(
+                    session.socket_generation,
+                    session.created_at,
+                    now,
+                )
+            })
+        {
             if state != WebsocketConnectionState::Ready {
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
                     session.state = state;
@@ -2228,6 +2245,31 @@ impl OpenAiProviderRuntime {
                 Ok(output)
             }
             Err(mut error) => {
+                if error
+                    .source
+                    .downcast_ref::<websocket_io::Failure>()
+                    .is_some()
+                    || error
+                        .source
+                        .downcast_ref::<ProviderRuntimeError>()
+                        .is_some_and(|typed| {
+                            typed.provider_details.as_ref().is_some_and(|details| {
+                                details.get("1flowbase_transport_failure").is_some()
+                            })
+                        })
+                {
+                    let mut safe = recovery_diagnostics::safe_error(&error.source);
+                    let details = safe
+                        .provider_details
+                        .as_mut()
+                        .expect("safe error has details");
+                    details["1flowbase_transport_failure"]["routing_token_present"] =
+                        json!(session.turn_state.is_some());
+                    details["1flowbase_transport_failure"]["association_present"] =
+                        json!(responses_body_previous_response_id(&body)
+                            .is_some_and(|id| self.websocket_response_owners.contains_key(id)));
+                    error.source = anyhow::Error::new(safe);
+                }
                 error.source =
                     attach_failed_timing(error.source, connect_duration, upstream_duration);
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
@@ -3986,6 +4028,7 @@ async fn read_websocket_response<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let activity = session.stream.activity();
     send_websocket_json(session, request_body)
         .await
         .map_err(WebsocketInvocationError::connect_unavailable)?;
@@ -4126,6 +4169,7 @@ where
             session_reusable = false;
         }
     }
+    activity.complete();
     Ok(WebsocketResponseOutput {
         envelope: output,
         session_reusable,
