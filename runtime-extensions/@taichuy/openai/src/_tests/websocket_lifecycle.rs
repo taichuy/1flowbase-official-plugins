@@ -622,6 +622,10 @@ async fn http_eof_reports_precommit_but_output_and_tool_commit_refuse_retry() {
             false,
         ),
         (
+            json!({"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","summary":[]}}),
+            false,
+        ),
+        (
             json!({"type":"response.output_text.delta","delta":"visible"}),
             true,
         ),
@@ -644,12 +648,19 @@ async fn http_eof_reports_precommit_but_output_and_tool_commit_refuse_retry() {
             listener.set_nonblocking(true).unwrap();
             listener
         });
-        let mut input = managed_closing_input(&base, 3);
+        let mut input = visibility_native_input(&base);
         input.provider_config["transport_mode"] = json!("http_sse");
+        let mut emitted = Vec::new();
         let error = OpenAiProviderRuntime::default()
-            .invoke_response(input)
+            .invoke_response_with_event_sink(input, |event| {
+                emitted.push(event.clone());
+                Ok(())
+            })
             .await
             .unwrap_err();
+        if !committed {
+            assert!(emitted.is_empty());
+        }
         let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
         let receipt =
             &typed.provider_details.as_ref().unwrap()[recovery::RECOVERY_RECEIPT_METADATA_KEY];
@@ -736,5 +747,217 @@ async fn fresh_proxy_1011_without_output_or_route_delegates_without_reconnect() 
     assert_eq!(diagnostics["first_failure"]["close_code"], 1011);
     assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
     assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
+    assert_no_replacement_connection(server);
+}
+
+fn visibility_native_input(base: &str) -> ProviderInvocationInput {
+    let mut input = managed_closing_input(base, 3);
+    input.required_capabilities.extend([
+        ProviderInvocationCapability::ResponsesNativePassthrough,
+        ProviderInvocationCapability::ResponsesNativeOutputV1,
+    ]);
+    let body = json!({"model":"fixture-model","input":[{"role":"user","content":"fixture"}],"generate":false});
+    input.native_transport = Some(ProviderNativeTransport {
+        protocol: "openai_responses".into(),
+        digest: "sha256:synthetic".into(),
+        size_bytes: body.to_string().len() as u64,
+        wire_body: body,
+    });
+    input
+        .run_context
+        .get_mut(recovery::RECOVERY_DIRECTIVE_CONTEXT_KEY)
+        .unwrap()["policy"]["type"] = json!("native_opaque");
+    input
+}
+
+fn start_visibility_websocket(
+    rounds: Vec<(Vec<Value>, bool)>,
+) -> (String, thread::JoinHandle<TcpListener>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = thread::spawn(move || {
+        for (events, success) in rounds {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+            ws.read().unwrap();
+            for event in events {
+                ws.send(Message::Text(event.to_string().into())).unwrap();
+            }
+            if success {
+                ws.send(Message::Text(json!({"type":"response.completed","response":{"id":"success","status":"completed","output":[]}}).to_string().into())).unwrap();
+            } else {
+                let _ = ws.send(Message::Close(Some(CloseFrame {
+                    code: CloseCode::Error,
+                    reason: "upstream websocket proxy failed".into(),
+                })));
+            }
+        }
+        listener.set_nonblocking(true).unwrap();
+        listener
+    });
+    (base, server)
+}
+
+#[tokio::test]
+async fn empty_added_proxy_failure_delegates_and_logical_retry_has_no_abandoned_slots() {
+    let abandoned = json!({"type":"response.output_item.added","output_index":0,"item":{"id":"abandoned","type":"reasoning","summary":[]}});
+    let fresh = json!({"type":"response.output_item.added","output_index":0,"item":{"id":"fresh","type":"reasoning","summary":[]}});
+    let done = json!({"type":"response.output_item.done","output_index":0,"item":{"id":"fresh","type":"reasoning","summary":[]}});
+    let (base, server) =
+        start_visibility_websocket(vec![(vec![abandoned], false), (vec![fresh, done], true)]);
+    let mut runtime = OpenAiProviderRuntime::default();
+    let mut emitted = Vec::new();
+    let error = runtime
+        .invoke_response_with_event_sink(visibility_native_input(&base), |event| {
+            emitted.push(event.clone());
+            Ok(())
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        emitted.is_empty(),
+        "abandoned Added must not escape to host slots"
+    );
+    let details = error
+        .downcast_ref::<ProviderRuntimeError>()
+        .unwrap()
+        .provider_details
+        .as_ref()
+        .unwrap();
+    assert_eq!(
+        details[recovery::RECOVERY_RECEIPT_METADATA_KEY]["disposition"],
+        "logical_invocation_retry"
+    );
+    assert_eq!(
+        details[recovery::RECOVERY_RECEIPT_METADATA_KEY]["commit_level"],
+        "lifecycle_only"
+    );
+    let diagnostic = &details[recovery_diagnostics::KEY]["last_failure"];
+    assert_eq!(diagnostic["close_code"], 1011);
+    assert!(diagnostic["semantic_event_kind"].is_null());
+    assert_eq!(diagnostic["buffered_scaffold_events"], 1);
+    assert!(diagnostic["buffered_scaffold_bytes"].as_u64().unwrap() > 0);
+    // The caller accepts the logical retry grant. The provider must not silently
+    // reconnect on its own when no route authorizes a same-epoch retry.
+    let output = runtime
+        .invoke_response_with_event_sink(visibility_native_input(&base), |event| {
+            emitted.push(event.clone());
+            Ok(())
+        })
+        .await
+        .unwrap();
+    assert!(!serde_json::to_string(&emitted)
+        .unwrap()
+        .contains("abandoned"));
+    let phases: Vec<_> = emitted
+        .iter()
+        .filter_map(|event| match event {
+            ProviderStreamEvent::OutputItem { phase, item, .. } => {
+                assert_eq!(item["id"], "fresh");
+                Some(*phase)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        phases,
+        vec![
+            ProviderOutputItemPhase::Added,
+            ProviderOutputItemPhase::Done
+        ]
+    );
+    assert_eq!(output.result.response_id.as_deref(), Some("success"));
+    assert_no_replacement_connection(server);
+}
+
+#[tokio::test]
+async fn empty_scaffolding_success_flushes_before_finish_even_for_generate_false() {
+    let item = json!({"type":"response.output_item.added","output_index":0,"item":{"id":"empty","type":"message","role":"assistant","content":[]}});
+    let part = json!({"type":"response.content_part.added","output_index":0,"item_id":"empty","content_index":0,"part":{"type":"output_text","text":"","annotations":[]}});
+    let (base, server) = start_visibility_websocket(vec![(vec![item, part], true)]);
+    let mut emitted = Vec::new();
+    let output = OpenAiProviderRuntime::default()
+        .invoke_response_with_event_sink(visibility_native_input(&base), |event| {
+            emitted.push(event.clone());
+            Ok(())
+        })
+        .await
+        .unwrap();
+    assert!(matches!(
+        &emitted[0],
+        ProviderStreamEvent::OutputItem {
+            phase: ProviderOutputItemPhase::Added,
+            ..
+        }
+    ));
+    assert!(
+        matches!(&emitted[1], ProviderStreamEvent::ResponsesOutputDelta { event } if event["type"] == "response.content_part.added")
+    );
+    assert!(matches!(
+        emitted.last(),
+        Some(ProviderStreamEvent::Finish { .. })
+    ));
+    assert_eq!(emitted, output.events);
+    assert_no_replacement_connection(server);
+}
+
+#[tokio::test]
+async fn meaningful_and_unknown_added_items_still_block_replay() {
+    for (item, category) in [
+        (
+            json!({"type":"message","content":[{"type":"output_text","text":"private-canary"}]}),
+            "message_added",
+        ),
+        (
+            json!({"type":"reasoning","summary":[],"encrypted_content":"private-canary"}),
+            "reasoning_added",
+        ),
+        (
+            json!({"type":"reasoning","summary":[],"future":true}),
+            "reasoning_added",
+        ),
+        (
+            json!({"type":"function_call","call_id":"tool","name":"write","arguments":""}),
+            "tool_item_added",
+        ),
+        (json!({"type":"future_item","content":[]}), "unknown_item"),
+    ] {
+        let (base, server) = start_visibility_websocket(vec![(
+            vec![json!({"type":"response.output_item.added","output_index":0,"item":item})],
+            false,
+        )]);
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(visibility_native_input(&base))
+            .await
+            .unwrap_err();
+        let diagnostic = assert_safe_terminal(&error, "semantic_failed");
+        assert_eq!(diagnostic["last_failure"]["semantic_event_kind"], category);
+        assert_no_replacement_connection(server);
+    }
+}
+
+#[tokio::test]
+async fn empty_scaffolding_does_not_make_response_failed_replayable() {
+    let (base, server) = start_visibility_websocket(vec![(
+        vec![
+            json!({"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","summary":[]}}),
+            json!({"type":"response.failed","response":{"error":{"code":"invalid_request","message":"private-canary"}}}),
+        ],
+        false,
+    )]);
+    let mut emitted = Vec::new();
+    let error = OpenAiProviderRuntime::default()
+        .invoke_response_with_event_sink(visibility_native_input(&base), |event| {
+            emitted.push(event.clone());
+            Ok(())
+        })
+        .await
+        .unwrap_err();
+    assert!(emitted.is_empty());
+    let diagnostics = assert_safe_terminal(&error, "semantic_failed");
+    assert_eq!(diagnostics["last_failure"]["semantic_event_kind"], "other");
     assert_no_replacement_connection(server);
 }

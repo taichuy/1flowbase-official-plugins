@@ -32,6 +32,7 @@ use tokio_tungstenite::{
 
 mod close;
 mod transport_session;
+mod visibility;
 mod websocket_io;
 use transport_session::*;
 
@@ -4081,6 +4082,26 @@ async fn read_websocket_response<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let mut visibility = visibility::Visibility::default();
+    read_websocket_response_visible(session, request_body, input, on_event, &mut visibility)
+        .await
+        .map_err(|mut error| {
+            let message = error.source.to_string();
+            error.source = error.source.context(visibility.snapshot()).context(message);
+            error
+        })
+}
+
+async fn read_websocket_response_visible<F>(
+    session: &mut ResponsesWebsocketSession,
+    request_body: &mut Value,
+    input: &ProviderInvocationInput,
+    on_event: &mut F,
+    visibility: &mut visibility::Visibility,
+) -> Result<WebsocketResponseOutput, WebsocketInvocationError>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
     let activity = session.stream.activity();
     send_websocket_json(session, request_body)
         .await
@@ -4093,7 +4114,6 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut visible_output_started = false;
     let mut semantic_terminal_failure_seen = false;
     let mut session_reusable = true;
 
@@ -4105,7 +4125,7 @@ where
                     let error = anyhow!("idle timeout waiting for Responses websocket");
                     return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                         error,
-                        visible_output_started || semantic_terminal_failure_seen,
+                        visibility.committed() || semantic_terminal_failure_seen,
                     ));
                 }
             };
@@ -4122,13 +4142,13 @@ where
                 .unwrap_or_else(|| anyhow!("websocket closed before response.completed"));
             return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
-                visible_output_started || semantic_terminal_failure_seen,
+                visibility.committed() || semantic_terminal_failure_seen,
             ));
         };
         let message = message.map_err(|error| {
             WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
-                visible_output_started || semantic_terminal_failure_seen,
+                visibility.committed() || semantic_terminal_failure_seen,
             )
         })?;
 
@@ -4139,10 +4159,13 @@ where
                     let error = anyhow!(message);
                     return Err(WebsocketInvocationError::from_stream_state(
                         error,
-                        visible_output_started || semantic_terminal_failure_seen,
+                        visibility.committed() || semantic_terminal_failure_seen,
                     ));
                 }
                 semantic_terminal_failure_seen |= websocket_payload_blocks_http_fallback(payload);
+                if let Ok(raw) = serde_json::from_str::<Value>(payload) {
+                    visibility.observe(&raw);
+                }
                 process_response_sse_payload(
                     payload,
                     &mut events,
@@ -4155,15 +4178,14 @@ where
                 .map_err(|error| {
                     WebsocketInvocationError::from_stream_state(
                         error,
-                        visible_output_started || semantic_terminal_failure_seen,
+                        visibility.committed() || semantic_terminal_failure_seen,
                     )
                 })?;
-                if !events.is_empty() {
-                    visible_output_started |= events.iter().any(websocket_event_commits_output);
-                    emit_new_events(&events, on_event)
-                        .map_err(WebsocketInvocationError::fallback_blocked)?;
-                    all_events.append(&mut events);
-                }
+                visibility
+                    .publish(&mut events, &mut all_events, on_event)
+                    .map_err(|error| {
+                        WebsocketInvocationError::from_stream_state(error, visibility.committed())
+                    })?;
                 if response_stream_finished(&finish_reason) {
                     break;
                 }
@@ -4183,7 +4205,7 @@ where
                     .unwrap_or_else(|| websocket_closed_before_completed_error(frame));
                 return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                     error,
-                    visible_output_started || semantic_terminal_failure_seen,
+                    visibility.committed() || semantic_terminal_failure_seen,
                 ));
             }
             Message::Binary(_) | Message::Frame(_) => {}
@@ -4193,7 +4215,7 @@ where
     if response_id.is_null() {
         return Err(WebsocketInvocationError::from_stream_state(
             anyhow!("websocket closed before response.completed"),
-            visible_output_started || semantic_terminal_failure_seen,
+            visibility.committed() || semantic_terminal_failure_seen,
         ));
     }
     if matches!(finish_reason, ProviderFinishReason::Unknown) {
@@ -4202,6 +4224,9 @@ where
         )));
     }
 
+    visibility
+        .flush(&mut all_events, on_event)
+        .map_err(WebsocketInvocationError::fallback_blocked)?;
     let output = finalize_response_stream(
         all_events,
         text,
@@ -4314,7 +4339,8 @@ fn websocket_event_commits_output(event: &ProviderStreamEvent) -> bool {
             | ProviderStreamEvent::ToolCallCommit { .. }
             | ProviderStreamEvent::ResponsesOutputDelta { .. }
             | ProviderStreamEvent::OutputItem { .. }
-    )
+    ) || matches!(event, ProviderStreamEvent::NativeEvent { event, .. }
+        if visibility::semantic_kind(event).is_some())
 }
 
 #[derive(Debug, Default)]
@@ -4576,6 +4602,31 @@ async fn read_streaming_response<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let mut visibility = visibility::Visibility::default();
+    read_streaming_response_visible(
+        response,
+        request_model,
+        on_event,
+        native_passthrough,
+        &mut visibility,
+    )
+    .await
+    .map_err(|error| {
+        let message = error.to_string();
+        error.context(visibility.snapshot()).context(message)
+    })
+}
+
+async fn read_streaming_response_visible<F>(
+    response: reqwest::Response,
+    request_model: String,
+    on_event: &mut F,
+    native_passthrough: bool,
+    visibility: &mut visibility::Visibility,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
     let status = response.status();
     if !status.is_success() {
         return Err(provider_upstream_error_from_response(response)
@@ -4615,8 +4666,16 @@ where
             Err(eventsource_stream::EventStreamError::Transport(error)) => return Err(error),
             Err(error) => return Err(anyhow!("invalid Responses SSE stream: {error}")),
         };
+        if event.data.is_empty() || event.data == "[DONE]" {
+            continue;
+        }
+        let raw: Value = serde_json::from_str(&event.data)?;
+        visibility.observe(&raw);
         if native_passthrough {
-            emit_native_response_sse_data(&event.data, on_event)?;
+            events.push(ProviderStreamEvent::NativeEvent {
+                protocol: "openai_responses".to_string(),
+                event: raw,
+            });
         }
         process_response_sse_payload(
             &event.data,
@@ -4627,8 +4686,7 @@ where
             &mut finish_reason,
             &mut response_id,
         )?;
-        emit_new_events(&events, on_event)?;
-        all_events.append(&mut events);
+        visibility.publish(&mut events, &mut all_events, on_event)?;
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
         return Err(recovery_diagnostics::transport_error(
@@ -4637,6 +4695,7 @@ where
             None,
         ));
     }
+    visibility.flush(&mut all_events, on_event)?;
     if usage.has_any_value() {
         events.push(ProviderStreamEvent::UsageSnapshot {
             usage: usage.clone(),
@@ -4731,6 +4790,7 @@ fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+#[cfg(test)]
 fn emit_native_response_sse_data<F>(data: &str, on_event: &mut F) -> Result<()>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,

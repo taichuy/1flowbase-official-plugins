@@ -55,6 +55,14 @@ pub(crate) fn close_category(frame: Option<&CloseFrame>) -> &'static str {
 }
 
 pub(crate) fn failure(error: &anyhow::Error, socket: Option<u64>, owner: Option<u64>) -> Value {
+    let mut value = failure_inner(error, socket, owner);
+    if let Some(snapshot) = error.downcast_ref::<super::visibility::Snapshot>() {
+        snapshot.annotate(&mut value);
+    }
+    value
+}
+
+fn failure_inner(error: &anyhow::Error, socket: Option<u64>, owner: Option<u64>) -> Value {
     if let Some(physical) = error.downcast_ref::<super::websocket_io::Failure>() {
         let mut diagnostic = failure(
             &transport_error(
