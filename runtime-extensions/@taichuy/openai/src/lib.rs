@@ -5636,10 +5636,30 @@ mod tests {
         (base, server)
     }
 
+    enum HttpFailureFixture {
+        PostCommitEof,
+        PreCommitUntyped,
+    }
+
     fn assert_single_safe_http_failure(
         error: &anyhow::Error,
         server: thread::JoinHandle<TcpListener>,
+        fixture: HttpFailureFixture,
     ) {
+        let (message, commit_level, kind, category) = match fixture {
+            HttpFailureFixture::PostCommitEof => (
+                "websocket disconnected before response.completed",
+                "terminal",
+                "http_eof",
+                "transport_disconnected",
+            ),
+            HttpFailureFixture::PreCommitUntyped => (
+                "provider failure; unclassified details redacted",
+                "lifecycle_only",
+                "provider_untyped",
+                "unclassified",
+            ),
+        };
         let typed = error
             .downcast_ref::<ProviderRuntimeError>()
             .expect("recovery diagnostics require a canonical typed boundary");
@@ -5647,25 +5667,19 @@ mod tests {
             typed.kind,
             ProviderRuntimeErrorKind::ProviderTransportUnavailable
         );
-        assert_eq!(
-            typed.message,
-            "provider failure; unclassified details redacted"
-        );
+        assert_eq!(typed.message, message);
         let details = typed.provider_details.as_ref().unwrap();
         let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
         assert_eq!(receipt["transport"], "provider_http");
         assert_eq!(receipt["attempt"], 0);
-        assert_eq!(receipt["commit_level"], "terminal");
+        assert_eq!(receipt["commit_level"], commit_level);
         assert_eq!(receipt["disposition"], "terminal_interruption");
         let diagnostics = &details[recovery_diagnostics::KEY];
         assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
         assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
-        assert_eq!(diagnostics["first_failure"]["kind"], "provider_untyped");
+        assert_eq!(diagnostics["first_failure"]["kind"], kind);
         assert_eq!(diagnostics["first_failure"]["consumed_attempts"], 1);
-        assert_eq!(
-            diagnostics["first_failure"]["reason_category"],
-            "unclassified"
-        );
+        assert_eq!(diagnostics["first_failure"]["reason_category"], category);
         assert!(diagnostics["first_failure"]["socket_incarnation"].is_null());
         let serialized = serde_json::to_string(typed).unwrap();
         assert!(!serialized.contains("wire-secret"));
@@ -6080,12 +6094,20 @@ mod tests {
         }))
         .expect("transport failure fixture input should deserialize");
 
+        let mut emitted = Vec::new();
         let error = OpenAiProviderRuntime::default()
-            .invoke_response(input)
+            .invoke_response_with_event_sink(input, |event| {
+                emitted.push(event.clone());
+                Ok(())
+            })
             .await
             .expect_err("truncated upstream body should remain a transport failure");
 
-        assert_single_safe_http_failure(&error, server);
+        assert!(
+            emitted.is_empty(),
+            "truncated error body must emit no semantic output or Finish"
+        );
+        assert_single_safe_http_failure(&error, server, HttpFailureFixture::PreCommitUntyped);
     }
 
     #[test]
@@ -6628,7 +6650,13 @@ mod tests {
             .expect_err("EOF before response.completed must fail");
 
         assert_eq!(emitted.iter().filter(|event| matches!(event, ProviderStreamEvent::TextDelta { delta } if delta == "partial")).count(), 1);
-        assert_single_safe_http_failure(&error, server);
+        assert!(
+            !emitted
+                .iter()
+                .any(|event| matches!(event, ProviderStreamEvent::Finish { .. })),
+            "EOF must not manufacture a successful Finish"
+        );
+        assert_single_safe_http_failure(&error, server, HttpFailureFixture::PostCommitEof);
     }
 
     #[tokio::test]
