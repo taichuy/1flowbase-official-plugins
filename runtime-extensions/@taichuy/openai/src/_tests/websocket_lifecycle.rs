@@ -543,6 +543,7 @@ fn failed_fallback_keeps_safe_untyped_first_and_independent_last_failure() {
             )),
             None,
             secondary,
+            false,
         );
         let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
         let details = typed.provider_details.as_ref().unwrap();
@@ -572,6 +573,7 @@ fn failed_fallback_keeps_typed_first_with_redacted_untyped_last() {
         WebsocketInvocationError::transport_unavailable("first websocket failure"),
         None,
         anyhow::anyhow!("secondary contains fixture-secret"),
+        false,
     );
     let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
     let details = typed.provider_details.as_ref().unwrap();

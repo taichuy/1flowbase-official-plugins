@@ -538,7 +538,9 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
     let details = &error["error"]["provider_details"];
     let receipt = &details["1flowbase_provider_recovery"];
     assert_eq!(receipt["disposition"], json!("terminal_interruption"));
-    assert_eq!(receipt["commit_level"], json!("terminal"));
+    assert_eq!(receipt["attempt"], 1);
+    assert_eq!(receipt["reason"], "budget_exhausted");
+    assert_eq!(receipt["commit_level"], json!("lifecycle_only"));
     assert!(
         receipt.get("socket_incarnation").is_some(),
         "a stream failure on a real socket reports its incarnation: {receipt}"
@@ -548,6 +550,8 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
     assert_eq!(diagnostics["last_failure"]["close_code"], 1008);
     assert_eq!(diagnostics["first_failure"]["attempt"], 0);
     assert_eq!(diagnostics["last_failure"]["attempt"], 1);
+    assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 2);
+    assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 2);
     assert!(!details.to_string().contains("private-token"));
     let original = &details["1flowbase_provider_recovery_original_error"];
     assert!(
@@ -564,7 +568,7 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
 }
 
 #[test]
-fn native_managed_preconnect_failure_reports_a_socketless_terminal_receipt() {
+fn native_managed_preconnect_failure_reports_a_socketless_precommit_retry_receipt() {
     let unused = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", unused.local_addr().unwrap());
     drop(unused);
@@ -580,8 +584,15 @@ fn native_managed_preconnect_failure_reports_a_socketless_terminal_receipt() {
         .find(|value| value["type"] == "error")
         .expect("an unreachable endpoint is a real failure");
     let receipt = &error["error"]["provider_details"]["1flowbase_provider_recovery"];
-    assert_eq!(receipt["disposition"], json!("terminal_interruption"));
-    assert_eq!(receipt["commit_level"], json!("terminal"));
+    assert_eq!(receipt["disposition"], json!("logical_invocation_retry"));
+    assert_eq!(receipt["commit_level"], json!("lifecycle_only"));
+    assert_eq!(receipt["attempt"], 0);
+    assert_eq!(receipt["reason"], "transport_disconnected");
+    let diagnostics =
+        &error["error"]["provider_details"]["1flowbase_provider_recovery_diagnostics"];
+    assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
+    assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
+    assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
     assert!(
         receipt.get("socket_incarnation").is_none(),
         "a pre-connect failure must not fabricate a socket incarnation: {receipt}"
@@ -678,7 +689,7 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
                 listener.set_nonblocking(true).unwrap();
                 assert!(
                     matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
-                    "terminal idle close must not create another socket"
+                    "idle close without safe continuation must not create another socket"
                 );
             }
         });
@@ -728,6 +739,8 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             diagnostic["recovery_decision"],
             if succeeds {
                 "retry_websocket"
+            } else if !token && code == 1011 {
+                "logical_invocation_retry"
             } else {
                 "terminal"
             }
