@@ -593,3 +593,150 @@ fn native_managed_preconnect_failure_reports_a_socketless_terminal_receipt() {
 
 #[path = "continuation/mod.rs"]
 mod continuation;
+
+#[test]
+fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery() {
+    for (token, code, reason, succeeds, category) in [
+        (
+            true,
+            1011u16,
+            "transport lost secret-sentinel",
+            true,
+            "transport_disconnected",
+        ),
+        (
+            false,
+            1011,
+            "transport lost secret-sentinel",
+            false,
+            "transport_disconnected",
+        ),
+        (
+            true,
+            1008,
+            "policy secret-sentinel",
+            false,
+            "policy_rejected",
+        ),
+        (
+            true,
+            1008,
+            "upstream continuation connection is unavailable secret-sentinel",
+            false,
+            "continuation_unavailable",
+        ),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let (idle_tx, idle_rx) = std::sync::mpsc::channel();
+        let (closed_tx, closed_rx) = std::sync::mpsc::channel();
+        let (stop_tx, stop_rx) = std::sync::mpsc::channel();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut ws = accept_hdr(stream, move |_: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                if token { response.headers_mut().insert("x-codex-turn-state", "private-routing-sentinel".parse().unwrap()); }
+                Ok(response)
+            }).unwrap();
+            let _ = ws.read().unwrap();
+            ws.send(Message::Text(
+                json!({"type":"response.completed","response":{"id":"idle_resp_1","output":[]}})
+                    .to_string()
+                    .into(),
+            ))
+            .unwrap();
+            idle_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+            ws.send(Message::Ping(vec![1, 2, 3].into())).unwrap();
+            assert_eq!(ws.read().unwrap(), Message::Pong(vec![1, 2, 3].into()));
+            ws.send(Message::Close(Some(
+                tokio_tungstenite::tungstenite::protocol::CloseFrame {
+                    code: code.into(),
+                    reason: reason.into(),
+                },
+            )))
+            .unwrap();
+            assert!(matches!(ws.read(), Ok(Message::Close(_))));
+            closed_tx.send(()).unwrap();
+            if succeeds {
+                let (stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(3)))
+                    .unwrap();
+                let mut retry = accept_hdr(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                    assert_eq!(request.headers()["x-codex-turn-state"], "private-routing-sentinel");
+                    Ok(response)
+                }).unwrap();
+                let body: Value =
+                    serde_json::from_str(retry.read().unwrap().to_text().unwrap()).unwrap();
+                assert_eq!(body["previous_response_id"], "idle_resp_1");
+                retry.send(Message::Text(json!({"type":"response.completed","response":{"id":"idle_resp_2","output":[]}}).to_string().into())).unwrap();
+                stop_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+            } else {
+                stop_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+                listener.set_nonblocking(true).unwrap();
+                assert!(
+                    matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+                    "terminal idle close must not create another socket"
+                );
+            }
+        });
+        let (mut child, mut stdin, mut stdout) = spawn_native_worker();
+        let mut first =
+            native_managed_input(&base, json!({"input":[]}), native_opaque_directive(2));
+        // Absence of an upstream routing token is intentional in the no-token case.
+        first["input"]["client_protocol_envelope"]["headers"]
+            .as_object_mut()
+            .unwrap()
+            .remove("x-codex-turn-state");
+        let first = next_turn(&mut stdin, &mut stdout, first);
+        assert_eq!(
+            first.last().unwrap()["result"]["response_id"],
+            "idle_resp_1"
+        );
+        idle_tx.send(()).unwrap();
+        closed_rx.recv_timeout(Duration::from_secs(4)).unwrap();
+        let second = next_turn(
+            &mut stdin,
+            &mut stdout,
+            native_managed_input(
+                &base,
+                json!({"previous_response_id":"idle_resp_1","input":[]}),
+                native_opaque_directive(2),
+            ),
+        );
+        let diagnostic = if succeeds {
+            assert_eq!(
+                second.last().unwrap()["result"]["response_id"],
+                "idle_resp_2"
+            );
+            &second.last().unwrap()["result"]["provider_metadata"]
+                ["1flowbase_provider_recovery_diagnostics"]["first_failure"]
+        } else {
+            &second
+                .iter()
+                .find(|v| v["type"] == "error")
+                .expect("must terminate")["error"]["provider_details"]
+                ["1flowbase_provider_recovery_diagnostics"]["first_failure"]
+        };
+        assert_eq!(diagnostic["failure_phase"], "idle");
+        assert_eq!(diagnostic["reason_category"], category);
+        assert_eq!(diagnostic["routing_token_present"], token);
+        assert_eq!(diagnostic["association_present"], true);
+        assert_eq!(
+            diagnostic["recovery_decision"],
+            if succeeds {
+                "retry_websocket"
+            } else {
+                "terminal"
+            }
+        );
+        assert!(!diagnostic.to_string().contains("sentinel"));
+        stop_tx.send(()).unwrap();
+        drop(stdin);
+        let _ = child.kill();
+        let _ = child.wait();
+        server.join().unwrap();
+    }
+}

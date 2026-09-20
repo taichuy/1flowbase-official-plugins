@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    client_async_tls_with_config, connect_async,
+    client_async_tls_with_config, connect_async_with_config,
     tungstenite::{
         client::IntoClientRequest,
         handshake::client::{
@@ -32,6 +32,7 @@ use tokio_tungstenite::{
 
 mod close;
 mod transport_session;
+mod websocket_io;
 use transport_session::*;
 
 mod count_tokens;
@@ -1689,6 +1690,8 @@ impl OpenAiProviderRuntime {
                         json!(recovery.last_attempt())
                     };
                     diagnostic["consumed_attempts"] = json!(recovery.consumed_attempts());
+                    diagnostic["recovery_decision"] =
+                        json!(recovery_diagnostics::decision(transition, false));
                     if failure_diagnostics.len() < 16 {
                         failure_diagnostics.push(diagnostic);
                     }
@@ -1806,6 +1809,13 @@ impl OpenAiProviderRuntime {
                         cursor,
                         full_context_available: full_context_body.is_some(),
                     });
+                    if let Some(diagnostic) = failure_diagnostics.last_mut() {
+                        diagnostic["recovery_decision"] = json!(recovery_diagnostics::decision(
+                            transition,
+                            error.semantic_committed
+                        ));
+                    }
+                    error.failure_diagnostics = failure_diagnostics.clone();
                     last_transition = Some(transition);
                     error.transition = Some(transition);
                     match transition.disposition {
@@ -1887,10 +1897,13 @@ impl OpenAiProviderRuntime {
             };
         }
         if let Some(owner) = self.websocket_response_owners.get(response_id) {
-            let same_socket = self
-                .websocket_sessions
-                .get(&owner.session_key)
-                .is_some_and(|session| session.socket_generation == owner.generation);
+            let same_socket =
+                self.websocket_sessions
+                    .get(&owner.session_key)
+                    .is_some_and(|session| {
+                        session.socket_generation == owner.generation
+                            && session.stream.failure().is_none()
+                    });
             let route_available = self
                 .websocket_turn_states_by_response_id
                 .contains_key(response_id);
@@ -1992,13 +2005,18 @@ impl OpenAiProviderRuntime {
             }
         }
         let now = self.websocket_clock.now();
-        if let Some(state) = self.websocket_sessions.get(&session_key).map(|session| {
-            self.websocket_lifecycle_policy.state_at(
-                session.socket_generation,
-                session.created_at,
-                now,
-            )
-        }) {
+        if let Some(state) = self
+            .websocket_sessions
+            .get(&session_key)
+            .filter(|session| session.stream.failure().is_none())
+            .map(|session| {
+                self.websocket_lifecycle_policy.state_at(
+                    session.socket_generation,
+                    session.created_at,
+                    now,
+                )
+            })
+        {
             if state != WebsocketConnectionState::Ready {
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
                     session.state = state;
@@ -2227,6 +2245,31 @@ impl OpenAiProviderRuntime {
                 Ok(output)
             }
             Err(mut error) => {
+                if error
+                    .source
+                    .downcast_ref::<websocket_io::Failure>()
+                    .is_some()
+                    || error
+                        .source
+                        .downcast_ref::<ProviderRuntimeError>()
+                        .is_some_and(|typed| {
+                            typed.provider_details.as_ref().is_some_and(|details| {
+                                details.get("1flowbase_transport_failure").is_some()
+                            })
+                        })
+                {
+                    let mut safe = recovery_diagnostics::safe_error(&error.source);
+                    let details = safe
+                        .provider_details
+                        .as_mut()
+                        .expect("safe error has details");
+                    details["1flowbase_transport_failure"]["routing_token_present"] =
+                        json!(session.turn_state.is_some());
+                    details["1flowbase_transport_failure"]["association_present"] =
+                        json!(responses_body_previous_response_id(&body)
+                            .is_some_and(|id| self.websocket_response_owners.contains_key(id)));
+                    error.source = anyhow::Error::new(safe);
+                }
                 error.source =
                     attach_failed_timing(error.source, connect_duration, upstream_duration);
                 if let Some(mut session) = self.websocket_sessions.remove(&session_key) {
@@ -3540,7 +3583,7 @@ struct WebsocketResponseOwner {
 
 #[derive(Debug)]
 struct ResponsesWebsocketSession {
-    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    stream: websocket_io::SocketOwner,
     turn_state: Option<String>,
     socket_generation: u64,
     contract_generation: Option<u64>,
@@ -3684,7 +3727,9 @@ async fn connect_responses_websocket(
     let (stream, response) = if config.proxy_url.is_some() {
         connect_responses_websocket_through_proxy(config, &url, request).await
     } else {
-        connect_async(request).await.map_err(map_websocket_error)
+        connect_async_with_config(request, Some(websocket_io::config()), false)
+            .await
+            .map_err(map_websocket_error)
     }?;
     // Codex turn state is first-writer-wins within a turn; continuation handshakes
     // must not rotate the sticky routing token for later tool callbacks.
@@ -3697,7 +3742,7 @@ async fn connect_responses_websocket(
             .map(ToOwned::to_owned)
     });
     Ok(ResponsesWebsocketSession {
-        stream,
+        stream: websocket_io::SocketOwner::new(stream),
         turn_state,
         socket_generation,
         contract_generation,
@@ -3722,7 +3767,7 @@ async fn connect_responses_websocket_through_proxy(
         .ok_or_else(|| anyhow!("proxy_url is required"))?;
     let target = proxy_connect_target(url)?;
     let stream = connect_http_proxy_tunnel(proxy_url, &target).await?;
-    client_async_tls_with_config(request, stream, None, None)
+    client_async_tls_with_config(request, stream, Some(websocket_io::config()), None)
         .await
         .map_err(map_websocket_error)
 }
@@ -3957,11 +4002,7 @@ fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
 
 async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
     let payload = serde_json::to_string(body)?;
-    session
-        .stream
-        .send(Message::Text(payload.into()))
-        .await
-        .map_err(map_websocket_error)
+    session.stream.send(Message::Text(payload.into())).await
 }
 
 async fn send_websocket_response_processed(
@@ -3987,6 +4028,7 @@ async fn read_websocket_response<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let activity = session.stream.activity();
     send_websocket_json(session, request_body)
         .await
         .map_err(WebsocketInvocationError::connect_unavailable)?;
@@ -4020,7 +4062,11 @@ where
                 session_reusable = false;
                 break;
             }
-            let error = anyhow!("websocket closed before response.completed");
+            let error = session
+                .stream
+                .failure()
+                .map(anyhow::Error::new)
+                .unwrap_or_else(|| anyhow!("websocket closed before response.completed"));
             return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                 error,
                 visible_output_started || semantic_terminal_failure_seen,
@@ -4028,7 +4074,7 @@ where
         };
         let message = message.map_err(|error| {
             WebsocketInvocationError::from_reconnectable_stream_state(
-                map_websocket_error(error),
+                error,
                 visible_output_started || semantic_terminal_failure_seen,
             )
         })?;
@@ -4069,18 +4115,7 @@ where
                     break;
                 }
             }
-            Message::Ping(payload) => {
-                session
-                    .stream
-                    .send(Message::Pong(payload))
-                    .await
-                    .map_err(|error| {
-                        WebsocketInvocationError::from_reconnectable_stream_state(
-                            map_websocket_error(error),
-                            visible_output_started || semantic_terminal_failure_seen,
-                        )
-                    })?;
-            }
+            Message::Ping(_) => {}
             Message::Pong(_) => {}
             Message::Close(frame) => {
                 if !tool_calls.is_empty() && !response_id.is_null() {
@@ -4088,7 +4123,11 @@ where
                     session_reusable = false;
                     break;
                 }
-                let error = websocket_closed_before_completed_error(frame);
+                let error = session
+                    .stream
+                    .failure()
+                    .map(anyhow::Error::new)
+                    .unwrap_or_else(|| websocket_closed_before_completed_error(frame));
                 return Err(WebsocketInvocationError::from_reconnectable_stream_state(
                     error,
                     visible_output_started || semantic_terminal_failure_seen,
@@ -4138,6 +4177,7 @@ where
             session_reusable = false;
         }
     }
+    activity.complete();
     Ok(WebsocketResponseOutput {
         envelope: output,
         session_reusable,
