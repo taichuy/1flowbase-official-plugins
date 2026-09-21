@@ -5,9 +5,10 @@ use futures_util::StreamExt;
 use serde_json::{json, Value};
 
 use crate::{
-    ensure_success_status, normalize_tool_input, read_json_response, value_to_string,
-    BailianProtocol, ProviderConfig, ProviderFinishReason, ProviderInvocationResult,
-    ProviderStreamEvent, ProviderToolCall, ProviderUsage, RuntimeInvocationEnvelope,
+    ensure_success_status, normalize_tool_input, protocol_observation, read_json_response,
+    value_to_string, BailianProtocol, ProviderConfig, ProviderFinishReason,
+    ProviderInvocationResult, ProviderStreamEvent, ProviderToolCall, ProviderUsage,
+    RuntimeInvocationEnvelope,
 };
 
 pub(crate) async fn read_chat_streaming_response<F>(
