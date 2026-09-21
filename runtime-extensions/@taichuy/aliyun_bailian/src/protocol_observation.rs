@@ -7,6 +7,65 @@ use std::{
 };
 use tokio::sync::mpsc;
 
+/// This permissive outer envelope is compatible with old stdio hosts and providers.
+/// The strict business input schema stays unchanged.
+#[derive(serde::Deserialize)]
+pub(crate) struct StdioRequestWire {
+    method: String,
+    #[serde(default)]
+    input: serde_json::Value,
+    #[serde(default)]
+    host_capabilities: Vec<String>,
+}
+
+impl From<StdioRequestWire> for crate::ProviderStdioRequest {
+    fn from(mut wire: StdioRequestWire) -> Self {
+        if let Some(input) = wire.input.as_object_mut() {
+            // Never accept business-input claims about what the surrounding host supports.
+            input.remove("host_capabilities");
+            if wire.method == "invoke"
+                && matches!(
+                    input.get("operation").and_then(serde_json::Value::as_str),
+                    None | Some("generate")
+                )
+                && wire
+                    .host_capabilities
+                    .iter()
+                    .any(|capability| capability == "protocol_observation_v1")
+            {
+                input.insert(
+                    "host_capabilities".into(),
+                    serde_json::json!(["protocol_observation_v1"]),
+                );
+            }
+        }
+        Self {
+            method: wire.method,
+            input: wire.input,
+        }
+    }
+}
+
+/// Only the stdio decoder injects this temporary marker for the trusted streaming entry.
+pub(crate) fn enabled(input: &serde_json::Value) -> bool {
+    input
+        .get("host_capabilities")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|capabilities| {
+            capabilities
+                .iter()
+                .any(|capability| capability.as_str() == Some("protocol_observation_v1"))
+        })
+}
+
+pub(crate) fn take_enabled(input: &mut serde_json::Value) -> bool {
+    let enabled = enabled(input);
+    if let Some(input) = input.as_object_mut() {
+        input.remove("host_capabilities");
+    }
+    enabled
+}
+
 type EventSink = Box<dyn FnMut(&ProviderStreamEvent) -> Result<()> + Send>;
 struct Context {
     protocol: Mutex<String>,

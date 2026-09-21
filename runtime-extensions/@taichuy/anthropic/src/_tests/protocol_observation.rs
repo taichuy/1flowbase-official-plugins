@@ -115,3 +115,44 @@ async fn failed_transport_never_claims_complete_and_split_utf8_is_lossless() {
     assert_eq!(body, "5Lg=");
     assert_eq!(kind, "response_body");
 }
+
+#[test]
+fn temporary_marker_requires_explicit_capability() {
+    use serde_json::json;
+    for input in [
+        json!({}),
+        json!({"host_capabilities": null}),
+        json!({"host_capabilities": "protocol_observation_v1"}),
+        json!({"host_capabilities": ["other_future_capability"]}),
+        json!({"run_context": {"host_capabilities": ["protocol_observation_v1"]}}),
+        json!({"required_capabilities": ["protocol_observation_v1"]}),
+        json!({"native_transport": {"wire_body": {"host_capabilities": ["protocol_observation_v1"]}}}),
+    ] {
+        assert!(!enabled(&input));
+    }
+    assert!(enabled(
+        &json!({"host_capabilities": ["other_future_capability", "protocol_observation_v1"]})
+    ));
+}
+
+#[test]
+fn stdio_negotiation_ignores_input_spoof_and_strips_marker_before_typed_input() {
+    use serde_json::json;
+    let supplied = json!({"model": "fixture", "host_capabilities": ["protocol_observation_v1"]});
+    let legacy: crate::ProviderStdioRequest = serde_json::from_value(json!({
+        "method":"invoke", "input": supplied,
+    }))
+    .unwrap();
+    assert!(!enabled(&legacy.input));
+    let mut current: crate::ProviderStdioRequest = serde_json::from_value(json!({
+        "method":"invoke", "host_capabilities":["protocol_observation_v1"], "input": supplied,
+    }))
+    .unwrap();
+    assert!(take_enabled(&mut current.input));
+    assert_eq!(current.input, json!({"model":"fixture"}));
+    assert!(!take_enabled(&mut current.input));
+    let unary: crate::ProviderStdioRequest = serde_json::from_value(json!({
+        "method":"invoke", "host_capabilities":["protocol_observation_v1"], "input":{"operation":"compact"},
+    })).unwrap();
+    assert!(!enabled(&unary.input));
+}

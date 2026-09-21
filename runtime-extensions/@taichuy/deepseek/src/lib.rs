@@ -42,6 +42,7 @@ const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
 const JSON_CHAT_COMPLETION_PARAMETERS: &[&str] = &["stop", "tool_choice", "tools"];
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(from = "protocol_observation::StdioRequestWire")]
 pub struct ProviderStdioRequest {
     pub method: String,
     #[serde(default)]
@@ -529,6 +530,15 @@ pub async fn handle_invoke_request_streaming<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let mut input = input;
+    let observation_enabled = protocol_observation::take_enabled(&mut input);
+    if !observation_enabled {
+        return {
+            let input: ProviderInvocationInput = serde_json::from_value(input)?;
+            let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
+            Ok(output.result)
+        };
+    }
     let protocol = input
         .get("protocol")
         .and_then(Value::as_str)
@@ -2547,12 +2557,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn legacy_host_keeps_generate_events_without_protocol_observations() {
+        let (base_url, capture_handle) = capture_streaming_chat_request();
+        let mut events = Vec::new();
+        let result = handle_invoke_request_streaming(
+            json!({
+                "contract_version": "1flowbase.provider/v2",
+                "provider_instance_id": "provider-test", "provider_code": "deepseek",
+                "protocol": "deepseek", "model": "deepseek-v4-pro",
+                "provider_config": {"base_url": base_url, "api_key": "test-key"},
+                "system": [{"type": "text", "text": "Be concise"}],
+                "messages": [{"role": "user", "content": "hello"}],
+                "model_parameters": {"reasoning": {"mode": "adaptive", "effort": "high"}}
+            }),
+            |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+        )
+        .await;
+        assert!(result.is_ok());
+        assert!(!events.is_empty());
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, ProviderStreamEvent::ProtocolObservation { .. })));
+        let request = capture_handle.join().unwrap();
+        assert!(!request.contains("host_capabilities"));
+    }
+
+    #[tokio::test]
     async fn ac_002_fake_upstream_receives_exact_generate_wire_and_maps_sse() {
         let (base_url, capture_handle) = capture_streaming_chat_request();
         let mut events = Vec::new();
 
         let result = handle_invoke_request_streaming(
             json!({
+                "host_capabilities": ["protocol_observation_v1"],
                 "contract_version": "1flowbase.provider/v2",
                 "provider_instance_id": "provider-test",
                 "provider_code": "deepseek",
@@ -2594,6 +2634,7 @@ mod tests {
             })
             .expect("actual serialized provider request observation");
         assert_eq!(observed_request, captured_body);
+        assert!(captured_body.get("host_capabilities").is_none());
         assert!(events.iter().any(|event| matches!(event,
             ProviderStreamEvent::ProtocolObservation { kind, .. } if kind == "stream_end")));
         assert!(!serde_json::to_string(&events).unwrap().contains("test-key"));

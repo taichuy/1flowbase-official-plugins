@@ -69,6 +69,7 @@ const PASSTHROUGH_DASHSCOPE_PARAMETERS: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(from = "protocol_observation::StdioRequestWire")]
 pub struct ProviderStdioRequest {
     pub method: String,
     #[serde(default)]
@@ -525,6 +526,15 @@ pub async fn handle_invoke_request_streaming<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
+    let mut input = input;
+    let observation_enabled = protocol_observation::take_enabled(&mut input);
+    if !observation_enabled {
+        return {
+            let input: ProviderInvocationInput = serde_json::from_value(input)?;
+            let output = invoke_with_event_sink(input, on_event).await?;
+            Ok(output.result)
+        };
+    }
     let protocol = input
         .get("protocol")
         .and_then(Value::as_str)
