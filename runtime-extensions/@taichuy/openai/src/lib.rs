@@ -4107,7 +4107,7 @@ fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
 
 async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
     let payload = serde_json::to_string(body)?;
-    protocol_observation::record("websocket", "sent", "request", payload.as_bytes(), None);
+    protocol_observation::record("websocket", "prepared", "request_prepared", payload.as_bytes(), None);
     session.stream.send(Message::Text(payload.into())).await
 }
 

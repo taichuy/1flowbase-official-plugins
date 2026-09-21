@@ -3,6 +3,9 @@ import { fileURLToPath } from 'node:url';
 
 const MANIFEST_PATH_PATTERN = /^runtime-extensions\/@taichuy\/([^/]+)\/manifest\.yaml$/;
 const PROVIDER_PATH_PATTERN = /^runtime-extensions\/@taichuy\/([^/]+)\/(.+)$/;
+const OBSERVATION_CONSUMERS = ['openai', 'openai_compatible', 'anthropic', 'gemini', 'deepseek', 'aliyun_bailian', 'chatgpt-codex'];
+const observationSdkInput = (path) => path.startsWith('sdk/provider-observation/') && !path.includes('/target/');
+
 const NON_PACKAGE_PATH_PATTERN = /^(?:readme|demo|tests|target)\//;
 
 function providerPackageInput(path) {
@@ -53,7 +56,7 @@ export function detectVersionReleases(changes) {
   const affectedProviders = new Set(
     changes.flatMap(({ path }) => {
       const match = path.match(PROVIDER_PATH_PATTERN);
-      return match && providerPackageInput(path) ? [match[1]] : [];
+      return observationSdkInput(path) ? OBSERVATION_CONSUMERS : match && providerPackageInput(path) ? [match[1]] : [];
     })
   );
   const manifestChanges = new Map(
@@ -71,6 +74,9 @@ export function detectVersionReleases(changes) {
       const nextVersion = parseManifestVersion(afterContent);
 
       if (!nextVersion) {
+        if (changes.some(({ path }) => observationSdkInput(path))) {
+          throw new Error(`provider_version_bump_required: shared observation SDK changed without manifest version for ${providerCode}`);
+        }
         return [];
       }
       if (!isPublishableRuntimeManifest(afterContent)) {
@@ -121,6 +127,7 @@ function listChangedProviderPaths(baseRef, headRef) {
       headRef,
       '--',
       'runtime-extensions/@taichuy',
+    'sdk/provider-observation',
     ]);
 
     return output ? output.split('\n').filter(Boolean) : [];
@@ -133,10 +140,11 @@ function listChangedProviderPaths(baseRef, headRef) {
     headRef,
     '--',
     'runtime-extensions/@taichuy',
+    'sdk/provider-observation',
   ]);
   return output
     .split('\n')
-    .filter((path) => providerPackageInput(path));
+    .filter((path) => providerPackageInput(path) || observationSdkInput(path));
 }
 
 function readFileAtRef(ref, path) {
@@ -156,7 +164,7 @@ export function detectVersionReleasesBetweenRefs(baseRef, headRef) {
   const providerCodes = new Set(
     changedPaths.flatMap((path) => {
       const match = path.match(PROVIDER_PATH_PATTERN);
-      return match && providerPackageInput(path) ? [match[1]] : [];
+      return observationSdkInput(path) ? OBSERVATION_CONSUMERS : match && providerPackageInput(path) ? [match[1]] : [];
     })
   );
   const manifestChanges = [...providerCodes].map((providerCode) => {

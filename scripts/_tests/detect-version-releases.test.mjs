@@ -169,3 +169,14 @@ version: 1.0.0
     },
   ]);
 });
+
+test('shared observation SDK requires a manifest bump for every consumer', () => {
+  assert.throws(() => detectVersionReleases([{ path: 'sdk/provider-observation/src/lib.rs' }]), /provider_version_bump_required/);
+  const consumers = ['openai', 'openai_compatible', 'anthropic', 'gemini', 'deepseek', 'aliyun_bailian', 'chatgpt-codex'];
+  const changes = [{ path: 'sdk/provider-observation/src/lib.rs' }, ...consumers.map((provider) => ({
+    path: `runtime-extensions/@taichuy/${provider}/manifest.yaml`, beforeContent: 'version: 1.0.0', afterContent: 'version: 1.0.1',
+  }))];
+  assert.equal(detectVersionReleases(changes).length, 7);
+  changes[1].afterContent = changes[1].beforeContent;
+  assert.throws(() => detectVersionReleases(changes), /provider_version_bump_required/);
+});

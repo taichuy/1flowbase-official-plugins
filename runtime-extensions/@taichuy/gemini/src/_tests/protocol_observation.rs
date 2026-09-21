@@ -1,4 +1,6 @@
 use super::*;
+use crate::ProviderStreamEvent;
+use anyhow::Result;
 use futures_util::StreamExt;
 use std::io::{Read, Write};
 
@@ -68,8 +70,8 @@ async fn records_actual_serialized_http_and_sse_without_credentials() {
         {
             assert_eq!(protocol, "openai.responses");
             assert_eq!(encoding, "utf8");
-            if kind == "request" {
-                assert_eq!(direction, "sent");
+            if kind == "request_prepared" {
+                assert_eq!(direction, "prepared");
                 assert_eq!(observed, body);
                 saw_request = true;
             }

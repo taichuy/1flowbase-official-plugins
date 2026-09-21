@@ -92,7 +92,7 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
         .expect("native tool turn");
         assert!(events.iter().any(|event| matches!(event,
             ProviderStreamEvent::ProtocolObservation { transport, direction, kind, body, .. }
-                if transport == "websocket" && direction == "sent" && kind == "request"
+                if transport == "websocket" && direction == "prepared" && kind == "request_prepared"
                     && serde_json::from_str::<Value>(body).unwrap()["type"] == "response.create"
         )));
         assert!(events.iter().any(|event| matches!(event,
