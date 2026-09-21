@@ -840,10 +840,15 @@ async fn empty_added_proxy_failure_delegates_and_logical_retry_has_no_abandoned_
     assert!(diagnostic["semantic_event_kind"].is_null());
     assert_eq!(diagnostic["buffered_scaffold_events"], 1);
     assert!(diagnostic["buffered_scaffold_bytes"].as_u64().unwrap() > 0);
-    // The caller accepts the logical retry grant. The provider must not silently
-    // reconnect on its own when no route authorizes a same-epoch retry.
+    // The caller accepts the logical retry grant and advances the closed physical
+    // generation; this is a new invocation, not a provider same-epoch reconnect.
+    let mut retry_input = visibility_native_input(&base);
+    retry_input
+        .run_context
+        .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
+        .unwrap()["generation"] = json!(10);
     let output = runtime
-        .invoke_response_with_event_sink(visibility_native_input(&base), |event| {
+        .invoke_response_with_event_sink(retry_input, |event| {
             emitted.push(event.clone());
             Ok(())
         })
@@ -992,4 +997,39 @@ async fn codex_control_metadata_before_proxy_close_does_not_commit_inference() {
         );
         assert_no_replacement_connection(server);
     }
+}
+
+#[tokio::test]
+async fn final_websocket_failure_piggybacks_real_local_release_and_rejects_same_generation() {
+    let (base_url, upstream) = start_closing_websocket(false, false);
+    let input = managed_closing_input(&base_url, 1);
+    let mut runtime = OpenAiProviderRuntime::default();
+    let error = runtime.invoke_response(input.clone()).await.unwrap_err();
+    assert_safe_terminal(&error, "budget_exhausted");
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    let proof = &typed.provider_details.as_ref().unwrap()[TRANSPORT_SESSION_RECEIPT_METADATA_KEY];
+    assert_eq!(proof["physical_state"], "closed");
+    assert_eq!(proof["ttl_remaining_ms"], 0);
+    assert_eq!(
+        proof["closure_evidence"]["source"],
+        "provider_local_release"
+    );
+    assert_eq!(proof["closure_evidence"]["local_released"], true);
+    assert_eq!(
+        proof["closure_evidence"]["identity"],
+        json!({
+            "logical_session_id":"logical-fixture", "generation":9, "worker_incarnation":1,
+        })
+    );
+    assert!(runtime.websocket_sessions.is_empty());
+    assert_eq!(
+        typed.failure_metadata()[TRANSPORT_SESSION_RECEIPT_METADATA_KEY],
+        *proof
+    );
+    let rejected = runtime.invoke_response(input).await.unwrap_err();
+    assert!(
+        rejected.to_string().contains("closed")
+            || rejected.downcast_ref::<ProviderRuntimeError>().is_some()
+    );
+    assert_no_replacement_connection(upstream);
 }

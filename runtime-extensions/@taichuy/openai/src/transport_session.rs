@@ -93,6 +93,7 @@ pub(crate) enum PhysicalTransportState {
 pub(crate) enum TransportSessionCloseReason {
     RequestedDrain,
     RequestedClose,
+    TransportFault,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -230,6 +231,7 @@ impl ProviderRuntimeError {
             for key in [
                 recovery::RECOVERY_RECEIPT_METADATA_KEY,
                 INVOCATION_TIMING_RECEIPT_METADATA_KEY,
+                TRANSPORT_SESSION_RECEIPT_METADATA_KEY,
             ] {
                 if let Some(value) = details.get(key) {
                     metadata.insert(key.to_string(), value.clone());

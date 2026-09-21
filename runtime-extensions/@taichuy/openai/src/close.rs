@@ -121,6 +121,30 @@ impl CloseLedger {
         command: &TransportSessionCommand,
         now: Instant,
     ) -> Option<TransportSessionReceipt> {
+        self.complete_with_reason(
+            identity,
+            match command.action {
+                TransportSessionAction::Drain => TransportSessionCloseReason::RequestedDrain,
+                TransportSessionAction::Close => TransportSessionCloseReason::RequestedClose,
+            },
+            now,
+        )
+    }
+
+    pub fn complete_failure(
+        &mut self,
+        identity: &CloseIdentity,
+        now: Instant,
+    ) -> Option<TransportSessionReceipt> {
+        self.complete_with_reason(identity, TransportSessionCloseReason::TransportFault, now)
+    }
+
+    fn complete_with_reason(
+        &mut self,
+        identity: &CloseIdentity,
+        close_reason: TransportSessionCloseReason,
+        now: Instant,
+    ) -> Option<TransportSessionReceipt> {
         let entry = self.entries.get_mut(identity)?;
         if entry.active {
             return None;
@@ -146,10 +170,7 @@ impl CloseLedger {
                 .unwrap_or(u64::MAX)
                 .min(86_400_000),
             ttl_remaining_ms: 0,
-            close_reason: Some(match command.action {
-                TransportSessionAction::Drain => TransportSessionCloseReason::RequestedDrain,
-                TransportSessionAction::Close => TransportSessionCloseReason::RequestedClose,
-            }),
+            close_reason: Some(close_reason),
             close_acknowledged: ack,
             closure_evidence: Some(ClosureEvidence {
                 source: "provider_local_release",
@@ -164,6 +185,43 @@ impl CloseLedger {
         Some(receipt)
     }
 }
+impl OpenAiProviderRuntime {
+    /// Only the outer invocation outcome closes the generation. Individual socket
+    /// failures inside the retry loop must remain eligible for same-epoch reconnect.
+    pub(crate) fn attach_final_closure(
+        &mut self,
+        identity: Option<&CloseIdentity>,
+        error: anyhow::Error,
+    ) -> anyhow::Error {
+        let Some(identity) = identity else {
+            return error;
+        };
+        if self.close_worker_incarnation != Some(identity.worker_incarnation) {
+            return error;
+        }
+        let Some(mut runtime_error) = error.downcast_ref::<ProviderRuntimeError>().cloned() else {
+            return error;
+        };
+        let Some(receipt) = self
+            .close_ledger
+            .complete_failure(identity, self.websocket_clock.now())
+        else {
+            return error;
+        };
+        let Ok(value) = serde_json::to_value(receipt) else {
+            return error;
+        };
+        let details = runtime_error
+            .provider_details
+            .get_or_insert_with(|| json!({}));
+        let Some(details) = details.as_object_mut() else {
+            return error;
+        };
+        details.insert(TRANSPORT_SESSION_RECEIPT_METADATA_KEY.into(), value);
+        anyhow::Error::new(runtime_error)
+    }
+}
+
 pub(crate) fn missing_receipt(command: &TransportSessionCommand) -> TransportSessionReceipt {
     TransportSessionReceipt {
         generation: command.generation,

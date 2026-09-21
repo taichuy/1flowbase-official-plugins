@@ -1395,6 +1395,24 @@ impl OpenAiProviderRuntime {
     async fn invoke_response_with_event_sink<F>(
         &mut self,
         input: ProviderInvocationInput,
+        on_event: F,
+    ) -> Result<RuntimeInvocationEnvelope>
+    where
+        F: FnMut(&ProviderStreamEvent) -> Result<()>,
+    {
+        let identity = transport_session_directive(&input)
+            .ok()
+            .flatten()
+            .as_ref()
+            .and_then(close::CloseIdentity::directive);
+        self.invoke_response_with_recovery(input, on_event)
+            .await
+            .map_err(|error| self.attach_final_closure(identity.as_ref(), error))
+    }
+
+    async fn invoke_response_with_recovery<F>(
+        &mut self,
+        input: ProviderInvocationInput,
         mut on_event: F,
     ) -> Result<RuntimeInvocationEnvelope>
     where

@@ -323,3 +323,76 @@ async fn autonomous_cleanup_keeps_release_evidence_for_later_control_without_sec
     );
     assert_eq!(peer.await.unwrap(), 1);
 }
+
+#[test]
+fn final_failure_evidence_preserves_error_and_fences_only_released_generation() {
+    let now = Instant::now();
+    let id = identity("final-failure", 1);
+    let mut runtime = OpenAiProviderRuntime::default();
+    runtime.close_worker_incarnation = Some(id.worker_incarnation);
+    let primary = ProviderRuntimeError {
+        kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+        message: "original failure".into(),
+        provider_summary: Some("original summary".into()),
+        provider_details: Some(json!({"status":502,"original":{"diagnostic":true}})),
+    };
+    // No ledger entry is not proof of release.
+    let unknown = runtime.attach_final_closure(Some(&id), anyhow::Error::new(primary.clone()));
+    assert_eq!(
+        unknown.downcast_ref::<ProviderRuntimeError>(),
+        Some(&primary)
+    );
+    runtime.close_ledger.reserve(id.clone(), now).unwrap();
+    runtime.close_ledger.activated(&id);
+    let active = runtime.attach_final_closure(Some(&id), anyhow::Error::new(primary.clone()));
+    assert_eq!(
+        active.downcast_ref::<ProviderRuntimeError>(),
+        Some(&primary)
+    );
+    runtime.close_ledger.released(
+        &id,
+        Some(NoAckReason::TransportError),
+        Duration::from_secs(1),
+        now,
+    );
+    // An intermediate failed socket can be replaced in the same logical attempt.
+    runtime.close_ledger.reserve(id.clone(), now).unwrap();
+    runtime.close_ledger.activated(&id);
+    assert!(runtime.close_ledger.completed(&id).is_none());
+    runtime
+        .close_ledger
+        .released(&id, None, Duration::from_secs(2), now);
+    let final_error = runtime.attach_final_closure(Some(&id), anyhow::Error::new(primary.clone()));
+    let typed = final_error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    let mut original = typed.clone();
+    let proof = original
+        .provider_details
+        .as_mut()
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove(TRANSPORT_SESSION_RECEIPT_METADATA_KEY)
+        .unwrap();
+    assert_eq!(original, primary);
+    assert_eq!(proof["physical_state"], "closed");
+    assert_eq!(proof["close_reason"], "transport_fault");
+    assert_eq!(proof["ttl_remaining_ms"], 0);
+    assert_eq!(proof["closure_evidence"]["local_released"], true);
+    assert_eq!(
+        proof["closure_evidence"]["identity"],
+        serde_json::to_value(&id).unwrap()
+    );
+    assert_eq!(
+        proof["close_acknowledged"], false,
+        "later ACK cannot erase a prior missing ACK"
+    );
+    assert_eq!(
+        typed.failure_metadata()[TRANSPORT_SESSION_RECEIPT_METADATA_KEY],
+        proof
+    );
+    assert!(runtime.close_ledger.reserve(id.clone(), now).is_err());
+    assert_eq!(
+        runtime.close_ledger.complete(&id, &command(&id), now),
+        runtime.close_ledger.completed(&id)
+    );
+}
