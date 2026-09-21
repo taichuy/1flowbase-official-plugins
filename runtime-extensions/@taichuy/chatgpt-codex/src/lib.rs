@@ -1,3 +1,5 @@
+mod protocol_observation;
+use protocol_observation::{ObserveRequest, ObserveResponse};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt,
@@ -643,6 +645,16 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
+    ProtocolObservation {
+        protocol: String,
+        transport: String,
+        direction: String,
+        kind: String,
+        body: String,
+        encoding: String,
+        status: Option<u16>,
+    },
+
     NativeEvent {
         protocol: String,
         event: Value,
@@ -971,12 +983,20 @@ impl ChatGptProviderRuntime {
     where
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
-        let input: ProviderInvocationInput = serde_json::from_value(input)?;
-        input.ensure_generate_operation()?;
-        let output = self
-            .invoke_response_with_event_sink(input, on_event)
-            .await?;
-        Ok(output.result)
+        let protocol = input
+            .get("protocol")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_owned();
+        protocol_observation::capture(protocol, on_event, |on_event| async move {
+            let input: ProviderInvocationInput = serde_json::from_value(input)?;
+            input.ensure_generate_operation()?;
+            let output = self
+                .invoke_response_with_event_sink(input, on_event)
+                .await?;
+            Ok(output.result)
+        })
+        .await
     }
 
     async fn invoke_response(
@@ -1395,7 +1415,7 @@ async fn fetch_model_catalog(
         request = request.header("if-none-match", etag);
     }
     let response = request
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
     if response.status() == reqwest::StatusCode::NOT_MODIFIED {
@@ -1412,7 +1432,7 @@ async fn fetch_model_catalog(
         .and_then(|value| value.to_str().ok())
         .filter(|value| !value.trim().is_empty())
         .map(ToOwned::to_owned);
-    let payload = parse_json_response_text(&response.text().await?)?;
+    let payload = parse_json_response_text(&response.observed_text().await?)?;
     Ok(ModelCatalogFetch::Fresh {
         models: normalize_model_entries(&payload)?,
         etag,
@@ -1466,7 +1486,7 @@ async fn request_json_with_protocol_context(
         request = request.json(&body);
     }
     let response = request
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
     let status = response.status();
@@ -1475,7 +1495,7 @@ async fn request_json_with_protocol_context(
             .await?
             .into());
     }
-    let text = response.text().await?;
+    let text = response.observed_text().await?;
     parse_json_response_text(&text)
 }
 
@@ -1491,7 +1511,7 @@ async fn provider_upstream_error_from_response(
 ) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
-    let raw_body = response.text().await?;
+    let raw_body = response.observed_text().await?;
     Ok(provider_upstream_error_from_parts(
         status, &headers, raw_body,
     ))
@@ -1916,7 +1936,7 @@ where
         )
         .headers(build_stream_headers(config, protocol_context)?)
         .json(&body)
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
     match protocol {
@@ -3122,6 +3142,7 @@ fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
 
 async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
     let payload = serde_json::to_string(body)?;
+    protocol_observation::record("websocket", "sent", "request", payload.as_bytes(), None);
     session
         .stream
         .send(Message::Text(payload.into()))
@@ -3200,6 +3221,13 @@ where
 
         match message {
             Message::Text(payload) => {
+                protocol_observation::record(
+                    "websocket",
+                    "received",
+                    "message",
+                    payload.as_bytes(),
+                    None,
+                );
                 let payload = payload.as_str();
                 if let Some(message) = websocket_error_message(payload) {
                     let error = anyhow!(message);
@@ -3259,7 +3287,10 @@ where
                     visible_output_started || semantic_terminal_failure_seen,
                 ));
             }
-            Message::Binary(_) | Message::Frame(_) => {}
+            Message::Binary(payload) => {
+                protocol_observation::record("websocket", "received", "message", &payload, None);
+            }
+            Message::Frame(_) => {}
         }
     }
 
@@ -3435,11 +3466,14 @@ where
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
     let mut size_guard = SseEventSizeGuard::default();
-    let raw_stream = response.bytes_stream().map(move |chunk| {
-        let chunk = chunk.map_err(anyhow::Error::from)?;
-        size_guard.observe(&chunk)?;
-        Ok::<_, anyhow::Error>(chunk)
-    });
+    let raw_stream = response
+        .bytes_stream()
+        .inspect(protocol_observation::observe_chunk)
+        .map(move |chunk| {
+            let chunk = chunk.map_err(anyhow::Error::from)?;
+            size_guard.observe(&chunk)?;
+            Ok::<_, anyhow::Error>(chunk)
+        });
     let mut stream = raw_stream.eventsource();
     while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await
@@ -3645,11 +3679,14 @@ where
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
     let mut size_guard = SseEventSizeGuard::default();
-    let raw_stream = response.bytes_stream().map(move |chunk| {
-        let chunk = chunk.map_err(anyhow::Error::from)?;
-        size_guard.observe(&chunk)?;
-        Ok::<_, anyhow::Error>(chunk)
-    });
+    let raw_stream = response
+        .bytes_stream()
+        .inspect(protocol_observation::observe_chunk)
+        .map(move |chunk| {
+            let chunk = chunk.map_err(anyhow::Error::from)?;
+            size_guard.observe(&chunk)?;
+            Ok::<_, anyhow::Error>(chunk)
+        });
     let mut stream = raw_stream.eventsource();
     while let Some(event) = tokio::time::timeout(STREAM_IDLE_TIMEOUT, stream.next())
         .await

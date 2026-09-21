@@ -1,3 +1,5 @@
+mod protocol_observation;
+use protocol_observation::{ObserveRequest, ObserveResponse};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
@@ -464,13 +466,38 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
-    TextDelta { delta: String },
-    ReasoningDelta { delta: String },
-    ToolCallDelta { call_id: String, delta: Value },
-    ToolCallCommit { call: ProviderToolCall },
-    UsageSnapshot { usage: ProviderUsage },
-    Finish { reason: ProviderFinishReason },
-    Error { error: ProviderRuntimeError },
+    ProtocolObservation {
+        protocol: String,
+        transport: String,
+        direction: String,
+        kind: String,
+        body: String,
+        encoding: String,
+        status: Option<u16>,
+    },
+
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    Error {
+        error: ProviderRuntimeError,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -636,9 +663,17 @@ pub async fn handle_invoke_request_streaming<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let input: ProviderInvocationInput = serde_json::from_value(input)?;
-    let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
-    Ok(output.result)
+    let protocol = input
+        .get("protocol")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown")
+        .to_owned();
+    protocol_observation::capture(protocol, on_event, |on_event| async move {
+        let input: ProviderInvocationInput = serde_json::from_value(input)?;
+        let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
+        Ok(output.result)
+    })
+    .await
 }
 
 fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
@@ -1137,13 +1172,13 @@ async fn send_provider_request(
     }
 
     request
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_error(error, config))
 }
 
 async fn read_json_response(response: reqwest::Response) -> Result<Value> {
-    let text = response.text().await?;
+    let text = response.observed_text().await?;
     if text.trim().is_empty() {
         return Ok(json!({}));
     }
@@ -1155,7 +1190,7 @@ async fn provider_upstream_error_from_response(
 ) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
-    let raw_body = response.text().await?;
+    let raw_body = response.observed_text().await?;
     Ok(provider_upstream_error_from_parts(
         status, &headers, raw_body,
     ))
@@ -1638,11 +1673,14 @@ where
     }
 
     let mut size_guard = SseEventSizeGuard::default();
-    let raw_stream = response.bytes_stream().map(move |chunk| {
-        let chunk = chunk.map_err(anyhow::Error::from)?;
-        size_guard.observe(&chunk)?;
-        Ok::<_, anyhow::Error>(chunk)
-    });
+    let raw_stream = response
+        .bytes_stream()
+        .inspect(protocol_observation::observe_chunk)
+        .map(move |chunk| {
+            let chunk = chunk.map_err(anyhow::Error::from)?;
+            size_guard.observe(&chunk)?;
+            Ok::<_, anyhow::Error>(chunk)
+        });
     let mut stream = raw_stream.eventsource();
     let mut events = Vec::new();
     let mut text = String::new();

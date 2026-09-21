@@ -120,7 +120,9 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
     P: FnMut(&Value) -> Vec<ProviderStreamEvent>,
 {
-    let mut stream = response.bytes_stream();
+    let mut stream = response
+        .bytes_stream()
+        .inspect(protocol_observation::observe_chunk);
     let mut buffer = String::new();
     while let Some(chunk) = stream.next().await {
         buffer.push_str(&String::from_utf8_lossy(&chunk?));

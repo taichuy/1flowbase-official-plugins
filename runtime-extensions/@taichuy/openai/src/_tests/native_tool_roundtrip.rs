@@ -79,16 +79,30 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
         };
         let mut runtime = OpenAiProviderRuntime::default();
         let mut events = Vec::new();
-        let first = runtime
-            .invoke_response_with_event_sink(
-                make_input(json!({"input":[{"type":"additional_tools","tools":[]}]})),
-                |event| {
-                    events.push(event.clone());
-                    Ok(())
-                },
-            )
-            .await
-            .expect("native tool turn");
+        let first_input = make_input(json!({"input":[{"type":"additional_tools","tools":[]}]}));
+        let first = protocol_observation::capture(
+            "openai.responses".into(),
+            |event| {
+                events.push(event.clone());
+                Ok(())
+            },
+            |sink| runtime.invoke_response_with_event_sink(first_input, sink),
+        )
+        .await
+        .expect("native tool turn");
+        assert!(events.iter().any(|event| matches!(event,
+            ProviderStreamEvent::ProtocolObservation { transport, direction, kind, body, .. }
+                if transport == "websocket" && direction == "sent" && kind == "request"
+                    && serde_json::from_str::<Value>(body).unwrap()["type"] == "response.create"
+        )));
+        assert!(events.iter().any(|event| matches!(event,
+            ProviderStreamEvent::ProtocolObservation { transport, direction, kind, body, .. }
+                if transport == "websocket" && direction == "received" && kind == "message"
+                    && serde_json::from_str::<Value>(body).unwrap()["type"] == "response.completed"
+        )));
+        assert!(!serde_json::to_string(&events)
+            .unwrap()
+            .contains("fixture-key"));
         assert_eq!(first.result.response_id.as_deref(), Some("resp_1"));
         let items: Vec<_> = events
             .iter()

@@ -1,3 +1,5 @@
+mod protocol_observation;
+use protocol_observation::{ObserveRequest, ObserveResponse};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
@@ -535,14 +537,41 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
-    TextDelta { delta: String },
-    ReasoningDelta { delta: String },
-    ReasoningSignatureDelta { signature: String },
-    ToolCallDelta { call_id: String, delta: Value },
-    ToolCallCommit { call: ProviderToolCall },
-    UsageSnapshot { usage: ProviderUsage },
-    Finish { reason: ProviderFinishReason },
-    Error { error: ProviderRuntimeError },
+    ProtocolObservation {
+        protocol: String,
+        transport: String,
+        direction: String,
+        kind: String,
+        body: String,
+        encoding: String,
+        status: Option<u16>,
+    },
+
+    TextDelta {
+        delta: String,
+    },
+    ReasoningDelta {
+        delta: String,
+    },
+    ReasoningSignatureDelta {
+        signature: String,
+    },
+    ToolCallDelta {
+        call_id: String,
+        delta: Value,
+    },
+    ToolCallCommit {
+        call: ProviderToolCall,
+    },
+    UsageSnapshot {
+        usage: ProviderUsage,
+    },
+    Finish {
+        reason: ProviderFinishReason,
+    },
+    Error {
+        error: ProviderRuntimeError,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -659,9 +688,17 @@ pub async fn handle_invoke_request_streaming<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let input: ProviderInvocationInput = serde_json::from_value(input)?;
-    let output = invoke_message_with_event_sink(input, on_event).await?;
-    Ok(output.result)
+    let protocol = input
+        .get("protocol")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown")
+        .to_owned();
+    protocol_observation::capture(protocol, on_event, |on_event| async move {
+        let input: ProviderInvocationInput = serde_json::from_value(input)?;
+        let output = invoke_message_with_event_sink(input, on_event).await?;
+        Ok(output.result)
+    })
+    .await
 }
 
 fn static_models() -> Vec<ProviderModelDescriptor> {
@@ -1162,7 +1199,7 @@ async fn request_json_with_query(
     let response = build_http_client(config)?
         .request(method, build_url_with_query(config, pathname, query)?)
         .headers(build_headers(config, None, false)?)
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_reqwest_error(error, config))?;
     let status = response.status();
@@ -1176,7 +1213,7 @@ async fn request_json_with_query(
 }
 
 async fn read_json_response(response: reqwest::Response) -> Result<Value> {
-    let text = response.text().await?;
+    let text = response.observed_text().await?;
     if text.trim().is_empty() {
         return Ok(json!({}));
     }
@@ -1188,7 +1225,7 @@ async fn provider_upstream_error_from_response(
 ) -> Result<ProviderRuntimeError> {
     let status = response.status();
     let headers = response.headers().clone();
-    let raw_body = response.text().await?;
+    let raw_body = response.observed_text().await?;
     Ok(provider_upstream_error_from_parts(
         status, &headers, raw_body,
     ))
@@ -1307,7 +1344,7 @@ async fn count_message_tokens(
         .request(Method::POST, url)
         .headers(headers)
         .json(&body)
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_reqwest_error(error, &config))?;
     if !response.status().is_success() {
@@ -1377,7 +1414,7 @@ where
         .request(Method::POST, url)
         .headers(headers)
         .json(&restoration.body)
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_reqwest_error(error, &config))?;
     let mut output = read_streaming_message(
@@ -1959,11 +1996,14 @@ where
     let mut message_id = Value::Null;
     let mut saw_message_stop = false;
     let mut size_guard = SseEventSizeGuard::default();
-    let raw_stream = response.bytes_stream().map(move |chunk| {
-        let chunk = chunk.map_err(anyhow::Error::from)?;
-        size_guard.observe(&chunk)?;
-        Ok::<_, anyhow::Error>(chunk)
-    });
+    let raw_stream = response
+        .bytes_stream()
+        .inspect(protocol_observation::observe_chunk)
+        .map(move |chunk| {
+            let chunk = chunk.map_err(anyhow::Error::from)?;
+            size_guard.observe(&chunk)?;
+            Ok::<_, anyhow::Error>(chunk)
+        });
     let mut stream = raw_stream.eventsource();
     while let Some(event) = stream.next().await {
         let event = event.map_err(|error| anyhow!("invalid Anthropic SSE stream: {error}"))?;

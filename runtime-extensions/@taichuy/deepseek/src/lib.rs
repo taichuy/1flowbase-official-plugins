@@ -1,3 +1,5 @@
+mod protocol_observation;
+use protocol_observation::{ObserveRequest, ObserveResponse};
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -428,6 +430,16 @@ pub struct ProviderInvocationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderStreamEvent {
+    ProtocolObservation {
+        protocol: String,
+        transport: String,
+        direction: String,
+        kind: String,
+        body: String,
+        encoding: String,
+        status: Option<u16>,
+    },
+
     TextDelta {
         delta: String,
     },
@@ -517,9 +529,17 @@ pub async fn handle_invoke_request_streaming<F>(
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
-    let input: ProviderInvocationInput = serde_json::from_value(input)?;
-    let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
-    Ok(output.result)
+    let protocol = input
+        .get("protocol")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown")
+        .to_owned();
+    protocol_observation::capture(protocol, on_event, |on_event| async move {
+        let input: ProviderInvocationInput = serde_json::from_value(input)?;
+        let output = invoke_chat_completion_with_event_sink(input, on_event).await?;
+        Ok(output.result)
+    })
+    .await
 }
 
 async fn validate_provider_config(input: &Value) -> Result<ProviderStdioResponse> {
@@ -739,13 +759,13 @@ async fn request_json(config: &ProviderConfig, pathname: &str, method: Method) -
     let response = client
         .request(method, build_url(config, pathname)?)
         .headers(build_headers(config, None)?)
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_error(error, config))?;
 
     let status = response.status();
     let text = response
-        .text()
+        .observed_text()
         .await
         .map_err(|error| sanitize_error(error, config))?;
     let payload = if text.trim().is_empty() {
@@ -790,7 +810,7 @@ where
             input.client_protocol_envelope.as_ref(),
         )?)
         .json(&body)
-        .send()
+        .send_observed()
         .await
         .map_err(|error| sanitize_error(error, &config))?;
 
@@ -1190,7 +1210,7 @@ where
     let status = response.status();
     if !status.is_success() {
         let text = response
-            .text()
+            .observed_text()
             .await
             .with_context(|| "provider error response was not readable")?;
         let payload = serde_json::from_str::<Value>(&text).unwrap_or(Value::Null);
@@ -1221,7 +1241,9 @@ where
         });
     }
 
-    let mut stream = response.bytes_stream();
+    let mut stream = response
+        .bytes_stream()
+        .inspect(protocol_observation::observe_chunk);
     let mut buffer = String::new();
     let mut events = Vec::new();
     let mut text = String::new();
@@ -2560,6 +2582,21 @@ mod tests {
         let captured_body: Value =
             serde_json::from_str(&capture_handle.join().expect("capture thread should finish"))
                 .expect("captured body should parse");
+        let observed_request = events
+            .iter()
+            .find_map(|event| match event {
+                ProviderStreamEvent::ProtocolObservation { kind, body, .. }
+                    if kind == "request" =>
+                {
+                    Some(serde_json::from_str::<Value>(body).unwrap())
+                }
+                _ => None,
+            })
+            .expect("actual serialized provider request observation");
+        assert_eq!(observed_request, captured_body);
+        assert!(events.iter().any(|event| matches!(event,
+            ProviderStreamEvent::ProtocolObservation { kind, .. } if kind == "stream_end")));
+        assert!(!serde_json::to_string(&events).unwrap().contains("test-key"));
 
         assert_eq!(
             captured_body,
