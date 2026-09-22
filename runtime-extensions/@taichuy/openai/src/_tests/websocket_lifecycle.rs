@@ -1086,10 +1086,17 @@ fn native_complete_history_preserves_empty_prewarm_and_opaque_multi_turn_items()
     changed
         .run_context
         .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
-        .unwrap()["logical_session_id"] = json!("replacement");
+        .unwrap()["generation"] = json!(10);
     assert!(runtime
         .websocket_scoped_retry_body(&config, &changed, None, "turn", &next)
         .is_some());
+    changed
+        .run_context
+        .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
+        .unwrap()["logical_session_id"] = json!("different-host-sealed-logical-session");
+    assert!(runtime
+        .websocket_scoped_retry_body(&config, &changed, None, "turn", &next)
+        .is_none());
 }
 
 #[test]
@@ -1111,7 +1118,7 @@ fn native_history_refuses_unknown_incomplete_evicted_and_oversized_chains() {
     );
     runtime.record_native_websocket_response_chain(
         "large",
-        &json!({"input":[{"content":"x".repeat(1024*1024)}]}),
+        &json!({"input":[{"content":"x".repeat(NATIVE_HISTORY_MAX_ENTRY_BYTES)}]}),
         Some(&[]),
         "scope",
     );
@@ -1126,16 +1133,14 @@ fn native_history_refuses_unknown_incomplete_evicted_and_oversized_chains() {
         Some(&[]),
         "scope",
     );
-    runtime
-        .websocket_chain_inputs_by_response_id
-        .remove("evicted");
+    runtime.evict_websocket_response_history("evicted");
     assert!(runtime
         .websocket_full_context_retry_body("evicted", &json!({"input":[]}))
         .is_none());
 }
 
 #[tokio::test]
-async fn native_completed_prewarm_rebuilds_after_host_session_rotation() {
+async fn native_completed_prewarm_rebuilds_after_host_generation_rotation() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let (sent, received) = mpsc::channel();
@@ -1160,9 +1165,6 @@ async fn native_completed_prewarm_rebuilds_after_host_session_rotation() {
     let mut next = visibility_native_input(&base);
     next.run_context
         .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
-        .unwrap()["logical_session_id"] = json!("replacement-logical-session");
-    next.run_context
-        .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
         .unwrap()["generation"] = json!(10);
     next.native_transport.as_mut().unwrap().wire_body = json!({"model":"fixture-model","previous_response_id":"warm","input":[{"role":"user","content":"after idle rotation"}]});
     let result = runtime.invoke_response(next).await.unwrap();
@@ -1178,4 +1180,63 @@ async fn native_completed_prewarm_rebuilds_after_host_session_rotation() {
         json!([{"role":"user","content":"after idle rotation"}])
     );
     server.join().unwrap();
+}
+
+#[test]
+fn native_history_total_budget_evicts_oldest_and_preserves_latest_complete_chain() {
+    let mut runtime = OpenAiProviderRuntime::default();
+    let large_input = json!({"input":[{"role":"user","content":"x".repeat(7 * 1024 * 1024)}]});
+    for index in 0..5 {
+        runtime.record_native_websocket_response_chain(
+            &format!("history_{index}"),
+            &large_input,
+            Some(&[]),
+            "scope",
+        );
+        assert!(runtime.websocket_native_history_bytes <= NATIVE_HISTORY_MAX_TOTAL_BYTES);
+        assert_eq!(
+            runtime.websocket_native_history_bytes,
+            runtime
+                .websocket_native_history_sizes
+                .values()
+                .sum::<usize>()
+        );
+    }
+    assert!(!runtime
+        .websocket_chain_inputs_by_response_id
+        .contains_key("history_0"));
+    assert!(!runtime
+        .websocket_chain_scopes_by_response_id
+        .contains_key("history_0"));
+    let opaque = json!({"type":"reasoning","encrypted_content":"latest-exact","summary":[]});
+    runtime.record_native_websocket_response_chain(
+        "latest",
+        &json!({"previous_response_id":"history_4","input":[{"role":"user","content":"next"}]}),
+        Some(&[opaque.clone()]),
+        "scope",
+    );
+    let replay = runtime
+        .websocket_full_context_retry_body("latest", &json!({"input":[]}))
+        .unwrap();
+    assert_eq!(replay["input"][0], large_input["input"][0]);
+    assert_eq!(replay["input"][1], json!({"role":"user","content":"next"}));
+    assert_eq!(replay["input"][2], opaque);
+    assert!(runtime.websocket_native_history_bytes <= NATIVE_HISTORY_MAX_TOTAL_BYTES);
+    assert!(!runtime
+        .websocket_chain_inputs_by_response_id
+        .contains_key("history_1"));
+    assert!(!runtime
+        .websocket_chain_scopes_by_response_id
+        .contains_key("history_1"));
+    runtime.evict_websocket_response_history("latest");
+    assert_eq!(
+        runtime.websocket_native_history_bytes,
+        runtime
+            .websocket_native_history_sizes
+            .values()
+            .sum::<usize>()
+    );
+    assert!(!runtime
+        .websocket_chain_scopes_by_response_id
+        .contains_key("latest"));
 }

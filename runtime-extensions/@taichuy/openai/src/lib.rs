@@ -794,6 +794,9 @@ impl fmt::Display for ProviderRuntimeError {
 
 impl std::error::Error for ProviderRuntimeError {}
 
+const NATIVE_HISTORY_MAX_ENTRY_BYTES: usize = 8 * 1024 * 1024;
+const NATIVE_HISTORY_MAX_TOTAL_BYTES: usize = 32 * 1024 * 1024;
+
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
@@ -803,6 +806,9 @@ pub struct OpenAiProviderRuntime {
     websocket_turn_states_by_response_id: HashMap<String, String>,
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
     websocket_chain_scopes_by_response_id: HashMap<String, String>,
+    websocket_native_history_sizes: HashMap<String, usize>,
+    websocket_native_history_order: std::collections::VecDeque<String>,
+    websocket_native_history_bytes: usize,
     websocket_clock: Arc<dyn WebsocketClock>,
     websocket_lifecycle_policy: WebsocketLifecyclePolicy,
     websocket_next_socket_generation: u64,
@@ -840,6 +846,9 @@ impl Default for OpenAiProviderRuntime {
             websocket_turn_states_by_response_id: HashMap::new(),
             websocket_chain_inputs_by_response_id: HashMap::new(),
             websocket_chain_scopes_by_response_id: HashMap::new(),
+            websocket_native_history_sizes: HashMap::new(),
+            websocket_native_history_order: std::collections::VecDeque::new(),
+            websocket_native_history_bytes: 0,
             websocket_clock: Arc::new(SystemWebsocketClock),
             websocket_lifecycle_policy: WebsocketLifecyclePolicy::default(),
             websocket_next_socket_generation: 1,
@@ -2347,8 +2356,7 @@ impl OpenAiProviderRuntime {
                             self.websocket_response_owners.remove(&expired);
                             self.websocket_invalid_associations.remove(&expired);
                             self.websocket_turn_states_by_response_id.remove(&expired);
-                            self.websocket_chain_inputs_by_response_id.remove(&expired);
-                            self.websocket_chain_scopes_by_response_id.remove(&expired);
+                            self.evict_websocket_response_history(&expired);
                         }
                     }
                 }
@@ -2478,14 +2486,44 @@ impl OpenAiProviderRuntime {
         };
         chain.extend(input.iter().cloned());
         chain.extend(output.iter().cloned());
-        // Bound each complete snapshot as well as the existing 1024-entry cache.
-        if serde_json::to_vec(&chain).map_or(true, |bytes| bytes.len() > 1024 * 1024) {
+        // Serialize only the new snapshot. Stored sizes make aggregate eviction O(entries),
+        // without repeatedly serializing every prior conversation snapshot.
+        let Ok(encoded) = serde_json::to_vec(&chain) else {
+            return;
+        };
+        let size = encoded.len();
+        drop(encoded);
+        if size > NATIVE_HISTORY_MAX_ENTRY_BYTES {
             return;
         }
+        self.evict_websocket_response_history(response_id);
+        while self.websocket_native_history_bytes + size > NATIVE_HISTORY_MAX_TOTAL_BYTES {
+            let Some(oldest) = self.websocket_native_history_order.front().cloned() else {
+                return;
+            };
+            self.evict_websocket_response_history(&oldest);
+        }
+        self.websocket_native_history_bytes += size;
+        self.websocket_native_history_sizes
+            .insert(response_id.to_owned(), size);
+        self.websocket_native_history_order
+            .push_back(response_id.to_owned());
         self.websocket_chain_inputs_by_response_id
             .insert(response_id.to_owned(), chain);
         self.websocket_chain_scopes_by_response_id
             .insert(response_id.to_owned(), scope.to_owned());
+    }
+
+    fn evict_websocket_response_history(&mut self, response_id: &str) {
+        self.websocket_chain_inputs_by_response_id
+            .remove(response_id);
+        self.websocket_chain_scopes_by_response_id
+            .remove(response_id);
+        if let Some(size) = self.websocket_native_history_sizes.remove(response_id) {
+            self.websocket_native_history_bytes -= size;
+            self.websocket_native_history_order
+                .retain(|id| id != response_id);
+        }
     }
 
     fn websocket_full_context_retry_body(
@@ -4151,11 +4189,14 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
 }
 
 fn websocket_history_scope(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
+    // Host-sealed logical identity includes workspace/actor and remains stable across
+    // physical generation rotation. Client-provided headers alone are not ownership.
+    let directive = transport_session_directive(input).ok().flatten();
     format!(
         "{}\n{}\n{}",
         input.provider_code,
         input.native_transport.is_some(),
-        websocket_session_key(config, input, None)
+        websocket_session_key(config, input, directive.as_ref())
     )
 }
 
