@@ -1,0 +1,43 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "openai",
+  "upstream_model_id": "gpt-6-sol",
+  "currency_code": "USD",
+  "id": "21000000-0000-4000-8000-000000000105",
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "2",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "10",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.2",
+  "effective_from": "2026-09-23T00:00:00Z",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "extensions": {
+    "price_type": "standard_api",
+    "source": "vendor_published"
+  },
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "2.5",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 272000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "4",
+        "output_token_unit_price": "15",
+        "cache_hit_token_unit_price": "0.4",
+        "cache_write_token_unit_price": "5"
+      }
+    }
+  ]
+}
