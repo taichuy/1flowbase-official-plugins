@@ -366,15 +366,21 @@ impl RecoveryFsm {
 
         let disposition = match facts.signal {
             RecoverySignal::PreviousResponseUnavailable
-                if self.constraints.policy == RecoveryPolicyKind::SemanticMapped
-                    && facts.full_context_available
-                    && !self.full_context_rebuild_used =>
+                if facts.full_context_available && !self.full_context_rebuild_used =>
             {
                 self.full_context_rebuild_used = true;
                 RecoveryDisposition::OneFullContextRebuild
             }
             RecoverySignal::PreviousResponseUnavailable => {
                 RecoveryDisposition::TerminalInterruption
+            }
+            RecoverySignal::TransportDisconnected | RecoverySignal::ProxyFailed
+                if self.constraints.policy == RecoveryPolicyKind::NativeOpaque
+                    && facts.full_context_available
+                    && !self.full_context_rebuild_used =>
+            {
+                self.full_context_rebuild_used = true;
+                RecoveryDisposition::OneFullContextRebuild
             }
             RecoverySignal::TransportDisconnected => match facts.cursor {
                 CursorState::ConnectionBound {
@@ -568,6 +574,51 @@ mod tests {
             machine.decide(facts),
             RecoveryDisposition::TerminalInterruption
         );
+    }
+
+    #[test]
+    fn native_complete_history_rebuild_is_bounded_and_precommit_only() {
+        for signal in [
+            RecoverySignal::PreviousResponseUnavailable,
+            RecoverySignal::TransportDisconnected,
+            RecoverySignal::ProxyFailed,
+        ] {
+            let facts = RecoveryFacts {
+                signal,
+                cursor: CursorState::OpaqueUnowned,
+                full_context_available: true,
+            };
+            let mut machine = fsm(RecoveryPolicyKind::NativeOpaque);
+            machine.begin_attempt().unwrap();
+            assert_eq!(
+                machine.decide(facts),
+                RecoveryDisposition::OneFullContextRebuild
+            );
+            assert_ne!(
+                machine.decide(facts),
+                RecoveryDisposition::OneFullContextRebuild
+            );
+            let mut committed = fsm(RecoveryPolicyKind::NativeOpaque);
+            committed.observe_semantic_event();
+            assert_eq!(
+                committed.decide(facts),
+                RecoveryDisposition::TerminalInterruption
+            );
+            let mut exhausted = fsm(RecoveryPolicyKind::NativeOpaque);
+            while exhausted.begin_attempt().is_ok() {}
+            assert_eq!(
+                exhausted.decide(facts),
+                RecoveryDisposition::TerminalInterruption
+            );
+            let mut unknown = fsm(RecoveryPolicyKind::NativeOpaque);
+            assert_ne!(
+                unknown.decide(RecoveryFacts {
+                    full_context_available: false,
+                    ..facts
+                }),
+                RecoveryDisposition::OneFullContextRebuild
+            );
+        }
     }
 
     #[test]

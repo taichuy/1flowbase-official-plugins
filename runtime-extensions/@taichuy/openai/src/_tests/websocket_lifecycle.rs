@@ -1033,3 +1033,149 @@ async fn final_websocket_failure_piggybacks_real_local_release_and_rejects_same_
     );
     assert_no_replacement_connection(upstream);
 }
+
+#[test]
+fn native_complete_history_preserves_empty_prewarm_and_opaque_multi_turn_items() {
+    let mut runtime = OpenAiProviderRuntime::default();
+    let input = visibility_native_input("https://example.test/v1");
+    let config = normalize_provider_config(&input.provider_config).unwrap();
+    let scope = websocket_history_scope(&config, &input);
+    let empty = completed_native_output(
+        &json!({"type":"response.completed","response":{"status":"completed","output":[]}}),
+    )
+    .unwrap();
+    runtime.record_native_websocket_response_chain(
+        "warm",
+        &json!({"input":[]}),
+        Some(&empty),
+        &scope,
+    );
+    let opaque =
+        json!({"type":"reasoning","id":"rs_1","encrypted_content":"opaque-exact","summary":[]});
+    let turn = json!({"previous_response_id":"warm","input":[{"role":"user","content":"one"}]});
+    runtime.record_native_websocket_response_chain("turn", &turn, Some(&[opaque.clone()]), &scope);
+    let next = json!({"previous_response_id":"turn","input":[{"type":"function_call_output","call_id":"c1","output":"two"}],"store":false});
+    let replay = runtime
+        .websocket_scoped_retry_body(&config, &input, None, "turn", &next)
+        .unwrap();
+    assert!(replay.get("previous_response_id").is_none());
+    assert_eq!(
+        replay["input"],
+        json!([{"role":"user","content":"one"},opaque,{"type":"function_call_output","call_id":"c1","output":"two"}])
+    );
+    assert_eq!(replay["store"], false);
+    let bound: ProviderRecoveryDirective = serde_json::from_value(json!({
+        "policy":{"type":"native_opaque","budget":{"max_inner_attempts":3,"absolute_deadline_unix_ms":4102444800000_i64}},
+        "transport_epoch":19,"initial_commit_level":"lifecycle_only",
+        "cursor_provenance":{"binding":{"type":"connection_bound","transport_epoch":19,"socket_incarnation":1}}
+    })).unwrap();
+    assert!(runtime
+        .websocket_scoped_retry_body(&config, &input, Some(&bound), "turn", &next)
+        .is_none());
+    let mut changed = input.clone();
+    changed.model = "other-model".into();
+    assert!(runtime
+        .websocket_scoped_retry_body(&config, &changed, None, "turn", &next)
+        .is_none());
+    changed = input.clone();
+    changed.provider_instance_id = "other-tenant-provider".into();
+    assert!(runtime
+        .websocket_scoped_retry_body(&config, &changed, None, "turn", &next)
+        .is_none());
+    changed = input.clone();
+    changed
+        .run_context
+        .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
+        .unwrap()["logical_session_id"] = json!("replacement");
+    assert!(runtime
+        .websocket_scoped_retry_body(&config, &changed, None, "turn", &next)
+        .is_some());
+}
+
+#[test]
+fn native_history_refuses_unknown_incomplete_evicted_and_oversized_chains() {
+    let mut runtime = OpenAiProviderRuntime::default();
+    for payload in [
+        json!({"type":"response.incomplete","response":{"output":[]}}),
+        json!({"type":"response.completed","response":{"status":"incomplete","output":[]}}),
+        json!({"type":"response.completed","response":{"status":"completed"}}),
+    ] {
+        assert!(completed_native_output(&payload).is_none());
+    }
+    runtime.record_native_websocket_response_chain("partial", &json!({"input":[]}), None, "scope");
+    runtime.record_native_websocket_response_chain(
+        "orphan",
+        &json!({"previous_response_id":"unknown","input":[]}),
+        Some(&[]),
+        "scope",
+    );
+    runtime.record_native_websocket_response_chain(
+        "large",
+        &json!({"input":[{"content":"x".repeat(1024*1024)}]}),
+        Some(&[]),
+        "scope",
+    );
+    for id in ["unknown", "partial", "orphan", "large"] {
+        assert!(runtime
+            .websocket_full_context_retry_body(id, &json!({"input":[]}))
+            .is_none());
+    }
+    runtime.record_native_websocket_response_chain(
+        "evicted",
+        &json!({"input":[]}),
+        Some(&[]),
+        "scope",
+    );
+    runtime
+        .websocket_chain_inputs_by_response_id
+        .remove("evicted");
+    assert!(runtime
+        .websocket_full_context_retry_body("evicted", &json!({"input":[]}))
+        .is_none());
+}
+
+#[tokio::test]
+async fn native_completed_prewarm_rebuilds_after_host_session_rotation() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let (sent, received) = mpsc::channel();
+    let server = thread::spawn(move || {
+        for id in ["warm", "fresh"] {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+            let body: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
+            sent.send(body).unwrap();
+            ws.send(Message::Text(json!({"type":"response.completed","response":{"id":id,"status":"completed","output":[]}}).to_string().into())).unwrap();
+        }
+    });
+    let mut runtime = OpenAiProviderRuntime::default();
+    let mut warm = visibility_native_input(&base);
+    warm.native_transport.as_mut().unwrap().wire_body =
+        json!({"model":"fixture-model","input":[],"generate":false});
+    let result = runtime.invoke_response(warm).await.unwrap();
+    assert_eq!(result.result.response_id.as_deref(), Some("warm"));
+    let mut next = visibility_native_input(&base);
+    next.run_context
+        .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
+        .unwrap()["logical_session_id"] = json!("replacement-logical-session");
+    next.run_context
+        .get_mut(TRANSPORT_SESSION_CONTEXT_KEY)
+        .unwrap()["generation"] = json!(10);
+    next.native_transport.as_mut().unwrap().wire_body = json!({"model":"fixture-model","previous_response_id":"warm","input":[{"role":"user","content":"after idle rotation"}]});
+    let result = runtime.invoke_response(next).await.unwrap();
+    assert_eq!(result.result.response_id.as_deref(), Some("fresh"));
+    assert_eq!(
+        received.recv_timeout(Duration::from_secs(5)).unwrap()["generate"],
+        false
+    );
+    let rebuilt = received.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert!(rebuilt.get("previous_response_id").is_none());
+    assert_eq!(
+        rebuilt["input"],
+        json!([{"role":"user","content":"after idle rotation"}])
+    );
+    server.join().unwrap();
+}
