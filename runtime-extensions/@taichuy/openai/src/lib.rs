@@ -4320,20 +4320,6 @@ async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Val
     session.stream.send(Message::Text(payload.into())).await
 }
 
-async fn send_websocket_response_processed(
-    session: &mut ResponsesWebsocketSession,
-    response_id: &str,
-) -> Result<()> {
-    send_websocket_json(
-        session,
-        &json!({
-            "type": "response.processed",
-            "response_id": response_id,
-        }),
-    )
-    .await
-}
-
 async fn read_websocket_response<F>(
     session: &mut ResponsesWebsocketSession,
     request_body: &mut Value,
@@ -4514,20 +4500,6 @@ where
         on_event,
     )
     .map_err(WebsocketInvocationError::fallback_blocked)?;
-    if let Some(response_id) = output
-        .result
-        .response_id
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-    {
-        if input.native_transport.is_none()
-            && send_websocket_response_processed(session, response_id)
-                .await
-                .is_err()
-        {
-            session_reusable = false;
-        }
-    }
     activity.complete();
     Ok(WebsocketResponseOutput {
         completed_output,

@@ -42,7 +42,7 @@ Native 1flowbase tool calls are converted inside the plugin to Responses `functi
 
 The runtime also forwards Codex-style Responses fields when the host passes them through the provider invocation contract: `parallel_tool_calls`, `include`, `service_tier`, `prompt_cache_key`, and `metadata`.
 
-Streaming defaults to HTTP SSE. `transport_mode` can explicitly select `responses_websocket` or `auto`; in `auto` mode the runtime tries the Responses WebSocket transport first, keeps the upstream connection inside the provider worker, acknowledges completed responses with `response.processed`, and falls back to HTTP SSE when the WebSocket handshake is unavailable. Continuations that reuse a WebSocket response cursor reconnect WebSocket once instead of downgrading that cursor to HTTP SSE. Both transports use a 5-minute idle timeout, matching Codex's long-running stream posture: active streams can keep flowing, but a silent upstream connection fails instead of hanging forever.
+Streaming defaults to HTTP SSE. `transport_mode` can explicitly select `responses_websocket` or `auto`; in `auto` mode the runtime tries the Responses WebSocket transport first, keeps the upstream connection inside the provider worker, and falls back to HTTP SSE when the WebSocket handshake is unavailable. Continuations that reuse a WebSocket response cursor reconnect WebSocket once instead of downgrading that cursor to HTTP SSE. Both transports use a 5-minute idle timeout, matching Codex's long-running stream posture: active streams can keep flowing, but a silent upstream connection fails instead of hanging forever.
 
 For LLM nodes, the provider registers `use_responses_websocket` as an always-sent boolean parameter. Its default `false` forces HTTP SSE for that node; `true` forces Responses WebSocket. Existing nodes without the parameter retain their provider-instance `transport_mode` behavior.
 
@@ -64,4 +64,4 @@ Static token prices are intentionally omitted; pricing metadata is marked as dyn
    `node ../1flowbase/scripts/node/plugin.js package . --out ./dist --runtime-binary ./target/x86_64-unknown-linux-musl/release/openai-provider --target x86_64-unknown-linux-musl`
 
 Explicit native `responses_websocket` requests fail on WebSocket handshake errors; they never silently create an HTTP response cursor.
-Native WebSocket turns send `response.create` without synthesizing a `response.processed` acknowledgement.
+Semantic and native WebSocket turns send `response.create` without synthesizing a `response.processed` acknowledgement.

@@ -185,23 +185,16 @@ fn start_websocket_function_call_done_then_close_server() -> (String, thread::Jo
             ))
             .expect("first completion should be writable");
 
-        let processed = websocket
-            .read()
-            .expect("response.processed should be readable")
-            .into_text()
-            .expect("response.processed should be text");
-        assert_eq!(
-            serde_json::from_str::<Value>(&processed).expect("response.processed should be JSON"),
-            json!({
-                "type": "response.processed",
-                "response_id": "resp_previous"
-            })
-        );
         let request = websocket
             .read()
             .expect("continuation response.create should be readable")
             .into_text()
             .expect("continuation request should be text");
+        assert_eq!(
+            serde_json::from_str::<Value>(&request).expect("continuation should be JSON")["type"],
+            "response.create",
+            "next application frame must be response.create without an unsolicited ACK"
+        );
         assert!(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "continuation should carry the response cursor: {request}"
@@ -282,6 +275,11 @@ fn start_websocket_close_then_reconnect_server() -> (String, thread::JoinHandle<
             .expect("continuation response.create should be readable")
             .into_text()
             .expect("continuation request should be text");
+        assert_eq!(
+            serde_json::from_str::<Value>(&request).expect("continuation should be JSON")["type"],
+            "response.create",
+            "next application frame must be response.create without an unsolicited ACK"
+        );
         assert!(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "continuation websocket request should carry the response cursor: {request}"
@@ -369,14 +367,16 @@ fn start_websocket_proxy_failure_with_preserved_turn_state_server(
                 r#"{"type":"response.completed","response":{"id":"resp_previous","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"output":[]}}"#.into(),
             ))
             .expect("first completion should be writable");
-        let _ = websocket
-            .read()
-            .expect("response.processed should be readable");
         let request = websocket
             .read()
             .expect("continuation response.create should be readable")
             .into_text()
             .expect("continuation request should be text");
+        assert_eq!(
+            serde_json::from_str::<Value>(&request).expect("continuation should be JSON")["type"],
+            "response.create",
+            "next application frame must be response.create without an unsolicited ACK"
+        );
         assert!(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "continuation should carry the response cursor: {request}"
@@ -501,14 +501,16 @@ fn start_websocket_unknown_policy_close_server() -> (String, thread::JoinHandle<
             ))
             .expect("first completion should be writable");
 
-        let _ = websocket
-            .read()
-            .expect("response.processed should be readable");
         let request = websocket
             .read()
             .expect("continuation response.create should be readable")
             .into_text()
             .expect("continuation request should be text");
+        assert_eq!(
+            serde_json::from_str::<Value>(&request).expect("continuation should be JSON")["type"],
+            "response.create",
+            "next application frame must be response.create without an unsolicited ACK"
+        );
         assert!(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "first continuation should use the response cursor: {request}"
@@ -621,6 +623,11 @@ fn start_websocket_turn_state_reconnect_server() -> (String, thread::JoinHandle<
             .expect("continuation response.create should be readable")
             .into_text()
             .expect("continuation request should be text");
+        assert_eq!(
+            serde_json::from_str::<Value>(&request).expect("continuation should be JSON")["type"],
+            "response.create",
+            "next application frame must be response.create without an unsolicited ACK"
+        );
         assert!(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "continuation websocket request should carry the response cursor: {request}"
@@ -764,27 +771,24 @@ fn start_websocket_same_session_continuation_server() -> (String, thread::JoinHa
             ))
             .expect("first completion should be writable");
 
-        let processed = websocket
-            .read()
-            .expect("response.processed should be readable")
-            .into_text()
-            .expect("response.processed should be text");
-        assert_eq!(
-            serde_json::from_str::<Value>(&processed).expect("response.processed should be JSON"),
-            json!({
-                "type": "response.processed",
-                "response_id": "resp_previous"
-            })
-        );
         let request = websocket
             .read()
             .expect("continuation response.create should be readable")
             .into_text()
             .expect("continuation request should be text");
-        assert!(
-            request.contains("\"type\":\"response.create\""),
-            "continuation should follow response.processed: {request}"
-        );
+        // A strict Responses server rejects unsolicited client event types.
+        // Keep this branch observable so the negative control detects the old ACK behavior.
+        if serde_json::from_str::<Value>(&request).expect("continuation should be JSON")["type"]
+            != "response.create"
+        {
+            websocket
+                .close(Some(CloseFrame {
+                    code: CloseCode::Policy,
+                    reason: "unsupported client event".into(),
+                }))
+                .expect("policy rejection should be writable");
+            return;
+        }
         assert!(
             request.contains("\"previous_response_id\":\"resp_previous\""),
             "continuation should carry the response cursor: {request}"
@@ -1022,7 +1026,50 @@ fn websocket_continuation_reconnect_keeps_original_turn_state() {
 }
 
 #[test]
-fn websocket_continuation_sends_response_processed_before_next_request() {
+fn strict_websocket_server_rejects_unsupported_response_processed() {
+    let (base_url, server) = start_websocket_same_session_continuation_server();
+    let stream = TcpStream::connect(base_url.trim_start_matches("http://"))
+        .expect("strict server should connect");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .expect("strict server read timeout");
+    let (mut websocket, _) =
+        tokio_tungstenite::tungstenite::client(base_url.replacen("http://", "ws://", 1), stream)
+            .expect("strict server handshake should succeed");
+    websocket
+        .send(Message::Text(
+            json!({"type": "response.create"}).to_string().into(),
+        ))
+        .expect("initial request should write");
+    for expected in ["response.output_text.delta", "response.completed"] {
+        let message = websocket
+            .read()
+            .expect("initial response should be readable");
+        let event: Value =
+            serde_json::from_str(message.to_text().expect("response should be text"))
+                .expect("response should be JSON");
+        assert_eq!(event["type"], expected);
+    }
+    // Negative control: the former semantic transport behavior must trigger 1008.
+    websocket
+        .send(Message::Text(
+            json!({"type": "response.processed", "response_id": "resp_previous"})
+                .to_string()
+                .into(),
+        ))
+        .expect("unsupported ACK should write");
+    match websocket
+        .read()
+        .expect("strict rejection should be readable")
+    {
+        Message::Close(Some(frame)) => assert_eq!(frame.code, CloseCode::Policy),
+        other => panic!("unsupported ACK must be rejected with close 1008: {other:?}"),
+    }
+    server.join().expect("server thread should finish");
+}
+
+#[test]
+fn websocket_continuation_sends_response_create_without_unsolicited_ack() {
     let (base_url, server) = start_websocket_same_session_continuation_server();
     let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
         .stdin(Stdio::piped())
