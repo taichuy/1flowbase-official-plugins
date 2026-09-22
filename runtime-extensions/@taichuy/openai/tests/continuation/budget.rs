@@ -4,7 +4,7 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
+        let stream = accept_bounded(&listener);
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
@@ -12,9 +12,12 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
             response.headers_mut().insert("x-codex-turn-state", "fixture-route".parse().unwrap());
             Ok(response)
         }).unwrap();
-        create(&mut ws);
-        completed(&mut ws, "resp_owner", json!([]));
+        let initial = create(&mut ws);
+        completed(&mut ws, "resp_owner", rebuild_model_output());
         let expected = create(&mut ws);
+        assert_eq!(initial["input"], rebuild_initial_input());
+        assert_eq!(expected["previous_response_id"], "resp_owner");
+        assert_eq!(expected["input"], rebuild_tool_result());
         ws.send(Message::Close(Some(CloseFrame {
             code: CloseCode::Error,
             reason: "upstream websocket proxy failed".into(),
@@ -22,7 +25,7 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
         .unwrap();
         let mut sends = 1;
         if budget > 1 {
-            let (stream, _) = listener.accept().unwrap();
+            let stream = accept_bounded(&listener);
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
@@ -31,10 +34,7 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
             } else {
                 let mut retry = tokio_tungstenite::tungstenite::accept(stream).unwrap();
                 let actual = create(&mut retry);
-                assert_eq!(
-                    actual, expected,
-                    "retry reuses the committed tool result verbatim"
-                );
+                assert_full_context_rebuild(&initial, &rebuild_model_output(), &expected, &actual);
                 sends += 1;
                 if retry_succeeds {
                     completed(&mut retry, "resp_success", json!([]));
@@ -55,14 +55,18 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
     next_turn(
         &mut stdin,
         &mut stdout,
-        native_managed_input(&base, json!({"input":[]}), native_opaque_directive(budget)),
+        native_managed_input(
+            &base,
+            json!({"input":rebuild_initial_input()}),
+            native_opaque_directive(budget),
+        ),
     );
     let result = next_turn(
         &mut stdin,
         &mut stdout,
         native_managed_input(
             &base,
-            json!({"previous_response_id":"resp_owner","input":[{"type":"function_call_output","call_id":"call_once","output":"committed-once"}]}),
+            json!({"previous_response_id":"resp_owner","input":rebuild_tool_result()}),
             native_opaque_directive(budget),
         ),
     );
@@ -80,6 +84,8 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
     assert_eq!(receipt["attempt"], budget - 1);
     if !success {
         assert_eq!(receipt["reason"], "budget_exhausted");
+    } else {
+        assert_eq!(receipt["disposition"], "one_full_context_rebuild");
     }
     let diagnostics = &metadata["1flowbase_provider_recovery_diagnostics"];
     assert_eq!(diagnostics["first_failure"]["attempt"], 0);
@@ -150,54 +156,76 @@ fn failed_reconnect_handshake_consumes_the_second_attempt_without_an_extra_send(
 }
 
 #[test]
-fn proxy_failure_without_route_returns_precommit_fact_without_replaying_cursor() {
+fn proxy_failure_without_route_rebuilds_full_context_without_replaying_cursor() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
+        let stream = accept_bounded(&listener);
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        // No routing token in the handshake: a historical response owner is not
-        // permission to replay its cursor on a different physical connection.
+        // No provider routing token: recovery must rebuild saved history on a new socket.
         let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
-        create(&mut ws);
-        completed(&mut ws, "resp_no_route", json!([]));
-        assert_eq!(create(&mut ws)["previous_response_id"], "resp_no_route");
+        let initial = create(&mut ws);
+        completed(&mut ws, "resp_no_route", rebuild_model_output());
+        let delta = create(&mut ws);
+        assert_eq!(delta["previous_response_id"], "resp_no_route");
         ws.send(Message::Close(Some(CloseFrame {
             code: CloseCode::Error,
             reason: "upstream websocket proxy failed".into(),
         })))
         .unwrap();
-        listener.set_nonblocking(true).unwrap();
+        let stream = accept_bounded(&listener);
+        let mut retry = accept_hdr(
+            stream,
+            |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
+             response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
+                Ok(response)
+            },
+        )
+        .unwrap();
+        let actual = create(&mut retry);
+        assert_full_context_rebuild(&initial, &rebuild_model_output(), &delta, &actual);
+        completed(&mut retry, "resp_rebuilt", json!([]));
         listener
     });
     let (mut child, mut stdin, mut stdout) = spawn_native_worker();
-    next_turn(
-        &mut stdin,
-        &mut stdout,
-        native_managed_input(&base, json!({"input":[]}), native_opaque_directive(3)),
+    let mut first = native_managed_input(
+        &base,
+        json!({"input":rebuild_initial_input()}),
+        native_opaque_directive(3),
     );
+    first["input"]["client_protocol_envelope"]["headers"]
+        .as_object_mut()
+        .unwrap()
+        .remove("x-codex-turn-state");
+    next_turn(&mut stdin, &mut stdout, first);
     let result = next_turn(
         &mut stdin,
         &mut stdout,
         native_managed_input(
             &base,
-            json!({"previous_response_id":"resp_no_route","input":[]}),
+            json!({"previous_response_id":"resp_no_route","input":rebuild_tool_result()}),
             native_opaque_directive(3),
         ),
     );
-    let details = &result
-        .iter()
-        .find(|value| value["type"] == "error")
-        .unwrap()["error"]["provider_details"];
+    assert!(
+        !result.iter().any(|value| value["type"] == "error"),
+        "{result:?}"
+    );
+    assert_eq!(
+        result.last().unwrap()["result"]["response_id"],
+        "resp_rebuilt"
+    );
+    let details = &result.last().unwrap()["result"]["provider_metadata"];
     let receipt = &details["1flowbase_provider_recovery"];
-    assert_eq!(receipt["attempt"], 0);
+    assert_eq!(receipt["attempt"], 1);
     assert_eq!(receipt["commit_level"], "lifecycle_only");
-    assert_eq!(receipt["disposition"], "logical_invocation_retry");
-    assert_eq!(receipt["reason"], "transport_disconnected");
+    assert_eq!(receipt["disposition"], "one_full_context_rebuild");
     let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
     assert_eq!(diagnostics["first_failure"]["close_code"], 1011);
+    assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
     assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
     assert_eq!(diagnostics["last_failure"]["routing_token_present"], false);
     let listener = server.join().unwrap();

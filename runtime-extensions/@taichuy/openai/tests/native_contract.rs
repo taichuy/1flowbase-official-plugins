@@ -361,12 +361,72 @@ fn next_turn(
     }
 }
 
+// A missing reconnect must fail the fixture instead of leaving accept blocked forever.
+fn accept_bounded(listener: &TcpListener) -> std::net::TcpStream {
+    listener.set_nonblocking(true).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        match listener.accept() {
+            Ok((stream, _)) => {
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                return stream;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "timed out waiting for fixture connection"
+                );
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => panic!("fixture accept failed: {error}"),
+        }
+    }
+}
+
+fn rebuild_initial_input() -> Value {
+    json!([{"role":"user","content":[{"type":"input_text","text":"Run exec once and report the result."}]}])
+}
+
+fn rebuild_model_output() -> Value {
+    json!([
+        {"type":"reasoning","id":"reason_once","summary":[],"encrypted_content":"opaque-reasoning"},
+        {"type":"function_call","id":"item_once","call_id":"call_once","name":"exec","arguments":"{}","status":"completed"}
+    ])
+}
+
+fn rebuild_tool_result() -> Value {
+    json!([{"type":"function_call_output","call_id":"call_once","output":"committed-once"}])
+}
+
+fn assert_full_context_rebuild(initial: &Value, output: &Value, delta: &Value, actual: &Value) {
+    assert_eq!(initial["type"], "response.create");
+    assert_eq!(initial["input"], rebuild_initial_input());
+    assert_eq!(delta["type"], "response.create");
+    assert_eq!(delta["input"], rebuild_tool_result());
+    let mut expected = delta.clone();
+    expected
+        .as_object_mut()
+        .unwrap()
+        .remove("previous_response_id");
+    let mut items = initial["input"].as_array().unwrap().clone();
+    items.extend(output.as_array().unwrap().iter().cloned());
+    items.extend(delta["input"].as_array().unwrap().iter().cloned());
+    expected["input"] = json!(items);
+    assert_eq!(actual, &expected, "physical reconnect must preserve ordered original input, opaque model output and exactly one committed tool result, without the old cursor");
+}
+
 #[test]
-fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
+fn native_managed_proxy_failure_rebuilds_full_context_on_new_socket() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
-        let (first_stream, _) = listener.accept().unwrap();
+        let first_stream = accept_bounded(&listener);
         let mut first = accept_hdr(first_stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
             assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
             response
@@ -375,10 +435,11 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
             Ok(response)
         })
         .unwrap();
-        let _ = first.read().unwrap();
+        let initial: Value =
+            serde_json::from_str(first.read().unwrap().to_text().unwrap()).unwrap();
         first
             .send(Message::Text(
-                json!({"type":"response.completed","response":{"id":"resp_1","output":[]}})
+                json!({"type":"response.completed","response":{"id":"resp_1","output":rebuild_model_output()}})
                     .to_string()
                     .into(),
             ))
@@ -397,7 +458,7 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
             )))
             .unwrap();
 
-        let (retry_stream, _) = listener.accept().unwrap();
+        let retry_stream = accept_bounded(&listener);
         let mut retry = accept_hdr(
             retry_stream,
             |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
@@ -407,18 +468,17 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
                         .headers()
                         .get("x-codex-turn-state")
                         .and_then(|value| value.to_str().ok()),
-                    Some("provider-turn"),
-                    "native recovery must preserve the original routing token and require the peer to accept it"
+                    Some("client-turn"),
+                    "full-context rebuild uses caller routing metadata, not the previous socket route"
                 );
                 Ok(response)
             },
         )
         .unwrap();
         let retried = retry.read().unwrap().into_text().unwrap();
-        assert!(
-            retried.contains("\"previous_response_id\":\"resp_1\""),
-            "recovery must resend the self-contained cursor request: {retried}"
-        );
+        let continuation: Value = serde_json::from_str(&continuation).unwrap();
+        let retried: Value = serde_json::from_str(&retried).unwrap();
+        assert_full_context_rebuild(&initial, &rebuild_model_output(), &continuation, &retried);
         retry
             .send(Message::Text(
                 json!({"type":"response.completed","response":{"id":"resp_2","output":[{"id":"msg_2","type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":"native recovered"}]}]}})
@@ -426,13 +486,21 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
                     .into(),
             ))
             .unwrap();
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "successful rebuild must not create an extra socket"
+        );
     });
 
     let (mut child, mut stdin, mut stdout) = spawn_native_worker();
     let first = next_turn(
         &mut stdin,
         &mut stdout,
-        native_managed_input(&base, json!({"input":[]}), native_opaque_directive(2)),
+        native_managed_input(
+            &base,
+            json!({"input":rebuild_initial_input()}),
+            native_opaque_directive(2),
+        ),
     );
     assert_eq!(first.last().unwrap()["type"], "result");
     let second = next_turn(
@@ -440,7 +508,7 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
         &mut stdout,
         native_managed_input(
             &base,
-            json!({"previous_response_id":"resp_1","input":[{"type":"function_call_output","call_id":"call_1","output":"nonce"}]}),
+            json!({"previous_response_id":"resp_1","input":rebuild_tool_result()}),
             native_opaque_directive(2),
         ),
     );
@@ -454,7 +522,7 @@ fn native_managed_proxy_failure_reconnects_on_its_verified_owner() {
     );
     let recovery =
         &second.last().unwrap()["result"]["provider_metadata"]["1flowbase_provider_recovery"];
-    assert_eq!(recovery["disposition"], json!("same_epoch_reconnect"));
+    assert_eq!(recovery["disposition"], json!("one_full_context_rebuild"));
     assert_eq!(recovery["attempt"], 1);
     assert_eq!(recovery["commit_level"], json!("lifecycle_only"));
     drop(stdin);
@@ -619,7 +687,7 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             false,
             1011,
             "transport lost secret-sentinel",
-            false,
+            true,
             "transport_disconnected",
         ),
         (
@@ -643,7 +711,7 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
         let (closed_tx, closed_rx) = std::sync::mpsc::channel();
         let (stop_tx, stop_rx) = std::sync::mpsc::channel();
         let server = thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
+            let stream = accept_bounded(&listener);
             stream
                 .set_read_timeout(Some(Duration::from_secs(3)))
                 .unwrap();
@@ -651,9 +719,10 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
                 if token { response.headers_mut().insert("x-codex-turn-state", "private-routing-sentinel".parse().unwrap()); }
                 Ok(response)
             }).unwrap();
-            let _ = ws.read().unwrap();
+            let initial: Value =
+                serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             ws.send(Message::Text(
-                json!({"type":"response.completed","response":{"id":"idle_resp_1","output":[]}})
+                json!({"type":"response.completed","response":{"id":"idle_resp_1","output":rebuild_model_output()}})
                     .to_string()
                     .into(),
             ))
@@ -671,19 +740,26 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             assert!(matches!(ws.read(), Ok(Message::Close(_))));
             closed_tx.send(()).unwrap();
             if succeeds {
-                let (stream, _) = listener.accept().unwrap();
+                let stream = accept_bounded(&listener);
                 stream
                     .set_read_timeout(Some(Duration::from_secs(3)))
                     .unwrap();
                 let mut retry = accept_hdr(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, response: tokio_tungstenite::tungstenite::handshake::server::Response| {
-                    assert_eq!(request.headers()["x-codex-turn-state"], "private-routing-sentinel");
+                    assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
                     Ok(response)
                 }).unwrap();
                 let body: Value =
                     serde_json::from_str(retry.read().unwrap().to_text().unwrap()).unwrap();
-                assert_eq!(body["previous_response_id"], "idle_resp_1");
+                let mut delta = initial.clone();
+                delta["previous_response_id"] = json!("idle_resp_1");
+                delta["input"] = rebuild_tool_result();
+                assert_full_context_rebuild(&initial, &rebuild_model_output(), &delta, &body);
                 retry.send(Message::Text(json!({"type":"response.completed","response":{"id":"idle_resp_2","output":[]}}).to_string().into())).unwrap();
                 stop_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+                assert!(
+                    matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+                    "successful rebuild must not create an extra socket"
+                );
             } else {
                 stop_rx.recv_timeout(Duration::from_secs(3)).unwrap();
                 listener.set_nonblocking(true).unwrap();
@@ -694,8 +770,11 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             }
         });
         let (mut child, mut stdin, mut stdout) = spawn_native_worker();
-        let mut first =
-            native_managed_input(&base, json!({"input":[]}), native_opaque_directive(2));
+        let mut first = native_managed_input(
+            &base,
+            json!({"input":rebuild_initial_input()}),
+            native_opaque_directive(2),
+        );
         // Absence of an upstream routing token is intentional in the no-token case.
         first["input"]["client_protocol_envelope"]["headers"]
             .as_object_mut()
@@ -713,7 +792,7 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             &mut stdout,
             native_managed_input(
                 &base,
-                json!({"previous_response_id":"idle_resp_1","input":[]}),
+                json!({"previous_response_id":"idle_resp_1","input":rebuild_tool_result()}),
                 native_opaque_directive(2),
             ),
         );
@@ -739,8 +818,6 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             diagnostic["recovery_decision"],
             if succeeds {
                 "retry_websocket"
-            } else if !token && code == 1011 {
-                "logical_invocation_retry"
             } else {
                 "terminal"
             }
