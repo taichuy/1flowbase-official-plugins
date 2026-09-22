@@ -794,6 +794,9 @@ impl fmt::Display for ProviderRuntimeError {
 
 impl std::error::Error for ProviderRuntimeError {}
 
+const NATIVE_HISTORY_MAX_ENTRY_BYTES: usize = 8 * 1024 * 1024;
+const NATIVE_HISTORY_MAX_TOTAL_BYTES: usize = 32 * 1024 * 1024;
+
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
@@ -802,6 +805,10 @@ pub struct OpenAiProviderRuntime {
     websocket_response_order: std::collections::VecDeque<String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
     websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
+    websocket_chain_scopes_by_response_id: HashMap<String, String>,
+    websocket_native_history_sizes: HashMap<String, usize>,
+    websocket_native_history_order: std::collections::VecDeque<String>,
+    websocket_native_history_bytes: usize,
     websocket_clock: Arc<dyn WebsocketClock>,
     websocket_lifecycle_policy: WebsocketLifecyclePolicy,
     websocket_next_socket_generation: u64,
@@ -838,6 +845,10 @@ impl Default for OpenAiProviderRuntime {
             websocket_response_order: std::collections::VecDeque::new(),
             websocket_turn_states_by_response_id: HashMap::new(),
             websocket_chain_inputs_by_response_id: HashMap::new(),
+            websocket_chain_scopes_by_response_id: HashMap::new(),
+            websocket_native_history_sizes: HashMap::new(),
+            websocket_native_history_order: std::collections::VecDeque::new(),
+            websocket_native_history_bytes: 0,
             websocket_clock: Arc::new(SystemWebsocketClock),
             websocket_lifecycle_policy: WebsocketLifecyclePolicy::default(),
             websocket_next_socket_generation: 1,
@@ -1863,7 +1874,13 @@ impl OpenAiProviderRuntime {
                         error.socket_incarnation,
                     );
                     let full_context_body = retry_response_id.as_deref().and_then(|response_id| {
-                        self.websocket_full_context_retry_body(response_id, &retry_body)
+                        self.websocket_scoped_retry_body(
+                            config,
+                            input,
+                            recovery_directive,
+                            response_id,
+                            &retry_body,
+                        )
                     });
                     let transition = recovery.decide_transition(RecoveryFacts {
                         signal,
@@ -1995,7 +2012,7 @@ impl OpenAiProviderRuntime {
         &mut self,
         config: &ProviderConfig,
         input: &ProviderInvocationInput,
-        mut body: Value,
+        body: Value,
         protocol_context: &RestoredProtocolContext,
         recovery_directive: Option<&ProviderRecoveryDirective>,
         on_event: &mut F,
@@ -2128,12 +2145,34 @@ impl OpenAiProviderRuntime {
                         .websocket_turn_states_by_response_id
                         .contains_key(&response_id)
                 {
+                    if self
+                        .websocket_scoped_retry_body(
+                            config,
+                            input,
+                            recovery_directive,
+                            &response_id,
+                            &body,
+                        )
+                        .is_some()
+                    {
+                        return Err(WebsocketInvocationError::fallback_blocked(
+                            recovery_diagnostics::transport_error(
+                                "owner_unavailable",
+                                "previous_response_unavailable",
+                                None,
+                            ),
+                        ));
+                    }
                     // A historical owner alone does not authorize replacing its socket.
                     // Reject before connect/response.create when no routing evidence survives.
                     return Err(WebsocketInvocationError::fallback_blocked(
                         recovery_diagnostics::transport_error(
                             "owner_rejected",
-                            "transport_disconnected",
+                            if input.native_transport.is_some() && bound_incarnation.is_none() {
+                                "continuation_unavailable"
+                            } else {
+                                "transport_disconnected"
+                            },
                             None,
                         ),
                     ));
@@ -2146,23 +2185,41 @@ impl OpenAiProviderRuntime {
                 if owner.session_key != session_key
                     || active_generation.is_some_and(|generation| generation != owner.generation)
                 {
-                    if input.native_transport.is_none() && bound_incarnation.is_none() {
-                        body = self
-                            .websocket_full_context_retry_body(&response_id, &body)
-                            .ok_or_else(|| {
-                                WebsocketInvocationError::transport_unavailable(format!(
-                                    "Responses websocket continuation interrupted: cursor {response_id} belongs to an unavailable connection generation"
-                                ))
-                            })?;
-                    } else {
-                        return Err(WebsocketInvocationError::transport_unavailable(format!(
-                            "native WebSocket continuation interrupted: cursor {response_id} belongs to an unavailable connection generation"
-                        )));
+                    if bound_incarnation.is_none()
+                        && self
+                            .websocket_scoped_retry_body(
+                                config,
+                                input,
+                                recovery_directive,
+                                &response_id,
+                                &body,
+                            )
+                            .is_some()
+                    {
+                        // Admission consumes this attempt; only the FSM may authorize replay.
+                        return Err(WebsocketInvocationError::fallback_blocked(
+                            recovery_diagnostics::transport_error(
+                                "owner_unavailable",
+                                "previous_response_unavailable",
+                                None,
+                            ),
+                        ));
                     }
+                    return Err(WebsocketInvocationError::fallback_blocked(
+                        recovery_diagnostics::transport_error(
+                            "owner_rejected",
+                            "continuation_unavailable",
+                            None,
+                        ),
+                    ));
                 }
             } else if input.native_transport.is_some() || bound_incarnation.is_some() {
-                return Err(WebsocketInvocationError::transport_unavailable(
-                    "WebSocket continuation interrupted: cursor owner is unavailable",
+                return Err(WebsocketInvocationError::fallback_blocked(
+                    recovery_diagnostics::transport_error(
+                        "owner_rejected",
+                        "continuation_unavailable",
+                        None,
+                    ),
                 ));
             }
         }
@@ -2277,8 +2334,19 @@ impl OpenAiProviderRuntime {
                         self.websocket_turn_states_by_response_id
                             .insert(response_id.to_string(), turn_state.to_string());
                     }
-                    if input.native_transport.is_none() {
+                    if input.native_transport.is_some() {
+                        self.record_native_websocket_response_chain(
+                            response_id,
+                            &body,
+                            response.completed_output.as_deref(),
+                            &websocket_history_scope(config, input),
+                        );
+                    } else {
                         self.record_websocket_response_chain(response_id, &body, &output.result);
+                        self.websocket_chain_scopes_by_response_id.insert(
+                            response_id.to_owned(),
+                            websocket_history_scope(config, input),
+                        );
                     }
                     self.websocket_response_order
                         .push_back(response_id.to_string());
@@ -2288,7 +2356,7 @@ impl OpenAiProviderRuntime {
                             self.websocket_response_owners.remove(&expired);
                             self.websocket_invalid_associations.remove(&expired);
                             self.websocket_turn_states_by_response_id.remove(&expired);
-                            self.websocket_chain_inputs_by_response_id.remove(&expired);
+                            self.evict_websocket_response_history(&expired);
                         }
                     }
                 }
@@ -2361,6 +2429,101 @@ impl OpenAiProviderRuntime {
     fn responses_body_uses_websocket_response_cursor(&self, body: &Value) -> bool {
         responses_body_previous_response_id(body)
             .is_some_and(|response_id| self.websocket_response_ids_seen.contains(response_id))
+    }
+
+    fn websocket_scoped_retry_body(
+        &self,
+        config: &ProviderConfig,
+        input: &ProviderInvocationInput,
+        directive: Option<&ProviderRecoveryDirective>,
+        response_id: &str,
+        body: &Value,
+    ) -> Option<Value> {
+        if directive
+            .and_then(|d| d.cursor_provenance)
+            .is_some_and(|p| matches!(p.binding, CursorBinding::ConnectionBound { .. }))
+            || self
+                .websocket_chain_scopes_by_response_id
+                .get(response_id)?
+                != &websocket_history_scope(config, input)
+            || (input.native_transport.is_some() && !body.get("input")?.is_array())
+        {
+            return None;
+        }
+        self.websocket_full_context_retry_body(response_id, body)
+    }
+
+    fn record_native_websocket_response_chain(
+        &mut self,
+        response_id: &str,
+        body: &Value,
+        completed_output: Option<&[Value]>,
+        scope: &str,
+    ) {
+        // Missing output is not an empty completed output. Never synthesize native items
+        // from mapped text/tool calls, nor record a partial/incomplete response.
+        let Some(output) = completed_output else {
+            return;
+        };
+        let Some(input) = body.get("input").and_then(Value::as_array) else {
+            return;
+        };
+        let mut chain = if let Some(previous) = responses_body_previous_response_id(body) {
+            if self
+                .websocket_chain_scopes_by_response_id
+                .get(previous)
+                .map(String::as_str)
+                != Some(scope)
+            {
+                return;
+            }
+            let Some(chain) = self.websocket_chain_inputs_by_response_id.get(previous) else {
+                return;
+            };
+            chain.clone()
+        } else {
+            Vec::new()
+        };
+        chain.extend(input.iter().cloned());
+        chain.extend(output.iter().cloned());
+        // Serialize only the new snapshot. Stored sizes make aggregate eviction O(entries),
+        // without repeatedly serializing every prior conversation snapshot.
+        let Ok(encoded) = serde_json::to_vec(&chain) else {
+            return;
+        };
+        let size = encoded.len();
+        drop(encoded);
+        if size > NATIVE_HISTORY_MAX_ENTRY_BYTES {
+            return;
+        }
+        self.evict_websocket_response_history(response_id);
+        while self.websocket_native_history_bytes + size > NATIVE_HISTORY_MAX_TOTAL_BYTES {
+            let Some(oldest) = self.websocket_native_history_order.front().cloned() else {
+                return;
+            };
+            self.evict_websocket_response_history(&oldest);
+        }
+        self.websocket_native_history_bytes += size;
+        self.websocket_native_history_sizes
+            .insert(response_id.to_owned(), size);
+        self.websocket_native_history_order
+            .push_back(response_id.to_owned());
+        self.websocket_chain_inputs_by_response_id
+            .insert(response_id.to_owned(), chain);
+        self.websocket_chain_scopes_by_response_id
+            .insert(response_id.to_owned(), scope.to_owned());
+    }
+
+    fn evict_websocket_response_history(&mut self, response_id: &str) {
+        self.websocket_chain_inputs_by_response_id
+            .remove(response_id);
+        self.websocket_chain_scopes_by_response_id
+            .remove(response_id);
+        if let Some(size) = self.websocket_native_history_sizes.remove(response_id) {
+            self.websocket_native_history_bytes -= size;
+            self.websocket_native_history_order
+                .retain(|id| id != response_id);
+        }
     }
 
     fn websocket_full_context_retry_body(
@@ -2972,6 +3135,11 @@ fn build_responses_typed_request_body(
     }
     for key in PASSTHROUGH_RESPONSE_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {
+            let value = if *key == "tool_choice" {
+                responses_tool_choice(value)
+            } else {
+                value
+            };
             body.insert((*key).to_string(), value);
         }
     }
@@ -3403,6 +3571,28 @@ fn response_function_call_from_native(tool_call: &Value, index: usize) -> Option
     }))
 }
 
+// Semantic ingress uses tagged choices; Responses wire uses scalars for policy
+// choices and a function object for a named tool. Preserve native wire objects.
+fn responses_tool_choice(value: Value) -> Value {
+    let Some(choice) = value.as_object() else {
+        return value;
+    };
+    match choice.get("type").and_then(Value::as_str) {
+        Some(kind @ ("auto" | "none" | "required")) if choice.len() == 1 => json!(kind),
+        Some("tool") if choice.len() == 2 => {
+            match choice
+                .get("name")
+                .and_then(Value::as_str)
+                .filter(|name| !name.trim().is_empty())
+            {
+                Some(name) => json!({"type":"function", "name":name}),
+                None => value,
+            }
+        }
+        _ => value,
+    }
+}
+
 fn build_response_tools(tools: &[Value]) -> Vec<Value> {
     tools.iter().map(build_response_tool).collect()
 }
@@ -3700,6 +3890,7 @@ struct ResponsesWebsocketSession {
 
 #[derive(Debug)]
 struct WebsocketResponseOutput {
+    completed_output: Option<Vec<Value>>,
     envelope: RuntimeInvocationEnvelope,
     session_reusable: bool,
 }
@@ -4024,6 +4215,18 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
     Value::Object(object)
 }
 
+fn websocket_history_scope(config: &ProviderConfig, input: &ProviderInvocationInput) -> String {
+    // Host-sealed logical identity includes workspace/actor and remains stable across
+    // physical generation rotation. Client-provided headers alone are not ownership.
+    let directive = transport_session_directive(input).ok().flatten();
+    format!(
+        "{}\n{}\n{}",
+        input.provider_code,
+        input.native_transport.is_some(),
+        websocket_session_key(config, input, directive.as_ref())
+    )
+}
+
 fn websocket_session_key(
     config: &ProviderConfig,
     input: &ProviderInvocationInput,
@@ -4107,7 +4310,13 @@ fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
 
 async fn send_websocket_json(session: &mut ResponsesWebsocketSession, body: &Value) -> Result<()> {
     let payload = serde_json::to_string(body)?;
-    protocol_observation::record("websocket", "prepared", "request_prepared", payload.as_bytes(), None);
+    protocol_observation::record(
+        "websocket",
+        "prepared",
+        "request_prepared",
+        payload.as_bytes(),
+        None,
+    );
     session.stream.send(Message::Text(payload.into())).await
 }
 
@@ -4168,6 +4377,7 @@ where
     let mut response_id = Value::Null;
     let mut semantic_terminal_failure_seen = false;
     let mut session_reusable = true;
+    let mut completed_output = None;
 
     loop {
         let next_message =
@@ -4224,6 +4434,7 @@ where
                 semantic_terminal_failure_seen |= websocket_payload_blocks_http_fallback(payload);
                 if let Ok(raw) = serde_json::from_str::<Value>(payload) {
                     visibility.observe(&raw);
+                    completed_output = completed_native_output(&raw).or(completed_output);
                 }
                 process_response_sse_payload(
                     payload,
@@ -4319,6 +4530,7 @@ where
     }
     activity.complete();
     Ok(WebsocketResponseOutput {
+        completed_output,
         envelope: output,
         session_reusable,
     })
@@ -4366,6 +4578,20 @@ fn websocket_error_message(payload: &str) -> Option<String> {
         (None, Some(code)) => format!("{code}: {message}"),
         (None, None) => message.to_string(),
     })
+}
+
+fn completed_native_output(payload: &Value) -> Option<Vec<Value>> {
+    if !matches!(
+        payload.get("type").and_then(Value::as_str),
+        Some("response.completed" | "response.done")
+    ) {
+        return None;
+    }
+    let response = payload.get("response")?;
+    if response_status_blocks_http_fallback(response) {
+        return None;
+    }
+    response.get("output")?.as_array().cloned()
 }
 
 fn websocket_payload_blocks_http_fallback(payload: &str) -> bool {
@@ -8181,3 +8407,7 @@ mod native_tool_roundtrip;
 #[cfg(test)]
 #[path = "_tests/websocket_lifecycle.rs"]
 mod websocket_lifecycle_tests;
+
+#[cfg(test)]
+#[path = "_tests/response_tool_choice.rs"]
+mod response_tool_choice_tests;
