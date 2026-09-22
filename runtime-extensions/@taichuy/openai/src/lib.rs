@@ -3135,6 +3135,11 @@ fn build_responses_typed_request_body(
     }
     for key in PASSTHROUGH_RESPONSE_PARAMETERS {
         if let Some(value) = parameter_value(input, key) {
+            let value = if *key == "tool_choice" {
+                responses_tool_choice(value)
+            } else {
+                value
+            };
             body.insert((*key).to_string(), value);
         }
     }
@@ -3564,6 +3569,28 @@ fn response_function_call_from_native(tool_call: &Value, index: usize) -> Option
         "name": name,
         "arguments": arguments,
     }))
+}
+
+// Semantic ingress uses tagged choices; Responses wire uses scalars for policy
+// choices and a function object for a named tool. Preserve native wire objects.
+fn responses_tool_choice(value: Value) -> Value {
+    let Some(choice) = value.as_object() else {
+        return value;
+    };
+    match choice.get("type").and_then(Value::as_str) {
+        Some(kind @ ("auto" | "none" | "required")) if choice.len() == 1 => json!(kind),
+        Some("tool") if choice.len() == 2 => {
+            match choice
+                .get("name")
+                .and_then(Value::as_str)
+                .filter(|name| !name.trim().is_empty())
+            {
+                Some(name) => json!({"type":"function", "name":name}),
+                None => value,
+            }
+        }
+        _ => value,
+    }
 }
 
 fn build_response_tools(tools: &[Value]) -> Vec<Value> {
@@ -8380,3 +8407,7 @@ mod native_tool_roundtrip;
 #[cfg(test)]
 #[path = "_tests/websocket_lifecycle.rs"]
 mod websocket_lifecycle_tests;
+
+#[cfg(test)]
+#[path = "_tests/response_tool_choice.rs"]
+mod response_tool_choice_tests;
