@@ -1449,6 +1449,19 @@ impl OpenAiProviderRuntime {
             .flatten()
             .as_ref()
             .and_then(close::CloseIdentity::directive);
+        if let Some(identity) = identity.as_ref() {
+            if self
+                .close_worker_incarnation
+                .is_some_and(|bound| bound != identity.worker_incarnation)
+            {
+                bail!("worker incarnation fence rejected invocation");
+            }
+            self.close_worker_incarnation = Some(identity.worker_incarnation);
+            // A logical transport generation needs closure evidence even when
+            // this invocation uses HTTP and never opens a WebSocket resource.
+            self.close_ledger
+                .reserve(identity.clone(), self.websocket_clock.now())?;
+        }
         self.invoke_response_with_recovery(input, on_event)
             .await
             .map_err(|error| self.attach_final_closure(identity.as_ref(), error))

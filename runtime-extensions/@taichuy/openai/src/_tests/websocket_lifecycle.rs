@@ -1,4 +1,5 @@
 use super::*;
+use crate::close::CloseIdentity;
 use std::{
     net::TcpListener,
     sync::{mpsc, Arc},
@@ -49,6 +50,56 @@ fn websocket_input(base_url: &str) -> ProviderInvocationInput {
         )]),
         ..Default::default()
     }
+}
+
+#[tokio::test]
+async fn failed_http_turn_releases_bound_transport_generation_without_masking_upstream_error() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let upstream = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = [0_u8; 8192];
+        let _ = stream.read(&mut request).await.unwrap();
+        let body = br#"{"error":{"message":"prewarm rejected"}}"#;
+        stream
+            .write_all(
+                format!(
+                    "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+        stream.write_all(body).await.unwrap();
+    });
+    let mut input = websocket_input(&base_url);
+    input.provider_config["transport_mode"] = json!("http_sse");
+    let directive = transport_session_directive(&input).unwrap().unwrap();
+    let id = CloseIdentity::directive(&directive).unwrap();
+    let mut runtime = OpenAiProviderRuntime::default();
+    let error = runtime.invoke_response(input).await.unwrap_err();
+    upstream.await.unwrap();
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    assert_eq!(typed.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+    assert_eq!(typed.provider_details.as_ref().unwrap()["status"], 400);
+    let receipt = runtime
+        .control_transport_session(TransportSessionCommand {
+            logical_session_id: id.logical_session_id,
+            generation: id.generation,
+            worker_incarnation: Some(id.worker_incarnation),
+            action: TransportSessionAction::Close,
+            deadline_unix_ms: close::unix_time_ms() + 5_000,
+        })
+        .await
+        .unwrap();
+    assert_eq!(receipt.physical_state, PhysicalTransportState::Closed);
+    assert_eq!(
+        serde_json::to_value(receipt.closure_evidence).unwrap()["local_released"],
+        true
+    );
 }
 
 fn start_closing_websocket(
