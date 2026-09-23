@@ -605,7 +605,7 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
     );
     let details = &error["error"]["provider_details"];
     let receipt = &details["1flowbase_provider_recovery"];
-    assert_eq!(receipt["disposition"], json!("terminal_interruption"));
+    assert_eq!(receipt["disposition"], json!("logical_invocation_retry"));
     assert_eq!(receipt["attempt"], 1);
     assert_eq!(receipt["reason"], "budget_exhausted");
     assert_eq!(receipt["commit_level"], json!("lifecycle_only"));

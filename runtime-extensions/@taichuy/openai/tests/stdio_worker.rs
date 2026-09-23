@@ -1365,7 +1365,7 @@ fn websocket_unknown_1008_policy_no_replay() {
     let receipt = &details["1flowbase_provider_recovery"];
     assert_eq!(receipt["attempt"], 0);
     assert_eq!(receipt["disposition"], "terminal_interruption");
-    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["commit_level"], "terminal");
     assert_eq!(receipt["reason"], "protocol_error");
     let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
     assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);

@@ -84,6 +84,8 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
     assert_eq!(receipt["attempt"], budget - 1);
     if !success {
         assert_eq!(receipt["reason"], "budget_exhausted");
+        assert_eq!(receipt["disposition"], "logical_invocation_retry");
+        assert_eq!(receipt["commit_level"], "lifecycle_only");
     } else {
         assert_eq!(receipt["disposition"], "one_full_context_rebuild");
     }

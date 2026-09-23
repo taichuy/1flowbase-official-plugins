@@ -327,6 +327,17 @@ pub enum ProviderInvocationCapability {
     #[serde(rename = "message_blocks.redacted_reasoning_history.v1")]
     MessageBlocksRedactedReasoningHistoryV1,
     ProtocolContext,
+    #[serde(rename = "network_egress_handoff/v1")]
+    NetworkEgressHandoffV1,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NetworkEgressContext {
+    mode: String,
+    http_proxy_url: String,
+    expires_at: String,
+    required: bool,
 }
 
 #[derive(Clone, Deserialize)]
@@ -416,6 +427,28 @@ pub struct ProviderInvocationInput {
 }
 
 impl ProviderInvocationInput {
+    fn required_network_egress_proxy_url(&self) -> Result<Option<String>> {
+        if !self
+            .required_capabilities
+            .contains(&ProviderInvocationCapability::NetworkEgressHandoffV1)
+        {
+            return Ok(None);
+        }
+        let context = self
+            .run_context
+            .get("network_egress")
+            .ok_or_else(|| anyhow!("required network egress context is missing"))?;
+        let context: NetworkEgressContext = serde_json::from_value(context.clone())
+            .context("required network egress context is invalid")?;
+        if context.mode != "required_http_proxy" || !context.required {
+            bail!("required network egress context is not an HTTP proxy handoff");
+        }
+        let _expires_at = context.expires_at;
+        normalize_proxy_url(Some(&Value::String(context.http_proxy_url)))?
+            .map(Some)
+            .ok_or_else(|| anyhow!("required network egress HTTP proxy URL is empty"))
+    }
+
     fn system_text(&self) -> Option<String> {
         let text = self
             .system
@@ -1129,6 +1162,14 @@ fn normalize_provider_config(input: &Value) -> Result<ProviderConfig> {
     })
 }
 
+fn provider_config_for_invocation(input: &ProviderInvocationInput) -> Result<ProviderConfig> {
+    let mut config = normalize_provider_config(&input.provider_config)?;
+    if let Some(proxy_url) = input.required_network_egress_proxy_url()? {
+        config.proxy_url = Some(proxy_url);
+    }
+    Ok(config)
+}
+
 fn normalize_transport_mode(value: Option<&Value>) -> Result<OpenAiTransportMode> {
     let Some(value) = value else {
         return Ok(OpenAiTransportMode::HttpSse);
@@ -1499,7 +1540,7 @@ impl OpenAiProviderRuntime {
         F: FnMut(&ProviderStreamEvent) -> Result<()>,
     {
         input.ensure_generate_operation()?;
-        let config = normalize_provider_config(&input.provider_config)?;
+        let config = provider_config_for_invocation(&input)?;
         let request = build_openai_generate_request(&input)?;
         let body = request.body.clone();
         let native_passthrough = input.native_transport.is_some();
@@ -4225,12 +4266,17 @@ fn websocket_session_key(
     input: &ProviderInvocationInput,
     directive: Option<&TransportSessionDirective>,
 ) -> String {
-    let credential_fingerprint = credential_fingerprint(&config.api_key);
+    let api_key_fingerprint = credential_fingerprint(&config.api_key);
     format!(
-        "{}\n{}\n{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}",
         input.provider_instance_id,
         config.base_url,
-        credential_fingerprint,
+        api_key_fingerprint,
+        config
+            .proxy_url
+            .as_deref()
+            .map(credential_fingerprint)
+            .unwrap_or_default(),
         config.organization.as_deref().unwrap_or_default(),
         config.project.as_deref().unwrap_or_default(),
         // Request body extensions vary between turns; only handshake context owns
@@ -5974,7 +6020,7 @@ mod tests {
             ),
             HttpFailureFixture::PreCommitUntyped => (
                 "provider failure; unclassified details redacted",
-                "lifecycle_only",
+                "terminal",
                 "provider_untyped",
                 "unclassified",
             ),
@@ -7289,6 +7335,7 @@ mod tests {
             "protocol_context.restore.openai_responses.v1",
             "reasoning_output_supported",
             "native_continuation_supported",
+            "network_egress_handoff/v1",
         ] {
             assert!(capabilities
                 .lines()
@@ -7299,7 +7346,7 @@ mod tests {
                 .lines()
                 .filter(|line| line.trim().starts_with("- "))
                 .count(),
-            11
+            12
         );
         assert!(!manifest
             .lines()
@@ -8280,6 +8327,48 @@ mod tests {
             "proxy should receive CONNECT target, got: {connect_request}"
         );
         handle.join().expect("proxy thread should finish");
+    }
+
+    #[test]
+    fn host_network_egress_handoff_overrides_configured_proxy_and_socket_affinity() {
+        let mut input: ProviderInvocationInput = serde_json::from_value(json!({
+            "contract_version": "1flowbase.provider/v2",
+            "provider_instance_id": "provider-test",
+            "provider_code": "openai",
+            "protocol": "openai_responses",
+            "model": "gpt-6-luna",
+            "provider_config": {
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "test-key",
+                "proxy_url": "http://configured-proxy.invalid:8080"
+            },
+            "required_capabilities": ["network_egress_handoff/v1"],
+            "run_context": {"network_egress": {
+                "mode": "required_http_proxy",
+                "http_proxy_url": "http://host-egress.invalid:3128",
+                "expires_at": "2026-09-23T07:00:00Z",
+                "required": true
+            }}
+        }))
+        .unwrap();
+        let configured = normalize_provider_config(&input.provider_config).unwrap();
+        let routed = provider_config_for_invocation(&input).unwrap();
+        assert_eq!(
+            routed.proxy_url.as_deref(),
+            Some("http://host-egress.invalid:3128/")
+        );
+        assert_ne!(
+            websocket_session_key(&configured, &input, None),
+            websocket_session_key(&routed, &input, None)
+        );
+
+        input.run_context.remove("network_egress");
+        assert!(provider_config_for_invocation(&input).is_err());
+        input.run_context.insert(
+            "network_egress".into(),
+            json!({"mode":"required_http_proxy","http_proxy_url":"https://wrong.invalid","expires_at":"2026-09-23T07:00:00Z","required":true}),
+        );
+        assert!(provider_config_for_invocation(&input).is_err());
     }
 
     #[test]

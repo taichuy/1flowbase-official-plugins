@@ -221,7 +221,14 @@ fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> 
     );
     let details = typed.provider_details.as_ref().unwrap();
     let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
-    assert_eq!(receipt["disposition"], "terminal_interruption");
+    assert_eq!(
+        receipt["disposition"],
+        if expected_reason == "budget_exhausted" {
+            "logical_invocation_retry"
+        } else {
+            "terminal_interruption"
+        }
+    );
     assert_eq!(
         receipt["commit_level"],
         if expected_reason == "semantic_failed" {
@@ -531,7 +538,7 @@ fn failed_fallback_preserves_first_typed_diagnostic_and_terminal_http_evidence()
     assert_eq!(receipt["transport_epoch"], 19);
     assert_eq!(receipt["attempt"], 1);
     assert_eq!(receipt["disposition"], "terminal_interruption");
-    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["commit_level"], "terminal");
     assert_eq!(receipt["reason"], "protocol_error");
     assert!(receipt.get("socket_incarnation").is_none());
     assert!(metadata
@@ -743,7 +750,7 @@ fn http_failure_preserves_shared_budget_and_initial_commit_barrier() {
         (
             1,
             recovery::CommitLevel::LifecycleOnly,
-            RecoveryDisposition::TerminalInterruption,
+            RecoveryDisposition::LogicalInvocationRetry,
             recovery::RecoveryReason::BudgetExhausted,
         ),
         (

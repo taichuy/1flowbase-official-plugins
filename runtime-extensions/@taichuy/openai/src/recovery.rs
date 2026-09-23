@@ -317,10 +317,18 @@ impl RecoveryFsm {
             None
         };
         if let Some(reason) = reason {
+            let disposition = if reason == RecoveryReason::BudgetExhausted
+                && self.commit_level == CommitLevel::LifecycleOnly
+            {
+                RecoveryDisposition::LogicalInvocationRetry
+            } else {
+                self.observe_terminal();
+                RecoveryDisposition::TerminalInterruption
+            };
             return Err(RecoveryTransition {
                 attempt: self.last_attempt(),
                 commit_level: self.commit_level,
-                disposition: RecoveryDisposition::TerminalInterruption,
+                disposition,
                 reason,
             });
         }
@@ -359,8 +367,22 @@ impl RecoveryFsm {
             .constraints
             .absolute_deadline_unix_ms
             .is_some_and(|deadline| deadline <= unix_time_ms())
-            || self.consumed_attempts >= self.constraints.max_inner_attempts
         {
+            self.observe_terminal();
+            return RecoveryDisposition::TerminalInterruption;
+        }
+        if self.consumed_attempts >= self.constraints.max_inner_attempts {
+            if matches!(
+                facts.signal,
+                RecoverySignal::TransportDisconnected
+                    | RecoverySignal::TransportRejected
+                    | RecoverySignal::PreviousResponseUnavailable
+                    | RecoverySignal::ContinuationUnavailable
+                    | RecoverySignal::ProxyFailed
+            ) {
+                return RecoveryDisposition::LogicalInvocationRetry;
+            }
+            self.observe_terminal();
             return RecoveryDisposition::TerminalInterruption;
         }
 
@@ -458,6 +480,9 @@ impl RecoveryFsm {
                 RecoverySignal::SemanticTerminal => RecoveryReason::SemanticFailed,
             }
         };
+        if disposition.is_terminal() {
+            self.observe_terminal();
+        }
         RecoveryTransition {
             attempt,
             commit_level: self.commit_level,
@@ -608,7 +633,7 @@ mod tests {
             while exhausted.begin_attempt().is_ok() {}
             assert_eq!(
                 exhausted.decide(facts),
-                RecoveryDisposition::TerminalInterruption
+                RecoveryDisposition::LogicalInvocationRetry
             );
             let mut unknown = fsm(RecoveryPolicyKind::NativeOpaque);
             assert_ne!(
@@ -743,7 +768,7 @@ mod tests {
             RecoveryDisposition::TerminalInterruption
         );
         assert_eq!(transition.reason, RecoveryReason::DeadlineExceeded);
-        assert_eq!(transition.commit_level, CommitLevel::LifecycleOnly);
+        assert_eq!(transition.commit_level, CommitLevel::Terminal);
     }
 
     #[test]
@@ -910,18 +935,62 @@ mod tests {
                 assert_eq!(
                     transition.disposition,
                     if attempt + 1 == budget {
-                        RecoveryDisposition::TerminalInterruption
+                        RecoveryDisposition::LogicalInvocationRetry
                     } else {
                         RecoveryDisposition::SameEpochReconnect
                     }
                 );
+                if attempt + 1 == budget {
+                    assert_eq!(transition.commit_level, CommitLevel::LifecycleOnly);
+                    assert_eq!(transition.reason, RecoveryReason::BudgetExhausted);
+                }
             }
             let exhausted = machine.begin_attempt().unwrap_err();
             assert_eq!(exhausted.attempt, budget - 1);
             assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
             assert_eq!(exhausted.commit_level, CommitLevel::LifecycleOnly);
+            assert_eq!(
+                exhausted.disposition,
+                RecoveryDisposition::LogicalInvocationRetry
+            );
             assert_eq!(machine.consumed_attempts(), budget);
         }
+    }
+
+    #[test]
+    fn exhausted_rebuild_after_lost_cursor_yields_outer_logical_retry() {
+        let mut machine = RecoveryFsm::new(RecoveryConstraints {
+            policy: RecoveryPolicyKind::NativeOpaque,
+            max_inner_attempts: 2,
+            absolute_deadline_unix_ms: None,
+            initial_commit_level: CommitLevel::LifecycleOnly,
+        });
+        assert_eq!(machine.begin_attempt().unwrap(), 0);
+        let rebuild = machine.decide_transition(RecoveryFacts {
+            signal: RecoverySignal::PreviousResponseUnavailable,
+            cursor: CursorState::ConnectionBound {
+                same_epoch: true,
+                owner_available: false,
+                turn_state_available: false,
+            },
+            full_context_available: true,
+        });
+        assert_eq!(
+            rebuild.disposition,
+            RecoveryDisposition::OneFullContextRebuild
+        );
+        assert_eq!(machine.begin_attempt().unwrap(), 1);
+        let exhausted = machine.decide_transition(RecoveryFacts {
+            signal: RecoverySignal::TransportDisconnected,
+            cursor: CursorState::None,
+            full_context_available: false,
+        });
+        assert_eq!(
+            exhausted.disposition,
+            RecoveryDisposition::LogicalInvocationRetry
+        );
+        assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
+        assert_eq!(exhausted.commit_level, CommitLevel::LifecycleOnly);
     }
 
     #[test]
