@@ -46,6 +46,40 @@ async fn idle_ping_is_answered_without_invocation_and_other_socket_is_independen
     drop(other);
 }
 
+#[tokio::test]
+async fn active_socket_sends_ping_while_upstream_is_silent() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let client = tokio::spawn(async move {
+        let (stream, _) =
+            connect_async_with_config(format!("ws://{address}"), Some(config()), false)
+                .await
+                .unwrap();
+        SocketOwner::new_with_keepalive(stream, Duration::from_millis(25))
+    });
+    let (stream, _) = listener.accept().await.unwrap();
+    let mut peer = tokio_tungstenite::accept_async(stream).await.unwrap();
+    let mut owner = client.await.unwrap();
+    let activity = owner.activity();
+
+    assert!(matches!(
+        tokio::time::timeout(Duration::from_millis(250), peer.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap(),
+        Message::Ping(_)
+    ));
+    peer.send(Message::Text("upstream-output".into()))
+        .await
+        .unwrap();
+    assert_eq!(
+        owner.next().await.unwrap().unwrap(),
+        Message::Text("upstream-output".into())
+    );
+    activity.complete();
+}
+
 // The regression tests exercise slow consumption rather than treating temporary
 // mailbox saturation as a corrupt stream.
 async fn wait_for_queued(owner: &SocketOwner, count: usize) {

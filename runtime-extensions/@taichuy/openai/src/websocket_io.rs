@@ -7,6 +7,7 @@ const EVENT_COUNT: usize = 64;
 const COMMAND_COUNT: usize = 8;
 const BYTE_LIMIT: usize = 16 * 1024 * 1024;
 const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
+const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(20);
 
 pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
     tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
@@ -171,7 +172,18 @@ fn buffer(message: Message, bytes: &Arc<Semaphore>) -> Result<Buffered, Failure>
     })
 }
 impl SocketOwner {
-    pub fn new<S>(mut socket: S) -> Self
+    pub fn new<S>(socket: S) -> Self
+    where
+        S: futures_util::Sink<Message, Error = WebSocketError>
+            + futures_util::Stream<Item = Result<Message, WebSocketError>>
+            + Unpin
+            + Send
+            + 'static,
+    {
+        Self::new_with_keepalive(socket, KEEPALIVE_INTERVAL)
+    }
+
+    fn new_with_keepalive<S>(mut socket: S, keepalive_interval: Duration) -> Self
     where
         S: futures_util::Sink<Message, Error = WebSocketError>
             + futures_util::Stream<Item = Result<Message, WebSocketError>>
@@ -193,6 +205,11 @@ impl SocketOwner {
         let acknowledged = peer_ack.clone();
         let event_bytes = Arc::new(Semaphore::new(BYTE_LIMIT));
         let task = tokio::spawn(async move {
+            let mut keepalive = tokio::time::interval_at(
+                tokio::time::Instant::now() + keepalive_interval,
+                keepalive_interval,
+            );
+            keepalive.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             // At most 16 MiB queued plus one pending message of at most 16 MiB:
             // the owner’s queued + pending payload is bounded by 32 MiB (excluding transport
             // buffers). Stop reading while pending; TCP supplies upstream backpressure.
@@ -231,6 +248,11 @@ impl SocketOwner {
                                 });
                             }
                             Err(error) => break error,
+                        }
+                    }
+                    _ = keepalive.tick() => {
+                        if let Err(error) = write(&mut socket, Message::Ping(Vec::new().into())).await {
+                            break error;
                         }
                     }
                     incoming = socket.next(), if pending.is_none() => {
