@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-23T00:03:58.651Z",
+  "generated_at": "2026-09-23T00:36:24.441Z",
   "plugins": [
     {
       "plugin_id": "1flowbase.aliyun_bailian",
@@ -1911,7 +1911,7 @@
       "icon": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/runtime-extensions/@taichuy/openai/_assets/icon.svg",
       "protocol": "openai_responses",
       "contract_version": "1flowbase.provider/v2",
-      "latest_version": "0.2.54",
+      "latest_version": "0.2.55",
       "minimum_host_version": "0.3.1",
       "help_url": "https://platform.openai.com/docs/api-reference/responses",
       "model_discovery_mode": "hybrid",
@@ -2062,9 +2062,20 @@
                   }
                 }
               },
-              "use_responses_websocket": {
-                "label": "Use Responses WebSocket",
-                "description": "When enabled, this LLM node uses OpenAI Responses WebSocket; when disabled, it uses HTTP SSE. WebSocket is suited to continuous tool calls and can continue with previous_response_id within the connection. Continuation after reconnecting also depends on the Store response setting."
+              "responses_transport_policy": {
+                "label": "Responses transport",
+                "description": "Follow the client's transport, or require HTTP SSE or WebSocket for this LLM node. WebSocket supports continuous tool calls; continuation after reconnecting also depends on Store response.",
+                "options": {
+                  "inherit": {
+                    "label": "Follow client"
+                  },
+                  "force_http_sse": {
+                    "label": "Force HTTP SSE"
+                  },
+                  "force_websocket": {
+                    "label": "Force WebSocket"
+                  }
+                }
               }
             }
           },
@@ -2208,9 +2219,20 @@
                   }
                 }
               },
-              "use_responses_websocket": {
-                "label": "使用 Responses WebSocket",
-                "description": "开启后对此 LLM 节点使用 OpenAI Responses WebSocket；关闭时使用 HTTP SSE。WebSocket 适合连续工具调用，并可在连接内通过 previous_response_id 续接；连接重建后的续接能力还受“存储响应”设置影响。"
+              "responses_transport_policy": {
+                "label": "Responses 传输方式",
+                "description": "跟随客户端传输方式，或为此 LLM 节点强制使用 HTTP SSE 或 WebSocket。WebSocket 支持连续工具调用；重连后的续接还受“存储响应”设置影响。",
+                "options": {
+                  "inherit": {
+                    "label": "跟随客户端"
+                  },
+                  "force_http_sse": {
+                    "label": "强制 HTTP SSE"
+                  },
+                  "force_websocket": {
+                    "label": "强制 WebSocket"
+                  }
+                }
               }
             }
           }
@@ -2220,60 +2242,60 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "checksum": "sha256:d2d9df05aea85be0ae3405022ad9fd1ca30aef3da809909d85c555374b727a4e",
+          "checksum": "sha256:5608dea00ca746bf155580314320fbff9887e82056a0afc54f394f3d16cae090",
           "libc": null,
           "rust_target": "x86_64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.54/1flowbase@openai@0.2.54@darwin-amd64.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.55/1flowbase@openai@0.2.55@darwin-amd64.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "darwin",
           "arch": "arm64",
-          "checksum": "sha256:f66926162f496d6dc82716a0537370041e7e8b54e9c3ab512c5fc705077a428d",
+          "checksum": "sha256:3944e783cedb5e5e9d04d6454fa4ec49a3fccab3c529c08a2ac5a78b7ac45efb",
           "libc": null,
           "rust_target": "aarch64-apple-darwin",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.54/1flowbase@openai@0.2.54@darwin-arm64.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.55/1flowbase@openai@0.2.55@darwin-arm64.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "amd64",
-          "checksum": "sha256:aa9608f127b209104d2e82393f6eab70f0816e934ee897a56eb417dbb2c61e5e",
+          "checksum": "sha256:94c562da01e4e71c159da5e2dd3c71c974e267ab98fa899364e1053a6de5cb44",
           "libc": "musl",
           "rust_target": "x86_64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.54/1flowbase@openai@0.2.54@linux-amd64.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.55/1flowbase@openai@0.2.55@linux-amd64.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "linux",
           "arch": "arm64",
-          "checksum": "sha256:aea22e212529cbfa9d02e05365f7ccf6085139ea4d39e1ec9a72527cb591ff1f",
+          "checksum": "sha256:8572b1966684aa3dd86ab42950df6ec8167ba0587771cd406e588272e2f2cd87",
           "libc": "musl",
           "rust_target": "aarch64-unknown-linux-musl",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.54/1flowbase@openai@0.2.54@linux-arm64.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.55/1flowbase@openai@0.2.55@linux-arm64.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "amd64",
-          "checksum": "sha256:8a30d2b2670f3f225b50f4cfe2b385f4189acf919c2150a2ad6e393b2cc06a44",
+          "checksum": "sha256:95b417518b3bf4ef6e5e300d8e83e42b9b04e6e855adeb757f7db55c3d9585f6",
           "libc": "msvc",
           "rust_target": "x86_64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.54/1flowbase@openai@0.2.54@windows-amd64.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.55/1flowbase@openai@0.2.55@windows-amd64.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         },
         {
           "os": "windows",
           "arch": "arm64",
-          "checksum": "sha256:3cc456d597ae1f40f4f13b3e33839680a49321f2bbfa4bc76bb6848dcf6913c0",
+          "checksum": "sha256:21ca84b32a6b904afcc74a7a6e0ea9aff0311a980a38f01b814a1890b4d9a87c",
           "libc": "msvc",
           "rust_target": "aarch64-pc-windows-msvc",
-          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.54/1flowbase@openai@0.2.54@windows-arm64.1flowbasepkg",
+          "download_url": "https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai-v0.2.55/1flowbase@openai@0.2.55@windows-arm64.1flowbasepkg",
           "signature_algorithm": "ed25519",
           "signing_key_id": "official-key-2026-04"
         }
