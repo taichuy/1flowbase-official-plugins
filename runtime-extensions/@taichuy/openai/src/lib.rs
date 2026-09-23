@@ -364,6 +364,13 @@ pub enum ProviderWireOperation {
     Compact,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderClientTransport {
+    Http,
+    Websocket,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderInvocationInput {
@@ -404,6 +411,8 @@ pub struct ProviderInvocationInput {
     pub client_protocol_envelope: Option<ProtocolContextEnvelope>,
     #[serde(default)]
     pub native_transport: Option<ProviderNativeTransport>,
+    #[serde(default)]
+    pub client_transport: Option<ProviderClientTransport>,
 }
 
 impl ProviderInvocationInput {
@@ -1140,12 +1149,26 @@ fn resolve_responses_node_transport(
     config: &ProviderConfig,
     input: &ProviderInvocationInput,
 ) -> Result<OpenAiTransportMode> {
-    match input.model_parameters.get("use_responses_websocket") {
-        None => Ok(config.transport_mode),
-        Some(Value::Bool(true)) => Ok(OpenAiTransportMode::ResponsesWebsocket),
-        Some(Value::Bool(false)) => Ok(OpenAiTransportMode::HttpSse),
-        Some(_) => bail!("use_responses_websocket must be a boolean"),
+    match input.model_parameters.get("responses_transport_policy") {
+        Some(Value::String(policy)) => match policy.as_str() {
+            "force_http_sse" => return Ok(OpenAiTransportMode::HttpSse),
+            "force_websocket" => return Ok(OpenAiTransportMode::ResponsesWebsocket),
+            "inherit" => {}
+            _ => bail!("unsupported responses_transport_policy: {policy}"),
+        },
+        Some(_) => bail!("responses_transport_policy must be a string"),
+        None => match input.model_parameters.get("use_responses_websocket") {
+            Some(Value::Bool(true)) => return Ok(OpenAiTransportMode::ResponsesWebsocket),
+            // The historical false value was the default, so it now inherits.
+            Some(Value::Bool(false)) | None => {}
+            Some(_) => bail!("use_responses_websocket must be a boolean"),
+        },
     }
+    Ok(match input.client_transport {
+        Some(ProviderClientTransport::Http) => OpenAiTransportMode::HttpSse,
+        Some(ProviderClientTransport::Websocket) => OpenAiTransportMode::ResponsesWebsocket,
+        None => config.transport_mode,
+    })
 }
 
 fn require_text(value: Option<&Value>, field: &str) -> Result<String> {
@@ -1588,49 +1611,6 @@ impl OpenAiProviderRuntime {
                     .await
                 {
                     Ok(output) => Ok(output),
-                    Err(mut error)
-                        if error.disposition
-                            == Some(RecoveryDisposition::PreCommitHttpFallback)
-                            && can_fallback_to_http(&error.source) =>
-                    {
-                        if !begin_http_fallback(&mut error) {
-                            return Err(recovery_error_source(error, recovery_directive.as_ref()));
-                        }
-                        let fallback = invoke_openai_http_sse(
-                            &config,
-                            request.protocol,
-                            request.pathname,
-                            body,
-                            input.model.clone(),
-                            &mut on_event,
-                            native_passthrough,
-                            &request.protocol_context,
-                        )
-                        .await;
-                        let mut output = match fallback {
-                            Ok(output) => output,
-                            Err(fallback_error) => {
-                                return Err(recovery_fallback_error_source(
-                                    error,
-                                    recovery_directive.as_ref(),
-                                    fallback_error,
-                                    semantic_output.load(std::sync::atomic::Ordering::Relaxed),
-                                ));
-                            }
-                        };
-                        attach_managed_recovery_receipt(
-                            &mut output,
-                            recovery_directive.as_ref(),
-                            error.transition,
-                            RecoveryTransport::ProviderHttp,
-                            None,
-                        )?;
-                        if !error.failure_diagnostics.is_empty() {
-                            output.result.provider_metadata[recovery_diagnostics::KEY] =
-                                recovery_diagnostics::summary(&error.failure_diagnostics);
-                        }
-                        Ok(output)
-                    }
                     Err(error) => Err(recovery_error_source(error, recovery_directive.as_ref())),
                 }
             }
@@ -8179,24 +8159,71 @@ mod tests {
     }
 
     #[test]
-    fn node_websocket_switch_off_forces_http_sse() {
+    fn historical_false_follows_client_and_true_forces_websocket() {
         let config = normalize_provider_config(&json!({
             "api_key": "sk-test",
             "transport_mode": "responses_websocket"
         }))
         .unwrap();
-        let input = ProviderInvocationInput {
+        let mut input = ProviderInvocationInput {
             model_parameters: BTreeMap::from([(
                 "use_responses_websocket".to_string(),
                 json!(false),
             )]),
+            client_transport: Some(ProviderClientTransport::Websocket),
             ..Default::default()
         };
 
         assert_eq!(
             resolve_responses_node_transport(&config, &input).unwrap(),
+            OpenAiTransportMode::ResponsesWebsocket
+        );
+        input.client_transport = Some(ProviderClientTransport::Http);
+        input
+            .model_parameters
+            .insert("use_responses_websocket".into(), json!(true));
+        assert_eq!(
+            resolve_responses_node_transport(&config, &input).unwrap(),
+            OpenAiTransportMode::ResponsesWebsocket
+        );
+    }
+
+    #[test]
+    fn node_transport_policy_follows_or_forces_upstream_transport() {
+        let config = normalize_provider_config(&json!({
+            "api_key": "sk-test",
+            "transport_mode": "http_sse"
+        }))
+        .unwrap();
+        let mut input = ProviderInvocationInput {
+            client_transport: Some(ProviderClientTransport::Websocket),
+            ..Default::default()
+        };
+        for (policy, expected) in [
+            ("inherit", OpenAiTransportMode::ResponsesWebsocket),
+            ("force_http_sse", OpenAiTransportMode::HttpSse),
+            ("force_websocket", OpenAiTransportMode::ResponsesWebsocket),
+        ] {
+            input
+                .model_parameters
+                .insert("responses_transport_policy".into(), json!(policy));
+            assert_eq!(
+                resolve_responses_node_transport(&config, &input).unwrap(),
+                expected
+            );
+        }
+        input.client_transport = Some(ProviderClientTransport::Http);
+        input
+            .model_parameters
+            .insert("responses_transport_policy".into(), json!("inherit"));
+        assert_eq!(
+            resolve_responses_node_transport(&config, &input).unwrap(),
             OpenAiTransportMode::HttpSse
         );
+        input
+            .model_parameters
+            .insert("responses_transport_policy".into(), json!("invalid"));
+        assert!(resolve_responses_node_transport(&config, &input).is_err());
     }
 
     #[test]

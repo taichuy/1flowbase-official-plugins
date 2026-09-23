@@ -132,9 +132,14 @@
         "force_disabled": { "label": "Force disabled" }
       }
     },
-    "use_responses_websocket": {
-      "label": "Use Responses WebSocket",
-      "description": "When enabled, this LLM node uses OpenAI Responses WebSocket; when disabled, it uses HTTP SSE. WebSocket is suited to continuous tool calls and can continue with previous_response_id within the connection. Continuation after reconnecting also depends on the Store response setting."
+    "responses_transport_policy": {
+      "label": "Responses transport",
+      "description": "Follow the client's transport, or require HTTP SSE or WebSocket for this LLM node. WebSocket supports continuous tool calls; continuation after reconnecting also depends on Store response.",
+      "options": {
+        "inherit": { "label": "Follow client" },
+        "force_http_sse": { "label": "Force HTTP SSE" },
+        "force_websocket": { "label": "Force WebSocket" }
+      }
     }
   }
 }

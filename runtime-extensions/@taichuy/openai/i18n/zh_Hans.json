@@ -132,9 +132,14 @@
         "force_disabled": { "label": "强制关闭" }
       }
     },
-    "use_responses_websocket": {
-      "label": "使用 Responses WebSocket",
-      "description": "开启后对此 LLM 节点使用 OpenAI Responses WebSocket；关闭时使用 HTTP SSE。WebSocket 适合连续工具调用，并可在连接内通过 previous_response_id 续接；连接重建后的续接能力还受“存储响应”设置影响。"
+    "responses_transport_policy": {
+      "label": "Responses 传输方式",
+      "description": "跟随客户端传输方式，或为此 LLM 节点强制使用 HTTP SSE 或 WebSocket。WebSocket 支持连续工具调用；重连后的续接还受“存储响应”设置影响。",
+      "options": {
+        "inherit": { "label": "跟随客户端" },
+        "force_http_sse": { "label": "强制 HTTP SSE" },
+        "force_websocket": { "label": "强制 WebSocket" }
+      }
     }
   }
 }

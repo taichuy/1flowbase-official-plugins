@@ -106,14 +106,21 @@ parameter_form:
       value: true
     - label: parameters.store.options.force_disabled.label
       value: false
-  - key: use_responses_websocket
-    label: parameters.use_responses_websocket.label
-    description: parameters.use_responses_websocket.description
-    type: boolean
-    control: switch
+  - key: responses_transport_policy
+    label: parameters.responses_transport_policy.label
+    description: parameters.responses_transport_policy.description
+    type: enum
+    control: select
     order: 80
     send_mode: always
-    default_value: false
+    default_value: inherit
+    options:
+    - label: parameters.responses_transport_policy.options.inherit.label
+      value: inherit
+    - label: parameters.responses_transport_policy.options.force_http_sse.label
+      value: force_http_sse
+    - label: parameters.responses_transport_policy.options.force_websocket.label
+      value: force_websocket
 
 config_schema:
 - key: base_url

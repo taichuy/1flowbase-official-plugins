@@ -44,7 +44,7 @@ The runtime also forwards Codex-style Responses fields when the host passes them
 
 Streaming defaults to HTTP SSE. `transport_mode` can explicitly select `responses_websocket` or `auto`; in `auto` mode the runtime tries the Responses WebSocket transport first, keeps the upstream connection inside the provider worker, and falls back to HTTP SSE when the WebSocket handshake is unavailable. Continuations that reuse a WebSocket response cursor reconnect WebSocket once instead of downgrading that cursor to HTTP SSE. Both transports use a 5-minute idle timeout, matching Codex's long-running stream posture: active streams can keep flowing, but a silent upstream connection fails instead of hanging forever.
 
-For LLM nodes, the provider registers `use_responses_websocket` as an always-sent boolean parameter. Its default `false` forces HTTP SSE for that node; `true` forces Responses WebSocket. Existing nodes without the parameter retain their provider-instance `transport_mode` behavior.
+For LLM nodes, `responses_transport_policy` defaults to `inherit`, following the client's HTTP or WebSocket transport when known. `force_http_sse` and `force_websocket` select the upstream transport explicitly. Historical `use_responses_websocket=false` follows the client; `true` forces WebSocket. When no client transport is known, the provider-instance `transport_mode` remains the fallback.
 
 ## Static Models
 
