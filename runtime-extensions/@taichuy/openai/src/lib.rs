@@ -4243,6 +4243,17 @@ fn build_websocket_response_create_body(mut body: Value) -> Value {
     );
     if let Value::Object(body_object) = &mut body {
         for (key, value) in std::mem::take(body_object) {
+            // HTTP Responses accepts a string input, while response.create on
+            // the provider WebSocket expects input items (as in Codex's typed
+            // ResponseCreateWsRequest). Preserve the request's user message.
+            let value = if key == "input" {
+                match value {
+                    Value::String(content) => json!([{"role":"user","content":content}]),
+                    other => other,
+                }
+            } else {
+                value
+            };
             object.insert(key, value);
         }
     }
@@ -4279,8 +4290,9 @@ fn websocket_session_key(
             .unwrap_or_default(),
         config.organization.as_deref().unwrap_or_default(),
         config.project.as_deref().unwrap_or_default(),
-        // Request body extensions vary between turns; only handshake context owns
-        // the socket. Model/protocol remain part of the provider session identity.
+        // A Host-sealed session keeps one socket across semantic and native
+        // turns. Turn-specific headers must not split its physical key.
+        // Model/protocol and routing-sensitive handshake fields still fence it.
         serde_json::to_string(&(
             &input.protocol,
             &input.model,
@@ -4290,15 +4302,17 @@ fn websocket_session_key(
                 context
                     .headers
                     .iter()
-                    .filter(|(name, _)| input.native_transport.is_none()
-                        || matches!(
-                            name.as_str(),
-                            "session-id"
-                                | "thread-id"
-                                | "conversation_id"
-                                | "openai-organization"
-                                | "openai-project"
-                        ))
+                    .filter(
+                        |(name, _)| (directive.is_none() && input.native_transport.is_none())
+                            || matches!(
+                                name.as_str(),
+                                "session-id"
+                                    | "thread-id"
+                                    | "conversation_id"
+                                    | "openai-organization"
+                                    | "openai-project"
+                            )
+                    )
                     .collect::<Vec<_>>(),
                 &context.query,
             )),

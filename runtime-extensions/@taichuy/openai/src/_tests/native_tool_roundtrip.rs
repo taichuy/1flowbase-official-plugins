@@ -285,7 +285,7 @@ async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
                 .unwrap();
             let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
             let frame: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
-            assert_eq!(frame["input"], nonce);
+            assert_eq!(frame["input"], json!([{"role":"user","content":nonce}]));
             ws.send(Message::Text(json!({"type":"response.completed","response":{"id":format!("resp_{nonce}"),"output":[]}}).to_string().into())).unwrap();
             sockets.push(ws);
         }

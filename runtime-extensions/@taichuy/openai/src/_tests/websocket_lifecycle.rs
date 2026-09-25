@@ -391,6 +391,78 @@ fn credential_and_generation_ownership_are_explicit() {
 }
 
 #[test]
+fn sealed_session_key_survives_semantic_to_native_turn_without_merging_routing_context() {
+    let mut semantic = websocket_input("https://example.test/v1");
+    semantic.client_protocol_envelope = Some(ProtocolContextEnvelope {
+        source_protocol: "openai_responses".into(),
+        headers: BTreeMap::from([
+            ("session-id".into(), vec!["stable-session".into()]),
+            ("thread-id".into(), vec!["stable-thread".into()]),
+            ("openai-organization".into(), vec!["org-a".into()]),
+            ("x-codex-turn-metadata".into(), vec!["turn-one".into()]),
+        ]),
+        ..Default::default()
+    });
+    let config = normalize_provider_config(&semantic.provider_config).unwrap();
+    let directive = transport_session_directive(&semantic).unwrap();
+    let first_key = websocket_session_key(&config, &semantic, directive.as_ref());
+
+    let mut continuation = semantic.clone();
+    continuation.native_transport = Some(ProviderNativeTransport {
+        protocol: "openai_responses".into(),
+        wire_body: json!({"previous_response_id":"resp_previous","input":"next"}),
+        digest: "fixture".into(),
+        size_bytes: 0,
+    });
+    continuation
+        .client_protocol_envelope
+        .as_mut()
+        .unwrap()
+        .headers
+        .insert("x-codex-turn-metadata".into(), vec!["turn-two".into()]);
+    assert_eq!(
+        first_key,
+        websocket_session_key(&config, &continuation, directive.as_ref())
+    );
+
+    continuation
+        .client_protocol_envelope
+        .as_mut()
+        .unwrap()
+        .headers
+        .insert("openai-organization".into(), vec!["org-b".into()]);
+    assert_ne!(
+        first_key,
+        websocket_session_key(&config, &continuation, directive.as_ref())
+    );
+}
+
+#[test]
+fn websocket_response_create_accepts_http_responses_string_input_as_one_user_item() {
+    let body = json!({
+        "model":"gpt-6-luna",
+        "previous_response_id":"resp_provider_owned",
+        "input":"next turn",
+        "reasoning":{"effort":"max"}
+    });
+    let wire = build_websocket_response_create_body(body);
+    assert_eq!(wire["type"], "response.create");
+    assert_eq!(wire["previous_response_id"], "resp_provider_owned");
+    assert_eq!(
+        wire["input"],
+        json!([{"role":"user","content":"next turn"}])
+    );
+    assert_eq!(wire["reasoning"]["effort"], "max");
+
+    let native_items =
+        json!({"input":[{"type":"function_call_output","call_id":"call_1","output":"done"}]});
+    assert_eq!(
+        build_websocket_response_create_body(native_items)["input"],
+        json!([{"type":"function_call_output","call_id":"call_1","output":"done"}])
+    );
+}
+
+#[test]
 fn invocation_timing_receipt_is_bounded_and_payload_free() {
     let mut metadata = json!({});
     attach_invocation_timing_receipt(
