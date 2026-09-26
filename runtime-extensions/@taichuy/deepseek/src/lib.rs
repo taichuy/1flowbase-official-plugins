@@ -757,6 +757,27 @@ fn build_http_client(
     config: &ProviderConfig,
     required_proxy_url: Option<&str>,
 ) -> Result<reqwest::Client> {
+    thread_local! {
+        static RECENT: std::cell::RefCell<Option<((ProviderConfig, Option<String>), reqwest::Client)>> =
+            const { std::cell::RefCell::new(None) };
+    }
+    let key = (config.clone(), required_proxy_url.map(str::to_owned));
+    RECENT.with(|recent| {
+        if let Some((cached, client)) = recent.borrow().as_ref() {
+            if cached == &key {
+                return Ok(client.clone());
+            }
+        }
+        let client = build_http_client_uncached(config, required_proxy_url)?;
+        *recent.borrow_mut() = Some((key, client.clone()));
+        Ok(client)
+    })
+}
+
+fn build_http_client_uncached(
+    config: &ProviderConfig,
+    required_proxy_url: Option<&str>,
+) -> Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder();
     if let Some(proxy_url) = required_proxy_url.or(config.proxy_url.as_deref()) {
         builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);

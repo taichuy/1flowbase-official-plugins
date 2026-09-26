@@ -2,7 +2,7 @@
 
 `openai` is an official 1flowbase model provider runtime extension for OpenAI's Responses API.
 
-The runtime is packaged with plugin manifest v1 and invoked through the host `stdio_json_worker` contract.
+The runtime is packaged with plugin manifest v1 and invoked through the host `stdio_json_multiplex_v1` contract.
 
 It targets:
 

@@ -44,7 +44,7 @@ test('openai provider declares responses identity and runtime entry', () => {
   assert.match(manifest, /^plugin_id: openai$/m);
   assert.match(manifest, /^display_name: OpenAI$/m);
   assert.match(manifest, /^execution_mode: stateful_provider_worker$/m);
-  assert.match(manifest, /^  protocol: stdio_json_worker$/m);
+  assert.match(manifest, /^  protocol: stdio_json_multiplex_v1$/m);
   assert.match(manifest, /^  entry: bin\/openai-provider$/m);
   assert.match(manifest, /^  - model_provider$/m);
   assert.match(manifest, /^trust_level: verified_official$/m);

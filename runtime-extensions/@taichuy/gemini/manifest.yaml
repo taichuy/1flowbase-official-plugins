@@ -1,7 +1,7 @@
 manifest_version: 1
 plugin_id: gemini
 publisher_namespace: 1flowbase
-version: 0.1.23
+version: 0.1.24
 vendor: 1flowbase
 display_name: Gemini
 description: Google Gemini model provider runtime extension
@@ -9,7 +9,7 @@ icon: icon.svg
 source_kind: official_registry
 trust_level: verified_official
 consumption_kind: runtime_extension
-execution_mode: process_per_call
+execution_mode: stateful_provider_worker
 slot_codes:
   - model_provider
 keywords:
@@ -18,7 +18,7 @@ keywords:
 binding_targets:
   - workspace
 selection_mode: assignment_then_select
-minimum_host_version: 0.3.1
+minimum_host_version: 0.4.1
 contract_version: 1flowbase.provider/v2
 schema_version: 1flowbase.plugin.manifest/v1
 permissions:
@@ -28,7 +28,7 @@ permissions:
   mcp: none
   subprocess: deny
 runtime:
-  protocol: stdio_json
+  protocol: stdio_json_multiplex_v1
   entry: bin/gemini-provider
   capabilities:
     - config.validate
@@ -36,5 +36,4 @@ runtime:
     - count_tokens
   limits:
     timeout_ms: 30000
-    memory_bytes: 268435456
 node_contributions: []

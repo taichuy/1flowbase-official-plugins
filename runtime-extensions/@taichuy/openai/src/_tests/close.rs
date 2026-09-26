@@ -67,6 +67,22 @@ fn replacement_generation_preserves_every_socket_release_and_prior_missing_ack()
     assert!(ledger.reserve(id, now).is_err());
 }
 
+#[test]
+fn cancelled_release_never_claims_peer_ack() {
+    let now = Instant::now();
+    let id = identity("cancelled", 1);
+    let mut ledger = CloseLedger::default();
+    ledger.reserve(id.clone(), now).unwrap();
+    ledger.activated(&id);
+    ledger.abandon_active(now);
+    let receipt = ledger.complete(&id, &command(&id), now).unwrap();
+    assert_eq!(receipt.close_acknowledged, Some(false));
+    assert_eq!(
+        receipt.closure_evidence.unwrap().no_ack_reason,
+        Some(NoAckReason::TransportError)
+    );
+}
+
 async fn connected_session(
     no_ack: bool,
 ) -> (ResponsesWebsocketSession, tokio::task::JoinHandle<usize>) {

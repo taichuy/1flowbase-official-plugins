@@ -1,7 +1,7 @@
 manifest_version: 1
 plugin_id: openai
 publisher_namespace: 1flowbase
-version: 0.2.61
+version: 0.2.62
 vendor: 1flowbase
 display_name: OpenAI
 description: OpenAI Responses API provider runtime extension
@@ -18,7 +18,7 @@ keywords:
 binding_targets:
   - workspace
 selection_mode: assignment_then_select
-minimum_host_version: 0.3.1
+minimum_host_version: 0.4.1
 contract_version: 1flowbase.provider/v2
 schema_version: 1flowbase.plugin.manifest/v1
 permissions:
@@ -28,7 +28,7 @@ permissions:
   mcp: none
   subprocess: deny
 runtime:
-  protocol: stdio_json_worker
+  protocol: stdio_json_multiplex_v1
   entry: bin/openai-provider
   capabilities:
     - config.validate
@@ -45,5 +45,4 @@ runtime:
     - network_egress_handoff/v1
   limits:
     timeout_ms: 30000
-    memory_bytes: 268435456
 node_contributions: []

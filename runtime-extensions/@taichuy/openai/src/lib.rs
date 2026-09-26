@@ -1,6 +1,7 @@
 mod protocol_observation;
 use protocol_observation::{ObserveRequest, ObserveResponse};
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt,
     sync::Arc,
@@ -33,6 +34,8 @@ use tokio_tungstenite::{
 };
 
 mod close;
+mod multiplex_worker;
+pub use multiplex_worker::serve_multiplex_worker;
 mod transport_session;
 mod visibility;
 mod websocket_io;
@@ -972,6 +975,24 @@ impl OpenAiProviderRuntime {
         }
     }
 
+    /// Dropping an in-flight call can leave a partially written WebSocket request.
+    /// Discard its socket and preserve truthful close evidence for the next call.
+    pub fn abandon_inflight_transport(&mut self) {
+        let now = self.websocket_clock.now();
+        for (_, session) in self.websocket_sessions.drain() {
+            if let Some(identity) = &session.close_identity {
+                self.close_ledger.released(
+                    identity,
+                    Some(close::NoAckReason::TransportError),
+                    now.saturating_duration_since(session.created_at),
+                    now,
+                );
+            }
+        }
+        self.close_ledger.abandon_active(now);
+        self.websocket_logical_sessions.clear();
+    }
+
     pub async fn handle_invoke_request_streaming<F>(
         &mut self,
         input: Value,
@@ -1321,11 +1342,36 @@ fn inject_provider_auth(headers: &mut HeaderMap, config: &ProviderConfig) -> Res
 }
 
 fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    thread_local! {
+        static CLIENT: RefCell<Option<(String, reqwest::Client)>> = const { RefCell::new(None) };
+    }
+    let key = format!(
+        "{:?}",
+        (
+            &config.base_url,
+            credential_fingerprint(&config.api_key),
+            &config.organization,
+            &config.project,
+            &config.proxy_url,
+            config.transport_mode.as_str(),
+        )
+    );
+    if let Some(client) = CLIENT.with(|cache| {
+        cache
+            .borrow()
+            .as_ref()
+            .filter(|(existing, _)| existing == &key)
+            .map(|(_, client)| client.clone())
+    }) {
+        return Ok(client);
+    }
     let mut builder = reqwest::Client::builder();
     if let Some(proxy_url) = &config.proxy_url {
         builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);
     }
-    builder.build().context("building OpenAI HTTP client")
+    let client = builder.build().context("building OpenAI HTTP client")?;
+    CLIENT.with(|cache| *cache.borrow_mut() = Some((key, client.clone())));
+    Ok(client)
 }
 
 fn sanitize_reqwest_error(error: reqwest::Error, config: &ProviderConfig) -> anyhow::Error {
@@ -2265,8 +2311,6 @@ impl OpenAiProviderRuntime {
         }
         let mut connect_duration = None;
         if !self.websocket_sessions.contains_key(&session_key) {
-            ensure_transport_session_capacity(self.websocket_sessions.len())
-                .map_err(WebsocketInvocationError::fallback_blocked)?;
             let turn_state = responses_body_previous_response_id(&body)
                 .filter(|response_id| {
                     self.websocket_response_owners
@@ -4330,18 +4374,6 @@ fn websocket_session_key(
 fn credential_fingerprint(api_key: &str) -> String {
     let digest = Sha256::digest(api_key.as_bytes());
     format!("sha256:{digest:x}")
-}
-
-fn ensure_transport_session_capacity(active_sessions: usize) -> Result<()> {
-    if active_sessions >= 64 {
-        return Err(anyhow::Error::new(ProviderRuntimeError {
-            kind: ProviderRuntimeErrorKind::ProviderTransportAdmissionFailed,
-            message: "physical transport session capacity is exhausted".into(),
-            provider_summary: None,
-            provider_details: None,
-        }));
-    }
-    Ok(())
 }
 
 fn can_fallback_to_http(error: &anyhow::Error) -> bool {

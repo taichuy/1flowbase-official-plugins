@@ -1,104 +1,59 @@
-use std::io::{self, Read, Write};
-
 use anthropic_provider::{
-    handle_invoke_request_streaming, handle_request, ProviderFinishReason,
-    ProviderInvocationResult, ProviderRuntimeError, ProviderStdioRequest, ProviderStdioResponse,
-    ProviderUsage,
+    handle_invoke_request_streaming, handle_request, ProviderStdioRequest, ProviderStdioResponse,
 };
+use runtime_extension_sdk::{serve, MultiplexEmitter};
+use serde_json::{json, Value};
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let mut stdin = String::new();
-    io::stdin().read_to_string(&mut stdin).unwrap();
-
-    let request: ProviderStdioRequest =
-        serde_json::from_str(&stdin).unwrap_or(ProviderStdioRequest {
-            method: "invalid".to_string(),
-            input: serde_json::Value::Null,
-        });
-
-    if request.method == "invoke"
-        && request
-            .input
-            .get("operation")
-            .and_then(|value| value.as_str())
-            != Some("count_tokens")
-    {
-        run_streaming_invoke(request).await;
-        return;
+    if let Err(error) = serve(|raw, emitter| async move { handle(raw, emitter).await }).await {
+        eprintln!("provider worker transport failed: {error}");
     }
-
-    let response = handle_request(request).await.unwrap_or_else(|error| {
-        error
-            .downcast_ref::<ProviderRuntimeError>()
-            .cloned()
-            .map(ProviderStdioResponse::runtime_error)
-            .unwrap_or_else(|| {
-                ProviderStdioResponse::error("provider_invalid_response", error.to_string())
-            })
-    });
-    print!("{}", serde_json::to_string(&response).unwrap());
 }
 
-async fn run_streaming_invoke(request: ProviderStdioRequest) {
-    let mut stdout = io::stdout().lock();
-    let result = handle_invoke_request_streaming(request.input, |event| {
-        writeln!(stdout, "{}", serde_json::to_string(event)?)?;
-        stdout.flush()?;
-        Ok(())
-    })
-    .await;
-
-    match result {
-        Ok(result) => {
-            writeln!(
-                stdout,
-                "{}",
-                serde_json::to_string(&serde_json::json!({
-                    "type": "result",
-                    "result": result,
-                }))
-                .unwrap()
-            )
-            .unwrap();
-            stdout.flush().unwrap();
-        }
-        Err(error) => {
-            let runtime_error = error
-                .downcast_ref::<ProviderRuntimeError>()
-                .cloned()
-                .unwrap_or_else(|| {
-                    ProviderRuntimeError::normalize("invoke", error.to_string(), None)
-                });
-            writeln!(
-                stdout,
-                "{}",
-                serde_json::to_string(&serde_json::json!({
+async fn handle(raw: Value, emitter: MultiplexEmitter) -> Value {
+    let request =
+        serde_json::from_value::<ProviderStdioRequest>(raw).unwrap_or(ProviderStdioRequest {
+            method: "invalid".to_owned(),
+            input: Value::Null,
+        });
+    if request.method == "invoke" && !unary_invoke(&request) {
+        let result = handle_invoke_request_streaming(request.input, |event| {
+            emitter.try_event(serde_json::to_value(event)?)?;
+            Ok(())
+        })
+        .await;
+        return match result {
+            Ok(result) => serde_json::to_value(result).unwrap_or(Value::Null),
+            Err(error) => {
+                let _ = emitter.try_event(json!({
                     "type": "error",
-                    "error": runtime_error,
-                }))
-                .unwrap()
-            )
-            .unwrap();
-            writeln!(
-                stdout,
-                "{}",
-                serde_json::to_string(&serde_json::json!({
-                    "type": "result",
-                    "result": ProviderInvocationResult {
-                        final_content: None,
-                        response_id: None,
-                        tool_calls: Vec::new(),
-                        mcp_calls: Vec::new(),
-                        usage: ProviderUsage::default(),
-                        finish_reason: Some(ProviderFinishReason::Error),
-                        provider_metadata: serde_json::json!({}),
-                    },
-                }))
-                .unwrap()
-            )
-            .unwrap();
-            stdout.flush().unwrap();
-        }
+                    "error": {
+                        "kind": "provider_upstream_error",
+                        "message": error.to_string(),
+                        "provider_summary": null,
+                        "provider_details": null
+                    }
+                }));
+                json!({
+                    "final_content": null,
+                    "response_id": null,
+                    "tool_calls": [],
+                    "mcp_calls": [],
+                    "usage": {},
+                    "finish_reason": "error",
+                    "provider_metadata": {}
+                })
+            }
+        };
     }
+    let response = handle_request(request).await.unwrap_or_else(|error| {
+        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+    });
+    serde_json::to_value(response).unwrap_or(Value::Null)
+}
+
+fn unary_invoke(request: &ProviderStdioRequest) -> bool {
+    request.method == "invoke"
+        && request.input.get("operation").and_then(Value::as_str) == Some("count_tokens")
 }

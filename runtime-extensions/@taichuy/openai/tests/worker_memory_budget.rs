@@ -30,26 +30,11 @@ struct Worker {
 
 impl Worker {
     fn start() -> Result<Self> {
-        let memory_bytes: u64 = include_str!("../manifest.yaml")
-            .lines()
-            .find_map(|line| line.trim().strip_prefix("memory_bytes:"))
-            .context("manifest memory limit")?
-            .trim()
-            .parse()?;
         ensure!(
-            memory_bytes == 268_435_456,
-            "revisit fixture for changed budget"
+            !include_str!("../manifest.yaml").contains("memory_bytes:"),
+            "shared worker must not carry the former per-process memory limit"
         );
-        let mut child = Command::new("sh")
-            .args([
-                "-c",
-                "ulimit -c 0; ulimit -v \"$1\" || exit 125; exec \"$2\"",
-                "sh",
-            ])
-            .arg((memory_bytes / 1024).to_string())
-            .arg(env!("CARGO_BIN_EXE_openai-provider"))
-            // Reproduce a multicore host; an explicit runtime worker budget overrides this.
-            .env("TOKIO_WORKER_THREADS", "16")
+        let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -60,8 +45,14 @@ impl Worker {
         let (input_tx, input_rx) = mpsc::channel::<String>();
         let (output_tx, output_rx) = mpsc::channel();
         let writer = thread::spawn(move || {
-            for command in input_rx {
-                if writeln!(stdin, "{command}")
+            for (index, command) in input_rx.into_iter().enumerate() {
+                let request: Value = match serde_json::from_str(&command) {
+                    Ok(value) => value,
+                    Err(_) => break,
+                };
+                let frame = json!({"protocol":"stdio_json_multiplex_v1", "kind":"call",
+                    "call_id":(index + 1).to_string(), "request":request});
+                if writeln!(stdin, "{frame}")
                     .and_then(|_| stdin.flush())
                     .is_err()
                 {
@@ -73,7 +64,14 @@ impl Worker {
             for line in BufReader::new(stdout).lines() {
                 let frame = line
                     .map_err(anyhow::Error::from)
-                    .and_then(|line| serde_json::from_str(&line).context("invalid worker NDJSON"));
+                    .and_then(|line| {
+                        serde_json::from_str::<Value>(&line).context("invalid worker NDJSON")
+                    })
+                    .map(|frame| match frame["kind"].as_str() {
+                        Some("event") => frame["event"].clone(),
+                        Some("response") => json!({"type":"result","result":frame["response"]}),
+                        _ => frame,
+                    });
                 if output_tx.send(frame).is_err() {
                     break;
                 }
@@ -269,7 +267,7 @@ fn request(address: &str, index: usize) -> Value {
 }
 
 #[test]
-fn native_history_survives_dns_retirement_within_manifest_memory_budget() -> Result<()> {
+fn native_history_survives_dns_retirement_in_shared_worker() -> Result<()> {
     let mut server = Server::start()?;
     let mut worker = Worker::start()?;
     for index in 0..3 {

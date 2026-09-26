@@ -50,6 +50,17 @@
 
 - `openai_compatible`：OpenAI-compatible API provider 插件
 
+## 共享 Worker
+
+OpenAI、Anthropic、Gemini、DeepSeek、OpenAI-compatible 和 Aliyun Bailian 使用
+`stdio_json_multiplex_v1`，需要包含主仓 #2144 的 Host。旧 Host 会拒绝未知协议；
+升级应先部署 Host，再更新插件。每个 Cargo manifest 将 canonical
+`runtime-extension-sdk` 固定到主仓的精确 Git revision，独立 checkout 不依赖本机相邻目录。
+SDK revision 改动属于插件源码变更，必须随对应 manifest version 一起发布。
+
+独立会话并发共享进程，同会话保持顺序；取消、相关联输出和字节背压由 SDK/Host
+共同处理。进程复用不改变供应商协议和模型选择，也不声明机器能承受的固定并发数。
+
 ## 发布流程
 
 仓库当前包含两个 GitHub Actions workflow：

@@ -3,11 +3,57 @@ use serde_json::{json, Value};
 use std::{
     io::{BufRead, BufReader, Write},
     net::TcpListener,
-    process::{Command, Stdio},
+    process::{ChildStdin, Command, Stdio},
     thread,
     time::Duration,
 };
 use tokio_tungstenite::tungstenite::{accept_hdr, Message};
+
+struct MultiplexStdin {
+    inner: ChildStdin,
+    pending: Vec<u8>,
+    next_id: u64,
+}
+
+impl MultiplexStdin {
+    fn new(inner: ChildStdin) -> Self {
+        Self {
+            inner,
+            pending: Vec::new(),
+            next_id: 0,
+        }
+    }
+}
+
+impl Write for MultiplexStdin {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.pending.extend_from_slice(bytes);
+        while let Some(end) = self.pending.iter().position(|byte| *byte == b'\n') {
+            let line: Vec<_> = self.pending.drain(..=end).collect();
+            let request: Value = serde_json::from_slice(&line)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+            self.next_id += 1;
+            let frame = json!({"protocol":"stdio_json_multiplex_v1","kind":"call",
+                "call_id":self.next_id.to_string(),"request":request});
+            writeln!(self.inner, "{frame}")?;
+        }
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+fn decode_frame(line: &str) -> Value {
+    let frame: Value = serde_json::from_str(line).unwrap();
+    assert_eq!(frame["protocol"], "stdio_json_multiplex_v1");
+    match frame["kind"].as_str() {
+        Some("event") => frame["event"].clone(),
+        Some("response") => json!({"type":"result","result":frame["response"]}),
+        other => panic!("unexpected worker frame: {other:?}"),
+    }
+}
 
 fn input(base: &str, body: Value, current: bool) -> Value {
     let mut capabilities = vec!["responses.native_passthrough"];
@@ -33,7 +79,7 @@ fn old_host_is_rejected_by_real_worker_before_network() {
         .spawn()
         .unwrap();
     writeln!(
-        child.stdin.take().unwrap(),
+        MultiplexStdin::new(child.stdin.take().unwrap()),
         "{}",
         input("http://127.0.0.1:1", json!({"input":[]}), false)
     )
@@ -42,7 +88,7 @@ fn old_host_is_rejected_by_real_worker_before_network() {
     let lines: Vec<Value> = String::from_utf8(output.stdout)
         .unwrap()
         .lines()
-        .map(|s| serde_json::from_str(s).unwrap())
+        .map(decode_frame)
         .collect();
     assert_eq!(lines[0]["type"], "error");
     assert!(lines[0].to_string().contains("responses.native_output.v1"));
@@ -130,7 +176,7 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
-        let mut stdin = child.stdin.take().unwrap();
+        let mut stdin = MultiplexStdin::new(child.stdin.take().unwrap());
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut turn = |body: Value| {
             writeln!(stdin, "{}", input(&base, body, true)).unwrap();
@@ -139,7 +185,7 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
             loop {
                 let mut line = String::new();
                 assert!(stdout.read_line(&mut line).unwrap() > 0);
-                let value: Value = serde_json::from_str(&line).unwrap();
+                let value = decode_frame(&line);
                 let done = value["type"] == "result";
                 events.push(value);
                 if done {
@@ -214,7 +260,7 @@ fn paired_worker_preserves_native_incomplete_terminal() {
         .spawn()
         .unwrap();
     writeln!(
-        child.stdin.take().unwrap(),
+        MultiplexStdin::new(child.stdin.take().unwrap()),
         "{}",
         input(&base, json!({"input":[]}), true)
     )
@@ -224,7 +270,7 @@ fn paired_worker_preserves_native_incomplete_terminal() {
     let lines: Vec<Value> = String::from_utf8(output.stdout)
         .unwrap()
         .lines()
-        .map(|s| serde_json::from_str(s).unwrap())
+        .map(decode_frame)
         .collect();
     assert!(!lines.iter().any(|v| v["type"] == "error"));
     assert_eq!(lines.last().unwrap()["result"]["finish_reason"], "length");
@@ -280,7 +326,7 @@ fn explicit_native_websocket_handshake_failure_does_not_invoke_http() {
         .spawn()
         .unwrap();
     writeln!(
-        child.stdin.take().unwrap(),
+        MultiplexStdin::new(child.stdin.take().unwrap()),
         "{}",
         input(&base, json!({"input":[]}), true)
     )
@@ -296,7 +342,7 @@ fn explicit_native_websocket_handshake_failure_does_not_invoke_http() {
     let lines: Vec<Value> = String::from_utf8(output.stdout)
         .unwrap()
         .lines()
-        .map(|s| serde_json::from_str(s).unwrap())
+        .map(decode_frame)
         .collect();
     assert!(lines.iter().any(|v| v["type"] == "error"));
     assert_eq!(lines.last().unwrap()["result"]["finish_reason"], "error");
@@ -328,7 +374,7 @@ fn native_opaque_directive(max_inner_attempts: u16) -> Value {
 
 fn spawn_native_worker() -> (
     std::process::Child,
-    std::process::ChildStdin,
+    MultiplexStdin,
     BufReader<std::process::ChildStdout>,
 ) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
@@ -336,13 +382,13 @@ fn spawn_native_worker() -> (
         .stdout(Stdio::piped())
         .spawn()
         .unwrap();
-    let stdin = child.stdin.take().unwrap();
+    let stdin = MultiplexStdin::new(child.stdin.take().unwrap());
     let stdout = BufReader::new(child.stdout.take().unwrap());
     (child, stdin, stdout)
 }
 
 fn next_turn(
-    stdin: &mut std::process::ChildStdin,
+    stdin: &mut MultiplexStdin,
     stdout: &mut BufReader<std::process::ChildStdout>,
     line: Value,
 ) -> Vec<Value> {
@@ -352,7 +398,7 @@ fn next_turn(
     loop {
         let mut line = String::new();
         assert!(stdout.read_line(&mut line).unwrap() > 0);
-        let value: Value = serde_json::from_str(&line).unwrap();
+        let value = decode_frame(&line);
         let done = value["type"] == "result";
         events.push(value);
         if done {

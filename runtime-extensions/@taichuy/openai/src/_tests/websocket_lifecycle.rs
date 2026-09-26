@@ -184,14 +184,6 @@ fn typed_session_context_rejects_unknown_fields_and_capacity_is_not_evicted() {
         }),
     );
     assert!(transport_session_directive(&input).is_err());
-
-    let error = ensure_transport_session_capacity(64).unwrap_err();
-    assert_eq!(
-        error
-            .downcast_ref::<ProviderRuntimeError>()
-            .map(|error| &error.kind),
-        Some(&ProviderRuntimeErrorKind::ProviderTransportAdmissionFailed)
-    );
 }
 
 fn managed_closing_input(base_url: &str, budget: u16) -> ProviderInvocationInput {

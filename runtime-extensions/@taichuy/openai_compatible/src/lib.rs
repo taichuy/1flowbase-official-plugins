@@ -1114,6 +1114,23 @@ fn validate_protocol_context_value(value: &Value) -> Result<()> {
 }
 
 fn build_http_client(config: &ProviderConfig) -> Result<reqwest::Client> {
+    thread_local! {
+        static RECENT: std::cell::RefCell<Option<(ProviderConfig, reqwest::Client)>> =
+            const { std::cell::RefCell::new(None) };
+    }
+    RECENT.with(|recent| {
+        if let Some((cached, client)) = recent.borrow().as_ref() {
+            if cached == config {
+                return Ok(client.clone());
+            }
+        }
+        let client = build_http_client_uncached(config)?;
+        *recent.borrow_mut() = Some((config.clone(), client.clone()));
+        Ok(client)
+    })
+}
+
+fn build_http_client_uncached(config: &ProviderConfig) -> Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder();
     if let Some(proxy_url) = &config.proxy_url {
         builder = builder.proxy(reqwest::Proxy::all(proxy_url).context("invalid proxy_url")?);

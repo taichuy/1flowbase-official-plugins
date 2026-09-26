@@ -53,6 +53,18 @@ struct Entry {
     completed: Option<TransportSessionReceipt>,
 }
 impl CloseLedger {
+    pub fn abandon_active(&mut self, now: Instant) {
+        for entry in self.entries.values_mut() {
+            if entry.active {
+                entry.active = false;
+                entry.released_at = now;
+                entry
+                    .no_ack_reason
+                    .get_or_insert(NoAckReason::TransportError);
+            }
+        }
+    }
+
     pub fn prune(&mut self, now: Instant) {
         self.entries.retain(|_, entry| {
             entry.active || now.saturating_duration_since(entry.released_at) < RETENTION

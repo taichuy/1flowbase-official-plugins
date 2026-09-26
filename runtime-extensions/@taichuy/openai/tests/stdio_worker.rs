@@ -1,7 +1,7 @@
 use std::{
     io::{BufRead, BufReader, Read, Write},
     net::{TcpListener, TcpStream},
-    process::{Command, Stdio},
+    process::{ChildStdin, Command, Stdio},
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -873,8 +873,61 @@ fn next_json_line(reader: &mut impl BufRead) -> Value {
             .expect("stdout should be readable");
         assert!(read > 0, "provider worker exited before the next JSON line");
         if !line.trim().is_empty() {
-            return serde_json::from_str(line.trim()).expect("stdout line should be JSON");
+            let frame: Value =
+                serde_json::from_str(line.trim()).expect("stdout line should be JSON");
+            assert_eq!(frame["protocol"], "stdio_json_multiplex_v1");
+            return match frame["kind"].as_str() {
+                Some("event") => frame["event"].clone(),
+                Some("response") if frame["response"].get("ok").is_some() => {
+                    frame["response"].clone()
+                }
+                Some("response") => json!({"type":"result","result":frame["response"]}),
+                other => panic!("unexpected worker frame: {other:?}"),
+            };
         }
+    }
+}
+
+struct MultiplexStdin {
+    inner: ChildStdin,
+    pending: Vec<u8>,
+    next_call_id: u64,
+}
+
+impl MultiplexStdin {
+    fn new(inner: ChildStdin) -> Self {
+        Self {
+            inner,
+            pending: Vec::new(),
+            next_call_id: 0,
+        }
+    }
+}
+
+impl Write for MultiplexStdin {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.pending.extend_from_slice(bytes);
+        while let Some(end) = self.pending.iter().position(|byte| *byte == b'\n') {
+            let line: Vec<_> = self.pending.drain(..=end).collect();
+            if line.iter().all(u8::is_ascii_whitespace) {
+                continue;
+            }
+            let request: Value = serde_json::from_slice(&line)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+            self.next_call_id += 1;
+            let frame = json!({
+                "protocol":"stdio_json_multiplex_v1",
+                "kind":"call",
+                "call_id":self.next_call_id.to_string(),
+                "request":request
+            });
+            writeln!(self.inner, "{frame}")?;
+        }
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
     }
 }
 
@@ -887,7 +940,7 @@ fn websocket_previous_response_reconnect_replays_turn_state() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -945,7 +998,7 @@ fn websocket_continuation_reconnect_keeps_original_turn_state() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1080,7 +1133,7 @@ fn websocket_continuation_sends_response_create_without_unsolicited_ack() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1135,7 +1188,7 @@ fn websocket_previous_response_reconnects_instead_of_http_fallback() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1197,7 +1250,7 @@ fn websocket_previous_response_retries_stream_close_without_seen_cursor() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1246,7 +1299,7 @@ fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1318,7 +1371,7 @@ fn websocket_unknown_1008_policy_no_replay() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1400,7 +1453,7 @@ fn websocket_previous_response_can_fallback_to_sse_without_prior_websocket_sessi
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1446,7 +1499,7 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1530,7 +1583,7 @@ fn websocket_transport_falls_back_to_sse_before_response_events() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1600,7 +1653,7 @@ fn websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output() 
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1647,7 +1700,7 @@ fn websocket_close_after_function_call_done_finalizes_tool_call() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
@@ -1744,7 +1797,7 @@ fn close_without_peer_ack_and_rejected_control_preserve_other_session_cursor_in_
             .spawn()
             .unwrap(),
     );
-    let mut input = child.0.stdin.take().unwrap();
+    let mut input = MultiplexStdin::new(child.0.stdin.take().unwrap());
     let mut output = BufReader::new(child.0.stdout.take().unwrap());
     let bind = |line: String, session: &str| {
         let mut value: Value = serde_json::from_str(&line).unwrap();
@@ -1854,7 +1907,7 @@ fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() 
         .stderr(Stdio::piped())
         .spawn()
         .expect("openai provider binary should spawn");
-    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 

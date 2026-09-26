@@ -127,26 +127,31 @@ fn ac_002_fake_upstream_receives_exact_generate_wire_through_stdio() {
     let stdout = child.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
-    writeln!(stdin, "{}", invoke_line(&base_url)).expect("request should write");
+    let request: Value = serde_json::from_str(&invoke_line(&base_url)).unwrap();
+    writeln!(stdin, "{}", json!({
+        "protocol": "stdio_json_multiplex_v1", "kind": "call", "call_id": "1", "request": request
+    })).expect("request should write");
     stdin.flush().expect("request should flush");
-    drop(stdin);
 
     let first_line = next_json_line(&mut stdout);
-    assert_eq!(first_line["type"], "text_delta");
-    assert_eq!(first_line["delta"], "hello");
+    assert_eq!(first_line["kind"], "event");
+    assert_eq!(first_line["call_id"], "1");
+    assert_eq!(first_line["event"]["type"], "text_delta");
+    assert_eq!(first_line["event"]["delta"], "hello");
 
     let mut saw_result = false;
     for _ in 0..4 {
         let line = next_json_line(&mut stdout);
-        if line["type"] == "result" {
+        if line["kind"] == "response" {
             saw_result = true;
-            assert_eq!(line["result"]["final_content"], "hello");
+            assert_eq!(line["call_id"], "1");
+            assert_eq!(line["response"]["final_content"], "hello");
             break;
         }
     }
     assert!(saw_result, "invoke should end with a result line");
 
-    child.kill().expect("provider process should stop");
+    drop(stdin);
     let _ = child.wait();
     let body: Value = serde_json::from_str(
         &handle

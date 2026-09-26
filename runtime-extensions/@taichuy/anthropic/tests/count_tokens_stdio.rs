@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     net::{TcpListener, TcpStream},
     process::{Command, Stdio},
     sync::mpsc,
@@ -122,21 +122,33 @@ fn c2_count_tokens_uses_the_non_streaming_stdio_envelope() {
         .expect("Anthropic provider binary should spawn");
     let mut stdin = child.stdin.take().expect("provider stdin should be piped");
 
-    writeln!(stdin, "{}", count_tokens_invoke_line(&base_url))
-        .expect("CountTokens request should be written");
-    stdin.flush().expect("CountTokens request should flush");
+    let request: Value = serde_json::from_str(&count_tokens_invoke_line(&base_url)).unwrap();
+    writeln!(stdin, "{}", json!({
+        "protocol": "stdio_json_multiplex_v1", "kind": "call", "call_id": "1", "request": request
+    })).expect("CountTokens call should be written");
+    stdin.flush().expect("CountTokens call should flush");
+    let stdout = child
+        .stdout
+        .take()
+        .expect("provider stdout should be piped");
+    let mut line = String::new();
+    BufReader::new(stdout)
+        .read_line(&mut line)
+        .expect("response should be readable");
+    let frame: Value = serde_json::from_str(&line).expect("multiplex response should be JSON");
+    assert_eq!(frame["protocol"], "stdio_json_multiplex_v1");
+    assert_eq!(frame["kind"], "response");
+    assert_eq!(frame["call_id"], "1");
+    let response = &frame["response"];
     drop(stdin);
-
     let output = child
         .wait_with_output()
-        .expect("Anthropic provider process should finish");
+        .expect("provider should exit on EOF");
     assert!(
         output.status.success(),
-        "Anthropic provider failed: {}",
+        "provider failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let response: Value = serde_json::from_slice(&output.stdout)
-        .expect("CountTokens stdio response should be a JSON envelope");
     assert_eq!(response["ok"], json!(true));
     assert_eq!(
         response["result"],
@@ -184,4 +196,112 @@ fn c2_count_tokens_uses_the_non_streaming_stdio_envelope() {
     );
     assert!(body.get("stream").is_none());
     assert!(body.get("max_tokens").is_none());
+}
+
+#[test]
+fn multiplex_calls_overlap_and_one_error_does_not_stop_siblings() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("fixture should bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let (accepted_tx, accepted_rx) = mpsc::channel();
+    let upstream = thread::spawn(move || {
+        let mut replies = Vec::new();
+        for index in 0..2 {
+            let (mut stream, _) = listener.accept().expect("upstream call should connect");
+            if index == 0 {
+                accepted_tx
+                    .send(())
+                    .expect("first call should signal acceptance");
+            }
+            replies.push(thread::spawn(move || {
+                let _ = read_http_request(&mut stream);
+                if index == 0 {
+                    thread::sleep(Duration::from_millis(250));
+                }
+                let body = format!("{{\"input_tokens\":{}}}", if index == 0 { 11 } else { 22 });
+                write!(stream,
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(), body).expect("fixture response should write");
+            }));
+        }
+        for reply in replies {
+            reply.join().expect("upstream reply should finish");
+        }
+    });
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_anthropic-provider"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("worker should start");
+    let mut stdin = child.stdin.take().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let mut stdout = BufReader::new(stdout);
+    let request: Value = serde_json::from_str(&count_tokens_invoke_line(&base_url)).unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        json!({
+            "protocol": "stdio_json_multiplex_v1", "kind": "call", "call_id": "1",
+            "request": request
+        })
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+    accepted_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("first call should reach upstream");
+    writeln!(
+        stdin,
+        "{}",
+        json!({
+            "protocol": "stdio_json_multiplex_v1", "kind": "call", "call_id": "2",
+            "request": request
+        })
+    )
+    .unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        json!({
+            "protocol": "stdio_json_multiplex_v1", "kind": "call", "call_id": "3",
+            "request": {"method": "invalid", "input": null}
+        })
+    )
+    .unwrap();
+    stdin.flush().unwrap();
+
+    let mut frames = Vec::new();
+    for _ in 0..3 {
+        let mut line = String::new();
+        stdout
+            .read_line(&mut line)
+            .expect("worker response should read");
+        frames.push(serde_json::from_str::<Value>(&line).expect("worker response should be JSON"));
+    }
+    let by_id = |id: &str| {
+        frames
+            .iter()
+            .find(|frame| frame["call_id"] == id)
+            .expect("call should finish")
+    };
+    assert_eq!(by_id("3")["response"]["ok"], false);
+    assert_eq!(by_id("2")["response"]["result"]["input_tokens"], 22);
+    assert_eq!(by_id("1")["response"]["result"]["input_tokens"], 11);
+    let completed = |id: &str| {
+        frames
+            .iter()
+            .position(|frame| frame["call_id"] == id)
+            .unwrap()
+    };
+    assert!(
+        completed("2") < completed("1"),
+        "fast upstream should pass the slow sibling"
+    );
+    drop(stdin);
+    assert!(child
+        .wait()
+        .expect("worker should exit after EOF")
+        .success());
+    upstream.join().expect("upstream should finish");
 }
