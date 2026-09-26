@@ -144,7 +144,10 @@ fn start_websocket_created_close_then_sse_server() -> (String, thread::JoinHandl
             ))
             .expect("response.created should be writable");
         websocket
-            .close(None)
+            .close(Some(CloseFrame {
+                code: CloseCode::Again,
+                reason: "retry after overload".into(),
+            }))
             .expect("websocket close should be writable");
 
         let (mut second_stream, _) = listener.accept().expect("fallback request should connect");
@@ -1617,6 +1620,11 @@ fn websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output() 
                 assert_eq!(line["result"]["final_content"], "fallback after close");
                 assert_eq!(line["result"]["response_id"], "resp_fallback");
                 assert_eq!(line["result"]["provider_metadata"]["transport"], "http_sse");
+                assert_eq!(
+                    line["result"]["provider_metadata"]["1flowbase_provider_recovery_diagnostics"]
+                        ["first_failure"]["close_code"],
+                    1013
+                );
                 break;
             }
             Some("error") => panic!("fallback should not emit an error line: {line}"),

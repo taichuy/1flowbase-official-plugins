@@ -171,6 +171,7 @@ enum OpenAiTransportMode {
     Auto,
     HttpSse,
     ResponsesWebsocket,
+    ForceWebsocket,
 }
 
 impl OpenAiTransportMode {
@@ -179,6 +180,7 @@ impl OpenAiTransportMode {
             Self::Auto => "auto",
             Self::HttpSse => "http_sse",
             Self::ResponsesWebsocket => "responses_websocket",
+            Self::ForceWebsocket => "responses_websocket",
         }
     }
 }
@@ -1193,13 +1195,13 @@ fn resolve_responses_node_transport(
     match input.model_parameters.get("responses_transport_policy") {
         Some(Value::String(policy)) => match policy.as_str() {
             "force_http_sse" => return Ok(OpenAiTransportMode::HttpSse),
-            "force_websocket" => return Ok(OpenAiTransportMode::ResponsesWebsocket),
+            "force_websocket" => return Ok(OpenAiTransportMode::ForceWebsocket),
             "inherit" => {}
             _ => bail!("unsupported responses_transport_policy: {policy}"),
         },
         Some(_) => bail!("responses_transport_policy must be a string"),
         None => match input.model_parameters.get("use_responses_websocket") {
-            Some(Value::Bool(true)) => return Ok(OpenAiTransportMode::ResponsesWebsocket),
+            Some(Value::Bool(true)) => return Ok(OpenAiTransportMode::ForceWebsocket),
             // The historical false value was the default, so it now inherits.
             Some(Value::Bool(false)) | None => {}
             Some(_) => bail!("use_responses_websocket must be a boolean"),
@@ -1639,7 +1641,7 @@ impl OpenAiProviderRuntime {
                     }
                 }
             }
-            OpenAiTransportMode::ResponsesWebsocket => {
+            OpenAiTransportMode::ForceWebsocket => {
                 match self
                     .invoke_response_websocket_with_cursor_retry(
                         &config,
@@ -1647,6 +1649,7 @@ impl OpenAiProviderRuntime {
                         body.clone(),
                         &request.protocol_context,
                         recovery_directive.as_ref(),
+                        false,
                         &mut on_event,
                     )
                     .await
@@ -1655,7 +1658,7 @@ impl OpenAiProviderRuntime {
                     Err(error) => Err(recovery_error_source(error, recovery_directive.as_ref())),
                 }
             }
-            OpenAiTransportMode::Auto => {
+            OpenAiTransportMode::Auto | OpenAiTransportMode::ResponsesWebsocket => {
                 let requires_websocket_cursor = self
                     .responses_body_uses_websocket_response_cursor(&body)
                     || (native_passthrough && responses_body_previous_response_id(&body).is_some());
@@ -1666,6 +1669,7 @@ impl OpenAiProviderRuntime {
                         body.clone(),
                         &request.protocol_context,
                         recovery_directive.as_ref(),
+                        true,
                         &mut on_event,
                     )
                     .await
@@ -1741,6 +1745,7 @@ impl OpenAiProviderRuntime {
         body: Value,
         protocol_context: &RestoredProtocolContext,
         recovery_directive: Option<&ProviderRecoveryDirective>,
+        allow_http_fallback: bool,
         on_event: &mut F,
     ) -> Result<RuntimeInvocationEnvelope, WebsocketInvocationError>
     where
@@ -1760,7 +1765,8 @@ impl OpenAiProviderRuntime {
                 "provider recovery policy does not match the invocation protocol mode"
             )));
         }
-        let mut recovery = RecoveryFsm::new(constraints);
+        let mut recovery =
+            RecoveryFsm::new(constraints).with_http_fallback_allowed(allow_http_fallback);
         let mut last_transition: Option<RecoveryTransition> = None;
         // The first failure is never dropped: when a bounded recovery attempt
         // fails too, both the original transport failure and the final state
@@ -8215,7 +8221,7 @@ mod tests {
 
         assert_eq!(
             resolve_responses_node_transport(&config, &input).unwrap(),
-            OpenAiTransportMode::ResponsesWebsocket
+            OpenAiTransportMode::ForceWebsocket
         );
     }
 
@@ -8245,7 +8251,7 @@ mod tests {
             .insert("use_responses_websocket".into(), json!(true));
         assert_eq!(
             resolve_responses_node_transport(&config, &input).unwrap(),
-            OpenAiTransportMode::ResponsesWebsocket
+            OpenAiTransportMode::ForceWebsocket
         );
     }
 
@@ -8263,7 +8269,7 @@ mod tests {
         for (policy, expected) in [
             ("inherit", OpenAiTransportMode::ResponsesWebsocket),
             ("force_http_sse", OpenAiTransportMode::HttpSse),
-            ("force_websocket", OpenAiTransportMode::ResponsesWebsocket),
+            ("force_websocket", OpenAiTransportMode::ForceWebsocket),
         ] {
             input
                 .model_parameters

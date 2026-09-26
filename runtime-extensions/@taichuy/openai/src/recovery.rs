@@ -294,6 +294,7 @@ pub(crate) struct RecoveryFsm {
     consumed_attempts: u16,
     commit_level: CommitLevel,
     full_context_rebuild_used: bool,
+    allow_http_fallback: bool,
 }
 
 impl RecoveryFsm {
@@ -303,7 +304,13 @@ impl RecoveryFsm {
             consumed_attempts: 0,
             commit_level: constraints.initial_commit_level,
             full_context_rebuild_used: false,
+            allow_http_fallback: true,
         }
+    }
+
+    pub(crate) const fn with_http_fallback_allowed(mut self, allowed: bool) -> Self {
+        self.allow_http_fallback = allowed;
+        self
     }
 
     /// Count at the transport attempt entry, including connection and send failures.
@@ -412,13 +419,15 @@ impl RecoveryFsm {
                 } => RecoveryDisposition::SameEpochReconnect,
                 CursorState::ConnectionBound { .. } => RecoveryDisposition::LogicalInvocationRetry,
                 CursorState::OpaqueUnowned
-                    if self.constraints.policy == RecoveryPolicyKind::SemanticMapped =>
+                    if self.constraints.policy == RecoveryPolicyKind::SemanticMapped
+                        && self.allow_http_fallback =>
                 {
                     RecoveryDisposition::PreCommitHttpFallback
                 }
                 CursorState::OpaqueUnowned => RecoveryDisposition::LogicalInvocationRetry,
                 CursorState::None
-                    if self.constraints.policy == RecoveryPolicyKind::SemanticMapped =>
+                    if self.constraints.policy == RecoveryPolicyKind::SemanticMapped
+                        && self.allow_http_fallback =>
                 {
                     RecoveryDisposition::PreCommitHttpFallback
                 }
@@ -437,6 +446,7 @@ impl RecoveryFsm {
             }
             RecoverySignal::TransportRejected | RecoverySignal::ProtocolError => {
                 if self.constraints.policy == RecoveryPolicyKind::SemanticMapped
+                    && self.allow_http_fallback
                     && !matches!(facts.cursor, CursorState::ConnectionBound { .. })
                 {
                     RecoveryDisposition::PreCommitHttpFallback
@@ -698,6 +708,29 @@ mod tests {
                 assert_eq!(machine.constraints.absolute_deadline_unix_ms, deadline);
             }
         }
+    }
+
+    #[test]
+    fn forced_websocket_declines_http_fallback_before_semantic_commit() {
+        let mut machine = RecoveryFsm::new(RecoveryConstraints {
+            policy: RecoveryPolicyKind::SemanticMapped,
+            max_inner_attempts: 3,
+            absolute_deadline_unix_ms: None,
+            initial_commit_level: CommitLevel::LifecycleOnly,
+        })
+        .with_http_fallback_allowed(false);
+        assert_eq!(machine.begin_attempt().unwrap(), 0);
+        let transition = machine.decide_transition(RecoveryFacts {
+            signal: RecoverySignal::TransportDisconnected,
+            cursor: CursorState::None,
+            full_context_available: false,
+        });
+        assert_eq!(
+            transition.disposition,
+            RecoveryDisposition::LogicalInvocationRetry
+        );
+        assert_eq!(transition.commit_level, CommitLevel::LifecycleOnly);
+        assert_eq!(transition.reason, RecoveryReason::TransportDisconnected);
     }
 
     #[test]
