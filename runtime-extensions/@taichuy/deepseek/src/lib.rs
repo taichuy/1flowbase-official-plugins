@@ -2647,7 +2647,7 @@ mod tests {
             .iter()
             .find_map(|event| match event {
                 ProviderStreamEvent::ProtocolObservation { kind, body, .. }
-                    if kind == "request" =>
+                    if kind == "request_prepared" =>
                 {
                     Some(serde_json::from_str::<Value>(body).unwrap())
                 }

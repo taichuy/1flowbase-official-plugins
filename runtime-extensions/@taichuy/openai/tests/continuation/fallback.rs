@@ -26,7 +26,7 @@ fn managed_http_fallback_shares_actual_attempt_budget_with_handshake_failure() {
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
-        let mut stdin = child.stdin.take().unwrap();
+        let mut stdin = MultiplexStdin::new(child.stdin.take().unwrap());
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut request: Value =
             serde_json::from_str(&invoke_line(&base, "responses_websocket")).unwrap();

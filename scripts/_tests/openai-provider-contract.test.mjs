@@ -67,7 +67,7 @@ test('openai provider exposes responses parameters in order', () => {
     'response_format',
     'tool_choice',
     'store',
-    'use_responses_websocket',
+    'responses_transport_policy',
   ]);
 
   for (const field of ['n', 'max_tokens', 'max_completion_tokens', 'presence_penalty', 'frequency_penalty', 'stop']) {
@@ -75,17 +75,20 @@ test('openai provider exposes responses parameters in order', () => {
   }
 });
 
-test('openai provider registers a node-level Responses WebSocket switch', () => {
+test('openai provider registers a node-level Responses transport policy', () => {
   const provider = read('provider/openai.yaml');
-  const match = provider.match(/- key: use_responses_websocket\n[\s\S]*?(?=\n  - key:|\nconfig_schema:)/);
+  const match = provider.match(/- key: responses_transport_policy\n[\s\S]*?(?=\n  - key:|\nconfig_schema:)/);
 
-  assert.ok(match, 'use_responses_websocket parameter field should be declared');
-  assert.match(match[0], /^    label: parameters\.use_responses_websocket\.label$/m);
-  assert.match(match[0], /^    description: parameters\.use_responses_websocket\.description$/m);
-  assert.match(match[0], /^    type: boolean$/m);
-  assert.match(match[0], /^    control: switch$/m);
+  assert.ok(match, 'responses_transport_policy parameter field should be declared');
+  assert.match(match[0], /^    label: parameters\.responses_transport_policy\.label$/m);
+  assert.match(match[0], /^    description: parameters\.responses_transport_policy\.description$/m);
+  assert.match(match[0], /^    type: enum$/m);
+  assert.match(match[0], /^    control: select$/m);
   assert.match(match[0], /^    send_mode: always$/m);
-  assert.match(match[0], /^    default_value: false$/m);
+  assert.match(match[0], /^    default_value: inherit$/m);
+  for (const value of ['inherit', 'force_http_sse', 'force_websocket']) {
+    assert.match(match[0], new RegExp(`^      value: ${value}$`, 'm'));
+  }
 });
 
 test('openai provider registers response storage as a default-inherit policy', () => {
@@ -111,16 +114,17 @@ test('openai provider explains response storage and WebSocket continuation bound
   for (const catalog of [zhHans, enUs]) {
     assert.match(catalog.parameters.store.description, /previous_response_id/);
     assert.match(catalog.parameters.store.description, /1flowbase/);
-    assert.match(catalog.parameters.use_responses_websocket.description, /previous_response_id/);
+    assert.match(catalog.parameters.responses_transport_policy.description, /WebSocket/);
+    assert.deepEqual(Object.keys(catalog.parameters.responses_transport_policy.options), ['inherit', 'force_http_sse', 'force_websocket']);
     assert.equal(Object.keys(catalog.parameters.store.options).length, 3);
   }
 
   assert.match(zhHans.parameters.store.description, /模型训练/);
   assert.equal(zhHans.parameters.store.options.inherit.label, '跟随客户端');
-  assert.match(zhHans.parameters.use_responses_websocket.description, /HTTP SSE/);
+  assert.match(zhHans.parameters.responses_transport_policy.description, /HTTP SSE/);
   assert.match(enUs.parameters.store.description, /model training/i);
   assert.equal(enUs.parameters.store.options.inherit.label, 'Follow client');
-  assert.match(enUs.parameters.use_responses_websocket.description, /HTTP SSE/);
+  assert.match(enUs.parameters.responses_transport_policy.description, /HTTP SSE/);
 });
 
 test('openai provider exposes current reasoning effort choices', () => {
