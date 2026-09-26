@@ -69,7 +69,9 @@ impl Owners {
         let directive = transport_session_directive(&input)?;
         let scope = websocket_history_scope(&config, &input);
         if let Some(directive) = directive {
-            let key = format!("{scope}\nlogical:{}", directive.logical_session_id);
+            // One Host-sealed physical session spans semantic and native turns.
+            // History scopes intentionally separate those formats; runtime ownership must not.
+            let key = websocket_session_key(&config, &input, Some(&directive));
             let remaining_ms = directive
                 .physical_deadline_unix_ms
                 .saturating_sub(close::unix_time_ms())
