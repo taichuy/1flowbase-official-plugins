@@ -11,6 +11,22 @@ struct Owner {
     retain_until: Option<Instant>,
 }
 
+fn routed_invocation_input(input: &Value) -> Result<ProviderInvocationInput> {
+    let mut business_input = input.clone();
+    // The outer stdio envelope may inject this trusted observation marker.
+    // Routing reads the strict business schema, while the original request
+    // retains the marker for handle_invoke_request_streaming.
+    protocol_observation::take_enabled(&mut business_input);
+    Ok(serde_json::from_value(business_input)?)
+}
+
+fn is_streaming_generate(request: &ProviderStdioRequest) -> bool {
+    request.method == "invoke"
+        && request.input.get("operation").and_then(Value::as_str) != Some("count_tokens")
+        && routed_invocation_input(&request.input)
+            .is_ok_and(|input| input.operation == ProviderWireOperation::Generate)
+}
+
 #[derive(Default)]
 struct Owners {
     entries: HashMap<String, Owner>,
@@ -61,7 +77,7 @@ impl Owners {
         {
             return Ok((self.anonymous_key(), None));
         }
-        let input: ProviderInvocationInput = serde_json::from_value(request.input.clone())?;
+        let input = routed_invocation_input(&request.input)?;
         if input.operation != ProviderWireOperation::Generate {
             return Ok((self.anonymous_key(), None));
         }
@@ -203,11 +219,7 @@ async fn handle(raw: Value, emitter: MultiplexEmitter, owners: Rc<RefCell<Owners
         runtime: &mut runtime,
         finished: false,
     };
-    let streaming = request.method == "invoke"
-        && request.input.get("operation").and_then(Value::as_str) != Some("count_tokens")
-        && serde_json::from_value::<ProviderInvocationInput>(request.input.clone())
-            .map(|input| input.operation == ProviderWireOperation::Generate)
-            .unwrap_or(false);
+    let streaming = is_streaming_generate(&request);
     let (response, response_id) = if streaming {
         let result = inflight
             .runtime

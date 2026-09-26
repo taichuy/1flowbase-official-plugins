@@ -29,6 +29,114 @@ fn request(api_key: &str, logical: Option<&str>, previous: Option<&str>) -> Prov
 }
 
 #[test]
+fn trusted_observation_envelope_routes_generate_and_preserves_handler_marker() {
+    let business = request("key-a", Some("logical-a"), None).input;
+    for capabilities in [json!([]), json!(["protocol_observation_v1"])] {
+        let decoded: ProviderStdioRequest = serde_json::from_value(json!({
+            "method": "invoke",
+            "host_capabilities": capabilities,
+            "input": business,
+        }))
+        .unwrap();
+        let capture_enabled = protocol_observation::enabled(&decoded.input);
+        assert_eq!(
+            capture_enabled,
+            capabilities == json!(["protocol_observation_v1"])
+        );
+        let mut owners = Owners::default();
+        assert!(owners.route(&decoded).unwrap().1.is_some());
+        assert!(is_streaming_generate(&decoded));
+        assert_eq!(
+            protocol_observation::enabled(&decoded.input),
+            capture_enabled
+        );
+        assert_eq!(
+            routed_invocation_input(&decoded.input).unwrap().operation,
+            ProviderWireOperation::Generate
+        );
+    }
+}
+
+#[test]
+fn observation_marker_does_not_relax_business_input_schema() {
+    let mut business = request("key-a", Some("logical-a"), None).input;
+    business["unknown_business_field"] = json!(true);
+    let decoded: ProviderStdioRequest = serde_json::from_value(json!({
+        "method": "invoke",
+        "host_capabilities": ["protocol_observation_v1"],
+        "input": business,
+    }))
+    .unwrap();
+    assert!(protocol_observation::enabled(&decoded.input));
+    assert!(Owners::default().route(&decoded).is_err());
+    assert!(!is_streaming_generate(&decoded));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn routed_observation_reaches_the_real_streaming_handler() {
+    use std::{net::TcpListener, thread};
+    use tokio_tungstenite::tungstenite::{accept, Message};
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let upstream = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut socket = accept(stream).unwrap();
+        let sent = socket.read().unwrap().into_text().unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&sent).unwrap()["type"],
+            "response.create"
+        );
+        socket
+            .send(Message::Text(
+                json!({"type":"response.created","response":{"id":"resp-fixture","status":"in_progress","output":[]}})
+                    .to_string()
+                    .into(),
+            ))
+            .unwrap();
+        socket
+            .send(Message::Text(
+                json!({"type":"response.completed","response":{"id":"resp-fixture","status":"completed","output":[]}})
+                    .to_string()
+                    .into(),
+            ))
+            .unwrap();
+    });
+
+    let mut business = request("fixture-secret", Some("logical-fixture"), None).input;
+    business["provider_config"]["base_url"] = json!(base_url);
+    business["provider_config"]["transport_mode"] = json!("responses_websocket");
+    business["messages"] = json!([{"role":"user","content":"fixture"}]);
+    let decoded: ProviderStdioRequest = serde_json::from_value(json!({
+        "method": "invoke",
+        "host_capabilities": ["protocol_observation_v1"],
+        "input": business,
+    }))
+    .unwrap();
+    assert!(Owners::default().route(&decoded).is_ok());
+    assert!(is_streaming_generate(&decoded));
+    let mut events = Vec::new();
+    let result = OpenAiProviderRuntime::default()
+        .handle_invoke_request_streaming(decoded.input, |event| {
+            events.push(event.clone());
+            Ok(())
+        })
+        .await
+        .unwrap();
+    upstream.join().unwrap();
+    assert_eq!(result.response_id.as_deref(), Some("resp-fixture"));
+    assert!(events.iter().any(|event| matches!(event,
+        ProviderStreamEvent::ProtocolObservation { kind, .. } if kind == "request_prepared"
+    )));
+    assert!(events.iter().any(|event| matches!(event,
+        ProviderStreamEvent::ProtocolObservation { kind, .. } if kind == "stream_end"
+    )));
+}
+
+#[test]
 fn independent_sessions_and_scoped_response_owners() {
     let mut owners = Owners::default();
     let (first, first_scope) = owners
