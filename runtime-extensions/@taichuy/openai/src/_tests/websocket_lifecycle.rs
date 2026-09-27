@@ -366,7 +366,13 @@ fn credential_and_generation_ownership_are_explicit() {
     );
     runtime.websocket_chain_inputs_by_response_id.insert(
         "resp_old".into(),
-        vec![json!({"role":"user","content":"old context"})],
+        Arc::new(ResponseHistory::new(
+            None,
+            vec![json!({"role":"user","content":"old context"})],
+            serde_json::to_vec(&json!({"role":"user","content":"old context"}))
+                .unwrap()
+                .len(),
+        )),
     );
     let replay = runtime
         .websocket_full_context_retry_body(
@@ -1219,6 +1225,74 @@ fn native_complete_history_preserves_empty_prewarm_and_opaque_multi_turn_items()
     assert!(runtime
         .websocket_scoped_retry_body(&config, &changed, None, "turn", &next)
         .is_none());
+}
+
+#[test]
+fn native_history_shares_turns_and_replays_after_ancestor_eviction() {
+    let mut runtime = OpenAiProviderRuntime::default();
+    for index in 0..64 {
+        let body = if index == 0 {
+            json!({"input":[{"role":"user","content":0}]})
+        } else {
+            json!({"previous_response_id":format!("turn_{}", index - 1),
+                "input":[{"role":"user","content":index}]})
+        };
+        runtime.record_native_websocket_response_chain(
+            &format!("turn_{index}"),
+            &body,
+            Some(&[json!({"type":"reasoning","id":format!("rs_{index}")})]),
+            "scope",
+        );
+    }
+    let latest = runtime
+        .websocket_chain_inputs_by_response_id
+        .get("turn_63")
+        .unwrap();
+    let preceding = runtime
+        .websocket_chain_inputs_by_response_id
+        .get("turn_62")
+        .unwrap();
+    assert!(Arc::ptr_eq(latest.previous.as_ref().unwrap(), preceding));
+    assert_eq!(latest.item_count, 128);
+    assert_eq!(
+        runtime
+            .websocket_chain_inputs_by_response_id
+            .values()
+            .map(|node| node.items.len())
+            .sum::<usize>(),
+        128,
+    );
+    assert_eq!(
+        latest.encoded_bytes,
+        serde_json::to_vec(
+            &runtime
+                .websocket_full_context_retry_body("turn_63", &json!({"input":[]}))
+                .unwrap()["input"]
+        )
+        .unwrap()
+        .len(),
+    );
+    runtime.evict_websocket_response_history("turn_0");
+    assert!(!runtime
+        .websocket_chain_inputs_by_response_id
+        .contains_key("turn_0"));
+    let replay = runtime
+        .websocket_full_context_retry_body(
+            "turn_63",
+            &json!({"previous_response_id":"turn_63","input":[{"role":"user","content":"next"}]}),
+        )
+        .unwrap();
+    assert!(replay.get("previous_response_id").is_none());
+    assert_eq!(replay["input"].as_array().unwrap().len(), 129);
+    assert_eq!(replay["input"][0], json!({"role":"user","content":0}));
+    assert_eq!(
+        replay["input"][127],
+        json!({"type":"reasoning","id":"rs_63"})
+    );
+    assert_eq!(
+        replay["input"][128],
+        json!({"role":"user","content":"next"})
+    );
 }
 
 #[test]

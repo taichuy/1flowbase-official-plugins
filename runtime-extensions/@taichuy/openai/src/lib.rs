@@ -844,6 +844,44 @@ impl std::error::Error for ProviderRuntimeError {}
 const NATIVE_HISTORY_MAX_ENTRY_BYTES: usize = 8 * 1024 * 1024;
 const NATIVE_HISTORY_MAX_TOTAL_BYTES: usize = 32 * 1024 * 1024;
 
+// A response owns only its new items. Earlier responses remain available through
+// shared immutable nodes until no retained response needs them for replay.
+struct ResponseHistory {
+    previous: Option<Arc<ResponseHistory>>,
+    items: Vec<Value>,
+    item_count: usize,
+    encoded_bytes: usize,
+}
+
+impl ResponseHistory {
+    fn new(previous: Option<Arc<Self>>, items: Vec<Value>, encoded_items_bytes: usize) -> Self {
+        let previous_count = previous.as_ref().map_or(0, |node| node.item_count);
+        let previous_bytes = previous.as_ref().map_or(2, |node| node.encoded_bytes);
+        let item_count = previous_count + items.len();
+        let encoded_bytes = previous_bytes
+            + encoded_items_bytes
+            + usize::from(previous_count > 0 && !items.is_empty());
+        Self {
+            previous,
+            items,
+            item_count,
+            encoded_bytes,
+        }
+    }
+
+    fn append_to(&self, output: &mut Vec<Value>) {
+        let mut nodes = Vec::new();
+        let mut current = Some(self);
+        while let Some(node) = current {
+            nodes.push(node);
+            current = node.previous.as_deref();
+        }
+        for node in nodes.into_iter().rev() {
+            output.extend(node.items.iter().cloned());
+        }
+    }
+}
+
 pub struct OpenAiProviderRuntime {
     websocket_sessions: HashMap<String, ResponsesWebsocketSession>,
     websocket_response_ids_seen: HashSet<String>,
@@ -851,7 +889,7 @@ pub struct OpenAiProviderRuntime {
     websocket_invalid_associations: HashSet<String>,
     websocket_response_order: std::collections::VecDeque<String>,
     websocket_turn_states_by_response_id: HashMap<String, String>,
-    websocket_chain_inputs_by_response_id: HashMap<String, Vec<Value>>,
+    websocket_chain_inputs_by_response_id: HashMap<String, Arc<ResponseHistory>>,
     websocket_chain_scopes_by_response_id: HashMap<String, String>,
     websocket_native_history_sizes: HashMap<String, usize>,
     websocket_native_history_order: std::collections::VecDeque<String>,
@@ -2552,31 +2590,34 @@ impl OpenAiProviderRuntime {
         let Some(input) = body.get("input").and_then(Value::as_array) else {
             return;
         };
-        let mut chain = if let Some(previous) = responses_body_previous_response_id(body) {
+        let previous = if let Some(previous_id) = responses_body_previous_response_id(body) {
             if self
                 .websocket_chain_scopes_by_response_id
-                .get(previous)
+                .get(previous_id)
                 .map(String::as_str)
                 != Some(scope)
             {
                 return;
             }
-            let Some(chain) = self.websocket_chain_inputs_by_response_id.get(previous) else {
+            let Some(chain) = self.websocket_chain_inputs_by_response_id.get(previous_id) else {
                 return;
             };
-            chain.clone()
+            Some(Arc::clone(chain))
         } else {
-            Vec::new()
+            None
         };
-        chain.extend(input.iter().cloned());
-        chain.extend(output.iter().cloned());
-        // Serialize only the new snapshot. Stored sizes make aggregate eviction O(entries),
-        // without repeatedly serializing every prior conversation snapshot.
-        let Ok(encoded) = serde_json::to_vec(&chain) else {
+        let items: Vec<Value> = input.iter().chain(output.iter()).cloned().collect();
+        // The JSON array length is additive across immutable nodes, including
+        // the comma between nonempty turns. No full history is serialized here.
+        let Ok(encoded_items) = serde_json::to_vec(&items) else {
             return;
         };
-        let size = encoded.len();
-        drop(encoded);
+        let chain = Arc::new(ResponseHistory::new(
+            previous,
+            items,
+            encoded_items.len() - 2,
+        ));
+        let size = chain.encoded_bytes;
         if size > NATIVE_HISTORY_MAX_ENTRY_BYTES {
             return;
         }
@@ -2621,7 +2662,8 @@ impl OpenAiProviderRuntime {
         let mut retry_body = body.clone();
         let object = retry_body.as_object_mut()?;
         object.remove("previous_response_id");
-        let mut full_input = previous_chain_inputs.clone();
+        let mut full_input = Vec::with_capacity(previous_chain_inputs.item_count);
+        previous_chain_inputs.append_to(&mut full_input);
         full_input.extend(responses_body_input_items(body));
         object.insert("input".to_string(), Value::Array(full_input));
         Some(retry_body)
@@ -2634,7 +2676,7 @@ impl OpenAiProviderRuntime {
         result: &ProviderInvocationResult,
     ) {
         let previous_response_id = responses_body_previous_response_id(request_body);
-        let mut chain_inputs = match previous_response_id {
+        let previous = match previous_response_id {
             Some(previous_response_id) => {
                 let Some(previous_inputs) = self
                     .websocket_chain_inputs_by_response_id
@@ -2642,14 +2684,23 @@ impl OpenAiProviderRuntime {
                 else {
                     return;
                 };
-                previous_inputs.clone()
+                Some(Arc::clone(previous_inputs))
             }
-            None => Vec::new(),
+            None => None,
         };
-        chain_inputs.extend(responses_body_input_items(request_body));
-        chain_inputs.extend(response_output_input_items(result));
-        self.websocket_chain_inputs_by_response_id
-            .insert(response_id.to_string(), chain_inputs);
+        let mut items = responses_body_input_items(request_body);
+        items.extend(response_output_input_items(result));
+        let Ok(encoded_items) = serde_json::to_vec(&items) else {
+            return;
+        };
+        self.websocket_chain_inputs_by_response_id.insert(
+            response_id.to_string(),
+            Arc::new(ResponseHistory::new(
+                previous,
+                items,
+                encoded_items.len() - 2,
+            )),
+        );
     }
 }
 
