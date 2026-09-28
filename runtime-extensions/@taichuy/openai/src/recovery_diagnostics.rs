@@ -11,7 +11,7 @@ fn safe_reason(category: &str) -> &'static str {
         "continuation_unavailable" => "upstream continuation connection is unavailable",
         "previous_response_unavailable" => "previous_response_id is no longer available",
         "proxy_failed" => "upstream websocket proxy failed",
-        "policy_rejected" => "upstream policy rejected the request; reason redacted",
+        "policy_rejected" => "upstream websocket closed with policy status 1008; reason redacted",
         "deadline_exceeded" => "provider recovery deadline exceeded",
         "budget_exhausted" => "provider recovery attempt budget exhausted",
         "authorization_rejected" => "upstream authorization rejected the request",

@@ -471,7 +471,15 @@ impl RecoveryFsm {
         let budget_exhausted = self.consumed_attempts >= self.constraints.max_inner_attempts;
         let committed_before = self.commit_level != CommitLevel::LifecycleOnly;
         let disposition = self.decide(facts);
-        let reason = if deadline_expired {
+        let reason = if matches!(
+            facts.signal,
+            RecoverySignal::ProtocolError | RecoverySignal::PolicyRejected
+        ) {
+            // A final protocol refusal is not a retryable failure just because
+            // it happened on the last permitted attempt. Attempt accounting
+            // remains independent of the actual terminal cause.
+            RecoveryReason::ProtocolError
+        } else if deadline_expired {
             RecoveryReason::DeadlineExceeded
         } else if budget_exhausted {
             RecoveryReason::BudgetExhausted
@@ -1024,6 +1032,38 @@ mod tests {
         );
         assert_eq!(exhausted.reason, RecoveryReason::BudgetExhausted);
         assert_eq!(exhausted.commit_level, CommitLevel::LifecycleOnly);
+    }
+
+    #[test]
+    fn final_protocol_refusal_preserves_cause_and_consumed_attempts() {
+        for signal in [
+            RecoverySignal::PolicyRejected,
+            RecoverySignal::ProtocolError,
+        ] {
+            let mut machine = RecoveryFsm::new(RecoveryConstraints {
+                policy: RecoveryPolicyKind::NativeOpaque,
+                max_inner_attempts: 2,
+                absolute_deadline_unix_ms: None,
+                initial_commit_level: CommitLevel::LifecycleOnly,
+            });
+            assert_eq!(machine.begin_attempt().unwrap(), 0);
+            assert_eq!(machine.begin_attempt().unwrap(), 1);
+            let refused = machine.decide_transition(RecoveryFacts {
+                signal,
+                cursor: CursorState::None,
+                full_context_available: true,
+            });
+            assert_eq!(
+                refused.disposition,
+                RecoveryDisposition::TerminalInterruption
+            );
+            assert_eq!(refused.reason, RecoveryReason::ProtocolError);
+            assert_eq!(refused.commit_level, CommitLevel::Terminal);
+            assert_eq!(refused.attempt, 1);
+            assert_eq!(machine.consumed_attempts(), 2);
+            assert!(machine.begin_attempt().is_err());
+            assert_eq!(machine.consumed_attempts(), 2);
+        }
     }
 
     #[test]

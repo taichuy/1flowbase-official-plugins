@@ -20,6 +20,12 @@ fn close_classification_preserves_only_safe_fixed_reason() {
         let diagnostic = failure(&error, Some(7), Some(3));
         assert_eq!(diagnostic["close_code"], 1008);
         assert_eq!(diagnostic["reason_category"], category);
+        if category == "policy_rejected" {
+            assert_eq!(
+                diagnostic["reason"],
+                "upstream websocket closed with policy status 1008; reason redacted"
+            );
+        }
         assert_eq!(diagnostic["socket_incarnation"], 7);
         assert_eq!(diagnostic["owner_socket_incarnation"], 3);
         assert!(!diagnostic.to_string().contains("private"));
