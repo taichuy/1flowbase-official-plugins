@@ -217,6 +217,8 @@ fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> 
         receipt["disposition"],
         if expected_reason == "budget_exhausted" {
             "logical_invocation_retry"
+        } else if expected_reason == "semantic_failed" {
+            "semantic_terminal"
         } else {
             "terminal_interruption"
         }
