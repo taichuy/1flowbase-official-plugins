@@ -876,3 +876,78 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
         server.join().unwrap();
     }
 }
+
+#[test]
+fn native_upstream_terminals_preserve_facts_and_never_open_a_second_socket() {
+    for terminal in ["error", "response.failed", "response.done"] {
+        let original = json!({
+            "code":"context_length_exceeded", "type":"invalid_request_error", "param":null,
+            "message":"Your input exceeds the context window\nReduce the input and try again.",
+            "future_supplier_field":{"limit":128000,"received":128001}
+        });
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let fixture_error = original.clone();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut socket = accept_hdr(
+                stream,
+                |_: &tokio_tungstenite::tungstenite::handshake::server::Request,
+                 response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                    Ok(response)
+                },
+            )
+            .unwrap();
+            let request = socket.read().unwrap();
+            assert!(request.to_text().unwrap().contains("response.create"));
+            let payload = if terminal == "error" {
+                json!({"type":terminal,"error":fixture_error})
+            } else {
+                json!({"type":terminal,"response":{"id":"resp_rejected","status":"failed","error":fixture_error}})
+            };
+            socket
+                .send(Message::Text(payload.to_string().into()))
+                .unwrap();
+            // Keep the connection alive: the structured terminal, rather than
+            // a subsequent EOF, must stop the invocation.
+            assert!(matches!(socket.read(), Ok(Message::Close(_))));
+            let _ = socket.flush();
+            listener.set_nonblocking(true).unwrap();
+            assert!(
+                matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
+            );
+        });
+        let (mut child, mut stdin, mut stdout) = spawn_native_worker();
+        let lines = next_turn(
+            &mut stdin,
+            &mut stdout,
+            native_managed_input(&base, json!({"input":[]}), native_opaque_directive(3)),
+        );
+        let event = lines.iter().find(|event| event["type"] == "error").unwrap();
+        assert_eq!(event["error"]["kind"], "provider_upstream_error");
+        assert_eq!(event["error"]["message"], original["message"]);
+        let details = &event["error"]["provider_details"];
+        assert_eq!(details["upstream_error"], original);
+        assert_eq!(details["semantic_terminal"], true);
+        assert!(details.get("status_code").is_none());
+        assert_eq!(lines.last().unwrap()["result"]["finish_reason"], "error");
+        assert_eq!(
+            details["1flowbase_provider_recovery"]["disposition"],
+            "semantic_terminal"
+        );
+        assert_eq!(details["1flowbase_provider_recovery"]["attempt"], 0);
+        assert_eq!(
+            details["1flowbase_provider_recovery_diagnostics"]["attempts"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        let _ = child.kill();
+        let _ = child.wait();
+        server.join().unwrap();
+    }
+}
