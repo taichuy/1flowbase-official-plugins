@@ -48,10 +48,10 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes 25 unique standard configurations and all four fallback prices', () => {
+test('publishes 26 unique standard configurations and all four fallback prices', () => {
   const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
-  assert.equal(rules.length, 25);
-  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 25);
+  assert.equal(rules.length, 26);
+  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 26);
   const zero = rules.find(r => r.provider_code === 'zero');
   for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
   const astra = rules.find(r => r.upstream_model_id === 'gpt-6-astra');
@@ -59,6 +59,10 @@ test('publishes 25 unique standard configurations and all four fallback prices',
   assert.equal(astra.priority, 0);
   assert.equal(astra.cache_write_token_unit_price, '12.5');
   assert.deepEqual(astra.rules, [{when:{input_tokens:{operator:'gt',value:272000}},overrides:{input_token_unit_price:'20',output_token_unit_price:'75',cache_hit_token_unit_price:'2',cache_write_token_unit_price:'25'}}]);
+  const sol61 = rules.find(r => r.upstream_model_id === 'gpt-6.1-sol');
+  assert.ok(sol61, 'gpt-6.1-sol pricing exists');
+  assert.deepEqual(['input', 'output', 'cache_hit', 'cache_write'].map(m => sol61[`${m}_token_unit_price`]), ['2', '10', '0.1', '2.5']);
+  assert.deepEqual(sol61.rules, [{when:{input_tokens:{operator:'gt',value:272000}},overrides:{input_token_unit_price:'4',output_token_unit_price:'15',cache_hit_token_unit_price:'0.2',cache_write_token_unit_price:'5'}}]);
   for (const [model, base, large] of [
     ['gpt-6-sol', ['2', '10', '0.2', '2.5'], ['4', '15', '0.4', '5']],
     ['gpt-6-luna', ['0.1', '0.5', '0.01', '0.125'], ['0.2', '0.75', '0.02', '0.25']],
