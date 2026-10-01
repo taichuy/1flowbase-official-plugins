@@ -1144,7 +1144,9 @@ async fn empty_scaffolding_does_not_make_response_failed_replayable() {
         typed.provider_details.as_ref().unwrap()["upstream_error"],
         json!({"code":"invalid_request","message":"private-canary"})
     );
-    assert_eq!(diagnostics["last_failure"]["semantic_event_kind"], "other");
+    // A supplier-reported failure has a typed error source; it is not an
+    // inferred transport interruption attributed to an output event category.
+    assert_eq!(diagnostics["last_failure"]["kind"], "provider_typed");
     assert_no_replacement_connection(server);
 }
 
