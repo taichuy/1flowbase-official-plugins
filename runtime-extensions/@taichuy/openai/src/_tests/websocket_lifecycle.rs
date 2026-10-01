@@ -204,6 +204,21 @@ fn assert_no_replacement_connection(upstream: thread::JoinHandle<TcpListener>) {
 }
 
 fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> &'a Value {
+    let expected_disposition = if expected_reason == "budget_exhausted" {
+        "logical_invocation_retry"
+    } else if expected_reason == "semantic_failed" {
+        "semantic_terminal"
+    } else {
+        "terminal_interruption"
+    };
+    assert_safe_terminal_with_disposition(error, expected_reason, expected_disposition)
+}
+
+fn assert_safe_terminal_with_disposition<'a>(
+    error: &'a anyhow::Error,
+    expected_reason: &str,
+    expected_disposition: &str,
+) -> &'a Value {
     let typed = error
         .downcast_ref::<ProviderRuntimeError>()
         .expect("recovery boundary returns a safe canonical error");
@@ -213,16 +228,7 @@ fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> 
     );
     let details = typed.provider_details.as_ref().unwrap();
     let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
-    assert_eq!(
-        receipt["disposition"],
-        if expected_reason == "budget_exhausted" {
-            "logical_invocation_retry"
-        } else if expected_reason == "semantic_failed" {
-            "semantic_terminal"
-        } else {
-            "terminal_interruption"
-        }
-    );
+    assert_eq!(receipt["disposition"], expected_disposition);
     assert_eq!(
         receipt["commit_level"],
         if expected_reason == "semantic_failed" {
@@ -303,7 +309,8 @@ async fn recoverable_close_type_is_independent_of_semantic_replay_permission() {
         .await
         .unwrap_err();
     assert_eq!(emitted.iter().filter(|event| matches!(event, ProviderStreamEvent::TextDelta { delta } if delta == "visible")).count(), 1);
-    let diagnostics = assert_safe_terminal(&error, "semantic_failed");
+    let diagnostics =
+        assert_safe_terminal_with_disposition(&error, "semantic_failed", "terminal_interruption");
     assert_eq!(diagnostics["last_failure"]["close_code"], 1011);
     assert_no_replacement_connection(upstream);
 }
@@ -1068,7 +1075,11 @@ async fn meaningful_and_unknown_added_items_still_block_replay() {
             .invoke_response(visibility_native_input(&base))
             .await
             .unwrap_err();
-        let diagnostic = assert_safe_terminal(&error, "semantic_failed");
+        let diagnostic = assert_safe_terminal_with_disposition(
+            &error,
+            "semantic_failed",
+            "terminal_interruption",
+        );
         assert_eq!(diagnostic["last_failure"]["semantic_event_kind"], category);
         assert_no_replacement_connection(server);
     }
