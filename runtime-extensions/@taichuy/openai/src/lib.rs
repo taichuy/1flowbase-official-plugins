@@ -1970,7 +1970,9 @@ impl OpenAiProviderRuntime {
                     }
                     error.failure_diagnostics = failure_diagnostics.clone();
                     let signal =
-                        if error.failure_diagnostics.last().is_some_and(|value| {
+                        if error.semantic_terminal {
+                            RecoverySignal::SemanticTerminal
+                        } else if error.failure_diagnostics.last().is_some_and(|value| {
                             value["reason_category"] == "continuation_unavailable"
                         }) {
                             RecoverySignal::ContinuationUnavailable
@@ -4036,6 +4038,7 @@ struct WebsocketInvocationError {
     fallback_allowed: bool,
     reconnect_allowed: bool,
     semantic_committed: bool,
+    semantic_terminal: bool,
     disposition: Option<RecoveryDisposition>,
     transition: Option<RecoveryTransition>,
     socket_incarnation: Option<u64>,
@@ -4071,6 +4074,7 @@ impl WebsocketInvocationError {
             fallback_allowed: true,
             reconnect_allowed: false,
             semantic_committed: false,
+            semantic_terminal: false,
             disposition: None,
             transition: None,
             socket_incarnation: None,
@@ -4088,6 +4092,7 @@ impl WebsocketInvocationError {
             fallback_allowed: false,
             reconnect_allowed: false,
             semantic_committed: false,
+            semantic_terminal: false,
             disposition: None,
             transition: None,
             socket_incarnation: None,
@@ -4115,6 +4120,7 @@ impl WebsocketInvocationError {
             fallback_allowed: true,
             reconnect_allowed: true,
             semantic_committed: false,
+            semantic_terminal: false,
             disposition: None,
             transition: None,
             socket_incarnation: None,
@@ -4574,10 +4580,12 @@ where
                     &mut response_id,
                 )
                 .map_err(|error| {
-                    WebsocketInvocationError::from_stream_state(
+                    let mut failure = WebsocketInvocationError::from_stream_state(
                         error,
                         visibility.committed() || semantic_terminal_failure_seen,
-                    )
+                    );
+                    failure.semantic_terminal = semantic_terminal_failure_seen;
+                    failure
                 })?;
                 visibility
                     .publish(&mut events, &mut all_events, on_event)
