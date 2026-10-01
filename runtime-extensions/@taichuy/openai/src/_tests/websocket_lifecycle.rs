@@ -211,21 +211,24 @@ fn assert_safe_terminal<'a>(error: &'a anyhow::Error, expected_reason: &str) -> 
     } else {
         "terminal_interruption"
     };
-    assert_safe_terminal_with_disposition(error, expected_reason, expected_disposition)
+    assert_safe_terminal_with_disposition(
+        error,
+        expected_reason,
+        expected_disposition,
+        ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+    )
 }
 
 fn assert_safe_terminal_with_disposition<'a>(
     error: &'a anyhow::Error,
     expected_reason: &str,
     expected_disposition: &str,
+    expected_kind: ProviderRuntimeErrorKind,
 ) -> &'a Value {
     let typed = error
         .downcast_ref::<ProviderRuntimeError>()
         .expect("recovery boundary returns a safe canonical error");
-    assert_eq!(
-        typed.kind,
-        ProviderRuntimeErrorKind::ProviderTransportUnavailable
-    );
+    assert_eq!(typed.kind, expected_kind);
     let details = typed.provider_details.as_ref().unwrap();
     let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
     assert_eq!(receipt["disposition"], expected_disposition);
@@ -245,7 +248,9 @@ fn assert_safe_terminal_with_disposition<'a>(
     assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
     let serialized = serde_json::to_string(typed).unwrap();
     assert!(!serialized.contains("credential-canary"));
-    assert!(!serialized.contains("private-canary"));
+    if expected_kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable {
+        assert!(!serialized.contains("private-canary"));
+    }
     diagnostics
 }
 
@@ -309,8 +314,12 @@ async fn recoverable_close_type_is_independent_of_semantic_replay_permission() {
         .await
         .unwrap_err();
     assert_eq!(emitted.iter().filter(|event| matches!(event, ProviderStreamEvent::TextDelta { delta } if delta == "visible")).count(), 1);
-    let diagnostics =
-        assert_safe_terminal_with_disposition(&error, "semantic_failed", "terminal_interruption");
+    let diagnostics = assert_safe_terminal_with_disposition(
+        &error,
+        "semantic_failed",
+        "terminal_interruption",
+        ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+    );
     assert_eq!(diagnostics["last_failure"]["close_code"], 1011);
     assert_no_replacement_connection(upstream);
 }
@@ -322,8 +331,23 @@ async fn semantic_terminal_is_never_marked_replayable() {
         .invoke_response(managed_closing_input(&base_url, 3))
         .await
         .unwrap_err();
-    let diagnostics = assert_safe_terminal(&error, "semantic_failed");
-    assert_eq!(diagnostics["first_failure"]["kind"], "provider_untyped");
+    let diagnostics = assert_safe_terminal_with_disposition(
+        &error,
+        "semantic_failed",
+        "semantic_terminal",
+        ProviderRuntimeErrorKind::ProviderUpstreamError,
+    );
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    assert_eq!(
+        typed.provider_details.as_ref().unwrap()["semantic_terminal"],
+        true
+    );
+    assert_eq!(typed.message, "terminal private-canary");
+    assert_eq!(
+        typed.provider_details.as_ref().unwrap()["upstream_error"],
+        json!({"code":"invalid_request","message":"terminal private-canary"})
+    );
+    assert_eq!(diagnostics["first_failure"]["kind"], "provider_typed");
     assert_no_replacement_connection(upstream);
 }
 
@@ -1079,6 +1103,7 @@ async fn meaningful_and_unknown_added_items_still_block_replay() {
             &error,
             "semantic_failed",
             "terminal_interruption",
+            ProviderRuntimeErrorKind::ProviderTransportUnavailable,
         );
         assert_eq!(diagnostic["last_failure"]["semantic_event_kind"], category);
         assert_no_replacement_connection(server);
@@ -1103,7 +1128,22 @@ async fn empty_scaffolding_does_not_make_response_failed_replayable() {
         .await
         .unwrap_err();
     assert!(emitted.is_empty());
-    let diagnostics = assert_safe_terminal(&error, "semantic_failed");
+    let diagnostics = assert_safe_terminal_with_disposition(
+        &error,
+        "semantic_failed",
+        "semantic_terminal",
+        ProviderRuntimeErrorKind::ProviderUpstreamError,
+    );
+    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    assert_eq!(
+        typed.provider_details.as_ref().unwrap()["semantic_terminal"],
+        true
+    );
+    assert_eq!(typed.message, "private-canary");
+    assert_eq!(
+        typed.provider_details.as_ref().unwrap()["upstream_error"],
+        json!({"code":"invalid_request","message":"private-canary"})
+    );
     assert_eq!(diagnostics["last_failure"]["semantic_event_kind"], "other");
     assert_no_replacement_connection(server);
 }

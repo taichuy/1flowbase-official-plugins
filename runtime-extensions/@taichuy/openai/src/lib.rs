@@ -7315,14 +7315,38 @@ mod tests {
             .downcast_ref::<ProviderRuntimeError>()
             .expect("remote Compact failure should retain the typed Provider error");
         assert_eq!(
-            runtime_error.message,
+            runtime_error.kind,
+            ProviderRuntimeErrorKind::ProviderUpstreamError
+        );
+        assert_eq!(runtime_error.message, "remote compact unavailable");
+        let details = runtime_error.provider_details.as_ref().unwrap();
+        assert_eq!(details["status_code"], 503);
+        assert_eq!(
+            details["raw_body"],
             r#"{"error":{"message":"remote compact unavailable"}}"#
+        );
+        assert_eq!(
+            details["upstream_error"],
+            json!({"message":"remote compact unavailable"})
         );
 
         let request = request_rx
             .recv_timeout(Duration::from_secs(5))
             .expect("remote failure fixture should still receive exactly the Compact request");
         assert!(request.starts_with("POST /responses HTTP/1.1"));
+        let body: Value = serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+        assert_eq!(
+            body["input"].as_array().unwrap().last().unwrap(),
+            &json!({"type":"compaction_trigger"})
+        );
+        assert!(
+            body.get("stream").is_none(),
+            "Compact failure must not issue Generate"
+        );
+        assert!(
+            request_rx.try_recv().is_err(),
+            "only one Compact request is permitted"
+        );
     }
 
     #[test]

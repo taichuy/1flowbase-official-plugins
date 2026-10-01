@@ -913,12 +913,44 @@ fn native_upstream_terminals_preserve_facts_and_never_open_a_second_socket() {
                 .unwrap();
             // Keep the connection alive: the structured terminal, rather than
             // a subsequent EOF, must stop the invocation.
-            assert!(matches!(socket.read(), Ok(Message::Close(_))));
-            let _ = socket.flush();
+            use tokio_tungstenite::tungstenite::{error::ProtocolError, Error};
+            let peer_deadline = std::time::Instant::now() + Duration::from_secs(5);
+            loop {
+                let remaining = peer_deadline.saturating_duration_since(std::time::Instant::now());
+                assert!(
+                    !remaining.is_zero(),
+                    "provider did not release the terminal socket within the fixture deadline"
+                );
+                socket.get_mut().set_read_timeout(Some(remaining)).unwrap();
+                match socket.read() {
+                    Ok(Message::Close(_)) => {
+                        let _ = socket.flush();
+                        break;
+                    }
+                    Err(Error::ConnectionClosed | Error::AlreadyClosed)
+                    | Err(Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => break,
+                    Err(Error::Io(error))
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::UnexpectedEof
+                                | std::io::ErrorKind::ConnectionReset
+                                | std::io::ErrorKind::ConnectionAborted
+                                | std::io::ErrorKind::BrokenPipe
+                        ) =>
+                    {
+                        break
+                    }
+                    Ok(Message::Ping(_) | Message::Pong(_)) => {
+                        socket.flush().unwrap();
+                    }
+                    // A terminal may release the peer through Close or EOF/reset.
+                    // Timeout and application frames both fail this bounded check;
+                    // in particular, same-socket response.create replay is forbidden.
+                    other => panic!("unexpected peer behavior after upstream terminal: {other:?}"),
+                }
+            }
             listener.set_nonblocking(true).unwrap();
-            assert!(
-                matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
-            );
+            listener
         });
         let (mut child, mut stdin, mut stdout) = spawn_native_worker();
         let lines = next_turn(
@@ -946,8 +978,13 @@ fn native_upstream_terminals_preserve_facts_and_never_open_a_second_socket() {
                 .len(),
             1
         );
+        // Observe provider-owned release before any process cleanup. Keep the
+        // listener through completion so replacement connections remain visible.
+        let listener = server.join().unwrap();
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
+        );
         let _ = child.kill();
         let _ = child.wait();
-        server.join().unwrap();
     }
 }
