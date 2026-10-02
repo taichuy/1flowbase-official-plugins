@@ -388,8 +388,21 @@ async fn native_tool_interruption_never_commits_partial_calls() {
             for item_done in [false, true] {
                 let listener = TcpListener::bind("127.0.0.1:0").unwrap();
                 let base_url = format!("http://{}", listener.local_addr().unwrap());
+                listener.set_nonblocking(true).unwrap();
                 let upstream = std::thread::spawn(move || {
-                    let (stream, _) = listener.accept().unwrap();
+                    let started = std::time::Instant::now();
+                    let stream = loop {
+                        match listener.accept() {
+                            Ok((stream, _)) => break stream,
+                            Err(error)
+                                if error.kind() == std::io::ErrorKind::WouldBlock
+                                    && started.elapsed() < Duration::from_secs(5) =>
+                            {
+                                std::thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("fixture connection not established: {error}"),
+                        }
+                    };
                     stream
                         .set_read_timeout(Some(Duration::from_secs(5)))
                         .unwrap();
@@ -426,7 +439,14 @@ async fn native_tool_interruption_never_commits_partial_calls() {
                         ProviderInvocationCapability::ResponsesNativePassthrough,
                         ProviderInvocationCapability::ResponsesNativeOutputV1,
                     ]),
-                    run_context: [("provider_recovery".into(), json!({"policy":{"type":"native_opaque","budget":{"max_inner_attempts":1,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":9,"initial_commit_level":"lifecycle_only"}))].into(),
+                    client_protocol_envelope: Some(ProtocolContextEnvelope {
+                        source_protocol: "openai_responses".into(),
+                        headers: [("session-id".into(), vec!["interruption-fixture".into()])].into(),
+                        ..Default::default()
+                    }),
+                    run_context: [
+                        (TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"interruption-fixture","generation":9,"task_id":"interruption-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64})),
+                        ("provider_recovery".into(), json!({"policy":{"type":"native_opaque","budget":{"max_inner_attempts":1,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":9,"initial_commit_level":"lifecycle_only"}))].into(),
                     native_transport: Some(ProviderNativeTransport {
                         protocol: "openai_responses".into(),
                         wire_body: json!({"input":[{"role":"user","content":"fixture"}]}),
