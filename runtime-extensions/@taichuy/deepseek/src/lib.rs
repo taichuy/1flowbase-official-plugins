@@ -1735,7 +1735,13 @@ fn merge_tool_call_deltas(
 }
 
 fn normalize_usage(usage: &Value) -> ProviderUsage {
-    let input_cache_hit_tokens = number_or_none(usage.get("prompt_cache_hit_tokens"));
+    let input_cache_hit_tokens =
+        number_or_none(usage.get("prompt_cache_hit_tokens")).or_else(|| {
+            usage
+                .get("prompt_tokens_details")
+                .and_then(|details| details.get("cached_tokens"))
+                .and_then(number_or_none_ref)
+        });
     ProviderUsage {
         input_tokens: number_or_none(usage.get("prompt_tokens")),
         input_cache_hit_tokens,
@@ -1889,6 +1895,19 @@ mod tests {
     }
 
     fn capture_streaming_chat_request() -> (String, thread::JoinHandle<String>) {
+        capture_streaming_chat_request_with_usage(json!({
+            "prompt_tokens": 100,
+            "prompt_cache_hit_tokens": 40,
+            "prompt_cache_miss_tokens": 60,
+            "completion_tokens": 12,
+            "total_tokens": 112,
+            "completion_tokens_details": {"reasoning_tokens": 5}
+        }))
+    }
+
+    pub(super) fn capture_streaming_chat_request_with_usage(
+        usage: Value,
+    ) -> (String, thread::JoinHandle<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
         let address = format!("http://{}", listener.local_addr().expect("listener addr"));
 
@@ -1932,8 +1951,13 @@ mod tests {
                             "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{\"reasoning_content\":\"think\"},\"finish_reason\":null}]}\n\n",
                             "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{\"content\":\"answer\"},\"finish_reason\":null}]}\n\n",
                             "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"query\\\":\\\"refund\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
-                            "data: {\"id\":\"chatcmpl_test\",\"model\":\"deepseek-v4-pro\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":100,\"prompt_cache_hit_tokens\":40,\"prompt_cache_miss_tokens\":60,\"completion_tokens\":12,\"total_tokens\":112,\"completion_tokens_details\":{\"reasoning_tokens\":5}}}\n\n",
-                            "data: [DONE]\n\n"
+                        );
+                        let response_body = format!(
+                            "{}data: {}\n\ndata: [DONE]\n\n",
+                            response_body,
+                            json!({"id": "chatcmpl_test", "model": "deepseek-v4-pro",
+                                "choices": [{"delta": {}, "finish_reason": "stop"}],
+                                "usage": usage})
                         );
                         let response = format!(
                             "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
