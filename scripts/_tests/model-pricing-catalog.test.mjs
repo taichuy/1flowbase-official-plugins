@@ -48,10 +48,10 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes 25 unique standard configurations and all four fallback prices', () => {
+test('publishes 27 unique standard configurations and all four fallback prices', () => {
   const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
-  assert.equal(rules.length, 25);
-  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 25);
+  assert.equal(rules.length, 27);
+  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 27);
   const zero = rules.find(r => r.provider_code === 'zero');
   for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
   const astra = rules.find(r => r.upstream_model_id === 'gpt-6-astra');
@@ -74,6 +74,21 @@ test('publishes 25 unique standard configurations and all four fallback prices',
   const fable = rules.find(r => r.upstream_model_id === 'claude-fable-5-1');
   assert.equal(fable.cache_write_token_unit_price, '12.5');
   assert.deepEqual(fable.rules, [{when:{cache_write_ttl_seconds:3600},overrides:{cache_write_token_unit_price:'20'}}]);
+  for (const [model, base, hourWrite] of [
+    ['claude-opus-5-5', ['4', '20', '0.2', '5'], '8'],
+    ['claude-sonnet-5-5', ['2', '10', '0.2', '2.5'], '4'],
+  ]) {
+    const rule = rules.find(r => r.provider_code === 'anthropic' && r.upstream_model_id === model);
+    assert.ok(rule, `${model} pricing exists`);
+    for (const meter of ['input', 'output', 'cache_hit', 'cache_write']) {
+      assert.equal(rule[`${meter}_token_unit_size`], 1_000_000);
+    }
+    assert.deepEqual(['input', 'output', 'cache_hit', 'cache_write'].map(m => rule[`${m}_token_unit_price`]), base);
+    assert.deepEqual(rule.rules, [{
+      when: { cache_write_ttl_seconds: 3600 },
+      overrides: { cache_write_token_unit_price: hourWrite },
+    }]);
+  }
 });
 
 function sourceFixture() {
