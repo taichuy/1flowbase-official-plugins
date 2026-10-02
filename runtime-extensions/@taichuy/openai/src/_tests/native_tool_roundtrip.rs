@@ -437,7 +437,7 @@ async fn native_tool_interruption_never_commits_partial_calls() {
                 };
                 let mut events = Vec::new();
                 let error = OpenAiProviderRuntime::default()
-                    .invoke_response_with_event_sink(input, &mut |event| {
+                    .invoke_response_with_event_sink(input, &mut |event: ProviderStreamEvent| {
                         events.push(event.clone());
                         Ok(())
                     })
