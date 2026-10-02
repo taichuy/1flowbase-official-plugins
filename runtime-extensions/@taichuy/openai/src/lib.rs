@@ -651,6 +651,7 @@ pub enum ProviderOutputItemPhase {
 struct ResponseToolCalls {
     calls: Vec<ProviderToolCall>,
     item_id_to_call_id: HashMap<String, String>,
+    done_output_indices: BTreeSet<usize>,
 }
 
 impl std::ops::Deref for ResponseToolCalls {
@@ -2474,17 +2475,6 @@ impl OpenAiProviderRuntime {
                         }
                     }
                 }
-                if !response.session_reusable {
-                    if let Some(session) = self.websocket_sessions.remove(&session_key) {
-                        self.release_session(
-                            session,
-                            self.websocket_lifecycle_policy.close_ack_timeout,
-                        )
-                        .await;
-                        self.websocket_logical_sessions
-                            .retain(|_, key| key != &session_key);
-                    }
-                }
                 Ok(output)
             }
             Err(mut error) => {
@@ -4028,7 +4018,6 @@ struct ResponsesWebsocketSession {
 struct WebsocketResponseOutput {
     completed_output: Option<Vec<Value>>,
     envelope: RuntimeInvocationEnvelope,
-    session_reusable: bool,
 }
 
 #[derive(Debug)]
@@ -4509,7 +4498,6 @@ where
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
     let mut semantic_terminal_failure_seen = false;
-    let mut session_reusable = true;
     let mut completed_output = None;
 
     loop {
@@ -4525,11 +4513,6 @@ where
                 }
             };
         let Some(message) = next_message else {
-            if !tool_calls.is_empty() && !response_id.is_null() {
-                finish_reason = ProviderFinishReason::ToolCall;
-                session_reusable = false;
-                break;
-            }
             let error = session
                 .stream
                 .failure()
@@ -4599,11 +4582,6 @@ where
             Message::Ping(_) => {}
             Message::Pong(_) => {}
             Message::Close(frame) => {
-                if !tool_calls.is_empty() && !response_id.is_null() {
-                    finish_reason = ProviderFinishReason::ToolCall;
-                    session_reusable = false;
-                    break;
-                }
                 let error = session
                     .stream
                     .failure()
@@ -4654,7 +4632,6 @@ where
     Ok(WebsocketResponseOutput {
         completed_output,
         envelope: output,
-        session_reusable,
     })
 }
 
@@ -5331,6 +5308,9 @@ fn process_response_sse_payload(
             if let Some(event) =
                 typed_response_output_item(&payload, ProviderOutputItemPhase::Done)?
             {
+                if let ProviderStreamEvent::OutputItem { output_index, .. } = &event {
+                    tool_calls.done_output_indices.insert(*output_index);
+                }
                 events.push(event);
             }
             if text.is_empty() {
@@ -5353,6 +5333,32 @@ fn process_response_sse_payload(
                 finish_reason,
                 response_id,
             )?;
+            // A completed response is authoritative even when upstream omitted per-item
+            // done frames. Incomplete/failed responses cannot complete unfinished tools.
+            if let Some(items) = completed_native_output(&payload) {
+                for (output_index, item) in items.into_iter().enumerate() {
+                    let input_field = match item["type"].as_str() {
+                        Some("function_call") => "arguments",
+                        Some("custom_tool_call") => "input",
+                        _ => continue,
+                    };
+                    if item
+                        .get("status")
+                        .is_none_or(|status| status == "completed")
+                        && item[input_field].is_string()
+                        && ["call_id", "name"].iter().all(|field| {
+                            item[*field].as_str().is_some_and(|value| !value.is_empty())
+                        })
+                        && tool_calls.done_output_indices.insert(output_index)
+                    {
+                        events.push(ProviderStreamEvent::OutputItem {
+                            phase: ProviderOutputItemPhase::Done,
+                            output_index,
+                            item,
+                        });
+                    }
+                }
+            }
         }
         _ => {}
     }

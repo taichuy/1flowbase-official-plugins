@@ -368,3 +368,376 @@ async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
     release_tx.send(()).unwrap();
     server.join().unwrap();
 }
+
+// #2204: exercise the real WS invocation and recovery receipt, not a copied parser.
+#[tokio::test]
+async fn native_tool_interruption_never_commits_partial_calls() {
+    for (kind, field, delta_type) in [
+        (
+            "custom_tool_call",
+            "input",
+            "response.custom_tool_call_input.delta",
+        ),
+        (
+            "function_call",
+            "arguments",
+            "response.function_call_arguments.delta",
+        ),
+    ] {
+        for clean_close in [true, false] {
+            for item_done in [false, true] {
+                let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+                let base_url = format!("http://{}", listener.local_addr().unwrap());
+                let upstream = std::thread::spawn(move || {
+                    let (stream, _) = listener.accept().unwrap();
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(5)))
+                        .unwrap();
+                    let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+                    let request: Value =
+                        serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
+                    assert_eq!(request["type"], "response.create");
+                    for event in [
+                        json!({"type":"response.created","response":{"id":"resp_interrupted"}}),
+                        json!({"type":"response.output_item.added","output_index":0,"item":{"id":"item_1","type":kind,"call_id":"call_1","name":"exec",field:"","status":"in_progress"}}),
+                        json!({"type":delta_type,"output_index":0,"item_id":"item_1","call_id":"call_1","delta":"partial-input"}),
+                    ] {
+                        ws.send(Message::Text(event.to_string().into())).unwrap();
+                    }
+                    if item_done {
+                        ws.send(Message::Text(json!({"type":"response.output_item.done","output_index":0,"item":{"id":"item_1","type":kind,"call_id":"call_1","name":"exec",field:"partial-input","status":"completed"}}).to_string().into())).unwrap();
+                    }
+                    if clean_close {
+                        ws.close(Some(tokio_tungstenite::tungstenite::protocol::CloseFrame {
+                            code: tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Error,
+                            reason: "upstream websocket proxy failed".into(),
+                        })).unwrap();
+                    }
+                    // Otherwise the peer disappears without a WS closing handshake.
+                });
+                let input = ProviderInvocationInput {
+                    contract_version: ProviderInvocationContractVersion::Current,
+                    provider_instance_id: "fixture".into(),
+                    provider_code: "openai".into(),
+                    protocol: "openai_responses".into(),
+                    model: "fixture".into(),
+                    provider_config: json!({"base_url":base_url,"api_key":"fixture","transport_mode":"responses_websocket"}),
+                    required_capabilities: BTreeSet::from([
+                        ProviderInvocationCapability::ResponsesNativePassthrough,
+                        ProviderInvocationCapability::ResponsesNativeOutputV1,
+                    ]),
+                    run_context: [("provider_recovery".into(), json!({"policy":{"type":"native_opaque","budget":{"max_inner_attempts":1,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":9,"initial_commit_level":"lifecycle_only"}))].into(),
+                    native_transport: Some(ProviderNativeTransport {
+                        protocol: "openai_responses".into(),
+                        wire_body: json!({"input":[{"role":"user","content":"fixture"}]}),
+                        digest: "fixture".into(),
+                        size_bytes: 1,
+                    }),
+                    ..Default::default()
+                };
+                let mut events = Vec::new();
+                let error = OpenAiProviderRuntime::default()
+                    .invoke_response_with_event_sink(input, &mut |event| {
+                        events.push(event.clone());
+                        Ok(())
+                    })
+                    .await
+                    .expect_err("tool scaffolding or item done cannot replace response.completed");
+                upstream.join().unwrap();
+                let error = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+                assert_eq!(
+                    error.kind,
+                    ProviderRuntimeErrorKind::ProviderTransportUnavailable
+                );
+                let receipt = &error.provider_details.as_ref().unwrap()
+                    [recovery::RECOVERY_RECEIPT_METADATA_KEY];
+                assert_eq!(receipt["disposition"], "terminal_interruption");
+                assert_eq!(receipt["commit_level"], "terminal");
+                assert_eq!(receipt["attempt"], 0);
+                assert!(!events.iter().any(|event| matches!(
+                    event,
+                    ProviderStreamEvent::ToolCallCommit { .. } | ProviderStreamEvent::Finish { .. }
+                )));
+                assert_eq!(
+                    events
+                        .iter()
+                        .filter(|event| matches!(
+                            event,
+                            ProviderStreamEvent::OutputItem {
+                                phase: ProviderOutputItemPhase::Done,
+                                ..
+                            }
+                        ))
+                        .count(),
+                    usize::from(item_done),
+                    "only upstream item done may be emitted before failure"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn completed_payload_supplies_missing_tool_done_once_without_promoting_incomplete() {
+    for (kind, field) in [
+        ("custom_tool_call", "input"),
+        ("function_call", "arguments"),
+    ] {
+        for prior_done in [false, true] {
+            for (terminal_type, status) in [
+                ("response.completed", "completed"),
+                ("response.done", "completed"),
+                ("response.incomplete", "incomplete"),
+                ("response.completed", "incomplete"),
+                ("response.failed", "failed"),
+            ] {
+                let item = json!({"id":"item_1","type":kind,"call_id":"call_1","name":"exec",field:"complete-input","status":"completed"});
+                let mut events = Vec::new();
+                let mut calls = ResponseToolCalls::default();
+                let mut text = String::new();
+                let mut usage = ProviderUsage::default();
+                let mut finish = ProviderFinishReason::Unknown;
+                let mut response_id = Value::Null;
+                if prior_done {
+                    process_response_sse_payload(
+                        &json!({"type":"response.output_item.done","output_index":0,"item":item})
+                            .to_string(),
+                        &mut events,
+                        &mut text,
+                        &mut calls,
+                        &mut usage,
+                        &mut finish,
+                        &mut response_id,
+                    )
+                    .unwrap();
+                }
+                let terminal = json!({"type":terminal_type,"response":{"id":"resp_complete","status":status,"output":[item],"incomplete_details":{"reason":"max_output_tokens"},"error":{"code":"server_error","message":"fixture"}}});
+                let result = process_response_sse_payload(
+                    &terminal.to_string(),
+                    &mut events,
+                    &mut text,
+                    &mut calls,
+                    &mut usage,
+                    &mut finish,
+                    &mut response_id,
+                );
+                assert_eq!(result.is_err(), status == "failed");
+                let done: Vec<_> = events
+                    .iter()
+                    .filter_map(|event| match event {
+                        ProviderStreamEvent::OutputItem {
+                            phase: ProviderOutputItemPhase::Done,
+                            output_index,
+                            item,
+                        } => Some((*output_index, item.clone())),
+                        _ => None,
+                    })
+                    .collect();
+                assert_eq!(
+                    done,
+                    if prior_done || status == "completed" {
+                        vec![(0, item.clone())]
+                    } else {
+                        vec![]
+                    }
+                );
+                if status == "completed" {
+                    assert_eq!(
+                        calls[0].arguments,
+                        if kind == "custom_tool_call" {
+                            json!({"input":"complete-input"})
+                        } else {
+                            json!({})
+                        }
+                    );
+                    assert_eq!(finish, ProviderFinishReason::ToolCall);
+                }
+            }
+        }
+    }
+}
+
+// Gate scripted reads on the real response.create send, so EOF is deterministic
+// rather than depending on tungstenite's TCP reset/closing-handshake mapping.
+struct RequestGatedFrames {
+    frames: std::collections::VecDeque<Result<Message, tokio_tungstenite::tungstenite::Error>>,
+    sent: bool,
+    reader: Option<std::task::Waker>,
+}
+impl futures_util::Stream for RequestGatedFrames {
+    type Item = Result<Message, tokio_tungstenite::tungstenite::Error>;
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        if self.sent {
+            std::task::Poll::Ready(self.frames.pop_front())
+        } else {
+            self.reader = Some(cx.waker().clone());
+            std::task::Poll::Pending
+        }
+    }
+}
+impl futures_util::Sink<Message> for RequestGatedFrames {
+    type Error = tokio_tungstenite::tungstenite::Error;
+    fn poll_ready(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn start_send(mut self: std::pin::Pin<&mut Self>, message: Message) -> Result<(), Self::Error> {
+        assert_eq!(
+            serde_json::from_str::<Value>(message.to_text().unwrap()).unwrap()["type"],
+            "response.create"
+        );
+        self.sent = true;
+        if let Some(reader) = self.reader.take() {
+            reader.wake();
+        }
+        Ok(())
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+}
+
+#[tokio::test]
+async fn native_tool_eof_requires_completion_and_completion_precedes_late_close() {
+    for (kind, field) in [
+        ("custom_tool_call", "input"),
+        ("function_call", "arguments"),
+    ] {
+        for completed in [false, true] {
+            for prior_done in [false, true] {
+                for late_close in [false, true] {
+                    let item = json!({"id":"item_1","type":kind,"call_id":"call_1","name":"exec",field:"{\"path\":\"fixture\"}","status":"completed"});
+                    let mut added = item.clone();
+                    added[field] = json!("");
+                    added["status"] = json!("in_progress");
+                    let mut frames = std::collections::VecDeque::from([
+                        Ok(Message::Text(json!({"type":"response.created","response":{"id":"resp_ordered"}}).to_string().into())),
+                        Ok(Message::Text(json!({"type":"response.output_item.added","output_index":0,"item":added}).to_string().into())),
+                    ]);
+                    if prior_done {
+                        frames.push_back(Ok(Message::Text(json!({"type":"response.output_item.done","output_index":0,"item":item}).to_string().into())));
+                    }
+                    if completed {
+                        frames.push_back(Ok(Message::Text(json!({"type":"response.completed","response":{"id":"resp_ordered","status":"completed","output":[item]}}).to_string().into())));
+                    }
+                    if late_close {
+                        frames.push_back(Ok(Message::Close(None)));
+                    }
+                    let now = Instant::now();
+                    let mut session = ResponsesWebsocketSession {
+                        stream: websocket_io::SocketOwner::new(RequestGatedFrames {
+                            frames,
+                            sent: false,
+                            reader: None,
+                        }),
+                        turn_state: None,
+                        socket_generation: 1,
+                        contract_generation: None,
+                        close_identity: None,
+                        created_at: now,
+                        last_activity: now,
+                        state: WebsocketConnectionState::Ready,
+                    };
+                    let mut events = Vec::new();
+                    let result = read_websocket_response(
+                        &mut session,
+                        &mut json!({"type":"response.create","input":[]}),
+                        &ProviderInvocationInput::default(),
+                        &mut |event| {
+                            events.push(event.clone());
+                            Ok(())
+                        },
+                    )
+                    .await;
+                    if completed {
+                        let output = result
+                            .expect("completed tool response survives late transport close/EOF");
+                        assert_eq!(
+                            output.envelope.result.finish_reason,
+                            Some(ProviderFinishReason::ToolCall)
+                        );
+                        assert_eq!(
+                            output.envelope.result.tool_calls[0].arguments,
+                            json!({"path":"fixture"})
+                        );
+                        assert_eq!(
+                            events
+                                .iter()
+                                .filter_map(|event| match event {
+                                    ProviderStreamEvent::OutputItem {
+                                        phase: ProviderOutputItemPhase::Done,
+                                        item,
+                                        ..
+                                    } => Some(item.clone()),
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>(),
+                            vec![item]
+                        );
+                        assert_eq!(
+                            events
+                                .iter()
+                                .filter(|event| matches!(
+                                    event,
+                                    ProviderStreamEvent::ToolCallCommit { .. }
+                                ))
+                                .count(),
+                            1
+                        );
+                    } else {
+                        let error =
+                            result.expect_err("tool item cannot complete a response at EOF/Close");
+                        assert!(error.semantic_committed);
+                        assert!(!error.fallback_allowed);
+                        assert!(!events.iter().any(|event| matches!(
+                            event,
+                            ProviderStreamEvent::ToolCallCommit { .. }
+                                | ProviderStreamEvent::Finish { .. }
+                        )));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn completed_response_does_not_fabricate_done_for_unfinished_or_missing_tool_fields() {
+    for item in [
+        json!({"type":"custom_tool_call","call_id":"call_1","name":"exec","input":"partial","status":"in_progress"}),
+        json!({"type":"custom_tool_call","call_id":"call_1","name":"exec","status":"completed"}),
+        json!({"type":"function_call","call_id":"call_1","arguments":"{}","status":"completed"}),
+    ] {
+        let mut events = Vec::new();
+        process_response_sse_payload(
+            &json!({"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[item]}}).to_string(),
+            &mut events,
+            &mut String::new(),
+            &mut ResponseToolCalls::default(),
+            &mut ProviderUsage::default(),
+            &mut ProviderFinishReason::Unknown,
+            &mut Value::Null,
+        ).unwrap();
+        assert!(!events.iter().any(|event| matches!(
+            event,
+            ProviderStreamEvent::OutputItem {
+                phase: ProviderOutputItemPhase::Done,
+                ..
+            }
+        )));
+    }
+}
