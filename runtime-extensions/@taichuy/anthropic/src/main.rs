@@ -1,5 +1,6 @@
 use anthropic_provider::{
-    handle_invoke_request_streaming, handle_request, ProviderStdioRequest, ProviderStdioResponse,
+    handle_invoke_request_streaming, handle_request, ProviderRuntimeError, ProviderStdioRequest,
+    ProviderStdioResponse,
 };
 use runtime_extension_sdk::{serve, MultiplexEmitter};
 use serde_json::{json, Value};
@@ -26,15 +27,7 @@ async fn handle(raw: Value, emitter: MultiplexEmitter) -> Value {
         return match result {
             Ok(result) => serde_json::to_value(result).unwrap_or(Value::Null),
             Err(error) => {
-                let _ = emitter.try_event(json!({
-                    "type": "error",
-                    "error": {
-                        "kind": "provider_upstream_error",
-                        "message": error.to_string(),
-                        "provider_summary": null,
-                        "provider_details": null
-                    }
-                }));
+                let _ = emitter.try_event(stream_error_event(&error));
                 json!({
                     "final_content": null,
                     "response_id": null,
@@ -52,6 +45,18 @@ async fn handle(raw: Value, emitter: MultiplexEmitter) -> Value {
     });
     serde_json::to_value(response).unwrap_or(Value::Null)
 }
+
+fn stream_error_event(error: &anyhow::Error) -> Value {
+    let response = error
+        .downcast_ref::<ProviderRuntimeError>()
+        .map(|typed| ProviderStdioResponse::runtime_error(typed.clone()))
+        .unwrap_or_else(|| ProviderStdioResponse::error("provider_upstream_error", error.to_string()));
+    json!({ "type": "error", "error": response.error })
+}
+
+#[cfg(test)]
+#[path = "_tests/stdio_error.rs"]
+mod stdio_error_tests;
 
 fn unary_invoke(request: &ProviderStdioRequest) -> bool {
     request.method == "invoke"

@@ -65,3 +65,13 @@ Static token prices are intentionally omitted; pricing metadata is marked as dyn
 
 Explicit native `responses_websocket` requests fail on WebSocket handshake errors; they never silently create an HTTP response cursor.
 Semantic and native WebSocket turns send `response.create` without synthesizing a `response.processed` acknowledgement.
+
+## Upstream error facts
+
+Supplier failures use `provider_upstream_error`. `provider_details.upstream_error`
+contains the original inner `error` value, including nulls and unknown fields;
+when the supplier omits `error`, this fact is omitted too. HTTP failures also
+include the actual `status_code` and exact `raw_body`. Event failures do not
+synthesize an HTTP status. Structured WebSocket and SSE error terminals stop
+stream processing and set `semantic_terminal`; local recovery receipts and
+diagnostics are attached beside these supplier facts.

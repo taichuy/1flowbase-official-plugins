@@ -46,6 +46,7 @@ mod protocol_context;
 mod recovery;
 mod recovery_diagnostics;
 mod sse_codec;
+mod upstream_error;
 
 pub use protocol_context::ProtocolContextEnvelope;
 use protocol_context::{
@@ -650,6 +651,7 @@ pub enum ProviderOutputItemPhase {
 struct ResponseToolCalls {
     calls: Vec<ProviderToolCall>,
     item_id_to_call_id: HashMap<String, String>,
+    done_output_indices: BTreeSet<usize>,
 }
 
 impl std::ops::Deref for ResponseToolCalls {
@@ -1510,41 +1512,30 @@ fn provider_upstream_error_from_parts(
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    let message = upstream_error_body_message(status, &raw_body);
-    let mut provider_details = Map::new();
-    provider_details.insert("status".to_string(), json!(status.as_u16()));
-    if let Some(request_id) = response_request_id(headers) {
-        provider_details.insert("request_id".to_string(), json!(request_id));
-    }
-    ProviderRuntimeError {
-        kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
-        message: message.clone(),
-        provider_summary: Some(message),
-        provider_details: Some(Value::Object(provider_details)),
-    }
-}
-
-fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
-    if raw_body.is_empty() {
+    let parsed = upstream_error::parse_http(&raw_body);
+    let fallback = if raw_body.is_empty() {
         format!("HTTP {status}")
-    } else if let Some(message) = mixed_json_sse_error_message(raw_body) {
-        message
     } else {
-        raw_body.to_string()
+        raw_body.clone()
+    };
+    let mut error = upstream_error::error(
+        parsed.as_ref().and_then(|value| value.get("error")),
+        &fallback,
+        Some(status.as_u16()),
+        Some(&raw_body),
+    );
+    let details = error
+        .provider_details
+        .as_mut()
+        .unwrap()
+        .as_object_mut()
+        .unwrap();
+    // Retain the existing status projection while exposing the canonical fact.
+    details.insert("status".into(), json!(status.as_u16()));
+    if let Some(request_id) = response_request_id(headers) {
+        details.insert("request_id".into(), json!(request_id));
     }
-}
-
-fn mixed_json_sse_error_message(raw_body: &str) -> Option<String> {
-    let (json_prefix, trailing) = raw_body.split_once('\n')?;
-    if !trailing.trim_start().starts_with("data:") {
-        return None;
-    }
-    serde_json::from_str::<Value>(json_prefix)
-        .ok()?
-        .get("error")?
-        .get("message")?
-        .as_str()
-        .map(str::to_string)
+    error
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -1970,7 +1961,9 @@ impl OpenAiProviderRuntime {
                     }
                     error.failure_diagnostics = failure_diagnostics.clone();
                     let signal =
-                        if error.failure_diagnostics.last().is_some_and(|value| {
+                        if error.semantic_terminal {
+                            RecoverySignal::SemanticTerminal
+                        } else if error.failure_diagnostics.last().is_some_and(|value| {
                             value["reason_category"] == "continuation_unavailable"
                         }) {
                             RecoverySignal::ContinuationUnavailable
@@ -2482,17 +2475,6 @@ impl OpenAiProviderRuntime {
                         }
                     }
                 }
-                if !response.session_reusable {
-                    if let Some(session) = self.websocket_sessions.remove(&session_key) {
-                        self.release_session(
-                            session,
-                            self.websocket_lifecycle_policy.close_ack_timeout,
-                        )
-                        .await;
-                        self.websocket_logical_sessions
-                            .retain(|_, key| key != &session_key);
-                    }
-                }
                 Ok(output)
             }
             Err(mut error) => {
@@ -2832,7 +2814,16 @@ fn http_failure_transition(
         .downcast_ref::<ProviderRuntimeError>()
         .is_some_and(|error| error.kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable);
     machine.decide_transition(RecoveryFacts {
-        signal: if transport_failure {
+        signal: if source
+            .downcast_ref::<ProviderRuntimeError>()
+            .is_some_and(|error| {
+                error
+                    .provider_details
+                    .as_ref()
+                    .is_some_and(|details| details["semantic_terminal"] == true)
+            }) {
+            RecoverySignal::SemanticTerminal
+        } else if transport_failure {
             RecoverySignal::ProxyFailed
         } else {
             RecoverySignal::PolicyRejected
@@ -4027,7 +4018,6 @@ struct ResponsesWebsocketSession {
 struct WebsocketResponseOutput {
     completed_output: Option<Vec<Value>>,
     envelope: RuntimeInvocationEnvelope,
-    session_reusable: bool,
 }
 
 #[derive(Debug)]
@@ -4036,6 +4026,7 @@ struct WebsocketInvocationError {
     fallback_allowed: bool,
     reconnect_allowed: bool,
     semantic_committed: bool,
+    semantic_terminal: bool,
     disposition: Option<RecoveryDisposition>,
     transition: Option<RecoveryTransition>,
     socket_incarnation: Option<u64>,
@@ -4071,6 +4062,7 @@ impl WebsocketInvocationError {
             fallback_allowed: true,
             reconnect_allowed: false,
             semantic_committed: false,
+            semantic_terminal: false,
             disposition: None,
             transition: None,
             socket_incarnation: None,
@@ -4088,6 +4080,7 @@ impl WebsocketInvocationError {
             fallback_allowed: false,
             reconnect_allowed: false,
             semantic_committed: false,
+            semantic_terminal: false,
             disposition: None,
             transition: None,
             socket_incarnation: None,
@@ -4115,6 +4108,7 @@ impl WebsocketInvocationError {
             fallback_allowed: true,
             reconnect_allowed: true,
             semantic_committed: false,
+            semantic_terminal: false,
             disposition: None,
             transition: None,
             socket_incarnation: None,
@@ -4504,7 +4498,6 @@ where
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
     let mut semantic_terminal_failure_seen = false;
-    let mut session_reusable = true;
     let mut completed_output = None;
 
     loop {
@@ -4520,11 +4513,6 @@ where
                 }
             };
         let Some(message) = next_message else {
-            if !tool_calls.is_empty() && !response_id.is_null() {
-                finish_reason = ProviderFinishReason::ToolCall;
-                session_reusable = false;
-                break;
-            }
             let error = session
                 .stream
                 .failure()
@@ -4552,12 +4540,13 @@ where
                     None,
                 );
                 let payload = payload.as_str();
-                if let Some(message) = websocket_error_message(payload) {
-                    let error = anyhow!(message);
-                    return Err(WebsocketInvocationError::from_stream_state(
-                        error,
-                        visibility.committed() || semantic_terminal_failure_seen,
-                    ));
+                if let Some(error) = upstream_error::websocket(payload) {
+                    let mut failure = WebsocketInvocationError::from_stream_state(
+                        anyhow::Error::new(error),
+                        visibility.committed(),
+                    );
+                    failure.semantic_terminal = true;
+                    return Err(failure);
                 }
                 semantic_terminal_failure_seen |= websocket_payload_blocks_http_fallback(payload);
                 if let Ok(raw) = serde_json::from_str::<Value>(payload) {
@@ -4574,10 +4563,12 @@ where
                     &mut response_id,
                 )
                 .map_err(|error| {
-                    WebsocketInvocationError::from_stream_state(
+                    let mut failure = WebsocketInvocationError::from_stream_state(
                         error,
                         visibility.committed() || semantic_terminal_failure_seen,
-                    )
+                    );
+                    failure.semantic_terminal = semantic_terminal_failure_seen;
+                    failure
                 })?;
                 visibility
                     .publish(&mut events, &mut all_events, on_event)
@@ -4591,11 +4582,6 @@ where
             Message::Ping(_) => {}
             Message::Pong(_) => {}
             Message::Close(frame) => {
-                if !tool_calls.is_empty() && !response_id.is_null() {
-                    finish_reason = ProviderFinishReason::ToolCall;
-                    session_reusable = false;
-                    break;
-                }
                 let error = session
                     .stream
                     .failure()
@@ -4646,7 +4632,6 @@ where
     Ok(WebsocketResponseOutput {
         completed_output,
         envelope: output,
-        session_reusable,
     })
 }
 
@@ -4666,32 +4651,6 @@ fn websocket_closed_before_completed_error(
     frame: Option<tokio_tungstenite::tungstenite::protocol::CloseFrame>,
 ) -> anyhow::Error {
     recovery_diagnostics::close_error(frame)
-}
-
-fn websocket_error_message(payload: &str) -> Option<String> {
-    let value: Value = serde_json::from_str(payload).ok()?;
-    if value.get("type").and_then(Value::as_str) != Some("error") {
-        return None;
-    }
-    let status = value
-        .get("status")
-        .or_else(|| value.get("status_code"))
-        .map(value_to_string);
-    let message = value
-        .get("error")
-        .and_then(|error| error.get("message"))
-        .and_then(Value::as_str)
-        .unwrap_or("Responses websocket error");
-    let code = value
-        .get("error")
-        .and_then(|error| error.get("code"))
-        .and_then(Value::as_str);
-    Some(match (status, code) {
-        (Some(status), Some(code)) => format!("{status} {code}: {message}"),
-        (Some(status), None) => format!("{status}: {message}"),
-        (None, Some(code)) => format!("{code}: {message}"),
-        (None, None) => message.to_string(),
-    })
 }
 
 fn completed_native_output(payload: &Value) -> Option<Vec<Value>> {
@@ -4895,11 +4854,12 @@ fn process_chat_sse_data(
     }
     let payload: Value = serde_json::from_str(data)?;
     if let Some(error) = payload.get("error") {
-        let message = error
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or("Chat Completions stream error");
-        bail!("{message}");
+        return Err(anyhow::Error::new(upstream_error::error(
+            Some(error),
+            "Chat Completions stream error",
+            None,
+            None,
+        )));
     }
     if let Some(id) = payload.get("id") {
         *response_id = id.clone();
@@ -5274,6 +5234,14 @@ fn process_response_sse_payload(
         });
     }
     match event_type {
+        "error" => {
+            return Err(anyhow::Error::new(upstream_error::error(
+                payload.get("error"),
+                "Responses stream error",
+                None,
+                None,
+            )));
+        }
         "response.created" => {
             if let Some(id) = payload
                 .get("response")
@@ -5340,6 +5308,9 @@ fn process_response_sse_payload(
             if let Some(event) =
                 typed_response_output_item(&payload, ProviderOutputItemPhase::Done)?
             {
+                if let ProviderStreamEvent::OutputItem { output_index, .. } = &event {
+                    tool_calls.done_output_indices.insert(*output_index);
+                }
                 events.push(event);
             }
             if text.is_empty() {
@@ -5349,7 +5320,9 @@ fn process_response_sse_payload(
             }
         }
         "response.failed" => {
-            bail!("{}", response_failed_message(payload.get("response")));
+            return Err(anyhow::Error::new(upstream_error::failed(
+                payload.get("response"),
+            )));
         }
         "response.incomplete" | "response.completed" | "response.done" => {
             process_terminal_response_event(
@@ -5360,6 +5333,32 @@ fn process_response_sse_payload(
                 finish_reason,
                 response_id,
             )?;
+            // A completed response is authoritative even when upstream omitted per-item
+            // done frames. Incomplete/failed responses cannot complete unfinished tools.
+            if let Some(items) = completed_native_output(&payload) {
+                for (output_index, item) in items.into_iter().enumerate() {
+                    let input_field = match item["type"].as_str() {
+                        Some("function_call") => "arguments",
+                        Some("custom_tool_call") => "input",
+                        _ => continue,
+                    };
+                    if item
+                        .get("status")
+                        .is_none_or(|status| status == "completed")
+                        && item[input_field].is_string()
+                        && ["call_id", "name"].iter().all(|field| {
+                            item[*field].as_str().is_some_and(|value| !value.is_empty())
+                        })
+                        && tool_calls.done_output_indices.insert(output_index)
+                    {
+                        events.push(ProviderStreamEvent::OutputItem {
+                            phase: ProviderOutputItemPhase::Done,
+                            output_index,
+                            item,
+                        });
+                    }
+                }
+            }
         }
         _ => {}
     }
@@ -5441,7 +5440,7 @@ fn process_terminal_response_event(
     };
     if let Some(status) = response.get("status").and_then(Value::as_str) {
         match status {
-            "failed" => bail!("{}", response_failed_message(Some(response))),
+            "failed" => return Err(anyhow::Error::new(upstream_error::failed(Some(response)))),
             "cancelled" => bail!("response.cancelled"),
             _ => {}
         }
@@ -5496,24 +5495,6 @@ fn process_terminal_response_event(
         }
     });
     Ok(())
-}
-
-fn response_failed_message(response: Option<&Value>) -> String {
-    let Some(error) = response.and_then(|value| value.get("error")) else {
-        return "response.failed event received".to_string();
-    };
-    let message = error
-        .get("message")
-        .and_then(Value::as_str)
-        .unwrap_or("response.failed event received");
-    let code = error.get("code").and_then(Value::as_str);
-    let error_type = error.get("type").and_then(Value::as_str);
-    match (code, error_type) {
-        (Some(code), Some(error_type)) => format!("{code} ({error_type}): {message}"),
-        (Some(code), None) => format!("{code}: {message}"),
-        (None, Some(error_type)) => format!("{error_type}: {message}"),
-        (None, None) => message.to_string(),
-    }
 }
 
 fn response_incomplete_message(response: Option<&Value>) -> String {
@@ -6446,7 +6427,9 @@ mod tests {
             assert_eq!(error.provider_summary.as_deref(), Some(raw_body));
             assert_eq!(
                 error.provider_details,
-                Some(json!({ "status": 400, "request_id": "req_plain" }))
+                Some(
+                    json!({ "status": 400, "status_code":400, "raw_body":raw_body, "semantic_terminal":true, "request_id": "req_plain" })
+                )
             );
             let encoded = serde_json::to_string(&error).unwrap();
             assert!(!encoded.contains("sk-secret"));
@@ -7338,14 +7321,38 @@ mod tests {
             .downcast_ref::<ProviderRuntimeError>()
             .expect("remote Compact failure should retain the typed Provider error");
         assert_eq!(
-            runtime_error.message,
+            runtime_error.kind,
+            ProviderRuntimeErrorKind::ProviderUpstreamError
+        );
+        assert_eq!(runtime_error.message, "remote compact unavailable");
+        let details = runtime_error.provider_details.as_ref().unwrap();
+        assert_eq!(details["status_code"], 503);
+        assert_eq!(
+            details["raw_body"],
             r#"{"error":{"message":"remote compact unavailable"}}"#
+        );
+        assert_eq!(
+            details["upstream_error"],
+            json!({"message":"remote compact unavailable"})
         );
 
         let request = request_rx
             .recv_timeout(Duration::from_secs(5))
             .expect("remote failure fixture should still receive exactly the Compact request");
         assert!(request.starts_with("POST /responses HTTP/1.1"));
+        let body: Value = serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+        assert_eq!(
+            body["input"].as_array().unwrap().last().unwrap(),
+            &json!({"type":"compaction_trigger"})
+        );
+        assert!(
+            body.get("stream").is_none(),
+            "Compact failure must not issue Generate"
+        );
+        assert!(
+            request_rx.try_recv().is_err(),
+            "only one Compact request is permitted"
+        );
     }
 
     #[test]
@@ -7857,7 +7864,13 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(error.to_string(), "server_error: upstream closed");
+        let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+        assert_eq!(typed.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
+        assert_eq!(typed.message, "upstream closed");
+        assert_eq!(
+            typed.provider_details.as_ref().unwrap()["upstream_error"],
+            json!({"code":"server_error","message":"upstream closed"})
+        );
     }
 
     #[test]
