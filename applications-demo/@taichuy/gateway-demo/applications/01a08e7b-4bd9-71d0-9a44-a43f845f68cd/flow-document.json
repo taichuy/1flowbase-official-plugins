@@ -1,0 +1,201 @@
+{
+  "meta": {
+    "name": "应用 API Key 汇总",
+    "tags": [],
+    "flowId": "01a08e7b-4be4-7f03-ad65-55ca4163ef19",
+    "description": "当前调用者的应用 API Key，按应用标记分组。"
+  },
+  "graph": {
+    "edges": [
+      {
+        "id": "edge-0",
+        "points": [],
+        "source": "node-workflow-start",
+        "target": "node-query",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "edge-1",
+        "points": [],
+        "source": "node-query",
+        "target": "node-output",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "edge-2",
+        "points": [],
+        "source": "node-output",
+        "target": "node-workflow-end",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      }
+    ],
+    "nodes": [
+      {
+        "id": "node-workflow-start",
+        "type": "workflow_start",
+        "alias": "输入",
+        "config": {
+          "input_fields": [
+            {
+              "key": "sort_by",
+              "title": "排序字段",
+              "source": "query",
+              "required": false,
+              "valueType": "string",
+              "defaultValue": "created_at"
+            },
+            {
+              "key": "sort_order",
+              "title": "排序方向",
+              "source": "query",
+              "required": false,
+              "valueType": "string",
+              "defaultValue": "desc"
+            }
+          ],
+          "sync_timeout_ms": 30000
+        },
+        "outputs": [
+          {
+            "key": "sort_by",
+            "title": "排序字段",
+            "valueType": "string"
+          },
+          {
+            "key": "sort_order",
+            "title": "排序方向",
+            "valueType": "string"
+          }
+        ],
+        "bindings": {},
+        "position": {
+          "x": 100,
+          "y": 200
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      },
+      {
+        "id": "node-query",
+        "type": "sql",
+        "alias": "查询应用及当前用户的 Key",
+        "config": {
+          "data_source_instance_id": "main"
+        },
+        "outputs": [
+          {
+            "key": "results",
+            "title": "查询结果",
+            "valueType": "array"
+          }
+        ],
+        "bindings": {
+          "sql": {
+            "kind": "templated_text",
+            "value": "WITH caller AS (\n SELECT r.created_by, a.workspace_id\n FROM flow_runs r JOIN applications a ON a.id = r.application_id\n WHERE r.id = '{{sys.workflow_run_id}}'::uuid\n AND r.application_id = '{{sys.application_id}}'::uuid\n), app_groups AS (\n SELECT a.id, a.name FROM applications a JOIN caller c ON c.workspace_id = a.workspace_id\n WHERE a.application_type = 'agent_flow'\n), key_rows AS (\n SELECT k.id, k.name, k.application_id, a.name AS application_name, k.token_prefix,\n k.creator_user_id, k.enabled, k.expires_at, k.last_used_at, k.created_at, k.updated_at\n FROM api_keys k JOIN app_groups a ON a.id = k.application_id JOIN caller c ON c.created_by = k.creator_user_id\n WHERE k.key_kind = 'application_api_key' AND k.enabled = true AND k.scope_id = c.workspace_id\n)\nSELECT jsonb_build_object(\n 'applications', coalesce((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.name, a.id) FROM app_groups a), '[]'::jsonb),\n 'items', coalesce((SELECT jsonb_agg(to_jsonb(k) ORDER BY k.created_at DESC, k.id DESC) FROM key_rows k), '[]'::jsonb)\n) AS catalog;"
+          }
+        },
+        "position": {
+          "x": 380,
+          "y": 200
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      },
+      {
+        "id": "node-output",
+        "type": "code",
+        "alias": "输出 Key 列表及应用分组",
+        "config": {
+          "source": "function main(inputs) {\n  const sort_by = inputs.sort_by ?? 'created_at';\n  const sort_order = inputs.sort_order ?? 'desc';\n  if (!['created_at', 'last_used_at'].includes(sort_by)) throw new Error('不支持的排序字段');\n  if (!['asc', 'desc'].includes(sort_order)) throw new Error('不支持的排序方向');\n  const catalog = inputs.results[0].rows[0][0];\n  const direction = sort_order === 'asc' ? 1 : -1;\n  catalog.items.sort((a, b) => {\n    const av = a[sort_by], bv = b[sort_by];\n    if (av == null && bv != null) return 1;\n    if (bv == null && av != null) return -1;\n    const delta = av == null ? 0 : Date.parse(av) - Date.parse(bv);\n    if (delta) return direction * delta;\n    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;\n  });\n  return { catalog };\n}",
+          "language": "javascript"
+        },
+        "outputs": [
+          {
+            "key": "catalog",
+            "title": "API Key 目录",
+            "valueType": "object"
+          }
+        ],
+        "bindings": {
+          "results": {
+            "kind": "selector",
+            "value": [
+              "node-query",
+              "results"
+            ]
+          },
+          "sort_by": {
+            "kind": "selector",
+            "value": [
+              "node-workflow-start",
+              "sort_by"
+            ]
+          },
+          "sort_order": {
+            "kind": "selector",
+            "value": [
+              "node-workflow-start",
+              "sort_order"
+            ]
+          }
+        },
+        "position": {
+          "x": 650,
+          "y": 200
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      },
+      {
+        "id": "node-workflow-end",
+        "type": "workflow_end",
+        "alias": "输出",
+        "config": {},
+        "outputs": [
+          {
+            "key": "catalog",
+            "title": "API Key 目录",
+            "valueType": "object"
+          }
+        ],
+        "bindings": {
+          "catalog": {
+            "kind": "selector",
+            "value": [
+              "node-output",
+              "result",
+              "catalog"
+            ]
+          }
+        },
+        "position": {
+          "x": 920,
+          "y": 200
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      }
+    ]
+  },
+  "editor": {
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    },
+    "annotations": [],
+    "activeContainerPath": []
+  },
+  "schemaVersion": "1flowbase.flow/v2"
+}

@@ -1,0 +1,117 @@
+{
+  "tool_id": "frontstage_get_block_context_contract",
+  "name": "查询 Block ctx 契约",
+  "short_description": "返回前端 Block 可使用的全部 ctx.* 能力、类型和成员说明。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_frontstage_block_context_contract"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "schema_version",
+      "contract_version",
+      "block_sdk_version",
+      "entries",
+      "non_context_symbols"
+    ],
+    "properties": {
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "key",
+            "kind",
+            "nullable",
+            "type",
+            "description",
+            "members"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "object",
+                "function"
+              ],
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "members": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "kind",
+                  "type",
+                  "description"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "property",
+                      "method"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "nullable": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "schema_version": {
+        "type": "string"
+      },
+      "contract_version": {
+        "type": "string"
+      },
+      "block_sdk_version": {
+        "type": "string"
+      },
+      "non_context_symbols": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "input_mapping": {},
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

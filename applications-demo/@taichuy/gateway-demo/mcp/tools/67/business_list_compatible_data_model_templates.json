@@ -1,0 +1,145 @@
+{
+  "tool_id": "business_list_compatible_data_model_templates",
+  "name": "list_compatible_data_model_templates",
+  "short_description": "列出指定数据源可用的数据模型模板及其系统字段，供创建前选择。",
+  "full_description": "创建数据模型前调用本 Tool，直接使用返回的 template_provider、template_code、template_version。system_fields 是模板已拥有的物理契约，不要通过 add_data_model_field 重复创建。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_compatible_templates"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "object",
+        "required": [
+          "data_source_id"
+        ],
+        "properties": {
+          "resource_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data_source_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "template_provider",
+        "template_code",
+        "template_version",
+        "summary",
+        "description",
+        "system_fields"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "system_fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "summary",
+              "description",
+              "field_kind",
+              "required"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "field_kind": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "template_code": {
+          "type": "string"
+        },
+        "template_version": {
+          "type": "string"
+        },
+        "template_provider": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "query.data_source_id",
+        "description": "数据源稳定标识；主数据源使用 main。",
+        "interface_param": "data_source_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.resource_key",
+        "description": "外部数据源资源标识；主数据源留空。",
+        "interface_param": "resource_key"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "data_source_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "resource_key",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,171 @@
+{
+  "tool_id": "ai_gateway_create",
+  "name": "ai_gateway_create",
+  "short_description": "创建AI 网关应用记录。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__01a0801d-8c25-7291-9d51-e0676950de19__create_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "application_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at",
+      "name"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "name": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "created_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "application_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "记录名称",
+        "interface_param": "name"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.description",
+        "description": "description",
+        "interface_param": "description"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.application_id",
+        "description": "关联的 Agent Flow 应用 ID。",
+        "interface_param": "application_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "application_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

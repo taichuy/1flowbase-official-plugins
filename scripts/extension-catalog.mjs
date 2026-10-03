@@ -4,6 +4,7 @@ import path from 'node:path';
 
 export const CATALOG_CATEGORIES = Object.freeze([
   'agent-flow',
+  'applications-demo',
   'capability-plugins',
   'host-extensions',
   'i18n',
@@ -203,6 +204,25 @@ function agentFlowEntries(repoRoot) {
   });
 }
 
+function applicationTemplateEntries(repoRoot) {
+  const catalog = readJsonIfExists(path.join(repoRoot, 'applications-demo/releases/v1/catalog.json'));
+  if (!catalog) return [];
+  if (catalog.schema_version !== '1flowbase.application-template-catalog/v1' || !Array.isArray(catalog.templates)) throw new Error('invalid application template release catalog');
+  return catalog.templates.flatMap(template => {
+    const latest = [...(template.versions || [])].sort((a, b) => b.release_version - a.release_version)[0];
+    if (!latest) return [];
+    return [normalizeEntry('applications-demo', template.organization, template.artifact, {
+      name: latest.name, version: String(latest.release_version), description: latest.description,
+      host_version_requirement: latest.exported_from_system_version,
+      source: { kind: 'application_template_release', locator: template.source_path, metadata: { template_id: latest.template_id, release_version: latest.release_version } },
+      signature: { algorithm: latest.algorithm, key_id: latest.key_id, signature: latest.signature },
+      checksum: latest.checksum,
+      download_locator: { kind: 'https', locator: latest.download_url },
+      keywords: ['application', 'template'],
+    })];
+  });
+}
+
 function mcpEntries(repoRoot) {
   const catalogPath = path.join(repoRoot, 'mcp', 'catalog.json');
   const catalog = readJsonIfExists(catalogPath);
@@ -352,6 +372,7 @@ function runtimeEntries(repoRoot) {
 function publisherEntries(repoRoot, category, rawBaseUrl) {
   switch (category) {
     case 'agent-flow': return agentFlowEntries(repoRoot);
+    case 'applications-demo': return applicationTemplateEntries(repoRoot);
     case 'i18n': return i18nEntries(repoRoot);
     case 'mcp': return mcpEntries(repoRoot);
     case 'runtime-extensions': return runtimeEntries(repoRoot);

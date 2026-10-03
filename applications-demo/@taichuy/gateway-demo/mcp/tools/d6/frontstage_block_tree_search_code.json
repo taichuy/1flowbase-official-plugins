@@ -1,0 +1,266 @@
+{
+  "tool_id": "frontstage_block_tree_search_code",
+  "name": "搜索区块源码",
+  "short_description": "按字面文本定位区块源码，返回有限上下文、坐标、修订号和续查位置。",
+  "full_description": "先搜索或读取源码片段，再使用 replace_code 按唯一旧文本替换，或 patch_code 按坐标编辑。搜索每项上下文最多 320 个 Unicode 标量；续查使用 next_line、next_column 和 expected_source_revision。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "search_frontstage_block_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "query"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "start_line": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "start_column": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "expected_source_revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "page_id",
+      "source_revision",
+      "matches",
+      "truncated"
+    ],
+    "properties": {
+      "matches": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "start_line",
+            "start_column",
+            "end_line",
+            "end_column",
+            "context",
+            "context_start_line",
+            "context_start_column",
+            "context_truncated"
+          ],
+          "properties": {
+            "context": {
+              "type": "string"
+            },
+            "end_line": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "end_column": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "start_line": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "start_column": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "context_truncated": {
+              "type": "boolean"
+            },
+            "context_start_line": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "context_start_column": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "next_line": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32",
+        "minimum": 0
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "next_column": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32",
+        "minimum": 0
+      },
+      "source_revision": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标区块公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "query.query",
+        "description": "字面搜索文本，非正则；非空，最多 8000 UTF-8 字节。",
+        "interface_param": "query"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.start_line",
+        "description": "搜索起始行，从 1 开始；默认 1。",
+        "interface_param": "start_line"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.start_column",
+        "description": "搜索起始列，从 1 开始，按 Unicode 标量计数；默认 1。",
+        "interface_param": "start_column"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "最多返回匹配数，1–100，默认 20。",
+        "interface_param": "limit"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.expected_source_revision",
+        "description": "续查时传入上次 source_revision；源码改变则返回冲突。",
+        "interface_param": "expected_source_revision"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标页面稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标区块公开稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "query",
+        "required": true,
+        "field_type": "string",
+        "description": "字面搜索文本，非正则；非空，最多 8000 UTF-8 字节。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "start_line",
+        "required": false,
+        "field_type": "integer",
+        "description": "搜索起始行，从 1 开始；默认 1。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "start_column",
+        "required": false,
+        "field_type": "integer",
+        "description": "搜索起始列，从 1 开始，按 Unicode 标量计数；默认 1。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "integer",
+        "description": "最多返回匹配数，1–100，默认 20。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "expected_source_revision",
+        "required": false,
+        "field_type": "object",
+        "description": "续查时传入上次 source_revision；源码改变则返回冲突。",
+        "parameter_type": "query"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

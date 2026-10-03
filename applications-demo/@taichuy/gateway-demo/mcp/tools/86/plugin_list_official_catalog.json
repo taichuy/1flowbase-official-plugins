@@ -1,0 +1,361 @@
+{
+  "tool_id": "plugin_list_official_catalog",
+  "name": "查询可下载插件",
+  "short_description": "查询可下载插件并返回当前状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "plugin_list_official_catalog"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plugin_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional plugin kind filter for official catalog views."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "source_kind",
+      "source_label",
+      "registry_url",
+      "source_freshness",
+      "locale_meta",
+      "page",
+      "entries"
+    ],
+    "properties": {
+      "page": {
+        "type": "object",
+        "required": [
+          "limit"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "plugin_id",
+            "plugin_type",
+            "provider_code",
+            "display_name",
+            "protocol",
+            "latest_version",
+            "minimum_host_version",
+            "current_host_version",
+            "compatibility_status",
+            "selected_artifact",
+            "model_discovery_mode",
+            "install_status"
+          ],
+          "properties": {
+            "icon": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "help_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "protocol": {
+              "type": "string"
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "plugin_type": {
+              "type": "string"
+            },
+            "display_name": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "install_status": {
+              "type": "string"
+            },
+            "latest_version": {
+              "type": "string"
+            },
+            "selected_artifact": {
+              "type": "object",
+              "required": [
+                "os",
+                "arch",
+                "rust_target",
+                "download_url",
+                "checksum"
+              ],
+              "properties": {
+                "os": {
+                  "type": "string"
+                },
+                "arch": {
+                  "type": "string"
+                },
+                "libc": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "checksum": {
+                  "type": "string"
+                },
+                "rust_target": {
+                  "type": "string"
+                },
+                "download_url": {
+                  "type": "string"
+                },
+                "signing_key_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "signature_algorithm": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "compatibility_status": {
+              "type": "string"
+            },
+            "current_host_version": {
+              "type": "string"
+            },
+            "minimum_host_version": {
+              "type": "string"
+            },
+            "model_discovery_mode": {
+              "type": "string"
+            },
+            "compatibility_warning_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "description": "Official registry entry returned by the plugin API."
+        }
+      },
+      "locale_meta": {
+        "type": "object",
+        "required": [
+          "resolved_locale",
+          "source",
+          "fallback_locale",
+          "supported_locales"
+        ],
+        "properties": {
+          "source": {
+            "enum": [
+              "query",
+              "explicit_header",
+              "user_preferred_locale",
+              "accept_language",
+              "fallback"
+            ],
+            "type": "string"
+          },
+          "fallback_locale": {
+            "type": "string"
+          },
+          "resolved_locale": {
+            "type": "string"
+          },
+          "requested_locale": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported_locales": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "source_kind": {
+        "type": "string"
+      },
+      "registry_url": {
+        "type": "string"
+      },
+      "source_label": {
+        "type": "string"
+      },
+      "source_freshness": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "plugin_type",
+        "interface_param": "plugin_type"
+      },
+      {
+        "required": false,
+        "mcp_param": "locale",
+        "interface_param": "locale"
+      },
+      {
+        "required": false,
+        "mcp_param": "q",
+        "interface_param": "q"
+      },
+      {
+        "required": false,
+        "mcp_param": "cursor",
+        "interface_param": "cursor"
+      },
+      {
+        "required": false,
+        "mcp_param": "limit",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "plugin_type",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional plugin kind filter for official catalog views."
+        },
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "locale",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "q",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "cursor",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "required": false,
+        "field_type": "integer",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "plugin_config.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

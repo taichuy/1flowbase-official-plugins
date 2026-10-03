@@ -1,0 +1,155 @@
+{
+  "tool_id": "application_api_key_create",
+  "name": "创建应用 API Key",
+  "short_description": "为指定应用创建 Key，完整密钥仅在本次结果中返回。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_application_api_key"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "token",
+      "token_prefix",
+      "creator_user_id",
+      "enabled",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "name": {
+        "type": "string"
+      },
+      "token": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "expires_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "last_used_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "token_prefix": {
+        "type": "string"
+      },
+      "creator_user_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "所属应用 ID。",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "Key 名称。",
+        "interface_param": "name"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.expires_at",
+        "description": "可选到期时间，使用 ISO 8601；为空时永不过期。",
+        "interface_param": "expires_at"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "所属应用 ID。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "field_type": "string",
+        "description": "Key 名称。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "expires_at",
+        "required": false,
+        "field_type": "string",
+        "description": "可选到期时间，使用 ISO 8601；为空时永不过期。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

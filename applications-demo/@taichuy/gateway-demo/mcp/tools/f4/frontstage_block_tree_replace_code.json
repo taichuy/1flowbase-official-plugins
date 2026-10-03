@@ -1,0 +1,212 @@
+{
+  "tool_id": "frontstage_block_tree_replace_code",
+  "name": "精确替换区块源码",
+  "short_description": "原子替换、删除或插入唯一匹配的源码片段，返回修订号和有限差异。",
+  "full_description": "先用 frontstage_block_tree_search_code 或 frontstage_block_tree_get_code_fragment 定位并获取修订号。同批编辑均针对原始源码且不得重叠；任何一项失败则整批不写入。返回 changes 的坐标针对原始源码，前后文本合计最多 8000 个 Unicode 标量，检查 diff_truncated。冲突后重新读取再构造编辑；不直接重试旧批次。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "replace_frontstage_block_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "expected_source_revision",
+          "edits"
+        ],
+        "properties": {
+          "edits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "old_text",
+                "new_text"
+              ],
+              "properties": {
+                "new_text": {
+                  "type": "string"
+                },
+                "old_text": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "expected_source_revision": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "page_id",
+      "source_revision",
+      "applied_edits",
+      "changes",
+      "diff_truncated"
+    ],
+    "properties": {
+      "changes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "edit_index",
+            "start_line",
+            "start_column",
+            "end_line",
+            "end_column",
+            "old_text",
+            "new_text",
+            "truncated"
+          ],
+          "properties": {
+            "end_line": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "new_text": {
+              "type": "string"
+            },
+            "old_text": {
+              "type": "string"
+            },
+            "truncated": {
+              "type": "boolean"
+            },
+            "edit_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end_column": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "start_line": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "start_column": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "applied_edits": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "diff_truncated": {
+        "type": "boolean"
+      },
+      "source_revision": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标区块公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "edits",
+        "description": "1–100 项 {old_text,new_text}。old_text 非空且在原始源码中唯一；new_text 为空表示删除，保留旧锚点并追加文本表示插入。",
+        "interface_param": "edits"
+      },
+      {
+        "required": true,
+        "mcp_param": "expected_source_revision",
+        "description": "搜索或读取返回的 source_revision；必填，版本冲突时整批不写入。",
+        "interface_param": "expected_source_revision"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标页面稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标区块公开稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "edits",
+        "required": true,
+        "field_type": "array",
+        "description": "1–100 项 {old_text,new_text}。old_text 非空且在原始源码中唯一；new_text 为空表示删除，保留旧锚点并追加文本表示插入。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "expected_source_revision",
+        "required": true,
+        "field_type": "string",
+        "description": "搜索或读取返回的 source_revision；必填，版本冲突时整批不写入。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

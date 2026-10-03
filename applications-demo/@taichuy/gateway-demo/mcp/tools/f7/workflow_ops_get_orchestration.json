@@ -1,0 +1,168 @@
+{
+  "tool_id": "workflow_ops_get_orchestration",
+  "name": "get_workflow_orchestration",
+  "short_description": "返回 Workflow 当前 flow、draft、完整编排文档和版本。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_orchestration"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "flow_id",
+      "draft",
+      "messages",
+      "versions",
+      "autosave_interval_seconds",
+      "user_protection_limit"
+    ],
+    "properties": {
+      "draft": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_id",
+          "document",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "document": {},
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "flow_id": {
+        "type": "string"
+      },
+      "messages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "key",
+            "text"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "sequence",
+            "trigger",
+            "change_kind",
+            "summary",
+            "summary_is_custom",
+            "is_user_protected",
+            "is_current_publication",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "trigger": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "change_kind": {
+              "type": "string"
+            },
+            "is_user_protected": {
+              "type": "boolean"
+            },
+            "summary_is_custom": {
+              "type": "boolean"
+            },
+            "is_current_publication": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "user_protection_limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "autosave_interval_seconds": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "Workflow Application 稳定标识。",
+        "interface_param": "id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workflow Application 稳定标识。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

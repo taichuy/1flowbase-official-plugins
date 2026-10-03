@@ -1,0 +1,230 @@
+{
+  "tool_id": "frontstage_save_block_code",
+  "name": "save_frontstage_block_code",
+  "short_description": "保存指定 code_ref 对应的已编译 JS Block executable。",
+  "full_description": "body 中的 source_code、dependency_lock、tailwind_toolchain_lock、generated_css、generated_css_sha256 与 compiler_identity 必须来自当前 Catalog compiler 的同一次结果；本 Tool 只保存并校验 executable，不代替客户端编译。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "save_frontstage_block_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "source_code",
+          "dependency_lock"
+        ],
+        "properties": {
+          "source_code": {
+            "type": "string"
+          },
+          "dependency_lock": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "expected_source_revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "page_id",
+          "code_ref"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Page id"
+          },
+          "code_ref": {
+            "type": "string",
+            "description": "JS block code ref"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Workspace id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "page_id",
+      "code_ref",
+      "source_code"
+    ],
+    "properties": {
+      "page_id": {
+        "type": "string"
+      },
+      "code_ref": {
+        "type": "string"
+      },
+      "source_code": {
+        "type": "string"
+      },
+      "source_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "dependency_lock": {
+        "type": [
+          "array",
+          "null"
+        ],
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.workspace_id",
+        "description": "当前工作区稳定标识。",
+        "interface_param": "workspace_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.code_ref",
+        "description": "JS Block 源码稳定引用。",
+        "interface_param": "code_ref"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.source_code",
+        "description": "JS Block 的完整 TSX 源码。",
+        "interface_param": "source_code"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.dependency_lock",
+        "description": "同一次 Catalog 编译返回的完整依赖锁。",
+        "interface_param": "dependency_lock"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.tailwind_toolchain_lock",
+        "description": "同一次 Catalog 编译返回的 Tailwind 工具链锁。",
+        "interface_param": "tailwind_toolchain_lock"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.generated_css",
+        "description": "同一次 Catalog 编译返回的区块 CSS。",
+        "interface_param": "generated_css"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.generated_css_sha256",
+        "description": "同一次 Catalog 编译返回的 CSS SHA-256。",
+        "interface_param": "generated_css_sha256"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.compiler_identity",
+        "description": "同一次 Catalog 编译返回的编译器身份。",
+        "interface_param": "compiler_identity"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workspace id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Page id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "code_ref",
+        "required": true,
+        "field_type": "string",
+        "description": "JS block code ref",
+        "parameter_type": "url"
+      },
+      {
+        "name": "source_code",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "dependency_lock",
+        "required": true,
+        "field_type": "array",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "tailwind_toolchain_lock",
+        "required": true,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "generated_css",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "generated_css_sha256",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "compiler_identity",
+        "required": true,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "disabled"
+}

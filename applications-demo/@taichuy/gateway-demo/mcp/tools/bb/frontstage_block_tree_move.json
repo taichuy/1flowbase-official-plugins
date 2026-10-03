@@ -1,0 +1,233 @@
+{
+  "tool_id": "frontstage_block_tree_move",
+  "name": "move_frontstage_block",
+  "short_description": "在同一页面树内移动 Block，并由后端维护顺序和防循环约束。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "move_frontstage_block_node"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "after_block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before_block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "workspace_id",
+      "page_id",
+      "tab_id",
+      "rank",
+      "presentation",
+      "schema_version",
+      "input_mapping",
+      "output_mapping",
+      "runtime_descriptor",
+      "code_ref",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "rank": {
+        "type": "string"
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tab_id": {
+        "type": "string"
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "code_ref": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "presentation": {
+        "enum": [
+          "page",
+          "drawer",
+          "modal",
+          "inline"
+        ],
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "input_mapping": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "output_mapping": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "schema_version": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "parent_block_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "runtime_descriptor": {
+        "type": "object"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标 Block 的公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "parent_block_id",
+        "description": "新的父 Block 标识；根节点省略。",
+        "interface_param": "parent_block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "before_block_id",
+        "description": "可选的同级前置定位 Block。",
+        "interface_param": "before_block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "after_block_id",
+        "description": "可选的同级后置定位 Block。",
+        "interface_param": "after_block_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Block 的公开稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "parent_block_id",
+        "required": false,
+        "field_type": "object",
+        "description": "新的父 Block 标识；根节点省略。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "before_block_id",
+        "required": false,
+        "field_type": "object",
+        "description": "可选的同级前置定位 Block。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "after_block_id",
+        "required": false,
+        "field_type": "object",
+        "description": "可选的同级后置定位 Block。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

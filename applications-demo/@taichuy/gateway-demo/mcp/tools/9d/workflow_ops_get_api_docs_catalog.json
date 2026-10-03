@@ -1,0 +1,120 @@
+{
+  "tool_id": "workflow_ops_get_api_docs_catalog",
+  "name": "get_workflow_extension_catalog",
+  "short_description": "返回 Workflow 发布接口的 API 文档分类和 operation 数量。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_api_docs_catalog"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "description": "Requested docs locale"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "title",
+      "version",
+      "categories"
+    ],
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "categories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "label",
+            "operation_count"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "operation_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "已发布 Workflow Application 稳定标识。",
+        "interface_param": "application_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.locale",
+        "description": "可选文档语言标识。",
+        "interface_param": "locale"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "已发布 Workflow Application 稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "locale",
+        "required": false,
+        "field_type": "string",
+        "description": "可选文档语言标识。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

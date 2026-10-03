@@ -1,0 +1,243 @@
+{
+  "tool_id": "frontstage_create_group",
+  "name": "create_frontstage_group",
+  "short_description": "创建 Frontstage 导航分组并返回分组稳定标识。",
+  "full_description": "创建顶层路由时使用 parent_id=null、placement=topbar，并必须提供合法且唯一的 slug。创建顶层路由下的分组时，parent_id 必须引用已有 Group，placement=sidebar，且必须省略 slug；父对象不能是 Page。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_frontstage_group"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rank": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "topbar",
+              "sidebar"
+            ],
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "is_hidden",
+      "kind",
+      "rank",
+      "placement",
+      "content_presentation"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "kind": {
+        "enum": [
+          "group",
+          "page"
+        ],
+        "type": "string"
+      },
+      "rank": {
+        "type": "string"
+      },
+      "slug": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tooltip": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "is_hidden": {
+        "type": "boolean"
+      },
+      "parent_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "placement": {
+        "enum": [
+          "topbar",
+          "sidebar"
+        ],
+        "type": "string"
+      },
+      "content_presentation": {
+        "enum": [
+          "single",
+          "tabs"
+        ],
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "body.icon",
+        "description": "分组图标。",
+        "interface_param": "icon"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.parent_id",
+        "description": "父导航分组的稳定标识；顶层分组使用 null 或省略。",
+        "interface_param": "parent_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.placement",
+        "description": "分组在导航中的位置；顶层路由使用 topbar，顶层路由下的导航分组使用 sidebar。",
+        "interface_param": "placement"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.rank",
+        "description": "同层展示顺序；省略时由后端使用默认顺序。",
+        "interface_param": "rank"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.slug",
+        "description": "仅顶层 topbar 分组允许且必须提供的唯一 URL 路径片段；其他分组必须省略。",
+        "interface_param": "slug"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.title",
+        "description": "用户可见的分组名称。",
+        "interface_param": "title"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.tooltip",
+        "description": "分组导航提示。",
+        "interface_param": "tooltip"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "icon",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "parent_id",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "placement",
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "rank",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "slug",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "tooltip",
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

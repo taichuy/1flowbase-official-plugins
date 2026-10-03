@@ -1,0 +1,230 @@
+{
+  "tool_id": "frontstage_block_tree_get_code_fragment",
+  "name": "读取区块源码片段",
+  "short_description": "读取指定区块的有限源码片段、坐标、修订号及续读位置。",
+  "full_description": "坐标从 1 开始，列按 Unicode 字符计数，结束位置不包含在片段内。使用返回的 source_revision 提交局部编辑；继续读取时使用 next_line、next_column，并核对修订未改变。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_frontstage_block_code_fragment"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "max_chars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "line_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "start_line": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "start_column": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "page_id",
+      "source_revision",
+      "source_fragment",
+      "start_line",
+      "start_column",
+      "end_line",
+      "end_column",
+      "total_lines",
+      "total_chars",
+      "truncated_by_max_chars"
+    ],
+    "properties": {
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "end_line": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "next_line": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32",
+        "minimum": 0
+      },
+      "end_column": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "start_line": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "next_column": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32",
+        "minimum": 0
+      },
+      "total_chars": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "total_lines": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "start_column": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "source_fragment": {
+        "type": "string"
+      },
+      "source_revision": {
+        "type": "string"
+      },
+      "truncated_by_max_chars": {
+        "type": "boolean"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标区块公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "start_line",
+        "description": "起始行，从 1 开始；默认 1。",
+        "interface_param": "start_line"
+      },
+      {
+        "required": false,
+        "mcp_param": "start_column",
+        "description": "起始列，从 1 开始，按 Unicode 字符计数；默认 1。",
+        "interface_param": "start_column"
+      },
+      {
+        "required": false,
+        "mcp_param": "line_count",
+        "description": "读取行数，1–1000，默认 200。",
+        "interface_param": "line_count"
+      },
+      {
+        "required": false,
+        "mcp_param": "max_chars",
+        "description": "最多返回 Unicode 字符数，1–50000，默认 12000。",
+        "interface_param": "max_chars"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标页面稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标区块公开稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "start_line",
+        "required": false,
+        "field_type": "integer",
+        "description": "起始行，从 1 开始；默认 1。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "start_column",
+        "required": false,
+        "field_type": "integer",
+        "description": "起始列，从 1 开始，按 Unicode 字符计数；默认 1。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "line_count",
+        "required": false,
+        "field_type": "integer",
+        "description": "读取行数，1–1000，默认 200。",
+        "parameter_type": "query"
+      },
+      {
+        "name": "max_chars",
+        "required": false,
+        "field_type": "integer",
+        "description": "最多返回 Unicode 字符数，1–50000，默认 12000。",
+        "parameter_type": "query"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

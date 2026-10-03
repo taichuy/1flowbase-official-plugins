@@ -1,0 +1,190 @@
+{
+  "tool_id": "node_template_create",
+  "name": "node_template_create",
+  "short_description": "创建Agent 节点模板记录。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__01a0801d-effd-70f3-b846-de2b5c2cac42__create_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "name",
+          "node_type",
+          "config_json"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "node_type": {
+            "type": "string"
+          },
+          "config_json": {
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at",
+      "name",
+      "node_type",
+      "config_json"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "name": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "node_type": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "created_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "config_json": {
+        "type": "object"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "记录名称",
+        "interface_param": "name"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.description",
+        "description": "description",
+        "interface_param": "description"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.node_type",
+        "description": "节点类型；固定网关模板使用 llm。",
+        "interface_param": "node_type"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.config_json",
+        "description": "LLM 节点预设配置；包含 model_provider、system_prompt 和 llm_parameters。",
+        "interface_param": "config_json"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "node_type",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "config_json",
+        "schema": {
+          "type": "object"
+        },
+        "required": true,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

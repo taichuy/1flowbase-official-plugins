@@ -1,0 +1,228 @@
+{
+  "tool_id": "frontstage_list_component_capabilities",
+  "name": "list_frontstage_component_capabilities",
+  "short_description": "列出当前工作区可用的低代码组件及其导入代码。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_components"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "maximum": 20,
+            "minimum": 1
+          },
+          "query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "total",
+      "offset",
+      "limit",
+      "has_more"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "scope_id",
+            "component_code",
+            "name",
+            "description",
+            "import_code",
+            "source_code",
+            "origin",
+            "source",
+            "group",
+            "upstream",
+            "version",
+            "keywords",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "group": {
+              "type": "string"
+            },
+            "origin": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "keywords": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope_id": {
+              "type": "string"
+            },
+            "upstream": {
+              "type": "object",
+              "required": [
+                "identity",
+                "version"
+              ],
+              "properties": {
+                "version": {
+                  "type": "string"
+                },
+                "identity": {
+                  "type": "string"
+                }
+              }
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "import_code": {
+              "type": "string"
+            },
+            "source_code": {
+              "type": "string"
+            },
+            "component_code": {
+              "type": "string"
+            },
+            "source_locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_checksum": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "catalog_updated_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "has_more": {
+        "type": "boolean"
+      },
+      "next_offset": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.query",
+        "description": "搜索组件名称或关键词。",
+        "interface_param": "query"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.offset",
+        "description": "分页偏移量。",
+        "interface_param": "offset"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "最多返回数量，1 至 20。",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "query",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "offset",
+        "required": false,
+        "field_type": "integer",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "integer",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

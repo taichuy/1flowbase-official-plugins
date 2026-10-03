@@ -1,0 +1,200 @@
+{
+  "tool_id": "frontstage_block_tree_list_roots",
+  "name": "list_frontstage_block_roots",
+  "short_description": "按必填 tab_id 列出该页签的完整根区块。",
+  "full_description": "列出指定 Frontstage 页面中、指定 Tab 下的完整根 Block Node Descriptor v1。tab_id 必填；不会混入同 Page 其他 Tab 的根区块。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontstage_block_roots"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "query"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "required": [
+          "tab_id"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "tab_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "block_id",
+        "workspace_id",
+        "page_id",
+        "tab_id",
+        "rank",
+        "presentation",
+        "schema_version",
+        "input_mapping",
+        "output_mapping",
+        "runtime_descriptor",
+        "code_ref",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "rank": {
+          "type": "string"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tab_id": {
+          "type": "string"
+        },
+        "page_id": {
+          "type": "string"
+        },
+        "block_id": {
+          "type": "string"
+        },
+        "code_ref": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presentation": {
+          "enum": [
+            "page",
+            "drawer",
+            "modal",
+            "inline"
+          ],
+          "type": "string"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "input_mapping": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "output_mapping": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        },
+        "parent_block_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtime_descriptor": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "tab_id",
+        "description": "必填。目标页签稳定标识；根区块严格按 Tab 隔离。",
+        "interface_param": "tab_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "limit",
+        "description": "最多返回的根 Block 数量。",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "tab_id",
+        "required": true,
+        "field_type": "string",
+        "description": "必填。仅返回此 Tab 内的根区块。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "integer",
+        "description": "最多返回的根 Block 数量。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

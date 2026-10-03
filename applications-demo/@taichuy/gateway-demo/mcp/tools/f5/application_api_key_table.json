@@ -1,0 +1,77 @@
+{
+  "tool_id": "application_api_key_table",
+  "name": "查询应用 API Key 汇总",
+  "short_description": "返回当前用户的应用 API Key 元数据及所属应用分组。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "published_workflow_operation:01a08a83-a8e4-7733-80f7-6567b584d682"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "sort_by": {
+            "type": "string",
+            "default": "created_at"
+          },
+          "sort_order": {
+            "type": "string",
+            "default": "desc"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "catalog"
+    ],
+    "properties": {
+      "catalog": {
+        "type": "object"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "query.sort_by",
+        "description": "排序字段：created_at（创建时间）或 last_used_at（最后使用时间），默认 created_at。",
+        "interface_param": "sort_by"
+      },
+      {
+        "required": false,
+        "mcp_param": "query.sort_order",
+        "description": "排序方向：asc 升序、desc 降序，默认 desc；未使用记录始终排最后。",
+        "interface_param": "sort_order"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "sort_by",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "query"
+      },
+      {
+        "name": "sort_order",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "query"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,270 @@
+{
+  "tool_id": "frontstage_block_tree_search",
+  "name": "search_frontstage_blocks",
+  "short_description": "按必填 tab_id 和标题前缀搜索该页签中的 Block，并返回匹配节点及祖先路径。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "search_frontstage_blocks"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "query"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "required": [
+          "tab_id",
+          "query"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "tab_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "node",
+        "ancestors"
+      ],
+      "properties": {
+        "node": {
+          "type": "object",
+          "required": [
+            "block_id",
+            "workspace_id",
+            "page_id",
+            "tab_id",
+            "rank",
+            "presentation",
+            "schema_version",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "rank": {
+              "type": "string"
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tab_id": {
+              "type": "string"
+            },
+            "page_id": {
+              "type": "string"
+            },
+            "block_id": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "presentation": {
+              "enum": [
+                "page",
+                "drawer",
+                "modal",
+                "inline"
+              ],
+              "type": "string"
+            },
+            "workspace_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "parent_block_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "ancestors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "block_id",
+              "workspace_id",
+              "page_id",
+              "tab_id",
+              "rank",
+              "presentation",
+              "schema_version",
+              "created_at",
+              "updated_at"
+            ],
+            "properties": {
+              "rank": {
+                "type": "string"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tab_id": {
+                "type": "string"
+              },
+              "page_id": {
+                "type": "string"
+              },
+              "block_id": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "presentation": {
+                "enum": [
+                  "page",
+                  "drawer",
+                  "modal",
+                  "inline"
+                ],
+                "type": "string"
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "schema_version": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "parent_block_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "tab_id",
+        "description": "必填。目标页签稳定标识；不会搜索同 Page 的其他 Tab。",
+        "interface_param": "tab_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "title_prefix",
+        "description": "Block 标题搜索前缀。",
+        "interface_param": "query"
+      },
+      {
+        "required": false,
+        "mcp_param": "limit",
+        "description": "最多返回的匹配数量。",
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "tab_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标页签稳定标识；搜索结果严格限制在该 Tab。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "query",
+        "required": true,
+        "field_type": "string",
+        "description": "Block 标题搜索前缀。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "field_type": "integer",
+        "description": "最多返回的匹配数量。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

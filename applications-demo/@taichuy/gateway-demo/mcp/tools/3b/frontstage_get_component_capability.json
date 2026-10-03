@@ -1,0 +1,266 @@
+{
+  "tool_id": "frontstage_get_component_capability",
+  "name": "get_frontstage_component_capability",
+  "short_description": "读取一个 Frontstage 低代码组件的属性、限制、示例和 TypeScript 契约。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_frontstage_component_capability"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "component_id"
+        ],
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "description": "Component capability id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "allOf": [
+      {
+        "type": "object",
+        "required": [
+          "component_id",
+          "installation_id",
+          "provider_code",
+          "plugin_id",
+          "plugin_version",
+          "contribution_code",
+          "module_source",
+          "module_version",
+          "exports",
+          "binding",
+          "assets",
+          "export_name",
+          "description",
+          "insert_snippet"
+        ],
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "role",
+                "media_type",
+                "sha256",
+                "url"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "media_type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "binding": {
+            "type": "string"
+          },
+          "exports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "upstream": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "package",
+                  "component",
+                  "version"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "component": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "export_name": {
+            "type": "string"
+          },
+          "component_id": {
+            "type": "string"
+          },
+          "browser_asset": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sha256",
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "module_source": {
+            "type": "string"
+          },
+          "provider_code": {
+            "type": "string"
+          },
+          "insert_snippet": {
+            "type": "string"
+          },
+          "module_version": {
+            "type": "string"
+          },
+          "plugin_version": {
+            "type": "string"
+          },
+          "installation_id": {
+            "type": "string"
+          },
+          "contribution_code": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "required": [
+          "props",
+          "limitations",
+          "examples",
+          "typescript_declaration",
+          "api_documentation"
+        ],
+        "properties": {
+          "props": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "type",
+                "required",
+                "description"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "title",
+                "code"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "api_documentation": {
+            "type": "string"
+          },
+          "typescript_declaration": {
+            "type": "string"
+          }
+        }
+      }
+    ]
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "component_id",
+        "description": "从组件目录取得的稳定组件标识。",
+        "interface_param": "component_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "component_id",
+        "required": true,
+        "field_type": "string",
+        "description": "从组件目录取得的稳定组件标识。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,174 @@
+{
+  "tool_id": "agent_flow_get_api_mapping",
+  "name": "get_agent_flow_api_mapping",
+  "short_description": "返回 Agent Flow 当前 API input/output mapping 草稿。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_api_mapping"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "input",
+      "output"
+    ],
+    "properties": {
+      "input": {
+        "type": "object",
+        "required": [
+          "query_target"
+        ],
+        "properties": {
+          "model_target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query_target": {
+            "type": "string"
+          },
+          "inputs_target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "history_target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attachments_target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "error_selector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "files_selector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usage_selector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "answer_selector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "extension": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "required": [
+              "slug",
+              "method",
+              "response_mode"
+            ],
+            "properties": {
+              "slug": {
+                "type": "string",
+                "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
+              },
+              "method": {
+                "enum": [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "PATCH",
+                  "DELETE",
+                  "HEAD",
+                  "OPTIONS"
+                ],
+                "type": "string",
+                "description": "HTTP method accepted by the published extension interface."
+              },
+              "response_mode": {
+                "enum": [
+                  "sync",
+                  "async"
+                ],
+                "type": "string",
+                "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Agent Flow application 的稳定 application_id。",
+        "interface_param": "application_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

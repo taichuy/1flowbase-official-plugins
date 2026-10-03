@@ -1,0 +1,93 @@
+name: application-template-catalog
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'applications-demo/@*/**'
+      - 'scripts/application-template/**'
+      - 'scripts/extension-catalog.mjs'
+      - '.github/workflows/application-template-catalog.yml'
+permissions:
+  contents: write
+concurrency:
+  group: application-template-catalog-main
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Validate archive and release contract
+        run: node --test scripts/application-template/_tests/*.test.mjs scripts/_tests/extension-catalog.test.mjs
+      - name: Plan source-declared releases
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/application-template
+          node scripts/application-template/publisher.mjs plan --repo-root . > dist/application-template/plan.json
+          count="$(node -e 'process.stdout.write(String(require("./dist/application-template/plan.json").length))')"
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+      - name: Sign and publish immutable ZIP assets
+        if: steps.plan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM}"
+          test -n "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}"
+          mkdir -p dist/application-template/records dist/application-template/assets
+          key_file="${RUNNER_TEMP}/application-template-ed25519.pem"
+          printf '%s' "${OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM}" > "${key_file}"
+          chmod 600 "${key_file}"
+          trap 'rm -f "${key_file}"' EXIT
+          openssl pkey -in "${key_file}" -pubout -out dist/application-template/public.pem
+          count="$(node -e 'process.stdout.write(String(require("./dist/application-template/plan.json").length))')"
+          for ((index=0; index<count; index++)); do
+            field() { node -e 'process.stdout.write(String(require("./dist/application-template/plan.json")[Number(process.argv[1])][process.argv[2]]))' "${index}" "$1"; }
+            directory="$(field source_path)"
+            release_tag="$(field release_tag)"
+            asset_name="$(field asset_name)"
+            download_url="$(field download_url)"
+            asset_path="dist/application-template/assets/${asset_name}"
+            node scripts/application-template/publisher.mjs sign \
+              --directory "${directory}" --private-key "${key_file}" \
+              --key-id "${OFFICIAL_PLUGIN_SIGNING_KEY_ID}" --download-url "${download_url}" \
+              --archive "${asset_path}" --output "dist/application-template/records/${asset_name}.json"
+            if gh release view "${release_tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              existing_dir="dist/application-template/existing/${release_tag}"
+              mkdir -p "${existing_dir}"
+              gh release download "${release_tag}" --repo "${GITHUB_REPOSITORY}" --pattern "${asset_name}" --dir "${existing_dir}"
+              cmp -- "${asset_path}" "${existing_dir}/${asset_name}" || { echo "Immutable Release asset conflict" >&2; exit 1; }
+            else
+              gh release create "${release_tag}" "${asset_path}" --repo "${GITHUB_REPOSITORY}" \
+                --target "${GITHUB_SHA}" --title "Application template ${release_tag}" \
+                --notes "Signed immutable application template ZIP."
+            fi
+          done
+      - name: Update signed history, canonical metadata and shared pagination
+        if: steps.plan.outputs.count != '0'
+        run: >-
+          node scripts/application-template/publisher.mjs update --repo-root .
+          --records-dir dist/application-template/records --public-key dist/application-template/public.pem
+      - name: Commit generated metadata
+        if: steps.plan.outputs.count != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add applications-demo
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: publish signed application template catalog'
+          git push origin main

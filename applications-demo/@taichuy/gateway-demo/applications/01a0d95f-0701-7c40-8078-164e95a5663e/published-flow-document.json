@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "name": "每日日报",
+    "tags": [],
+    "flowId": "01a0d95f-2d9b-7e31-a9fa-e4e208153a0c",
+    "description": "每天 01:00 汇总前一天 1flowbase 网关聊天并创建日报"
+  },
+  "graph": {
+    "edges": [
+      {
+        "id": "e1",
+        "points": [],
+        "source": "node-workflow-start",
+        "target": "node-llm",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "e2",
+        "points": [],
+        "source": "node-llm",
+        "target": "node-workflow-end",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      }
+    ],
+    "nodes": [
+      {
+        "id": "node-workflow-start",
+        "type": "workflow_start",
+        "alias": "定时开始",
+        "config": {
+          "input_fields": [],
+          "sync_timeout_ms": 30000
+        },
+        "outputs": [],
+        "bindings": {},
+        "position": {
+          "x": 120,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      },
+      {
+        "id": "node-llm",
+        "type": "llm",
+        "alias": "生成日报",
+        "config": {
+          "llm_parameters": {
+            "items": {
+              "reasoning_effort": {
+                "value": "xhigh",
+                "enabled": true
+              }
+            },
+            "schema_version": "1.0.0"
+          },
+          "model_provider": {
+            "model_id": "gpt-6-luna",
+            "provider_code": "openai"
+          },
+          "response_format": {
+            "mode": "text"
+          },
+          "mcp_instance_ids": [
+            "1flowbase"
+          ],
+          "external_reasoning_policy": {
+            "follow_external_reasoning": false
+          },
+          "external_model_parameter_policy": {
+            "follow_external_max_output_tokens": false
+          }
+        },
+        "outputs": [
+          {
+            "key": "text",
+            "title": "模型输出",
+            "valueType": "string"
+          },
+          {
+            "key": "usage",
+            "title": "用量",
+            "valueType": "json"
+          }
+        ],
+        "bindings": {
+          "prompt_messages": {
+            "kind": "prompt_messages",
+            "value": [
+              {
+                "id": "system",
+                "role": "system",
+                "content": {
+                  "kind": "templated_text",
+                  "value": "你是 1flowbase 的报告助理。只通过已挂载的 1flowbase MCP 工具读取聊天记录并写入 daily_reports；禁止凭空编造、使用 SQL 或输出未经保存的日报作为成功结果。\n先用 mcp_list 查找 conversation_messages_list、daily_reports_list、daily_reports_create、daily_reports_update，再用 mcp_get 核对参数。先用 daily_reports_list 按 report_date 精确筛选，取得现有日报的 id 和内容；无论是否已有日报，都继续用 conversation_messages_list 按 application_id、created_at 时间范围筛选 user 和 assistant 消息，按 created_at:asc 分页读取，最多 500 条。工具筛选表达式为 JSON 字符串，必要时以实际 Schema 调整。仅把用户明确说已做和对话可证实完成的工作写成已完成；助手建议、推测、未执行操作只能列为待跟进或不确定。没有消息时也要如实说明，不虚构工作。\n写入字段：title 为简短具体标题，summary 不超过 200 字，content 为 Markdown 正文，包含已完成、推进中、待跟进三个小节，report_date 为 YYYY-MM-DD。根据聊天证据和已有日报内容自行判断：没有现有记录时调用 daily_reports_create；已有记录且需要重新总结、补充或修正时，使用其 id 调用 daily_reports_update；若内容已准确且没有新信息，可以保留现状。不能仅因为记录已存在就停止查询或要求用户删除。更新时保持同一 report_date，不创建重复日报。只有 MCP 工具确认创建或更新成功，才报告写入成功；工具失败时说明错误，不重复盲目写入。"
+                }
+              },
+              {
+                "id": "user",
+                "role": "user",
+                "content": {
+                  "kind": "templated_text",
+                  "value": "总结一下最近七天，我都做了什么？\n触发时间（UTC）：{{trigger.scheduled_at}}"
+                }
+              }
+            ]
+          }
+        },
+        "position": {
+          "x": 1000,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      },
+      {
+        "id": "node-workflow-end",
+        "type": "workflow_end",
+        "alias": "完成",
+        "config": {},
+        "outputs": [],
+        "bindings": {},
+        "position": {
+          "x": 840,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      }
+    ]
+  },
+  "editor": {
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    },
+    "annotations": [],
+    "activeContainerPath": []
+  },
+  "schemaVersion": "1flowbase.flow/v2"
+}

@@ -1,0 +1,61 @@
+{
+  "tool_id": "application_delete",
+  "name": "delete_application",
+  "short_description": "删除指定应用及其编排和发布配置。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "delete_application"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": true,
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "application_id",
+        "description": "要删除的应用稳定 ID。",
+        "interface_param": "id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.delete.all",
+  "risk_level_snapshot": "critical",
+  "status": "enabled"
+}

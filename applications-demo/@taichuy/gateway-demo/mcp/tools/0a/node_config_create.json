@@ -1,0 +1,238 @@
+{
+  "tool_id": "node_config_create",
+  "name": "node_config_create",
+  "short_description": "创建应用独立节点配置记录。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__01a0801d-f21e-7130-914a-1cbef2dfb7fa__create_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "ai_gateway_id",
+          "name",
+          "node_type",
+          "route_model",
+          "config_json"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "node_type": {
+            "type": "string"
+          },
+          "config_json": {
+            "type": "object"
+          },
+          "route_model": {
+            "type": "string"
+          },
+          "ai_gateway_id": {
+            "type": "string"
+          },
+          "node_template_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at",
+      "ai_gateway_id",
+      "name",
+      "node_type",
+      "route_model",
+      "config_json"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "name": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "node_type": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "created_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "config_json": {
+        "type": "object"
+      },
+      "route_model": {
+        "type": "string"
+      },
+      "ai_gateway_id": {
+        "type": "string"
+      },
+      "node_template_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.ai_gateway_id",
+        "description": "所属 ai_gateway 记录 ID。",
+        "interface_param": "ai_gateway_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.node_template_id",
+        "description": "来源 node_template 记录 ID；实例配置独立保存。",
+        "interface_param": "node_template_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "记录名称",
+        "interface_param": "name"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.node_type",
+        "description": "节点类型；固定网关模板使用 llm。",
+        "interface_param": "node_type"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.route_model",
+        "description": "对外请求使用的模型名称，在当前网关内唯一。",
+        "interface_param": "route_model"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.config_json",
+        "description": "LLM 节点预设配置；包含 model_provider、system_prompt 和 llm_parameters。",
+        "interface_param": "config_json"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "ai_gateway_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "node_template_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "node_type",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "route_model",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "config_json",
+        "schema": {
+          "type": "object"
+        },
+        "required": true,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

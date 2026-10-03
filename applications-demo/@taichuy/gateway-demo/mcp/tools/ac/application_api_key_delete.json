@@ -1,0 +1,78 @@
+{
+  "tool_id": "application_api_key_delete",
+  "name": "删除应用 API Key",
+  "short_description": "删除指定应用的 Key，删除后该密钥立即失效。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "revoke_application_api_key"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id",
+          "key_id"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application API key id"
+          },
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": true,
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "所属应用 ID。",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.key_id",
+        "description": "要删除的 Key ID。",
+        "interface_param": "key_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "所属应用 ID。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "key_id",
+        "required": true,
+        "field_type": "string",
+        "description": "要删除的 Key ID。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.delete.all",
+  "risk_level_snapshot": "critical",
+  "status": "enabled"
+}

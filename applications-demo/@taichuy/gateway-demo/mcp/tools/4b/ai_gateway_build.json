@@ -1,0 +1,67 @@
+{
+  "tool_id": "ai_gateway_build",
+  "name": "ai_gateway_build",
+  "short_description": "根据应用与 LLM 配置生成固定网关编排文档。",
+  "full_description": "body.payload 是 JSON 文本，包含 flow_id、name、description 和 nodes 数组；nodes 每项包含稳定 id、name、node_type=llm、唯一 route_model 和 config_json（model_provider.provider_code/model_id、system_prompt、llm_parameters）。仅生成文档，不保存应用；随后使用应用草稿保存和发布能力完成生效。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "published_workflow_operation:01a0801e-fd6d-76c1-af0a-9b7fd524df04"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "document"
+    ],
+    "properties": {
+      "document": {}
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "body.payload",
+        "description": "JSON 文本：flow_id、name、description、nodes；节点包含 id、name、node_type=llm、route_model、config_json。",
+        "interface_param": "payload"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "payload",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

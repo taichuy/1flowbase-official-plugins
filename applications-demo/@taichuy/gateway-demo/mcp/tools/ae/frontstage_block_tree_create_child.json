@@ -1,0 +1,356 @@
+{
+  "tool_id": "frontstage_block_tree_create_child",
+  "name": "create_frontstage_child_block",
+  "short_description": "在父区块下创建次级区块；依赖锁由后端生成。",
+  "full_description": "在指定父区块下创建次级区块。Agent 提交 parent_block_id、源码和展示信息，不提交 tab_id 或 dependency_lock；后端继承父节点 Page/Tab 与 Catalog 身份并生成规范依赖锁。workspace_id 由服务端绑定。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_frontstage_block_node"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "presentation",
+          "source_code"
+        ],
+        "properties": {
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tab_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_code": {
+            "type": "string"
+          },
+          "presentation": {
+            "enum": [
+              "page",
+              "drawer",
+              "modal",
+              "inline"
+            ],
+            "type": "string"
+          },
+          "input_mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "after_block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output_mapping": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "before_block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime_descriptor": {}
+        },
+        "additionalProperties": false
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "workspace_id",
+      "page_id",
+      "tab_id",
+      "rank",
+      "presentation",
+      "schema_version",
+      "input_mapping",
+      "output_mapping",
+      "runtime_descriptor",
+      "code_ref",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "rank": {
+        "type": "string"
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tab_id": {
+        "type": "string"
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "code_ref": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "presentation": {
+        "enum": [
+          "page",
+          "drawer",
+          "modal",
+          "inline"
+        ],
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "input_mapping": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "output_mapping": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "schema_version": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "parent_block_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "runtime_descriptor": {
+        "type": "object"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.source_code",
+        "description": "Block React 源码；依赖锁由后端按父节点 Catalog 身份生成。",
+        "interface_param": "source_code"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.title",
+        "description": "Block 标题。",
+        "interface_param": "title"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.description",
+        "description": "Block 说明。",
+        "interface_param": "description"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.presentation",
+        "description": "展示方式。",
+        "interface_param": "presentation"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.input_mapping",
+        "description": "输入映射。",
+        "interface_param": "input_mapping"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.after_block_id",
+        "description": "排序锚点。",
+        "interface_param": "after_block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.before_block_id",
+        "description": "排序锚点。",
+        "interface_param": "before_block_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.parent_block_id",
+        "description": "必填。作为新建次级区块父节点的 Block 稳定标识；父节点必须属于同一 Page 和 Tab。",
+        "interface_param": "parent_block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.output_mapping",
+        "description": "输出映射。",
+        "interface_param": "output_mapping"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.runtime_descriptor",
+        "description": "运行时描述；未提供 Catalog 身份时继承父节点。",
+        "interface_param": "runtime_descriptor"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "source_code",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "tab_id",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "presentation",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "input_mapping",
+        "required": false,
+        "field_type": "object",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "after_block_id",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "before_block_id",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "parent_block_id",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "output_mapping",
+        "required": false,
+        "field_type": "object",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "runtime_descriptor",
+        "required": false,
+        "field_type": "object",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,511 @@
+{
+  "tool_id": "model_provider_update_main_instance",
+  "name": "更新主实例",
+  "short_description": "更新主实例并返回当前状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "model_provider_update_main_instance"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "auto_include_new_instances",
+          "expected_revision"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "model_routing_policies": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "required": [
+                "model_id",
+                "distribution_rule",
+                "provider_instance_ids"
+              ],
+              "properties": {
+                "model_id": {
+                  "type": "string"
+                },
+                "distribution_rule": {
+                  "type": "string"
+                },
+                "provider_instance_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "distribution_rule_config": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "value",
+                          "type"
+                        ],
+                        "properties": {
+                          "type": {
+                            "enum": [
+                              "string"
+                            ],
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "value",
+                          "type"
+                        ],
+                        "properties": {
+                          "type": {
+                            "enum": [
+                              "integer"
+                            ],
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "integer",
+                            "format": "int64"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "value",
+                          "type"
+                        ],
+                        "properties": {
+                          "type": {
+                            "enum": [
+                              "boolean"
+                            ],
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "excluded_provider_instance_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "distribution_rule_contract_version": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "auto_include_new_instances": {
+            "type": "boolean"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "provider_code"
+        ],
+        "properties": {
+          "provider_code": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "provider_code",
+      "auto_include_new_instances",
+      "revision",
+      "model_routing_policies",
+      "distribution_rules"
+    ],
+    "properties": {
+      "revision": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "provider_code": {
+        "type": "string"
+      },
+      "distribution_rules": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "rule_id",
+            "rule_version",
+            "contract_version",
+            "display_name",
+            "config_fields"
+          ],
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "rule_id": {
+              "type": "string"
+            },
+            "display_name": {
+              "type": "string"
+            },
+            "rule_version": {
+              "type": "string"
+            },
+            "config_fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "value_type",
+                  "required"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "value_type": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "contract_version": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "model_routing_policies": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "model_id",
+            "distribution_rule",
+            "distribution_rule_id",
+            "distribution_rule_contract_version",
+            "distribution_rule_config",
+            "provider_instance_ids",
+            "excluded_provider_instance_ids"
+          ],
+          "properties": {
+            "model_id": {
+              "type": "string"
+            },
+            "distribution_rule": {
+              "type": "string"
+            },
+            "distribution_rule_id": {
+              "type": "string"
+            },
+            "provider_instance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "distribution_rule_config": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "value",
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "string"
+                        ],
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "value",
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "integer"
+                        ],
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "integer",
+                        "format": "int64"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "value",
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "boolean"
+                        ],
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "excluded_provider_instance_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "distribution_rule_contract_version": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "auto_include_new_instances": {
+        "type": "boolean"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "provider_code",
+        "interface_param": "provider_code"
+      },
+      {
+        "required": true,
+        "mcp_param": "auto_include_new_instances",
+        "interface_param": "auto_include_new_instances"
+      },
+      {
+        "required": true,
+        "mcp_param": "expected_revision",
+        "interface_param": "expected_revision"
+      },
+      {
+        "required": false,
+        "mcp_param": "model_routing_policies",
+        "interface_param": "model_routing_policies"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "provider_code",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "path"
+      },
+      {
+        "name": "auto_include_new_instances",
+        "schema": {
+          "type": "boolean"
+        },
+        "required": true,
+        "field_type": "boolean",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "expected_revision",
+        "schema": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "required": true,
+        "field_type": "integer",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "model_routing_policies",
+        "schema": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "required": [
+              "model_id",
+              "distribution_rule",
+              "provider_instance_ids"
+            ],
+            "properties": {
+              "model_id": {
+                "type": "string"
+              },
+              "distribution_rule": {
+                "type": "string"
+              },
+              "provider_instance_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "distribution_rule_config": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "string"
+                          ],
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "integer"
+                          ],
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "integer",
+                          "format": "int64"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "boolean"
+                          ],
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "excluded_provider_instance_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "distribution_rule_contract_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "required": false,
+        "field_type": "array",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

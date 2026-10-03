@@ -1,0 +1,231 @@
+{
+  "tool_id": "frontstage_save_document",
+  "name": "save_frontstage_tab_document",
+  "short_description": "保存页签级页面元数据与布局；不接受或保存 Block。",
+  "full_description": "保存 Frontstage Tab 的页面级文档元数据，例如布局模式。Block 树、Descriptor 与源码由 /frontstage/block-tree 独立 Tool 管理；payload 中出现 blocks 会被后端拒绝。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "save_frontstage_tab_document"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {}
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "tab_id"
+        ],
+        "properties": {
+          "tab_id": {
+            "type": "string"
+          },
+          "page_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "page",
+      "tab",
+      "document"
+    ],
+    "properties": {
+      "tab": {
+        "type": "object",
+        "required": [
+          "id",
+          "page_id",
+          "rank",
+          "is_default",
+          "document_root_uid"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_id": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "route_segment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "document_root_uid": {
+            "type": "string"
+          }
+        }
+      },
+      "page": {
+        "type": "object",
+        "required": [
+          "id",
+          "is_hidden",
+          "kind",
+          "rank",
+          "placement",
+          "content_presentation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "group",
+              "page"
+            ],
+            "type": "string"
+          },
+          "rank": {
+            "type": "string"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tooltip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_hidden": {
+            "type": "boolean"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "enum": [
+              "topbar",
+              "sidebar"
+            ],
+            "type": "string"
+          },
+          "content_presentation": {
+            "enum": [
+              "single",
+              "tabs"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "document": {
+        "type": "object",
+        "required": [
+          "root_uid",
+          "payload"
+        ],
+        "properties": {
+          "payload": {},
+          "root_uid": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.page_id",
+        "description": "Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "path.tab_id",
+        "description": "Frontstage 页签稳定标识。",
+        "interface_param": "tab_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.payload",
+        "description": "页签级页面元数据与布局；不得包含 blocks。",
+        "interface_param": "payload"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "tab_id",
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "payload",
+        "required": true,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,218 @@
+{
+  "tool_id": "system_mcp_list_bundle_library",
+  "name": "List MCP bundle library",
+  "short_description": "Returns remote and locally synchronized MCP bundle releases.",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_mcp_bundle_library"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "refresh_remote": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "source",
+      "remote_available",
+      "bundles"
+    ],
+    "properties": {
+      "source": {
+        "type": "object",
+        "required": [
+          "source_kind",
+          "source_label",
+          "catalog_url"
+        ],
+        "properties": {
+          "catalog_url": {
+            "type": "string"
+          },
+          "source_kind": {
+            "type": "string"
+          },
+          "source_label": {
+            "type": "string"
+          }
+        }
+      },
+      "bundles": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "organization",
+            "bundle_id",
+            "remote_versions",
+            "local_versions"
+          ],
+          "properties": {
+            "bundle_id": {
+              "type": "string"
+            },
+            "source_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "organization": {
+              "type": "string"
+            },
+            "local_versions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "organization",
+                  "bundle_id",
+                  "bundle_version",
+                  "locale",
+                  "minimum_host_version",
+                  "exported_from_system_version",
+                  "release_tag",
+                  "checksum",
+                  "algorithm",
+                  "key_id",
+                  "signature"
+                ],
+                "properties": {
+                  "key_id": {
+                    "type": "string"
+                  },
+                  "locale": {
+                    "type": "string"
+                  },
+                  "checksum": {
+                    "type": "string"
+                  },
+                  "algorithm": {
+                    "type": "string"
+                  },
+                  "bundle_id": {
+                    "type": "string"
+                  },
+                  "signature": {
+                    "type": "string"
+                  },
+                  "release_tag": {
+                    "type": "string"
+                  },
+                  "organization": {
+                    "type": "string"
+                  },
+                  "bundle_version": {
+                    "type": "string"
+                  },
+                  "minimum_host_version": {
+                    "type": "string"
+                  },
+                  "exported_from_system_version": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "remote_versions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "bundle_version",
+                  "locale",
+                  "minimum_host_version",
+                  "exported_from_system_version",
+                  "release_tag",
+                  "download_url",
+                  "checksum",
+                  "algorithm",
+                  "key_id",
+                  "signature"
+                ],
+                "properties": {
+                  "key_id": {
+                    "type": "string"
+                  },
+                  "locale": {
+                    "type": "string"
+                  },
+                  "checksum": {
+                    "type": "string"
+                  },
+                  "algorithm": {
+                    "type": "string"
+                  },
+                  "signature": {
+                    "type": "string"
+                  },
+                  "release_tag": {
+                    "type": "string"
+                  },
+                  "download_url": {
+                    "type": "string"
+                  },
+                  "bundle_version": {
+                    "type": "string"
+                  },
+                  "minimum_host_version": {
+                    "type": "string"
+                  },
+                  "exported_from_system_version": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "current_bundle_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "remote_error": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "remote_available": {
+        "type": "boolean"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "refresh_remote",
+        "description": "Refresh the verified remote catalog before listing releases.",
+        "interface_param": "refresh_remote"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

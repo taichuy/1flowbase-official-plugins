@@ -1,0 +1,362 @@
+{
+  "tool_id": "model_provider_update_instance",
+  "name": "更新模型来源",
+  "short_description": "更新模型来源并返回当前状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "model_provider_update_instance"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "included_in_main",
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "type": "object"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "preview_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "included_in_main": {
+            "type": "boolean"
+          },
+          "configured_models": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "model_id",
+                "enabled"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "model_id": {
+                  "type": "string"
+                },
+                "pricing_model_id": {
+                  "type": "string"
+                },
+                "supports_multimodal": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "pricing_provider_code": {
+                  "type": "string"
+                },
+                "context_window_override_tokens": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "enabled_model_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "installation_id",
+      "provider_code",
+      "protocol",
+      "display_name",
+      "status",
+      "included_in_main",
+      "config_json",
+      "configured_models",
+      "enabled_model_ids",
+      "model_count"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "protocol": {
+        "type": "string"
+      },
+      "config_json": {
+        "type": "object"
+      },
+      "model_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "display_name": {
+        "type": "string"
+      },
+      "provider_code": {
+        "type": "string"
+      },
+      "installation_id": {
+        "type": "string"
+      },
+      "included_in_main": {
+        "type": "boolean"
+      },
+      "configured_models": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "model_id",
+            "enabled",
+            "pricing_provider_code",
+            "pricing_model_id"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "model_id": {
+              "type": "string"
+            },
+            "pricing_model_id": {
+              "type": "string"
+            },
+            "supports_multimodal": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "pricing_provider_code": {
+              "type": "string"
+            },
+            "context_window_override_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "enabled_model_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "catalog_refreshed_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "catalog_refresh_status": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "catalog_last_error_message": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "id",
+        "interface_param": "id"
+      },
+      {
+        "required": true,
+        "mcp_param": "config",
+        "interface_param": "config"
+      },
+      {
+        "required": false,
+        "mcp_param": "configured_models",
+        "interface_param": "configured_models"
+      },
+      {
+        "required": true,
+        "mcp_param": "display_name",
+        "interface_param": "display_name"
+      },
+      {
+        "required": false,
+        "mcp_param": "enabled_model_ids",
+        "interface_param": "enabled_model_ids"
+      },
+      {
+        "required": true,
+        "mcp_param": "included_in_main",
+        "interface_param": "included_in_main"
+      },
+      {
+        "required": false,
+        "mcp_param": "preview_token",
+        "interface_param": "preview_token"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "path"
+      },
+      {
+        "name": "config",
+        "schema": {
+          "type": "object"
+        },
+        "required": true,
+        "field_type": "object",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "configured_models",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "model_id",
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "model_id": {
+                "type": "string"
+              },
+              "pricing_model_id": {
+                "type": "string"
+              },
+              "supports_multimodal": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "pricing_provider_code": {
+                "type": "string"
+              },
+              "context_window_override_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "required": false,
+        "field_type": "array",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "display_name",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "enabled_model_ids",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required": false,
+        "field_type": "array",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "included_in_main",
+        "schema": {
+          "type": "boolean"
+        },
+        "required": true,
+        "field_type": "boolean",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "preview_token",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,135 @@
+{
+  "tool_id": "model_provider_list_instances",
+  "name": "查询已接入模型",
+  "short_description": "查询已接入模型及当前配置。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "model_provider_list_instances"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "id",
+        "installation_id",
+        "provider_code",
+        "protocol",
+        "display_name",
+        "status",
+        "included_in_main",
+        "config_json",
+        "configured_models",
+        "enabled_model_ids",
+        "model_count"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        },
+        "config_json": {
+          "type": "object"
+        },
+        "model_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "provider_code": {
+          "type": "string"
+        },
+        "installation_id": {
+          "type": "string"
+        },
+        "included_in_main": {
+          "type": "boolean"
+        },
+        "configured_models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "model_id",
+              "enabled",
+              "pricing_provider_code",
+              "pricing_model_id"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "model_id": {
+                "type": "string"
+              },
+              "pricing_model_id": {
+                "type": "string"
+              },
+              "supports_multimodal": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "pricing_provider_code": {
+                "type": "string"
+              },
+              "context_window_override_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "enabled_model_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "catalog_refreshed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "catalog_refresh_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "catalog_last_error_message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "input_mapping": {},
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

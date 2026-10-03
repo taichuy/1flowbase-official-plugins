@@ -1,0 +1,98 @@
+{
+  "tool_id": "frontstage_block_tree_get_code",
+  "name": "get_frontstage_tree_block_code",
+  "short_description": "读取区块完整源码与修订摘要；局部定位优先使用 search_code 或 get_code_fragment。",
+  "full_description": "长源码的局部调整优先使用 frontstage_block_tree_search_code、frontstage_block_tree_get_code_fragment 和 replace_code/patch_code，避免读取与提交整份源码。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_frontstage_block_node_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "page_id",
+      "source_code"
+    ],
+    "properties": {
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "source_code": {
+        "type": "string"
+      },
+      "source_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标 Block 的公开稳定标识。",
+        "interface_param": "block_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Block 的公开稳定标识。",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

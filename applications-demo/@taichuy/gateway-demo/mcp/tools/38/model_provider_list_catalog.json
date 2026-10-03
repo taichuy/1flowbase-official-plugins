@@ -1,0 +1,389 @@
+{
+  "tool_id": "model_provider_list_catalog",
+  "name": "查询模型插件分类",
+  "short_description": "查询模型插件分类及当前配置。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "model_provider_list_catalog"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "locale_meta",
+      "i18n_catalog",
+      "entries"
+    ],
+    "properties": {
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "installation_id",
+            "provider_code",
+            "plugin_id",
+            "plugin_version",
+            "plugin_type",
+            "namespace",
+            "label_key",
+            "display_name",
+            "protocol",
+            "model_discovery_mode",
+            "supports_model_fetch_without_credentials",
+            "desired_state",
+            "availability_status",
+            "form_schema",
+            "operational_capabilities",
+            "predefined_models",
+            "catalog_refresh_status"
+          ],
+          "properties": {
+            "auth": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "actions"
+                  ],
+                  "properties": {
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "code",
+                          "label",
+                          "user_action_kinds"
+                        ],
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "user_action_kinds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "help_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "protocol": {
+              "type": "string"
+            },
+            "label_key": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": "string"
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "form_schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "field_type",
+                  "required",
+                  "advanced"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "control": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "label",
+                        "value"
+                      ],
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "value": {},
+                        "disabled": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "advanced": {
+                    "type": "boolean"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "field_type": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "placeholder": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "default_value": {}
+                }
+              }
+            },
+            "plugin_type": {
+              "type": "string"
+            },
+            "display_name": {
+              "type": "string"
+            },
+            "desired_state": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "plugin_version": {
+              "type": "string"
+            },
+            "description_key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "installation_id": {
+              "type": "string"
+            },
+            "default_base_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "predefined_models": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "model_id",
+                  "display_name",
+                  "source",
+                  "supports_streaming",
+                  "supports_tool_call",
+                  "supports_multimodal",
+                  "provider_metadata"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "model_id": {
+                    "type": "string"
+                  },
+                  "label_key": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "namespace": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "display_name": {
+                    "type": "string"
+                  },
+                  "context_window": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "description_key": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "max_output_tokens": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "provider_metadata": {
+                    "type": "object"
+                  },
+                  "supports_streaming": {
+                    "type": "boolean"
+                  },
+                  "supports_tool_call": {
+                    "type": "boolean"
+                  },
+                  "supports_multimodal": {
+                    "type": "boolean"
+                  },
+                  "display_name_fallback": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "availability_status": {
+              "type": "string"
+            },
+            "catalog_refreshed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "model_discovery_mode": {
+              "type": "string"
+            },
+            "catalog_refresh_status": {
+              "type": "string"
+            },
+            "operational_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "catalog_last_error_message": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "supports_model_fetch_without_credentials": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "locale_meta": {
+        "type": "object",
+        "required": [
+          "resolved_locale",
+          "source",
+          "fallback_locale",
+          "supported_locales"
+        ],
+        "properties": {
+          "source": {
+            "enum": [
+              "query",
+              "explicit_header",
+              "user_preferred_locale",
+              "accept_language",
+              "fallback"
+            ],
+            "type": "string"
+          },
+          "fallback_locale": {
+            "type": "string"
+          },
+          "resolved_locale": {
+            "type": "string"
+          },
+          "requested_locale": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported_locales": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "i18n_catalog": {
+        "type": "object"
+      }
+    }
+  },
+  "input_mapping": {},
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

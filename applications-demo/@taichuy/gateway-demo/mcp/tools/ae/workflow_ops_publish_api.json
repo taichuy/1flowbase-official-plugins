@@ -1,0 +1,637 @@
+{
+  "tool_id": "workflow_ops_publish_api",
+  "name": "publish_workflow_extension",
+  "short_description": "冻结当前 Workflow 草稿并发布普通 /api/ex/ extension 接口。",
+  "full_description": "发布使用当前 draft 生成不可变 flow version。mapping.extension 定义 /api/ex/ 下的 slug、method、response_mode；extension parameters 的 target 必须引用 Workflow Start 输入字段，output selector 必须引用当前编排可输出的数据。Workflow extension 不使用 Application API Key，也不进入 Agent Flow AI Gateway。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "publish_application_api"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "mapping",
+          "api_enabled"
+        ],
+        "properties": {
+          "mapping": {
+            "type": "object",
+            "required": [
+              "input",
+              "output"
+            ],
+            "properties": {
+              "input": {
+                "type": "object",
+                "required": [
+                  "query_target"
+                ],
+                "properties": {
+                  "model_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "query_target": {
+                    "type": "string"
+                  },
+                  "inputs_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "history_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "attachments_target": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "output": {
+                "type": "object",
+                "properties": {
+                  "error_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "files_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "usage_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "answer_selector": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "extension": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "slug",
+                      "method",
+                      "response_mode"
+                    ],
+                    "properties": {
+                      "slug": {
+                        "type": "string",
+                        "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE",
+                          "HEAD",
+                          "OPTIONS"
+                        ],
+                        "type": "string",
+                        "description": "HTTP method accepted by the published extension interface."
+                      },
+                      "response_mode": {
+                        "enum": [
+                          "sync",
+                          "async"
+                        ],
+                        "type": "string",
+                        "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "description": "Agent Flow request/output mapping or Workflow extension publication mapping."
+          },
+          "api_enabled": {
+            "type": "boolean",
+            "description": "Enables invocation for the new active publication. Workflow extension invocation uses the\nnormal /api/ex/{slug} interface and never requires an Application API Key."
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Application id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_id",
+      "flow_id",
+      "flow_version_id",
+      "compiled_plan_id",
+      "version_sequence",
+      "active",
+      "api_enabled",
+      "mapping_snapshot",
+      "dependency_snapshot",
+      "public_url",
+      "created_by",
+      "created_at"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "flow_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "operation": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "required": [
+              "interface_id",
+              "method",
+              "route_template",
+              "response_mode",
+              "parameter_schema",
+              "result_schema"
+            ],
+            "properties": {
+              "method": {
+                "enum": [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "PATCH",
+                  "DELETE",
+                  "HEAD",
+                  "OPTIONS"
+                ],
+                "type": "string"
+              },
+              "interface_id": {
+                "type": "string"
+              },
+              "response_mode": {
+                "enum": [
+                  "sync",
+                  "async"
+                ],
+                "type": "string"
+              },
+              "result_schema": {
+                "type": "object"
+              },
+              "route_template": {
+                "type": "string",
+                "description": "Relative route template appended to the normal /api/ex/ interface prefix."
+              },
+              "parameter_schema": {
+                "type": "object"
+              }
+            }
+          }
+        ],
+        "description": "For Workflow extension publications, the Agent-readable normal HTTP operation under\n/api/ex/{slug}; absent for Agent Flow and schedule-triggered Workflow publications."
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "created_by": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "public_url": {
+        "type": "string",
+        "description": "/api/ex/{slug} for extension publications; /api/agent/v1/runs for Agent Flow."
+      },
+      "api_enabled": {
+        "type": "boolean"
+      },
+      "application_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "flow_version_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "compiled_plan_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "mapping_snapshot": {
+        "type": "object",
+        "required": [
+          "input",
+          "output"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "query_target"
+            ],
+            "properties": {
+              "model_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "query_target": {
+                "type": "string"
+              },
+              "inputs_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "history_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "attachments_target": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "error_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "files_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "usage_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "answer_selector": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "extension": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "slug",
+                  "method",
+                  "response_mode"
+                ],
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "description": "Route template below /api/ex/ without a leading slash. Workflow Start path-source keys must\nmatch every {placeholder} exactly."
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "HEAD",
+                      "OPTIONS"
+                    ],
+                    "type": "string",
+                    "description": "HTTP method accepted by the published extension interface."
+                  },
+                  "response_mode": {
+                    "enum": [
+                      "sync",
+                      "async"
+                    ],
+                    "type": "string",
+                    "description": "sync waits for a result up to Workflow Start sync_timeout_ms; async returns an accepted run."
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "version_sequence": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "dependency_snapshot": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "installation_id",
+            "provider_code",
+            "plugin_id",
+            "plugin_version",
+            "alias",
+            "package",
+            "version",
+            "target",
+            "artifact_path",
+            "artifact_hash",
+            "integrity",
+            "permissions"
+          ],
+          "properties": {
+            "alias": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "package": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "integrity": {
+              "type": "string"
+            },
+            "plugin_id": {
+              "type": "string"
+            },
+            "permissions": {
+              "type": "object",
+              "required": [
+                "network",
+                "filesystem",
+                "env"
+              ],
+              "properties": {
+                "env": {
+                  "type": "string"
+                },
+                "network": {
+                  "type": "string"
+                },
+                "filesystem": {
+                  "type": "string"
+                }
+              }
+            },
+            "artifact_hash": {
+              "type": "string"
+            },
+            "artifact_path": {
+              "type": "string"
+            },
+            "provider_code": {
+              "type": "string"
+            },
+            "plugin_version": {
+              "type": "string"
+            },
+            "installation_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "Workflow Application 稳定标识。",
+        "interface_param": "application_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.api_enabled",
+        "description": "新 publication 是否立即开放 /api/ex/ 调用。",
+        "interface_param": "api_enabled"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.mapping.extension",
+        "description": "extension 的 slug、HTTP method、响应模式与可选参数来源。",
+        "interface_param": "mapping.extension"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.mapping.input.query_target",
+        "description": "兼容基础输入映射的 Workflow Start 目标字段。",
+        "interface_param": "mapping.input.query_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.attachments_target",
+        "description": "可选附件输入目标；无附件时为 null 或省略。",
+        "interface_param": "mapping.input.attachments_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.history_target",
+        "description": "可选历史输入目标；无历史时为 null 或省略。",
+        "interface_param": "mapping.input.history_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.inputs_target",
+        "description": "可选结构化 inputs 目标；不用时为 null 或省略。",
+        "interface_param": "mapping.input.inputs_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.input.model_target",
+        "description": "可选模型标识目标；普通 Workflow 通常为 null 或省略。",
+        "interface_param": "mapping.input.model_target"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.answer_selector",
+        "description": "同步响应的主要结果 selector。",
+        "interface_param": "mapping.output.answer_selector"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.error_selector",
+        "description": "可选错误结果 selector。",
+        "interface_param": "mapping.output.error_selector"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.files_selector",
+        "description": "可选文件结果 selector。",
+        "interface_param": "mapping.output.files_selector"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.mapping.output.usage_selector",
+        "description": "可选用量结果 selector。",
+        "interface_param": "mapping.output.usage_selector"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workflow Application 稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "api_enabled",
+        "required": true,
+        "field_type": "boolean",
+        "description": "新 publication 是否立即开放 /api/ex/ 调用。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.extension",
+        "required": false,
+        "field_type": "object",
+        "description": "extension 的 slug、HTTP method、响应模式与可选参数来源。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.attachments_target",
+        "required": false,
+        "field_type": "object",
+        "description": "可选附件输入目标；无附件时为 null 或省略。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.history_target",
+        "required": false,
+        "field_type": "object",
+        "description": "可选历史输入目标；无历史时为 null 或省略。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.inputs_target",
+        "required": false,
+        "field_type": "object",
+        "description": "可选结构化 inputs 目标；不用时为 null 或省略。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.model_target",
+        "required": false,
+        "field_type": "object",
+        "description": "可选模型标识目标；普通 Workflow 通常为 null 或省略。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.input.query_target",
+        "required": true,
+        "field_type": "string",
+        "description": "兼容基础输入映射的 Workflow Start 目标字段。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.answer_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "同步响应的主要结果 selector。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.error_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "可选错误结果 selector。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.files_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "可选文件结果 selector。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "mapping.output.usage_selector",
+        "required": false,
+        "field_type": "object",
+        "description": "可选用量结果 selector。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,211 @@
+{
+  "tool_id": "daily_reports_update",
+  "name": "更新日报",
+  "short_description": "按现有日报记录 ID 更新标题、摘要、正文或报告日期。",
+  "full_description": "先用 daily_reports_list 按 report_date 找到现有记录，使用返回的 id 更新该记录；不要为同一日期再创建第二篇。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "data_model__01a0d95e-5ea2-7bd2-beb4-831d3623ef57__update_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "report_date": {
+            "type": "string"
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "scope_id",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at",
+      "title",
+      "summary",
+      "content",
+      "report_date"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "title": {
+        "type": "string"
+      },
+      "content": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "scope_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "created_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updated_by": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "report_date": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "先按 report_date 查询日报后得到的现有记录 UUID。",
+        "interface_param": "id"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.title",
+        "description": "更新后的日报标题。",
+        "interface_param": "title"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.summary",
+        "description": "更新后的日报摘要。",
+        "interface_param": "summary"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.content",
+        "description": "更新后的 Markdown 正文。",
+        "interface_param": "content"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.report_date",
+        "description": "报告对应的北京时间 YYYY-MM-DD。",
+        "interface_param": "report_date"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "title",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "summary",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "content",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "report_date",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,307 @@
+{
+  "tool_id": "frontstage_block_tree_update",
+  "name": "update_frontstage_block",
+  "short_description": "更新独立 Block 的标题、描述、展示方式和运行映射。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "update_frontstage_block_node"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "presentation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "page",
+                  "drawer",
+                  "modal",
+                  "inline"
+                ],
+                "type": "string"
+              }
+            ]
+          },
+          "input_mapping": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "output_mapping": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "runtime_descriptor": {}
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "workspace_id",
+      "page_id",
+      "tab_id",
+      "rank",
+      "presentation",
+      "schema_version",
+      "input_mapping",
+      "output_mapping",
+      "runtime_descriptor",
+      "code_ref",
+      "created_at",
+      "updated_at"
+    ],
+    "properties": {
+      "rank": {
+        "type": "string"
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tab_id": {
+        "type": "string"
+      },
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "code_ref": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "presentation": {
+        "enum": [
+          "page",
+          "drawer",
+          "modal",
+          "inline"
+        ],
+        "type": "string"
+      },
+      "workspace_id": {
+        "type": "string"
+      },
+      "input_mapping": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "output_mapping": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "schema_version": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "parent_block_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "runtime_descriptor": {
+        "type": "object"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标 Block 的公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "description",
+        "description": "更新后的 Block 描述；省略时保持不变。",
+        "interface_param": "description"
+      },
+      {
+        "required": false,
+        "mcp_param": "input_mapping",
+        "description": "Block 的输入映射；省略时保持不变。",
+        "interface_param": "input_mapping"
+      },
+      {
+        "required": false,
+        "mcp_param": "output_mapping",
+        "description": "Block 的输出映射；省略时保持不变。",
+        "interface_param": "output_mapping"
+      },
+      {
+        "required": false,
+        "mcp_param": "presentation",
+        "description": "更新后的打开方式：page、drawer、modal 或 inline。",
+        "interface_param": "presentation"
+      },
+      {
+        "required": false,
+        "mcp_param": "runtime_descriptor",
+        "description": "Block 运行描述；省略时保持不变。",
+        "interface_param": "runtime_descriptor"
+      },
+      {
+        "required": false,
+        "mcp_param": "title",
+        "description": "更新后的 Block 标题；省略时保持不变。",
+        "interface_param": "title"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Block 的公开稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "description",
+        "required": false,
+        "field_type": "object",
+        "description": "更新后的 Block 描述；省略时保持不变。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "input_mapping",
+        "required": false,
+        "field_type": "object",
+        "description": "Block 的输入映射；省略时保持不变。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "output_mapping",
+        "required": false,
+        "field_type": "object",
+        "description": "Block 的输出映射；省略时保持不变。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "presentation",
+        "required": false,
+        "field_type": "object",
+        "description": "更新后的打开方式：page、drawer、modal 或 inline。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "runtime_descriptor",
+        "required": false,
+        "field_type": "object",
+        "description": "Block 运行描述；省略时保持不变。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "field_type": "object",
+        "description": "更新后的 Block 标题；省略时保持不变。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

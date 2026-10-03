@@ -1,0 +1,128 @@
+{
+  "tool_id": "system_mcp_sync_bundle_library_release",
+  "name": "Synchronize MCP bundle release",
+  "short_description": "Downloads and verifies one release into the local MCP bundle library and returns its receipt.",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "sync_mcp_bundle_library_release"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "bundle_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "organization",
+          "bundle_id"
+        ],
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "description": "Stable bundle identifier"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Bundle publisher organization"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "organization",
+      "bundle_id",
+      "bundle_version",
+      "locale",
+      "minimum_host_version",
+      "exported_from_system_version",
+      "release_tag",
+      "checksum",
+      "algorithm",
+      "key_id",
+      "signature"
+    ],
+    "properties": {
+      "key_id": {
+        "type": "string"
+      },
+      "locale": {
+        "type": "string"
+      },
+      "checksum": {
+        "type": "string"
+      },
+      "algorithm": {
+        "type": "string"
+      },
+      "bundle_id": {
+        "type": "string"
+      },
+      "signature": {
+        "type": "string"
+      },
+      "release_tag": {
+        "type": "string"
+      },
+      "organization": {
+        "type": "string"
+      },
+      "bundle_version": {
+        "type": "string"
+      },
+      "minimum_host_version": {
+        "type": "string"
+      },
+      "exported_from_system_version": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "organization",
+        "description": "Bundle publisher organization from the library listing.",
+        "interface_param": "organization"
+      },
+      {
+        "required": true,
+        "mcp_param": "bundle_id",
+        "description": "Stable bundle identifier from the library listing.",
+        "interface_param": "bundle_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "bundle_version",
+        "description": "Exact release version; omit to use the current remote release.",
+        "interface_param": "bundle_version"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

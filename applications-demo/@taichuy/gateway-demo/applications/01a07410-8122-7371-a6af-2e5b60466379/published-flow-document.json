@@ -1,0 +1,234 @@
+{
+  "meta": {
+    "name": "模型使用统计",
+    "tags": [],
+    "flowId": "01a07410-d15b-7611-9070-72f70369e805",
+    "description": ""
+  },
+  "graph": {
+    "edges": [
+      {
+        "id": "edge-report-0",
+        "points": [],
+        "source": "node-workflow-start",
+        "target": "node-report-range",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "edge-report-1",
+        "points": [],
+        "source": "node-usage-sql",
+        "target": "node-report-output",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "edge-report-2",
+        "points": [],
+        "source": "node-report-output",
+        "target": "node-workflow-end",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "edge-range-sql",
+        "points": [],
+        "source": "node-report-range",
+        "target": "node-usage-sql",
+        "containerId": null,
+        "sourceHandle": null,
+        "targetHandle": null
+      }
+    ],
+    "nodes": [
+      {
+        "id": "node-workflow-start",
+        "type": "workflow_start",
+        "alias": "Workflow Start",
+        "config": {
+          "input_fields": [
+            {
+              "key": "started_from",
+              "label": "started_from",
+              "source": "query",
+              "required": false,
+              "inputType": "text",
+              "valueType": "string"
+            },
+            {
+              "key": "started_to",
+              "label": "started_to",
+              "source": "query",
+              "required": false,
+              "inputType": "text",
+              "valueType": "string"
+            }
+          ],
+          "sync_timeout_ms": 30000
+        },
+        "outputs": [],
+        "bindings": {},
+        "position": {
+          "x": 120,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      },
+      {
+        "id": "node-report-range",
+        "type": "code",
+        "alias": "校验统计时间范围",
+        "config": {
+          "source": "// Runs in the workflow Code node. Only normalized ISO timestamps reach SQL.\nfunction main(inputs) {\n  const from = inputs.started_from;\n  const to = inputs.started_to;\n  if (Boolean(from) !== Boolean(to)) throw new Error('Provide both started_from and started_to');\n  const end = to ? new Date(to) : new Date();\n  const start = from ? new Date(from) : new Date(end.getTime() - 86400000);\n  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start >= end) {\n    throw new Error('Invalid time range');\n  }\n  return {\n    started_from: start.toISOString(), started_to: end.toISOString(),\n    bucket: end.getTime() - start.getTime() <= 172800000 ? 'hour' : 'day'\n  };\n}\n",
+          "language": "javascript"
+        },
+        "outputs": [
+          {
+            "key": "started_from",
+            "title": "started_from",
+            "valueType": "string"
+          },
+          {
+            "key": "started_to",
+            "title": "started_to",
+            "valueType": "string"
+          },
+          {
+            "key": "bucket",
+            "title": "bucket",
+            "valueType": "string"
+          }
+        ],
+        "bindings": {
+          "started_to": {
+            "kind": "selector",
+            "value": [
+              "node-workflow-start",
+              "started_to"
+            ]
+          },
+          "started_from": {
+            "kind": "selector",
+            "value": [
+              "node-workflow-start",
+              "started_from"
+            ]
+          }
+        },
+        "position": {
+          "x": 350,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "默认24小时，校验并规范化时间，禁止原始参数进入SQL。",
+        "configVersion": 1
+      },
+      {
+        "id": "node-usage-sql",
+        "type": "sql",
+        "alias": "聚合模型使用日志",
+        "config": {
+          "data_source_instance_id": "main"
+        },
+        "outputs": [
+          {
+            "key": "results",
+            "title": "SQL 结果",
+            "valueType": "array"
+          }
+        ],
+        "bindings": {
+          "sql": {
+            "kind": "templated_text",
+            "value": "WITH bounds AS (\n SELECT '{{ node-report-range.result.started_from }}'::timestamptz AS started_from,\n        '{{ node-report-range.result.started_to }}'::timestamptz AS started_to,\n        '{{ node-report-range.result.bucket }}'::text AS bucket\n), logs AS MATERIALIZED (\n SELECT l.* FROM model_provider_request_logs l CROSS JOIN bounds b\n WHERE l.scope_id = '00000000-0000-0000-0000-000000000001'::uuid\n AND l.started_at >= b.started_from AND l.started_at < b.started_to\n), totals AS (\n SELECT count(*) AS request_count,\n count(*) FILTER (WHERE total_tokens IS NOT NULL) AS usage_recorded_count,\n CASE WHEN count(*)=0 THEN 0 ELSE sum(total_tokens) END AS total_tokens,\n CASE WHEN count(*)=0 THEN 0 ELSE sum(input_tokens) END AS input_tokens,\n CASE WHEN count(*)=0 THEN 0 ELSE sum(output_tokens) END AS output_tokens,\n CASE WHEN count(*)=0 THEN 0 ELSE sum(input_cache_hit_tokens) END AS input_cache_hit_tokens,\n CASE WHEN count(*)=0 THEN 0 ELSE sum(cache_write_tokens) END AS cache_write_tokens,\n count(*) FILTER (WHERE total_cost IS NULL) AS unbilled_count\n FROM logs\n), costs AS (\n SELECT currency_code, sum(total_cost)::text AS total_cost,\n count(*) FILTER (WHERE total_cost IS NULL) AS unbilled_count FROM logs GROUP BY currency_code\n), user_costs AS (\n SELECT user_id,currency_code,sum(total_cost)::text AS total_cost,\n count(*) FILTER (WHERE total_cost IS NULL) AS unbilled_count\n FROM logs GROUP BY user_id,currency_code\n), users AS (\n SELECT user_id,max(user_account) AS user_account,count(*) AS request_count,\n sum(total_tokens) AS total_tokens,sum(input_tokens) AS input_tokens,sum(output_tokens) AS output_tokens,\n sum(input_cache_hit_tokens) AS input_cache_hit_tokens,sum(cache_write_tokens) AS cache_write_tokens,\n count(*) FILTER (WHERE total_cost IS NULL) AS unbilled_count,\n (SELECT jsonb_agg(jsonb_build_object('currency_code',c.currency_code,'total_cost',c.total_cost,'unbilled_count',c.unbilled_count) ORDER BY c.currency_code)\n FROM user_costs c WHERE c.user_id IS NOT DISTINCT FROM l.user_id) AS costs\n FROM logs l GROUP BY user_id\n), bucket_totals AS (\n SELECT date_trunc(b.bucket,l.started_at AT TIME ZONE 'Asia/Shanghai') AS bucket_start,\n count(*) AS request_count,sum(input_tokens) AS input_tokens,sum(output_tokens) AS output_tokens,\n sum(total_tokens) AS total_tokens,sum(input_cache_hit_tokens) AS input_cache_hit_tokens,\n sum(cache_write_tokens) AS cache_write_tokens,\n -- Weight the recorded provider hit rates by input volume. Keep unknown rates absent.\n sum(input_cache_hit_rate * input_tokens) FILTER (WHERE input_cache_hit_rate IS NOT NULL)\n / nullif(sum(input_tokens) FILTER (WHERE input_cache_hit_rate IS NOT NULL),0) AS input_cache_hit_rate\n FROM logs l CROSS JOIN bounds b GROUP BY 1\n), buckets AS (\n SELECT generate_series(date_trunc(bucket,started_from AT TIME ZONE 'Asia/Shanghai'),\n date_trunc(bucket,(started_to - interval '1 microsecond') AT TIME ZONE 'Asia/Shanghai'),\n CASE bucket WHEN 'hour' THEN interval '1 hour' ELSE interval '1 day' END) AS bucket_start FROM bounds\n), trend AS (\n SELECT b.bucket_start AT TIME ZONE 'Asia/Shanghai' AS bucket_start,\n coalesce(t.request_count,0) AS request_count,\n CASE WHEN t.request_count IS NULL THEN 0 ELSE t.input_tokens END AS input_tokens,\n CASE WHEN t.request_count IS NULL THEN 0 ELSE t.output_tokens END AS output_tokens,\n CASE WHEN t.request_count IS NULL THEN 0 ELSE t.total_tokens END AS total_tokens,\n CASE WHEN t.request_count IS NULL THEN 0 ELSE t.input_cache_hit_tokens END AS input_cache_hit_tokens,\n CASE WHEN t.request_count IS NULL THEN 0 ELSE t.cache_write_tokens END AS cache_write_tokens,\n t.input_cache_hit_rate\n FROM buckets b LEFT JOIN bucket_totals t USING(bucket_start)\n)\nSELECT to_jsonb(totals) || jsonb_build_object(\n 'started_from',bounds.started_from,'started_to',bounds.started_to,'bucket',bounds.bucket,\n 'timezone','Asia/Shanghai','generated_at',now(),\n 'costs',coalesce((SELECT jsonb_agg(to_jsonb(costs) ORDER BY currency_code) FROM costs),'[]'::jsonb),\n 'users',coalesce((SELECT jsonb_agg(to_jsonb(users) ORDER BY total_tokens DESC NULLS LAST,user_id) FROM users),'[]'::jsonb),\n 'trend',coalesce((SELECT jsonb_agg(to_jsonb(trend) ORDER BY bucket_start) FROM trend),'[]'::jsonb)\n) AS report FROM totals CROSS JOIN bounds;\n"
+          }
+        },
+        "position": {
+          "x": 420,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "当前工作区请求日志：统一时间范围、Token分项、趋势和用户费用；币种分开。",
+        "configVersion": 1
+      },
+      {
+        "id": "node-report-output",
+        "type": "code",
+        "alias": "输出统计结果",
+        "config": {
+          "source": "function main(inputs) { return { report: inputs.results[0].rows[0][0] }; }",
+          "language": "javascript"
+        },
+        "outputs": [
+          {
+            "key": "report",
+            "title": "使用统计",
+            "valueType": "object"
+          }
+        ],
+        "bindings": {
+          "results": {
+            "kind": "selector",
+            "value": [
+              "node-usage-sql",
+              "results"
+            ]
+          }
+        },
+        "position": {
+          "x": 690,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "从 SQL 行结果提取统计对象。",
+        "configVersion": 1
+      },
+      {
+        "id": "node-workflow-end",
+        "type": "workflow_end",
+        "alias": "Workflow End",
+        "config": {},
+        "outputs": [
+          {
+            "key": "report",
+            "title": "使用统计",
+            "valueType": "object"
+          }
+        ],
+        "bindings": {
+          "report": {
+            "kind": "selector",
+            "value": [
+              "node-report-output",
+              "result",
+              "report"
+            ]
+          }
+        },
+        "position": {
+          "x": 960,
+          "y": 220
+        },
+        "containerId": null,
+        "description": "",
+        "configVersion": 1
+      }
+    ]
+  },
+  "editor": {
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    },
+    "annotations": [],
+    "activeContainerPath": []
+  },
+  "schemaVersion": "1flowbase.flow/v2"
+}

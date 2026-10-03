@@ -1,0 +1,113 @@
+{
+  "tool_id": "frontstage_block_tree_delete_subtree",
+  "name": "delete_frontstage_block_subtree",
+  "short_description": "按已确认的影响数量删除整个 Block 子树。",
+  "full_description": "调用前必须先使用 get_frontstage_block_delete_impact 读取 affected_count，并把该值原样作为 expected_affected_count；树发生变化时后端会拒绝删除。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "delete_frontstage_block_subtree"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "expected_affected_count"
+        ],
+        "properties": {
+          "expected_affected_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "deleted_count"
+    ],
+    "properties": {
+      "deleted_count": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标 Block 的公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "expected_affected_count",
+        "description": "刚由 delete-impact 返回并经调用者确认的 affected_count。",
+        "interface_param": "expected_affected_count"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Frontstage 页面稳定标识；Block Tree 按此页面隔离。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "description": "目标 Block 的公开稳定标识。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "expected_affected_count",
+        "required": true,
+        "field_type": "integer",
+        "description": "刚由 delete-impact 返回并经调用者确认的 affected_count。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

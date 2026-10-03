@@ -1,0 +1,414 @@
+{
+  "tool_id": "plugin_install_official",
+  "name": "下载并安装插件",
+  "short_description": "下载并安装插件并返回当前状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "plugin_install_official"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "plugin_id"
+        ],
+        "properties": {
+          "plugin_id": {
+            "type": "string"
+          },
+          "risk_override": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "reason",
+                  "acknowledged_warnings"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "acknowledged_warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "compatibility_override": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "reason",
+                  "acknowledged_current_host_version",
+                  "acknowledged_minimum_host_version"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "acknowledged_current_host_version": {
+                    "type": "string"
+                  },
+                  "acknowledged_minimum_host_version": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "installation",
+      "task"
+    ],
+    "properties": {
+      "task": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider_code",
+          "task_kind",
+          "status",
+          "detail_json",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "task_kind": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "detail_json": {
+            "type": "object"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspace_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider_code": {
+            "type": "string"
+          },
+          "status_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "installation": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider_code",
+          "plugin_id",
+          "plugin_version",
+          "contract_version",
+          "protocol",
+          "display_name",
+          "source_kind",
+          "trust_level",
+          "verification_status",
+          "desired_state",
+          "signature_status",
+          "metadata_json",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "source_kind": {
+            "type": "string"
+          },
+          "trust_level": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "runtime_slot": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "desired_state": {
+            "type": "string"
+          },
+          "metadata_json": {
+            "type": "object"
+          },
+          "provider_code": {
+            "type": "string"
+          },
+          "local_artifact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "node_id",
+                  "installation_id",
+                  "artifact_status",
+                  "runtime_status",
+                  "availability_status",
+                  "checked_at"
+                ],
+                "properties": {
+                  "node_id": {
+                    "type": "string"
+                  },
+                  "checked_at": {
+                    "type": "string"
+                  },
+                  "last_error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "local_path": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "package_path": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "local_version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "local_checksum": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "runtime_status": {
+                    "type": "string"
+                  },
+                  "artifact_status": {
+                    "type": "string"
+                  },
+                  "installation_id": {
+                    "type": "string"
+                  },
+                  "availability_status": {
+                    "type": "string"
+                  },
+                  "manifest_fingerprint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "plugin_version": {
+            "type": "string"
+          },
+          "signing_key_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_version": {
+            "type": "string"
+          },
+          "signature_status": {
+            "type": "string"
+          },
+          "expected_checksum": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "signature_algorithm": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verification_status": {
+            "type": "string"
+          }
+        },
+        "description": "Installation record returned by the plugin API."
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": false,
+        "mcp_param": "compatibility_override",
+        "interface_param": "compatibility_override"
+      },
+      {
+        "required": true,
+        "mcp_param": "plugin_id",
+        "interface_param": "plugin_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "risk_override",
+        "interface_param": "risk_override"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "compatibility_override",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "reason",
+                "acknowledged_current_host_version",
+                "acknowledged_minimum_host_version"
+              ],
+              "properties": {
+                "reason": {
+                  "type": "string"
+                },
+                "acknowledged_current_host_version": {
+                  "type": "string"
+                },
+                "acknowledged_minimum_host_version": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "plugin_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "risk_override",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "reason",
+                "acknowledged_warnings"
+              ],
+              "properties": {
+                "reason": {
+                  "type": "string"
+                },
+                "acknowledged_warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "plugin_config.configure.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

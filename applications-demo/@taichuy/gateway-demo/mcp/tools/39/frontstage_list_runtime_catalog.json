@@ -1,0 +1,234 @@
+{
+  "tool_id": "frontstage_list_runtime_catalog",
+  "name": "查询页面运行时目录",
+  "short_description": "返回可用于页面区块的运行时贡献及完整目录身份。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_frontend_blocks"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "installation_id",
+        "provider_code",
+        "plugin_id",
+        "plugin_version",
+        "contribution_code",
+        "title",
+        "runtime",
+        "entry",
+        "context_contract",
+        "permissions",
+        "ui_capabilities",
+        "frontend_contribution_id",
+        "frontend_block_id",
+        "frontend_block_version",
+        "runtime_kind",
+        "execution_kind",
+        "isolation_requirement",
+        "requested_permissions",
+        "granted_permissions",
+        "workspace_id",
+        "lifecycle_kind",
+        "graph_fingerprint",
+        "provenance"
+      ],
+      "properties": {
+        "entry": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "plugin_id": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "object",
+          "required": [
+            "module_id",
+            "module_version",
+            "module_kind"
+          ],
+          "properties": {
+            "module_id": {
+              "type": "string"
+            },
+            "module_kind": {
+              "type": "string"
+            },
+            "module_version": {
+              "type": "string"
+            }
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "required": [
+            "network",
+            "storage",
+            "secrets"
+          ],
+          "properties": {
+            "network": {
+              "type": "string"
+            },
+            "secrets": {
+              "type": "string"
+            },
+            "storage": {
+              "type": "string"
+            }
+          }
+        },
+        "runtime_kind": {
+          "type": "string"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "code_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider_code": {
+          "type": "string"
+        },
+        "disable_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "execution_kind": {
+          "type": "string"
+        },
+        "lifecycle_kind": {
+          "type": "string"
+        },
+        "plugin_version": {
+          "type": "string"
+        },
+        "installation_id": {
+          "type": "string"
+        },
+        "ui_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "context_contract": {
+          "type": "object",
+          "required": [
+            "primitives",
+            "input_schema"
+          ],
+          "properties": {
+            "primitives": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "input_schema": {
+              "type": "object"
+            }
+          }
+        },
+        "contribution_code": {
+          "type": "string"
+        },
+        "frontend_block_id": {
+          "type": "string"
+        },
+        "graph_fingerprint": {
+          "type": "string"
+        },
+        "granted_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isolated_entry_asset": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "media_type",
+                "sha256",
+                "url",
+                "integrity"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "integrity": {
+                  "type": "string"
+                },
+                "media_type": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "code_template_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isolation_requirement": {
+          "type": "string"
+        },
+        "requested_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "code_template_language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "frontend_block_version": {
+          "type": "string"
+        },
+        "frontend_contribution_id": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {},
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "plugin_config.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,333 @@
+{
+  "tool_id": "system_mcp_import_bundle_library_release",
+  "name": "Import MCP bundle release",
+  "short_description": "Imports one synchronized release and returns its identity, outcome, and compact effect counts.",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "import_mcp_bundle_library_release"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "bundle_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "organization",
+          "bundle_id"
+        ],
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "description": "Stable bundle identifier"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Bundle publisher organization"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "manifest",
+      "current_system_version",
+      "version_status",
+      "status",
+      "effect_summary",
+      "tools",
+      "instances",
+      "connections"
+    ],
+    "properties": {
+      "tools": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "effect",
+            "result"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "effect": {
+              "enum": [
+                "create",
+                "update",
+                "already_present",
+                "conflict",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "result": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "status": {
+        "type": "string"
+      },
+      "manifest": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "organization",
+          "bundle_id",
+          "bundle_version",
+          "locale",
+          "minimum_host_version",
+          "exported_from_system_version",
+          "exported_at",
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "path",
+                "kind",
+                "sha256"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "tool",
+                    "instance",
+                    "connection"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "locale": {
+            "type": "string"
+          },
+          "bundle_id": {
+            "type": "string"
+          },
+          "exported_at": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string"
+          },
+          "bundle_version": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "string"
+          },
+          "minimum_host_version": {
+            "type": "string"
+          },
+          "exported_from_system_version": {
+            "type": "string"
+          }
+        }
+      },
+      "instances": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "effect",
+            "result"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "effect": {
+              "enum": [
+                "create",
+                "update",
+                "already_present",
+                "conflict",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "result": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "connections": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "effect",
+            "result"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "effect": {
+              "enum": [
+                "create",
+                "update",
+                "already_present",
+                "conflict",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "result": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "effect_summary": {
+        "type": "object",
+        "required": [
+          "changes",
+          "already_present",
+          "conflicts",
+          "unavailable",
+          "failed"
+        ],
+        "properties": {
+          "failed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "changes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "conflicts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unavailable": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "already_present": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "version_status": {
+        "enum": [
+          "same_system_version",
+          "exported_from_older_system",
+          "exported_from_newer_system",
+          "unknown_system_version"
+        ],
+        "type": "string"
+      },
+      "current_system_version": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "organization",
+        "description": "Bundle publisher organization from the library listing.",
+        "interface_param": "organization"
+      },
+      {
+        "required": true,
+        "mcp_param": "bundle_id",
+        "description": "Stable bundle identifier from the library listing.",
+        "interface_param": "bundle_id"
+      },
+      {
+        "required": false,
+        "mcp_param": "bundle_version",
+        "description": "Exact synchronized release version; omit to use the current local release.",
+        "interface_param": "bundle_version"
+      }
+    ]
+  },
+  "output_mapping": {
+    "properties": {
+      "status": {},
+      "manifest": {
+        "properties": {
+          "locale": {},
+          "bundle_id": {},
+          "organization": {},
+          "bundle_version": {}
+        }
+      },
+      "effect_summary": {
+        "properties": {
+          "failed": {},
+          "changes": {},
+          "conflicts": {},
+          "unavailable": {},
+          "already_present": {}
+        }
+      },
+      "version_status": {}
+    }
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "settings_feature.access.system.mcp-management",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

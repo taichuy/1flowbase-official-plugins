@@ -1,0 +1,139 @@
+{
+  "tool_id": "frontstage_block_tree_save_code",
+  "name": "save_frontstage_tree_block_code",
+  "short_description": "按修订检查整体保存区块源码；局部修改优先使用 replace_code 或 patch_code。",
+  "full_description": "整体保存用于创建源码或明确需要完整替换的场景。局部调整先搜索或读取片段，再调用 frontstage_block_tree_replace_code 或 frontstage_block_tree_patch_code，保留未修改源码。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "save_frontstage_block_node_code"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "source_code"
+        ],
+        "properties": {
+          "source_code": {
+            "type": "string"
+          },
+          "expected_source_revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "block_id"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "block_id",
+      "page_id",
+      "source_code"
+    ],
+    "properties": {
+      "page_id": {
+        "type": "string"
+      },
+      "block_id": {
+        "type": "string"
+      },
+      "source_code": {
+        "type": "string"
+      },
+      "source_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "required": true,
+        "mcp_param": "page_id",
+        "description": "目标 Frontstage 页面稳定标识。",
+        "interface_param": "page_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "block_id",
+        "description": "目标 Block 的公开稳定标识。",
+        "interface_param": "block_id"
+      },
+      {
+        "required": true,
+        "mcp_param": "body.source_code",
+        "description": "Block React 源码。",
+        "interface_param": "source_code"
+      },
+      {
+        "required": false,
+        "mcp_param": "body.expected_source_revision",
+        "description": "乐观锁源修订 SHA-256。",
+        "interface_param": "expected_source_revision"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "page_id",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "block_id",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "url"
+      },
+      {
+        "name": "source_code",
+        "required": true,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "expected_source_revision",
+        "required": false,
+        "field_type": "string",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
