@@ -21,6 +21,7 @@
 - `capability-plugins/`：能力插件目录
 - `capability-plugins/@taichuy/nodes/`：节点能力插件目录
 - `agent-flow/@<organization>/<workflow_id>/`：官方 AgentFlow 工作流模板
+- `applications-demo/@<organization>/<name>/`：分片应用模板源码及签名 ZIP 发布（见 [说明](applications-demo/README.md)）
 - `mcp/@<organization>/<bundle_id>/`：按组织维护的整套 MCP 配置包源码
 - `mcp/catalog.json`：官方 MCP 配置包签名版本历史目录（`1flowbase.mcp-catalog/v2`）
 - `model-pricing/@<provider_code>/<model-key>/pricing.json`：按厂家维护的模型计费源
