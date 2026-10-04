@@ -17,6 +17,7 @@ use serde_json::{json, Map, Value};
 
 mod protocol_context;
 mod sse_codec;
+mod upstream_error;
 
 use protocol_context::{
     attach_matching_protocol_context_receipt, restore_protocol_context_body,
@@ -1263,27 +1264,7 @@ fn provider_upstream_error_from_parts(
     headers: &HeaderMap,
     raw_body: String,
 ) -> ProviderRuntimeError {
-    let message = upstream_error_body_message(status, &raw_body);
-    let mut provider_details = Map::new();
-    provider_details.insert("status".to_string(), json!(status.as_u16()));
-    if let Some(request_id) = response_request_id(headers) {
-        provider_details.insert("request_id".to_string(), json!(request_id));
-    }
-
-    ProviderRuntimeError {
-        kind: ProviderRuntimeErrorKind::ProviderUpstreamError,
-        message: message.clone(),
-        provider_summary: Some(message),
-        provider_details: Some(Value::Object(provider_details)),
-    }
-}
-
-fn upstream_error_body_message(status: reqwest::StatusCode, raw_body: &str) -> String {
-    if raw_body.is_empty() {
-        format!("HTTP {status}")
-    } else {
-        raw_body.to_string()
-    }
+    upstream_error::from_parts(Some(status), headers, raw_body)
 }
 
 fn response_request_id(headers: &HeaderMap) -> Option<String> {
@@ -2014,6 +1995,7 @@ where
             .await?
             .into());
     }
+    let response_headers = response.headers().clone();
     let mut text = String::new();
     let mut events = Vec::new();
     let mut all_events = Vec::new();
@@ -2034,7 +2016,10 @@ where
     let mut stream = raw_stream.eventsource();
     while let Some(event) = stream.next().await {
         let event = event.map_err(|error| anyhow!("invalid Anthropic SSE stream: {error}"))?;
-        process_anthropic_sse_data(
+        if event.event == "error" {
+            return Err(upstream_error::from_parts(None, &response_headers, event.data).into());
+        }
+        if let Err(error) = process_anthropic_sse_data(
             &event.data,
             &mut events,
             AnthropicStreamParseState {
@@ -2045,7 +2030,15 @@ where
                 message_id: &mut message_id,
                 saw_message_stop: &mut saw_message_stop,
             },
-        )?;
+        ) {
+            if error
+                .downcast_ref::<ProviderRuntimeError>()
+                .is_some_and(|error| error.kind == ProviderRuntimeErrorKind::ProviderUpstreamError)
+            {
+                return Err(upstream_error::from_parts(None, &response_headers, event.data).into());
+            }
+            return Err(error);
+        }
         emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
     }
@@ -2224,12 +2217,9 @@ fn process_anthropic_sse_data(
         }
         "message_stop" => *saw_message_stop = true,
         "error" => {
-            let message = payload
-                .get("error")
-                .and_then(|error| error.get("message"))
-                .and_then(Value::as_str)
-                .unwrap_or("Anthropic stream error event received");
-            bail!("{message}");
+            return Err(
+                upstream_error::from_parts(None, &HeaderMap::new(), data.to_string()).into(),
+            );
         }
         _ => {}
     }
@@ -2485,7 +2475,7 @@ mod tests {
         ]
     }
 
-    fn start_http_error_server(
+    pub(super) fn start_http_error_server(
         status_line: &'static str,
         content_type: &'static str,
         response_body: &'static str,
@@ -2914,8 +2904,18 @@ mod tests {
             .expect("upstream CountTokens error must preserve its typed runtime error");
 
         assert_eq!(typed.kind, ProviderRuntimeErrorKind::ProviderUpstreamError);
-        assert_eq!(typed.message, raw_body);
-        assert_eq!(typed.provider_summary.as_deref(), Some(raw_body));
+        assert_eq!(typed.message, "CountTokens quota exceeded");
+        assert_eq!(
+            typed.provider_summary.as_deref(),
+            Some("CountTokens quota exceeded")
+        );
+        let details = typed.provider_details.as_ref().unwrap();
+        assert_eq!(details["raw_body"], raw_body);
+        assert_eq!(details["status_code"], 429);
+        assert_eq!(
+            details["upstream_error"]["message"],
+            "CountTokens quota exceeded"
+        );
     }
 
     #[test]
@@ -3260,7 +3260,7 @@ mod tests {
             "model": "claude-opus-4-8",
             "messages": [{
                 "role": "user",
-                "content": "hello world"
+                "content": "hello\n world"
             }],
             "system": [
                 {"type": "text", "text": "source system"},
@@ -3652,7 +3652,7 @@ mod tests {
             .expect("upstream error should carry details");
         assert_eq!(
             details,
-            &json!({ "status": 403, "request_id": "req_plain" })
+            &json!({ "status": 403, "status_code": 403, "request_id": "req_plain", "raw_body": raw_body, "upstream_error": {"type":"permission_error","message":raw_body,"request_id":"req_plain"} })
         );
         let encoded = serde_json::to_string(&error).unwrap();
         assert!(encoded.contains(&raw_body));
@@ -4203,13 +4203,17 @@ mod tests {
         assert_eq!(runtime_error.provider_summary.as_deref(), Some(raw_body));
         assert_eq!(
             details,
-            &json!({ "status": 403, "request_id": "req_stream" })
+            &json!({ "status": 403, "status_code": 403, "request_id": "req_stream", "raw_body": raw_body, "upstream_error": {"type":"permission_error","message":raw_body,"request_id":"req_stream"} })
         );
         let encoded = serde_json::to_string(runtime_error).unwrap();
         assert!(encoded.contains(raw_body));
         assert!(!encoded.contains("response-secret"));
     }
 }
+
+#[cfg(test)]
+#[path = "_tests/upstream_error_stream.rs"]
+mod upstream_error_stream_tests;
 
 #[cfg(test)]
 #[path = "_tests/cache_write_usage.rs"]
