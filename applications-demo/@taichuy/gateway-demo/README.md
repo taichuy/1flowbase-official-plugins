@@ -2,7 +2,9 @@
 
 此模板来自本地 `/route` 工作台，包含页面、关联应用、数据模型定义及关系、MCP 实例 `1flowbase`。页面中的分页、筛选和区块设置随页面文档一起保存。
 
-`manifest.json` 使用 `1flowbase.application-template-archive/v1`，分片保留完整 `1flowbase.portable-template/v1` 定义。本次源码迁移到 release v2；`package.release.template_id` 为稳定身份，`release_version` 为正整数。内容变更必须递增版本，同版本不同 ZIP bytes 拒绝发布。发布、签名与工具用法见 [应用模板说明](../../README.md)。
+`manifest.json` 使用 `1flowbase.application-template-archive/v1`，分片保留完整 `1flowbase.portable-template/v1` 定义。`package.release.template_id` 为稳定身份，`release_version` 为正整数。内容变更必须递增版本，同版本不同 ZIP bytes 拒绝发布。发布、签名与工具用法见 [应用模板说明](../../README.md)。
+
+release v3 同步报表三个区块的源码、`reportState` 端口声明和 `usage.reportState` 映射：概览统一请求数据，趋势图及用户表共享当前结果；筛选更新期间保留已有结果，切回页面复用当前查询。升级时这些定义一起安装，页面和区块的模板 ID 保持不变。
 
 模板仅携带定义，不包含业务数据记录、用户密码、供应商密钥或外部数据库连接。系统内置数据模型按 code 引用，页面依赖宿主内置的 `1flowbase@2.0.0`。
 
