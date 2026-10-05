@@ -36,7 +36,10 @@ jobs:
           BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_REF: ${{ github.sha }}
         run: |
-          node --test scripts/_tests/detect-version-releases.test.mjs
+          node --test \
+            scripts/_tests/detect-version-releases.test.mjs \
+            scripts/_tests/workflow-config.test.mjs \
+            scripts/provider-conformance/_tests/run-host-conformance.test.mjs
           node scripts/detect-version-releases.mjs "${BASE_REF}" "${HEAD_REF}"
 
   detect-package-targets:
@@ -157,7 +160,8 @@ jobs:
             scripts/_tests/sync-provider-manifest-versions.test.mjs \
             scripts/_tests/update-agent-flow-catalog.test.mjs \
             scripts/_tests/update-official-registry.test.mjs \
-            scripts/_tests/workflow-config.test.mjs
+            scripts/_tests/workflow-config.test.mjs \
+            scripts/provider-conformance/_tests/run-host-conformance.test.mjs
 
       - name: Smoke-test reusable registry entry builder
         shell: bash
@@ -201,24 +205,30 @@ jobs:
           merge-multiple: true
           path: ${{ runner.temp }}/provider-conformance/packages
 
-      - name: Build exact plugin-runner host binary
-        run: cargo build --manifest-path dist/conformance-host/api/Cargo.toml --release -p plugin-runner --bin plugin-runner
+      - name: Cache exact Host Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: dist/conformance-host/api -> target
+          key: actual-package-host-conformance
 
-      - name: Run actual-package provider conformance
+      - name: Run actual-package conformance through the in-process Host
         run: |
-          node dist/conformance-host/scripts/node/provider-conformance/cli.js \
+          node scripts/provider-conformance/run-host-conformance.mjs \
             --main-root "$GITHUB_WORKSPACE/dist/conformance-host" \
             --official-root "$GITHUB_WORKSPACE" \
             --main-sha "${{ inputs.host_source_sha }}" \
             --official-sha "${{ inputs.official_source_sha }}" \
             --package-dir "$RUNNER_TEMP/provider-conformance/packages" \
-            --plugin-runner-bin dist/conformance-host/api/target/release/plugin-runner \
-            --fixture dist/conformance-host/scripts/node/provider-conformance/fixtures/six-provider-matrix.json \
-            --artifact "$RUNNER_TEMP/provider-conformance/paired-sha.json"
+            --target x86_64-unknown-linux-musl \
+            --artifact "$RUNNER_TEMP/provider-conformance/paired-sha.json" \
+            --log "$RUNNER_TEMP/provider-conformance/host-conformance.log"
 
-      - name: Upload paired SHA artifact
+      - name: Upload paired SHA and actual Host evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: provider-conformance-pair
-          path: ${{ runner.temp }}/provider-conformance/paired-sha.json
+          path: |
+            ${{ runner.temp }}/provider-conformance/paired-sha.json
+            ${{ runner.temp }}/provider-conformance/host-conformance.log
           if-no-files-found: error

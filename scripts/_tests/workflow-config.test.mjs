@@ -294,3 +294,31 @@ test('manifest.yaml is the single release version source for openai_compatible',
     /`runtime-extensions\/@taichuy\/<provider_code>\/manifest\.yaml` 中的 `version:`/
   );
 });
+
+
+test('manual actual-package gate consumes musl archives through current Host owner and uploads failed evidence', () => {
+  const workflow = readRepoFile('.github/workflows/provider-ci.yml');
+  const actual = workflow.slice(workflow.indexOf('  actual-package-conformance:'));
+  assert.match(actual, /needs:\s*\n\s*- detect-package-targets\s*\n\s*- package-dry-run/u);
+  assert.match(actual, /ref: \$\{\{ inputs\.official_source_sha \}\}/u);
+  assert.match(actual, /ref: \$\{\{ inputs\.host_source_sha \}\}/u);
+  assert.match(actual, /pattern: actual-provider-package-\*/u);
+  assert.match(actual, /node scripts\/provider-conformance\/run-host-conformance\.mjs/u);
+  assert.match(actual, /--target x86_64-unknown-linux-musl/u);
+  assert.match(actual, /--main-sha "\$\{\{ inputs\.host_source_sha \}\}"/u);
+  assert.match(actual, /--official-sha "\$\{\{ inputs\.official_source_sha \}\}"/u);
+  assert.match(actual, /--artifact "\$RUNNER_TEMP\/provider-conformance\/paired-sha\.json"/u);
+  assert.match(actual, /--log "\$RUNNER_TEMP\/provider-conformance\/host-conformance\.log"/u);
+  assert.match(actual, /if: always\(\)/u);
+  assert.match(actual, /provider-conformance\/paired-sha\.json/u);
+  assert.match(actual, /provider-conformance\/host-conformance\.log/u);
+  assert.doesNotMatch(actual, /plugin-runner|scripts\/node\/provider-conformance|six-provider-matrix/u);
+  const releaseContract = workflow.slice(workflow.indexOf('  release-contract:'), workflow.indexOf('  detect-package-targets:'));
+  const packageBatch = workflow.slice(workflow.indexOf('      - name: Test registry updater'), workflow.indexOf('      - name: Smoke-test'));
+  for (const batch of [releaseContract, packageBatch]) {
+    assert.match(batch, /scripts\/provider-conformance\/_tests\/run-host-conformance\.test\.mjs/u);
+    assert.match(batch, /scripts\/_tests\/workflow-config\.test\.mjs/u);
+  }
+  assert.match(workflow, /--runtime-binary "\$\{plugin_dir\}\/target\/x86_64-unknown-linux-musl\/release\/\$\{binary_name\}"/u);
+  assert.match(workflow, /name: actual-provider-package-\$\{\{ matrix\.provider_code \}\}/u);
+});
