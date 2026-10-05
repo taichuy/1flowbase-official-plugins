@@ -2229,7 +2229,7 @@ fn process_anthropic_sse_data(
 fn normalize_usage(raw: &Value) -> ProviderUsage {
     let input = raw.get("input_tokens").and_then(Value::as_u64);
     let output = raw.get("output_tokens").and_then(Value::as_u64);
-    ProviderUsage {
+    let mut usage = ProviderUsage {
         input_tokens: input,
         // Anthropic input_tokens excludes cache reads and cache creation.
         input_cache_miss_tokens: input,
@@ -2250,13 +2250,25 @@ fn normalize_usage(raw: &Value) -> ProviderUsage {
             },
         ),
         output_tokens: output,
-        total_tokens: input.zip(output).map(|(left, right)| left + right),
+        total_tokens: None,
         reasoning_tokens: None,
         cache_read_tokens: raw.get("cache_read_input_tokens").and_then(Value::as_u64),
         cache_write_tokens: raw
             .get("cache_creation_input_tokens")
             .and_then(Value::as_u64),
-    }
+    };
+    usage.total_tokens = anthropic_total_tokens(&usage);
+    usage
+}
+
+fn anthropic_total_tokens(usage: &ProviderUsage) -> Option<u64> {
+    // Anthropic reports ordinary input separately from cache reads and writes.
+    // TTL buckets partition cache writes and must not be counted again.
+    usage
+        .input_tokens?
+        .checked_add(usage.output_tokens?)?
+        .checked_add(usage.cache_read_tokens.unwrap_or_default())?
+        .checked_add(usage.cache_write_tokens.unwrap_or_default())
 }
 
 fn merge_usage(current: &mut ProviderUsage, snapshot: ProviderUsage) {
@@ -2274,12 +2286,8 @@ fn merge_usage(current: &mut ProviderUsage, snapshot: ProviderUsage) {
             .get_or_insert_with(Default::default)
             .extend(buckets);
     }
-    current.total_tokens = current
-        .input_tokens
-        .zip(current.output_tokens)
-        .map(|(left, right)| left + right)
-        .or(snapshot.total_tokens)
-        .or(current.total_tokens);
+    // SSE usage fields are cumulative snapshots; recompute after replacing present counters.
+    current.total_tokens = anthropic_total_tokens(current);
 }
 
 fn is_empty_tool_input(value: &Value) -> bool {
