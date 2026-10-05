@@ -6,7 +6,7 @@ const PROVIDER_PATH_PATTERN = /^runtime-extensions\/@taichuy\/([^/]+)\/(.+)$/;
 const OBSERVATION_CONSUMERS = ['openai', 'openai_compatible', 'anthropic', 'gemini', 'deepseek', 'aliyun_bailian', 'chatgpt-codex'];
 const observationSdkInput = (path) => path.startsWith('sdk/provider-observation/') && !path.includes('/target/');
 
-const NON_PACKAGE_PATH_PATTERN = /^(?:readme|demo|tests|target)\//;
+const NON_PACKAGE_PATH_PATTERN = /^(?:(?:readme|demo|tests|target|src\/_tests)\/|README\.md$)/;
 
 function providerPackageInput(path) {
   const match = path.match(PROVIDER_PATH_PATTERN);
