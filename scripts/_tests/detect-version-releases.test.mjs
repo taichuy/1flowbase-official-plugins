@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 import { detectVersionReleases } from '../detect-version-releases.mjs';
 
@@ -179,4 +181,72 @@ test('shared observation SDK requires a manifest bump for every consumer', () =>
   assert.equal(detectVersionReleases(changes).length, 7);
   changes[1].afterContent = changes[1].beforeContent;
   assert.throws(() => detectVersionReleases(changes), /provider_version_bump_required/);
+});
+
+
+// Exercise the actual Git entry point: direct changes without manifest snapshots
+// cannot detect the old src/_tests false positive in detectVersionReleases().
+function withProviderGitFixture(run) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-version-contract-'));
+  const git = (...args) => execFileSync('git', [
+    '-c', 'user.name=Contract Fixture', '-c', 'user.email=fixture@example.invalid', ...args
+  ], { cwd: root, encoding: 'utf8' }).trim();
+  const provider = 'runtime-extensions/@taichuy/openai';
+  const write = (relative, content) => {
+    const target = path.join(root, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  };
+  const commit = () => {
+    git('add', '.');
+    git('commit', '-qm', 'contract fixture');
+    return git('rev-parse', 'HEAD');
+  };
+  try {
+    git('init', '--quiet');
+    write(`${provider}/manifest.yaml`, 'version: 1.0.0\nslot_codes: [model_provider]\n');
+    const base = commit();
+    run({ root, provider, write, commit, base });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function runReleaseDetection(root, base, head) {
+  return JSON.parse(execFileSync(process.execPath, [
+    path.join(repoRoot, 'scripts/detect-version-releases.mjs'), base, head
+  ], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+}
+
+test('Git release entry ignores current Rust test directories and top-level documentation', () => {
+  withProviderGitFixture(({ root, provider, write, commit, base }) => {
+    write(`${provider}/src/_tests/websocket_lifecycle.rs`, '#[test] fn terminal_is_not_replayable() {}\n');
+    write(`${provider}/tests/stdio.rs`, '#[test] fn wire_contract() {}\n');
+    write(`${provider}/README.md`, '# Provider documentation\n');
+    assert.deepEqual(runReleaseDetection(root, base, commit()), { include: [] });
+  });
+});
+
+test('Git release entry still requires a version bump for neighboring production inputs', () => {
+  for (const relative of ['src/main.rs', 'src/_tests_helper.rs', 'Cargo.toml']) {
+    withProviderGitFixture(({ root, provider, write, commit, base }) => {
+      write(`${provider}/src/_tests/wire.rs`, '#[test] fn wire_contract() {}\n');
+      write(`${provider}/${relative}`, 'production input changed\n');
+      const head = commit();
+      assert.throws(() => runReleaseDetection(root, base, head), (error) => {
+        assert.match(error.stderr.toString(), /provider_version_bump_required: openai changed without updating manifest version 1\.0\.0/);
+        return true;
+      });
+    });
+  }
+});
+
+test('Git release entry preserves version-driven production releases', () => {
+  withProviderGitFixture(({ root, provider, write, commit, base }) => {
+    write(`${provider}/src/main.rs`, 'fn main() {}\n');
+    write(`${provider}/manifest.yaml`, 'version: 1.0.1\nslot_codes: [model_provider]\n');
+    assert.deepEqual(runReleaseDetection(root, base, commit()), { include: [{
+      plugin_dir: provider, provider_code: 'openai', release_tag: 'openai-v1.0.1', version: '1.0.1'
+    }] });
+  });
 });
