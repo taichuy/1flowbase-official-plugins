@@ -1,0 +1,18 @@
+[package]
+name = "agent-logs-collector"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+
+[dependencies]
+anyhow = "1"
+control-plane-contracts = { git = "https://github.com/taichuy/1flowbase.git", rev = "99e094459056bf80d7b467269e2dd36e6bfc4c40" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "net", "io-util"] }
