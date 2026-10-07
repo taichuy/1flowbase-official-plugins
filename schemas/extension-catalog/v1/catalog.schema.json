@@ -70,8 +70,11 @@
           "required": ["kind", "locator"],
           "properties": {
             "kind": { "type": "string", "minLength": 1 },
-            "locator": { "type": "string", "minLength": 1 }
+            "locator": { "type": "string", "minLength": 1 },
+            "distribution_kind": { "const": "client_collector" },
+            "client_collector": { "$ref": "#/$defs/clientCollector" }
           },
+          "dependentRequired": { "distribution_kind": ["client_collector"], "client_collector": ["distribution_kind"] },
           "additionalProperties": true
         },
         "signature": { "type": ["object", "null"] },
@@ -83,6 +86,31 @@
         },
         "download_locator": { "$ref": "#/$defs/locator" },
         "catalog_page": { "type": "integer", "minimum": 1 }
+      },
+      "allOf": [{
+        "if": { "properties": { "source": { "required": ["distribution_kind"] } } },
+        "then": { "properties": {
+          "category": { "const": "runtime-extensions" },
+          "slot_codes": { "maxItems": 0 },
+          "download_locator": { "required": ["locator"], "properties": { "kind": { "const": "release_asset" } } },
+          "checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "signature": { "type": "object", "required": ["algorithm", "key_id", "signature"], "properties": {
+            "algorithm": { "const": "ed25519" }, "key_id": { "type": "string", "minLength": 1 },
+            "signature": { "type": "string", "minLength": 1 }
+          } }
+        } }
+      }],
+      "additionalProperties": false
+    },
+    "clientCollector": {
+      "type": "object",
+      "required": ["collector_code", "source_client", "display_name", "execution_target", "protocol_version"],
+      "properties": {
+        "collector_code": { "type": "string", "minLength": 1 },
+        "source_client": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string", "minLength": 1 },
+        "execution_target": { "const": "client" },
+        "protocol_version": { "const": "1flowbase.agent-logs/v1" }
       },
       "additionalProperties": false
     },

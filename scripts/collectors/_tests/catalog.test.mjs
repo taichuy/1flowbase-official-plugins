@@ -21,7 +21,7 @@ test('client collectors do not enter existing host runtime packaging', () => {
 test('a client package falsely declaring server runtime execution is rejected', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'collector-catalog-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const directory = path.join(root, 'runtime-extensions', '@fixture', 'codex-logs-collector');
+  const directory = path.join(root, 'runtime-extensions', '@taichuy', 'codex-logs-collector');
   fs.mkdirSync(directory, { recursive: true });
   const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'runtime-extensions/@taichuy/codex-logs-collector/collector-manifest.json'), 'utf8'));
   fs.writeFileSync(path.join(directory, 'collector-manifest.json'), JSON.stringify(manifest));

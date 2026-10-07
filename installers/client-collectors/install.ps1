@@ -32,7 +32,8 @@ if ($Uninstall) {
     return
 }
 if (-not $Endpoint) { throw '-Endpoint is required' }
-if (-not $ReleaseBase) { $ReleaseBase = "https://github.com/taichuy/1flowbase-official-plugins/releases/download/codex-logs-collector-v$Version" }
+if (-not $ReleaseBase) { throw '-ReleaseBase is required (copy the command from 1flowbase)' }
+$ReleaseBase = $ReleaseBase.TrimEnd('/')
 $ReleaseUri = [Uri]$ReleaseBase
 if ($ReleaseUri.Scheme -notin @('https', 'http') -or $ReleaseUri.UserInfo -or $ReleaseUri.Query -or $ReleaseUri.Fragment) {
     throw 'Invalid public release URL'

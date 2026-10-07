@@ -19,7 +19,7 @@ Codex native logs collector installer
   --version VERSION          Immutable collector release (default: 0.1.0)
   --install-dir PATH         Override the user installation directory
   --config PATH              Override the private configuration path
-  --release-base URL         Explicit release mirror (no credentials in URL)
+  --release-base URL         Required 1flowbase version-pinned asset base URL
   --no-start                 Configure without registering a background service
   --uninstall                Stop/remove collector; retain config and checkpoint
 Credentials: local terminal prompt, or FLOWBASE_AGENT_LOGS_API_KEY environment.
@@ -73,7 +73,8 @@ if ((uninstall)); then
   exit 0
 fi
 [[ -n "$endpoint" ]] || { printf '--endpoint is required\n' >&2; exit 2; }
-release_base=${release_base:-"https://github.com/taichuy/1flowbase-official-plugins/releases/download/codex-logs-collector-v$version"}
+[[ -n "$release_base" ]] || { printf '--release-base is required (copy the command from 1flowbase)\n' >&2; exit 2; }
+release_base=${release_base%/}
 [[ "$release_base" == https://* || "$release_base" == http://* ]] && [[ "$release_base" != *@* && "$release_base" != *'?'* && "$release_base" != *'#'* ]] || { printf 'Invalid public release URL\n' >&2; exit 2; }
 umask 077
 staging=$(mktemp -d)

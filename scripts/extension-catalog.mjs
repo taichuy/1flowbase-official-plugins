@@ -134,6 +134,23 @@ function normalizeEntry(category, organization, artifact, source) {
   if (entry.checksum !== null && !/^sha256:[a-f0-9]{64}$/.test(entry.checksum)) {
     throw new Error(`${entry.id}.checksum must be null or a sha256 digest`);
   }
+  if (entry.source.distribution_kind !== undefined) {
+    if (entry.source.distribution_kind !== 'client_collector' || category !== 'runtime-extensions') {
+      throw new Error(`${entry.id}.source.distribution_kind is unsupported`);
+    }
+    const collector = entry.source.client_collector;
+    if (!collector || typeof collector !== 'object' || collector.execution_target !== 'client' ||
+        collector.protocol_version !== '1flowbase.agent-logs/v1' || collector.collector_code !== artifact ||
+        ['collector_code', 'source_client', 'display_name'].some(field => typeof collector[field] !== 'string' || !collector[field])) {
+      throw new Error(`${entry.id}.source.client_collector is invalid`);
+    }
+    if (entry.download_locator.kind !== 'release_asset' || !entry.download_locator.locator || !entry.checksum ||
+        entry.signature?.algorithm !== 'ed25519' || !entry.signature.key_id || !entry.signature.signature || entry.slot_codes.length) {
+      throw new Error(`${entry.id} client collector requires one signed release asset and no server slots`);
+    }
+  } else if (entry.source.client_collector !== undefined) {
+    throw new Error(`${entry.id}.source.client_collector requires distribution_kind`);
+  }
   return entry;
 }
 
@@ -168,7 +185,17 @@ function discoverCanonicalEntries(repoRoot, category) {
           fields.some((field) => !allowedFields.includes(field))) {
         throw new Error(`${relative(repoRoot, manifestPath)} fields must exactly match the v1 source entry contract`);
       }
-      entries.push(normalizeEntry(category, organization, artifact, source));
+      const normalized = normalizeEntry(category, organization, artifact, source);
+      if (normalized.source.distribution_kind === 'client_collector') {
+        const manifest = readJson(path.join(path.dirname(manifestPath), 'collector-manifest.json'));
+        if (manifest.distribution_kind !== 'client_collector' || manifest.organization !== organization ||
+            manifest.artifact_id !== artifact || manifest.version !== normalized.version ||
+            manifest.minimum_host_version !== normalized.host_version_requirement.replace(/^>=/, '') ||
+            Object.entries(normalized.source.client_collector).some(([field, value]) => manifest[field] !== value)) {
+          throw new Error(`${relative(repoRoot, manifestPath)} collector metadata does not match manifest`);
+        }
+      }
+      entries.push(normalized);
     }
   }
   return entries;

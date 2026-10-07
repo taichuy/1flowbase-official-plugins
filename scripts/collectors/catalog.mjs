@@ -24,7 +24,9 @@ export function listCollectors(repoRoot) {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
       if (manifest.schema_version !== '1flowbase.client-collector/v1' || manifest.execution_target !== 'client' ||
           !/^[a-z][a-z0-9-]*$/.test(manifest.collector_code) || !/^\d+\.\d+\.\d+$/.test(manifest.version) ||
-          manifest.entry !== manifest.collector_code || manifest.protocol_version !== '1flowbase.agent-logs/v1') {
+          manifest.entry !== manifest.collector_code || manifest.protocol_version !== '1flowbase.agent-logs/v1' ||
+          manifest.distribution_kind !== 'client_collector' || manifest.organization !== organization.name.slice(1) ||
+          manifest.artifact_id !== entry.name || !manifest.description?.en_US || !manifest.description?.zh_Hans) {
         throw new Error(`Invalid client collector manifest: ${pluginDir}`);
       }
       if (fs.existsSync(path.join(repoRoot, pluginDir, 'manifest.yaml'))) {
