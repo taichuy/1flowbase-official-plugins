@@ -66,7 +66,28 @@ impl SourceAdapter for CodexAdapter {
         "codex"
     }
     fn roots(&self, source: &Path) -> Vec<PathBuf> {
-        if source == self.codex_home {
+        // Configuration persists the selected path, not the install-time environment.
+        // Service environments may have a different CODEX_HOME; inspect only directory
+        // entry metadata so Codex's unrelated history.jsonl is never parsed as rollout.
+        let has_entry = |name: &str, directory: bool| {
+            std::fs::symlink_metadata(source.join(name)).is_ok_and(|meta| {
+                !meta.file_type().is_symlink()
+                    && if directory {
+                        meta.is_dir()
+                    } else {
+                        meta.is_file()
+                    }
+            })
+        };
+        let explicit_file = source
+            .extension()
+            .is_some_and(|extension| extension == "jsonl");
+        let codex_root = source == self.codex_home
+            || has_entry("config.toml", false)
+            || has_entry("history.jsonl", false)
+            || has_entry("sessions", true)
+            || has_entry("archived_sessions", true);
+        if !explicit_file && codex_root {
             vec![source.join("sessions"), source.join("archived_sessions")]
         } else {
             vec![source.to_owned()]

@@ -249,3 +249,95 @@ fn invalid_header_timestamp_and_negative_usage_do_not_leak_source_content() {
     assert_eq!(usage.output_tokens, Some(4));
     assert_eq!(usage.total_tokens, None);
 }
+
+#[tokio::test]
+async fn configured_custom_codex_home_excludes_history_in_background_environment() {
+    let directory = std::env::temp_dir().join(format!(
+        "codex-root-fixture-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(directory.join("custom-home/sessions")).unwrap();
+    std::fs::create_dir_all(directory.join("custom-home/archived_sessions")).unwrap();
+    let root = directory.join("custom-home");
+    std::fs::write(
+        root.join("history.jsonl"),
+        b"invalid history is not a rollout\n",
+    )
+    .unwrap();
+    let a = adapter(); // Its runtime home deliberately differs from the configured source.
+    assert_ne!(root, a.codex_home);
+    assert_eq!(
+        a.roots(&root),
+        vec![root.join("sessions"), root.join("archived_sessions")]
+    );
+    let config = agent_logs_collector::Config {
+        version: 1,
+        endpoint: "http://127.0.0.1:1/events".into(),
+        source_path: root.clone(),
+        state_path: directory.join("state.json"),
+        api_key: "synthetic-key".into(),
+    };
+    // No logs yet: neither HTTP nor invalid history parsing may happen.
+    assert_eq!(
+        agent_logs_collector::collect(&config, &a)
+            .await
+            .unwrap()
+            .uploaded,
+        0
+    );
+    std::fs::remove_dir_all(root.join("sessions")).unwrap();
+    std::fs::remove_dir_all(root.join("archived_sessions")).unwrap();
+    assert_eq!(
+        a.roots(&root),
+        vec![root.join("sessions"), root.join("archived_sessions")]
+    );
+    assert_eq!(
+        agent_logs_collector::collect(&config, &a)
+            .await
+            .unwrap()
+            .uploaded,
+        0
+    );
+    // An explicitly selected .jsonl file is always honored, even inside Codex home.
+    assert_eq!(
+        a.roots(&root.join("history.jsonl")),
+        vec![root.join("history.jsonl")]
+    );
+    std::fs::remove_dir_all(directory).unwrap();
+}
+#[test]
+fn codex_config_marker_and_sessions_marker_select_only_rollout_roots() {
+    let directory = std::env::temp_dir().join(format!(
+        "codex-marker-fixture-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let a = adapter();
+    assert_eq!(a.roots(&directory), vec![directory.clone()]);
+    std::fs::write(directory.join("config.toml"), b"synthetic").unwrap();
+    assert_eq!(
+        a.roots(&directory),
+        vec![
+            directory.join("sessions"),
+            directory.join("archived_sessions")
+        ]
+    );
+    std::fs::remove_file(directory.join("config.toml")).unwrap();
+    std::fs::create_dir(directory.join("sessions")).unwrap();
+    assert_eq!(
+        a.roots(&directory),
+        vec![
+            directory.join("sessions"),
+            directory.join("archived_sessions")
+        ]
+    );
+    std::fs::remove_dir_all(directory).unwrap();
+}
