@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync, spawn } from 'node:child_process';
+import http from 'node:http';
 import { listCollectors, PLATFORM_TARGETS, archiveName } from '../catalog.mjs';
 import { buildDistribution, verifyDistributionSignature } from '../distribution.mjs';
 import { discoverCatalogEntries } from '../../extension-catalog.mjs';
@@ -88,4 +89,32 @@ test('installer requires explicit 1flowbase release base before downloading or c
   for (const name of ['install.sh', 'install.ps1']) {
     assert.ok(!fs.readFileSync(path.join(repoRoot, 'installers/client-collectors', name), 'utf8').includes('github.com'));
   }
+});
+
+
+test('installer refuses redirected member downloads without requesting the redirect target', async t => {
+  const requests = [];
+  const server = http.createServer((request, response) => {
+    requests.push(request.url);
+    response.writeHead(302, { Location: '/redirect-target' }).end('redirect body');
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const result = await new Promise((resolve, reject) => {
+    const child = spawn('bash', [path.join(repoRoot, 'installers/client-collectors/install.sh'),
+      '--endpoint', `${base}/api/logs/v1/events`, '--release-base', `${base}/assets`, '--no-start'],
+      { stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    child.stdout.on('data', bytes => { output += bytes; });
+    child.stderr.on('data', bytes => { output += bytes; });
+    child.on('error', reject); child.on('close', code => resolve({ code, output }));
+  });
+  assert.equal(result.code, 1); assert.match(result.output, /redirects are refused/);
+  assert.equal(requests.length, 1); assert.ok(requests[0].startsWith('/assets/'));
+  assert.ok(!requests.includes('/redirect-target'));
+  const powershell = fs.readFileSync(path.join(repoRoot, 'installers/client-collectors/install.ps1'), 'utf8');
+  const downloads = powershell.split('\n').filter(line => line.includes('Invoke-WebRequest'));
+  assert.equal(downloads.length, 2);
+  assert.ok(downloads.every(line => line.includes('-MaximumRedirection 0')));
 });

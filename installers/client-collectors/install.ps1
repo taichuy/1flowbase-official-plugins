@@ -46,9 +46,9 @@ New-Item -ItemType Directory -Path $Staging | Out-Null
 $RestoreTask = $null
 try {
     $Archive = Join-Path $Staging $ArchiveName
-    Invoke-WebRequest -UseBasicParsing -Uri "$ReleaseBase/$ArchiveName" -OutFile $Archive
+    Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -Uri "$ReleaseBase/$ArchiveName" -OutFile $Archive
     $ChecksumsPath = Join-Path $Staging 'checksums.txt'
-    Invoke-WebRequest -UseBasicParsing -Uri "$ReleaseBase/checksums.txt" -OutFile $ChecksumsPath
+    Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -Uri "$ReleaseBase/checksums.txt" -OutFile $ChecksumsPath
     $Expected = @((Get-Content -LiteralPath $ChecksumsPath) | ForEach-Object {
         if ($_ -match '^([a-fA-F0-9]{64})\s+(.+)$' -and $Matches[2] -eq $ArchiveName) { $Matches[1] }
     })

@@ -50,6 +50,6 @@ codex-logs-collector watch --config /path/to/config.json
 
 ## 发布与开发
 
-`collector-release` 工作流测试源代码，并构建 Linux musl、macOS 和 Windows 的 amd64/arm64 原生包。每次发行发布一个与服务器平台无关的签名 tar.gz，包含六个不解包的原生平台档案、公开安装器、双语 README、SHA-256 checksums、Ed25519 checksum 签名、公钥和 source SHA 元数据；根 manifest 记录每项资产的名称、摘要与大小。现有扩展目录提供外层档案的 SHA-256 和 Ed25519 签名。安装器必须使用页面提供的版本固定 1flowbase 资产基址，并从同一节点取得 binary 和 checksums，无 GitHub 回退；删除保留包后不能发起新下载。安装器验证档案 SHA-256；签名用于独立验证和发行审计，不将 checksum 校验宣称为签名验证。
+`collector-release` 工作流测试源代码，并构建 Linux musl、macOS 和 Windows 的 amd64/arm64 原生包。每次发行发布一个与服务器平台无关的签名 tar.gz，包含六个不解包的原生平台档案、公开安装器、双语 README、SHA-256 checksums、Ed25519 checksum 签名、公钥和 source SHA 元数据；根 manifest 记录每项资产的名称、摘要与大小。现有扩展目录提供外层档案的 SHA-256 和 Ed25519 签名。安装器必须使用页面提供的版本固定 1flowbase 资产基址，并从同一节点取得 binary 和 checksums，无 GitHub 回退；删除保留包后不能发起新下载。安装器验证档案 SHA-256；下载地址必须直接返回资产，安装器拒绝 HTTP 重定向。签名用于独立验证和发行审计，不将 checksum 校验宣称为签名验证。
 
 共享 `sdk/agent-logs-collector` 负责读取、上传、ACK 和恢复；本插件只负责 Codex 映射与 CLI。SDK 直接依赖主仓锁定 Git revision 的 canonical Rust DTO，不复制协议定义。源测试见 SDK 与插件 `src/_tests`；安装/发行测试见 `scripts/collectors/_tests`。

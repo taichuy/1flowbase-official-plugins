@@ -89,8 +89,13 @@ cleanup() {
 }
 trap cleanup EXIT
 archive="codex-logs-collector-$version-$os-$arch.tar.gz"
-curl --fail --silent --show-error --location --proto '=http,https' --proto-redir '=https' "$release_base/$archive" -o "$staging/$archive"
-curl --fail --silent --show-error --location --proto '=http,https' --proto-redir '=https' "$release_base/checksums.txt" -o "$staging/checksums.txt"
+download_asset() {
+  local status
+  status=$(curl --fail --silent --show-error --proto '=http,https' --write-out '%{http_code}' "$release_base/$1" -o "$staging/$1")
+  [[ "$status" == 200 ]] || { printf 'Asset download requires HTTP 200; redirects are refused\n' >&2; return 1; }
+}
+download_asset "$archive"
+download_asset checksums.txt
 expected=$(awk -v file="$archive" '$2 == file { print $1 }' "$staging/checksums.txt")
 [[ "$expected" =~ ^[a-fA-F0-9]{64}$ ]] || { printf 'Release checksum missing or invalid\n' >&2; exit 1; }
 if command -v sha256sum >/dev/null 2>&1; then
