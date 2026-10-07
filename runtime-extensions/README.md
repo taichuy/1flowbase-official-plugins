@@ -5,6 +5,12 @@ Runtime extensions are executed by the host but implement provider-specific beha
 Current subtrees:
 
 - `@taichuy/<provider_code>/` for official model provider runtime extensions
+- `@taichuy/codex-logs-collector/` for the native **client** logs collector.
+  Client collectors use `collector-manifest.json` and a dedicated `collector-release`
+  pipeline. They are downloaded and executed on the user's computer, not installed
+  into the server runtime host or its slot registry. Their shared native SDK lives
+  in `sdk/agent-logs-collector`; installation instructions are in the collector's
+  bilingual README files.
 
 Every runtime manifest declares a required `publisher_namespace`. Official manifests
 use `1flowbase`; this publisher identity determines the runtime catalog organization

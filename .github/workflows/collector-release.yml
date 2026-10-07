@@ -1,0 +1,102 @@
+name: collector-release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/agent-logs-collector/**'
+      - 'runtime-extensions/@taichuy/*/collector-manifest.json'
+      - 'runtime-extensions/@taichuy/codex-logs-collector/**'
+      - 'installers/client-collectors/**'
+      - 'scripts/collectors/**'
+      - '.github/workflows/collector-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collector-release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test native protocol and recovery behavior
+        run: |
+          cargo test --locked --manifest-path runtime-extensions/@taichuy/codex-logs-collector/Cargo.toml
+          cargo test --locked --manifest-path sdk/agent-logs-collector/Cargo.toml
+      - name: Verify client/host isolation and installer behavior
+        env:
+          FLOWBASE_COLLECTOR_TEST_BINARY: ${{ github.workspace }}/runtime-extensions/@taichuy/codex-logs-collector/target/debug/codex-logs-collector
+        run: |
+          cargo build --locked --manifest-path runtime-extensions/@taichuy/codex-logs-collector/Cargo.toml
+          node --test scripts/collectors/_tests/*.test.mjs
+          bash -n installers/client-collectors/install.sh
+      - id: matrix
+        run: echo "value=$(node scripts/collectors/catalog.mjs all)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: verify
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.verify.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Install cross (official Linux musl build mechanism)
+        if: matrix.os == 'linux'
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+      - name: Build native collector
+        shell: bash
+        run: |
+          if [ '${{ matrix.os }}' = linux ]; then
+            cross build --locked --release --manifest-path '${{ matrix.plugin_dir }}/Cargo.toml' --target '${{ matrix.rust_target }}'
+          else
+            cargo build --locked --release --manifest-path '${{ matrix.plugin_dir }}/Cargo.toml' --target '${{ matrix.rust_target }}'
+          fi
+      - name: Package client executable
+        shell: bash
+        run: |
+          binary='${{ matrix.plugin_dir }}/target/${{ matrix.rust_target }}/release/${{ matrix.entry }}'
+          if [ '${{ matrix.os }}' = windows ]; then binary="${binary}.exe"; fi
+          node scripts/collectors/package.mjs '${{ matrix.collector_code }}' '${{ matrix.rust_target }}' "$binary" dist/collectors
+      - uses: actions/upload-artifact@v7
+        with:
+          name: collector-${{ matrix.collector_code }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/collectors/*
+          if-no-files-found: error
+
+  publish:
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: collector-*
+          path: dist/collectors
+          merge-multiple: true
+      - name: Publish immutable signed client releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          OFFICIAL_PLUGIN_SIGNING_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+        run: node scripts/collectors/publish.mjs
