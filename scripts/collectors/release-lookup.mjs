@@ -1,16 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 
-// Only an explicit tag-level 404 permits creating a new immutable release.
+// Only an explicit tag-level 404 after a failed lookup permits initial publication.
 export function lookupCollectorRelease(repository, tag, { exec = execFileSync, spawn = spawnSync } = {}) {
+  let output;
   try {
-    const release = JSON.parse(exec('gh', ['release', 'view', tag, '--repo', repository,
+    output = exec('gh', ['release', 'view', tag, '--repo', repository,
       '--json', 'targetCommitish,assets', '--jq', '{targetCommitish,assets:[.assets[]|{name}]}'],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
-    if (!release || typeof release.targetCommitish !== 'string' || !release.targetCommitish ||
-        !Array.isArray(release.assets) || release.assets.some(asset => typeof asset?.name !== 'string' || !asset.name)) {
-      throw new Error('Malformed collector release metadata');
-    }
-    return release;
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   } catch {
     // Keep stdout to HTTP headers. Never read the repository's complete release history.
     const probe = spawn('gh', ['api', `repos/${repository}/releases/tags/${encodeURIComponent(tag)}`,
@@ -19,4 +15,11 @@ export function lookupCollectorRelease(repository, tag, { exec = execFileSync, s
     if (!probe.error && probe.status === 1 && status === '404') return undefined;
     throw new Error(`Could not read collector release ${tag}; tag lookup HTTP ${status || 'unavailable'}`);
   }
+  let release;
+  try { release = JSON.parse(output); } catch { throw new Error('Malformed collector release metadata'); }
+  if (!release || typeof release.targetCommitish !== 'string' || !release.targetCommitish ||
+      !Array.isArray(release.assets) || release.assets.some(asset => typeof asset?.name !== 'string' || !asset.name)) {
+    throw new Error('Malformed collector release metadata');
+  }
+  return release;
 }

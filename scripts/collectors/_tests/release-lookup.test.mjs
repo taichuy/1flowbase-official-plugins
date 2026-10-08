@@ -33,14 +33,24 @@ for (const status of [401, 403, 429, 500, 200]) test(`tag${status} never permits
 test('network/process buffer failure and malformed metadata fail closed', () => {
   for (const probe of [{ status: null, error: Error('ENOBUFS'), stdout: '' }, { status: 1, stdout: '' },
     { status: 1, error: Error('transport interrupted'), stdout: 'HTTP/2.0 404 Not Found\n' }]) {
-    assert.throws(() => lookupCollectorRelease(repository, tag, { exec: () => 'invalid JSON', spawn: () => probe }), /Could not read collector release/);
+    assert.throws(() => lookupCollectorRelease(repository, tag, { exec: failView, spawn: () => probe }), /Could not read collector release/);
   }
 });
 
 test('parseable but incomplete release metadata never means absent', () => {
   for (const value of [null, [], {}, { targetCommitish: 'source', assets: [null] }]) {
     assert.throws(() => lookupCollectorRelease(repository, tag, { exec: () => JSON.stringify(value),
-      spawn: () => ({ status: 0, stdout: 'HTTP/2.0 200 OK\n' }),
-    }), /Could not read collector release/);
+      spawn() { assert.fail('successful malformed response must not probe another status'); },
+    }), /Malformed collector release metadata/);
+  }
+});
+
+test('malformed successful lookup fails before any404 probe or create branch', () => {
+  for (const output of ['invalid JSON', '{}', 'null']) {
+    let probes = 0;
+    assert.throws(() => lookupCollectorRelease(repository, tag, { exec: () => output,
+      spawn() { probes++; return { status: 1, stdout: 'HTTP/2.0 404 Not Found\n' }; },
+    }), /Malformed collector release metadata/);
+    assert.equal(probes, 0);
   }
 });
