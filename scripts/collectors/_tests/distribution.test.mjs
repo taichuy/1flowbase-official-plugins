@@ -82,6 +82,43 @@ test('catalog framework publishes typed client entry and rejects contract/manife
   entry.download_locator.kind = 'release_asset'; entry.signature = null; save(); assert.throws(read, /one signed release asset/);
 });
 
+test('unpublished newer collector source retains the signed published snapshot until verified publication', t => {
+  const f = fixture(t); const result = buildDistribution(f.options);
+  const root = path.join(f.directory, 'catalog-repo'); const dir = path.join(root, collector.plugin_dir);
+  fs.mkdirSync(dir, { recursive: true });
+  const sourceManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, collector.plugin_dir, 'collector-manifest.json'), 'utf8'));
+  const manifestPath = path.join(dir, 'collector-manifest.json');
+  const entry = structuredClone(result.entry);
+  entry.download_locator.locator = 'https://fixture.example/releases/distribution.tar.gz';
+  const catalogBytes = JSON.stringify(entry);
+  fs.writeFileSync(path.join(dir, 'catalog-entry.json'), catalogBytes);
+  const saveManifest = () => fs.writeFileSync(manifestPath, JSON.stringify(sourceManifest));
+  const read = () => discoverCatalogEntries({ repoRoot: root, category: 'runtime-extensions' });
+  const [major, minor, patch] = collector.version.split('.').map(BigInt);
+  sourceManifest.version = `${major}.${minor}.${patch + 1n}`;
+  sourceManifest.display_name = 'Next unpublished name';
+  sourceManifest.minimum_host_version = '99.0.0';
+  saveManifest();
+  const [published] = read();
+  assert.equal(published.version, entry.version);
+  assert.deepEqual(published.signature, entry.signature);
+  assert.equal(published.checksum, entry.checksum);
+  assert.equal(published.host_version_requirement, entry.host_version_requirement);
+  assert.equal(published.source.client_collector.display_name, entry.source.client_collector.display_name);
+  assert.equal(fs.readFileSync(path.join(dir, 'catalog-entry.json'), 'utf8'), catalogBytes);
+  assert.equal(verifyDistributionSignature(fs.readFileSync(result.archive), entry, f.publicKey), true);
+  sourceManifest.version = collector.version;
+  saveManifest();
+  assert.throws(read, /does not match manifest/, 'same release metadata must still match');
+  sourceManifest.version = '0.0.0'; saveManifest();
+  assert.throws(read, /does not match manifest/, 'unbuilt catalog ahead of source is rejected');
+  sourceManifest.version = 'invalid'; saveManifest();
+  assert.throws(read, /three numeric components/);
+  sourceManifest.version = `${major + 1n}.0.0`;
+  sourceManifest.organization = 'wrong-owner'; saveManifest();
+  assert.throws(read, /does not match manifest/, 'source identity remains checked across versions');
+});
+
 test('installer requires explicit 1flowbase release base before downloading or configuring', () => {
   const shell = path.join(repoRoot, 'installers/client-collectors/install.sh');
   const result = spawnSync('bash', [shell, '--endpoint', 'https://fixture.example/api/logs/v1/events', '--no-start'], { encoding: 'utf8' });

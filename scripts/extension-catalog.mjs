@@ -170,6 +170,22 @@ function normalizeSearchList(values) {
   return [...new Set(values.map(normalizeSearchText))].sort(compareText);
 }
 
+function compareCollectorVersions(source, published) {
+  // Collector releases use three numeric components, without prerelease labels.
+  // Compare integers directly so version ordering has no machine-number size bound.
+  if (![source, published].every((version) => typeof version === 'string' && /^\d+\.\d+\.\d+$/.test(version))) {
+    throw new Error('client collector versions must have three numeric components');
+  }
+  const sourceParts = source.split('.').map(BigInt);
+  const publishedParts = published.split('.').map(BigInt);
+  for (let index = 0; index < sourceParts.length; index++) {
+    if (sourceParts[index] !== publishedParts[index]) {
+      return sourceParts[index] > publishedParts[index] ? 1 : -1;
+    }
+  }
+  return 0;
+}
+
 function discoverCanonicalEntries(repoRoot, category) {
   const root = path.join(repoRoot, category);
   const entries = [];
@@ -188,10 +204,15 @@ function discoverCanonicalEntries(repoRoot, category) {
       const normalized = normalizeEntry(category, organization, artifact, source);
       if (normalized.source.distribution_kind === 'client_collector') {
         const manifest = readJson(path.join(path.dirname(manifestPath), 'collector-manifest.json'));
+        const versionOrder = compareCollectorVersions(manifest.version, normalized.version);
+        // Source can advance before the immutable distribution is built and signed.
+        // Until publish verifies new bytes, retain the last published catalog snapshot.
+        // Same-version metadata must still match; a future/unbuilt catalog is rejected.
         if (manifest.distribution_kind !== 'client_collector' || manifest.organization !== organization ||
-            manifest.artifact_id !== artifact || manifest.version !== normalized.version ||
-            manifest.minimum_host_version !== normalized.host_version_requirement.replace(/^>=/, '') ||
-            Object.entries(normalized.source.client_collector).some(([field, value]) => manifest[field] !== value)) {
+            manifest.artifact_id !== artifact || manifest.collector_code !== artifact || versionOrder < 0 ||
+            (versionOrder === 0 && (
+              manifest.minimum_host_version !== normalized.host_version_requirement.replace(/^>=/, '') ||
+              Object.entries(normalized.source.client_collector).some(([field, value]) => manifest[field] !== value)))) {
           throw new Error(`${relative(repoRoot, manifestPath)} collector metadata does not match manifest`);
         }
       }
