@@ -16,6 +16,8 @@ pub struct CodexContext {
     session: String,
     provider: Option<String>,
     model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<String>,
     turn: Option<String>,
     parent: Option<String>,
     inherited_before: Option<i64>,
@@ -108,6 +110,7 @@ impl SourceAdapter for CodexAdapter {
             session,
             provider: string(&meta["model_provider"]),
             model: None,
+            reasoning_effort: None,
             turn: None,
             parent: None,
             inherited_before: meta["subagent_history_start_ordinal"]
@@ -128,17 +131,26 @@ impl SourceAdapter for CodexAdapter {
                 .inherited_before
                 .zip(line["ordinal"].as_i64())
                 .is_some_and(|(before, ordinal)| ordinal < before);
+        let line_type = line["type"].as_str().unwrap_or("");
+        let payload_type = p["type"].as_str().unwrap_or("");
         let explicit = if inherited {
             None
         } else {
-            string(&p["turn_id"])
-                .or_else(|| string(&p["internal_chat_message_metadata_passthrough"]["turn_id"]))
+            // Responses API passthrough metadata has a different identity namespace.
+            // It cannot establish or replace a Codex task/turn identity.
+            string(&p["turn_id"]).filter(|id| !id.is_empty())
         };
         if explicit.as_ref().is_some_and(|s| !s.is_empty()) {
+            let starts_turn = line_type == "turn_context"
+                || (line_type == "event_msg"
+                    && matches!(payload_type, "task_started" | "turn_started"));
+            if starts_turn && context.turn != explicit {
+                context.model = None;
+                context.reasoning_effort = None;
+                context.parent = None;
+            }
             context.turn = explicit.clone();
         }
-        let line_type = line["type"].as_str().unwrap_or("");
-        let payload_type = p["type"].as_str().unwrap_or("");
         if !inherited
             && (line_type == "turn_context"
                 || (line_type == "event_msg"
@@ -150,6 +162,9 @@ impl SourceAdapter for CodexAdapter {
             });
             context.model = string(&p["model"]).or_else(|| context.model.clone());
             context.provider = string(&p["model_provider"]).or_else(|| context.provider.clone());
+            if line_type == "turn_context" {
+                context.reasoning_effort = string(&p["effort"]);
+            }
         }
         if !inherited && line_type == "token_usage_record" {
             context.turn = string(&p["turn_id"]).or_else(|| context.turn.clone());
@@ -178,6 +193,7 @@ impl SourceAdapter for CodexAdapter {
             name: None,
             call_id: None,
             model_id: context.model.clone(),
+            reasoning_effort: context.reasoning_effort.clone(),
             provider_code: context.provider.clone(),
             usage: None,
             inherited,

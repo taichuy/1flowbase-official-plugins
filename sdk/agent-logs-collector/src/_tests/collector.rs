@@ -44,6 +44,7 @@ impl SourceAdapter for Generic {
             name: None,
             call_id: None,
             model_id: None,
+            reasoning_effort: None,
             provider_code: None,
             usage: None,
             inherited: false,

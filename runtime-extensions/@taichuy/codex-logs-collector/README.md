@@ -14,8 +14,8 @@ Linux/macOS 命令结构如下，替换 endpoint 和应用 ID：
 
 ```bash
 installer="$(mktemp)"
-curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.0/assets/install.sh' -o "$installer"
-bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.2.0' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.0/assets'
+curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets/install.sh' -o "$installer"
+bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.2.1' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets'
 rm -f "$installer"
 ```
 
@@ -70,3 +70,9 @@ codex-logs-collector watch --config /path/to/config.json
 `collector-release` 工作流测试源代码，并构建 Linux musl、macOS 和 Windows 的 amd64/arm64 原生包。每次发行发布一个与服务器平台无关的签名 tar.gz，包含六个不解包的原生平台档案、公开安装器、双语 README、SHA-256 checksums、Ed25519 checksum 签名、公钥和 source SHA 元数据；根 manifest 记录每项资产的名称、摘要与大小。现有扩展目录提供外层档案的 SHA-256 和 Ed25519 签名。安装器必须使用页面提供的版本固定 1flowbase 资产基址，并从同一节点取得 binary 和 checksums，无 GitHub 回退；删除保留包后不能发起新下载。安装器验证档案 SHA-256；下载地址必须直接返回资产，安装器拒绝 HTTP 重定向。签名用于独立验证和发行审计，不将 checksum 校验宣称为签名验证。
 
 共享 `sdk/agent-logs-collector` 负责文件身份索引、前缀验证、上下文断点、来源区间重放、字节组批、轮询、上传、ACK 和恢复；本插件只负责 Codex 映射、最小可序列化上下文与 CLI。SDK 直接依赖主仓锁定 Git revision 的 canonical Rust DTO，不复制协议定义。架构参考 [Vector file source](https://github.com/vectordotdev/vector/tree/master/lib/file-source) 和 [Fluent Bit tail](https://github.com/fluent/fluent-bit/tree/master/plugins/in_tail)，使用现有 Rust 标准库和依赖实现，不嵌入这两个完整采集器。源测试见 SDK 与插件 `src/_tests`；安装/发行测试见 `scripts/collectors/_tests`。
+
+## 0.2.1：轮次与模型字段
+
+采集器只使用 Codex 的真实 turn/task 标识，不将 Responses API 的 passthrough metadata 标识作为新轮次。`turn_context` 的 `model` 和 `effort` 映射到标准协议的 `model_id` 和 `reasoning_effort`，由 1flowbase 底座投影到日志列表。原始事件完整保留在客户端轨迹。没有明确 Codex 归属的记录继续保留为待归属，采集器不会猜测轮次。
+
+0.2.0 的断点仍可读取；新增推理强度为可选上下文字段。新版本只影响后续采集，不能自动改写已经确认上传的旧投影。修复已有历史时，须先通过 1flowbase 的应用日志删除接口删除相应记录，再由受控重导重置对应断点；仅升级或重跑导入命令不会重新上传已确认的历史。保留配置、source identity、原始文件与旧断点备份。

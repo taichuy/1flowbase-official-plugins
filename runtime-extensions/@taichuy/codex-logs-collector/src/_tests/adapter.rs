@@ -143,6 +143,11 @@ fn explicit_completion_aliases_and_cancelled_are_never_guessed() {
 fn final_phase_tool_arguments_and_mirrors_remain_distinct() {
     let a = adapter();
     let mut context = a.create_context(&meta()).unwrap();
+    convert(
+        &a,
+        &mut context,
+        row("turn_context", json!({"turn_id":"source-turn"})),
+    );
     let final_message = convert(
         &a,
         &mut context,
@@ -182,6 +187,93 @@ fn final_phase_tool_arguments_and_mirrors_remain_distinct() {
     assert_eq!(result.kind, Kind::ToolResult);
     assert_eq!(result.call_id.as_deref(), Some("call-a"));
     assert_eq!(result.content.as_deref(), Some("{\"structured\":1}"));
+}
+
+#[test]
+fn responses_passthrough_cannot_split_a_codex_turn_or_establish_one() {
+    let a = adapter();
+    let mut context = a.create_context(&meta()).unwrap();
+    let started = convert(
+        &a,
+        &mut context,
+        row(
+            "event_msg",
+            json!({"type":"task_started","turn_id":"codex-turn"}),
+        ),
+    );
+    assert_eq!(started.source_task_id, "codex-turn");
+    convert(
+        &a,
+        &mut context,
+        row(
+            "turn_context",
+            json!({"turn_id":"codex-turn","model":"gpt-6.1-sol","effort":"medium"}),
+        ),
+    );
+    let source = row(
+        "response_item",
+        json!({"type":"message","role":"assistant","phase":"final_answer","content":[{"text":"final reply"}],"internal_chat_message_metadata_passthrough":{"turn_id":"responses-turn"}}),
+    );
+    let final_answer = convert(&a, &mut context, source.clone());
+    assert_eq!(final_answer.source_task_id, "codex-turn");
+    assert_eq!(final_answer.model_id.as_deref(), Some("gpt-6.1-sol"));
+    assert_eq!(final_answer.reasoning_effort.as_deref(), Some("medium"));
+    assert_eq!(final_answer.raw, source);
+    let mut unknown = a.create_context(&meta()).unwrap();
+    assert!(convert(&a, &mut unknown, source).source_task_id.is_empty());
+    assert_eq!(unknown.turn, None);
+}
+
+#[test]
+fn optional_effort_survives_checkpoint_restore_and_does_not_leak_between_turns() {
+    let a = adapter();
+    let mut context = a.create_context(&meta()).unwrap();
+    convert(
+        &a,
+        &mut context,
+        row(
+            "turn_context",
+            json!({"turn_id":"first-turn","model":"first-model","effort":"medium"}),
+        ),
+    );
+    let mut restored: CodexContext =
+        serde_json::from_value(serde_json::to_value(&context).unwrap()).unwrap();
+    let next = convert(
+        &a,
+        &mut restored,
+        row(
+            "response_item",
+            json!({"type":"function_call","name":"read","arguments":"{}"}),
+        ),
+    );
+    assert_eq!(next.source_task_id, "first-turn");
+    assert_eq!(next.reasoning_effort.as_deref(), Some("medium"));
+    // Optional extension of context v1: the existing 0.2.0 snapshot remains readable.
+    let mut old = serde_json::to_value(&context).unwrap();
+    old.as_object_mut().unwrap().remove("reasoning_effort");
+    let old: CodexContext = serde_json::from_value(old).unwrap();
+    assert_eq!(old.turn.as_deref(), Some("first-turn"));
+    assert_eq!(old.reasoning_effort, None);
+    let new_turn = convert(
+        &a,
+        &mut restored,
+        row(
+            "event_msg",
+            json!({"type":"task_started","turn_id":"second-turn"}),
+        ),
+    );
+    assert_eq!(new_turn.model_id, None);
+    assert_eq!(new_turn.reasoning_effort, None);
+    let declared = convert(
+        &a,
+        &mut restored,
+        row(
+            "turn_context",
+            json!({"turn_id":"second-turn","model":"second-model","effort":null}),
+        ),
+    );
+    assert_eq!(declared.model_id.as_deref(), Some("second-model"));
+    assert_eq!(declared.reasoning_effort, None);
 }
 #[test]
 fn inherited_declared_final_remains_inherited_and_unowned() {

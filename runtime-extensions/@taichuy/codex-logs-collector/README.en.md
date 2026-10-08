@@ -14,8 +14,8 @@ The Linux/macOS command has this structure; replace the endpoint and application
 
 ```bash
 installer="$(mktemp)"
-curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.0/assets/install.sh' -o "$installer"
-bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.2.0' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.0/assets'
+curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets/install.sh' -o "$installer"
+bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.2.1' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets'
 rm -f "$installer"
 ```
 
@@ -68,3 +68,9 @@ To uninstall, rerun the same installer using `--uninstall --installation-id APPL
 The `collector-release` workflow tests source code and builds Linux musl, macOS and Windows binaries for amd64 and arm64. Each release publishes one host-independent signed distribution tar.gz, containing six opaque native archives, public installers, bilingual README files, SHA-256 checksums, an Ed25519 checksum signature, a public key and source SHA metadata. The root manifest records every asset name, digest and size. The existing extension catalog advertises its outer SHA-256 and Ed25519 signature. Installers require the version-pinned asset base copied from 1flowbase and fetch the binary and checksums from that same node; no GitHub fallback is used. Removing the retained package disables new downloads. Installers verify archive checksums. Downloads must respond directly; HTTP redirects are refused. Signatures support independent verification and release auditing; checksum verification is not presented as signature verification.
 
 The shared `sdk/agent-logs-collector` owns file identity indexing, prefix verification, context checkpoints, source-range replay, byte batching, round-robin scheduling, uploading, ACK validation and recovery. This plugin owns Codex mapping, minimal serializable context and CLI behavior. The SDK uses canonical Rust DTOs from a pinned main-repository Git revision rather than copying protocol definitions. The architecture draws on [Vector's file source](https://github.com/vectordotdev/vector/tree/master/lib/file-source) and [Fluent Bit's tail input](https://github.com/fluent/fluent-bit/tree/master/plugins/in_tail), implemented with existing Rust standard-library facilities and dependencies rather than embedding either complete collector. Source tests live in SDK/plugin `src/_tests`; installer and publication tests live in `scripts/collectors/_tests`.
+
+## 0.2.1: Turn identity and model fields
+
+The collector uses actual Codex turn/task identifiers. Responses API passthrough metadata cannot create another turn. `turn_context.model` and `turn_context.effort` map to the canonical `model_id` and `reasoning_effort` fields, which 1flowbase projects into its log list. Client trajectories retain the complete original events. Records without an explicit Codex owner remain pending; the collector does not invent turn boundaries.
+
+Existing 0.2.0 checkpoints remain readable; reasoning effort is an optional context field. The update applies to subsequent collection and does not rewrite already acknowledged server projections. To repair imported history, first delete the affected records through the 1flowbase application-log API, then reset the corresponding checkpoint in a controlled reimport. Upgrading or running import again does not resend acknowledged history. Retain configuration, source identity, original files and the checkpoint backup.
