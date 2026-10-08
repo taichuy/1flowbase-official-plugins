@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { listCollectors } from './catalog.mjs';
+import { lookupCollectorRelease } from './release-lookup.mjs';
 import { buildDistribution, verifyDistributionSignature, distributionName } from './distribution.mjs';
 import { updateCategoryCatalog } from '../extension-catalog.mjs';
 
@@ -21,15 +22,7 @@ for (const collector of listCollectors(repoRoot)) {
     outputDirectory, sourceSha, privateKey, keyId });
   const name = distributionName(collector);
   entry.download_locator.locator = `https://github.com/${repository}/releases/download/${collector.release_tag}/${name}`;
-  let existing;
-  try {
-    existing = JSON.parse(execFileSync('gh', ['release', 'view', collector.release_tag, '--repo', repository,
-      '--json', 'targetCommitish,assets'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
-  } catch {
-    // Lookup failures are not permission to overwrite an immutable release.
-    const tags = JSON.parse(execFileSync('gh', ['api', `repos/${repository}/releases`, '--paginate', '--slurp'], { encoding: 'utf8' })).flat();
-    if (tags.some(item => item.tag_name === collector.release_tag)) throw new Error('Could not read existing collector release');
-  }
+  const existing = lookupCollectorRelease(repository, collector.release_tag);
   if (existing) {
     if (existing.targetCommitish !== sourceSha || existing.assets.length !== 1 || existing.assets[0].name !== name) {
       throw new Error('Collector release is immutable; bump its version before publishing changed sources');
