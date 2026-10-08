@@ -2,7 +2,10 @@
 mod collector;
 mod config;
 mod source;
-pub use collector::{collect, CollectReport, SourceAdapter};
+pub use collector::{
+    collect, collect_with_options, CollectOptions, CollectReport, SourceAdapter,
+    DEFAULT_BATCH_TARGET_BYTES,
+};
 pub use config::{configure, Config};
 pub use control_plane_contracts::ports::runtime::agent_logs::{
     AgentLogEvent, AgentLogEventKind, AgentLogUsage, AgentLogUsageBasis, AgentLogsBatch,

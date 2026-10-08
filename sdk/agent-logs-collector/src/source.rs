@@ -3,7 +3,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -140,27 +140,49 @@ pub(crate) fn files(root: &Path, output: &mut Vec<PathBuf>) -> Result<()> {
     }
     Ok(())
 }
+/// Raw committed nonblank records. Historical integrity checks deliberately do not decode JSON.
+pub(crate) struct RawPosition {
+    pub start: u64,
+    pub end: u64,
+    pub bytes: Vec<u8>,
+}
+impl RawPosition {
+    pub fn decode(self) -> Result<Position> {
+        let line = serde_json::from_slice(&self.bytes)
+            .with_context(|| format!("Invalid JSONL record at byte {}", self.start))?;
+        Ok(Position {
+            line,
+            start: self.start,
+            end: self.end,
+            bytes: self.bytes,
+        })
+    }
+}
 pub(crate) struct Lines {
     reader: BufReader<File>,
     offset: u64,
 }
 impl Lines {
     pub fn open(file: &Path) -> Result<Self> {
+        Self::at(file, 0)
+    }
+    pub fn at(file: &Path, offset: u64) -> Result<Self> {
         reject_symlink_path(file)?;
-        Ok(Self {
-            reader: BufReader::new(File::open(file).context("Cannot open source")?),
-            offset: 0,
-        })
+        let mut reader = BufReader::new(File::open(file).context("Cannot open source")?);
+        reader
+            .seek(SeekFrom::Start(offset))
+            .context("Cannot seek source")?;
+        Ok(Self { reader, offset })
     }
 }
 impl Iterator for Lines {
-    type Item = Result<Position>;
+    type Item = Result<RawPosition>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let mut bytes = Vec::new();
             match self.reader.read_until(b'\n', &mut bytes) {
                 Ok(0) => return None,
-                Ok(_) if bytes.last() != Some(&b'\n') => return None, // Only committed newline records.
+                Ok(_) if bytes.last() != Some(&b'\n') => return None,
                 Ok(_) => {}
                 Err(_) => return Some(Err(anyhow::anyhow!("Cannot read source record"))),
             }
@@ -170,14 +192,7 @@ impl Iterator for Lines {
             if bytes.iter().all(|c| c.is_ascii_whitespace()) {
                 continue;
             }
-            let line = match serde_json::from_slice(&bytes) {
-                Ok(value) => value,
-                Err(_) => {
-                    return Some(Err(anyhow::anyhow!("Invalid JSONL record at byte {start}")))
-                }
-            };
-            return Some(Ok(Position {
-                line,
+            return Some(Ok(RawPosition {
                 start,
                 end: self.offset,
                 bytes,

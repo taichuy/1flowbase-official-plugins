@@ -341,3 +341,50 @@ fn codex_config_marker_and_sessions_marker_select_only_rollout_roots() {
     );
     std::fs::remove_dir_all(directory).unwrap();
 }
+
+#[test]
+fn serialized_context_preserves_inheritance_model_parent_and_task_end_boundary() {
+    let a = adapter();
+    let mut context = a.create_context(&meta()).unwrap();
+    convert(
+        &a,
+        &mut context,
+        row(
+            "turn_context",
+            json!({"turn_id":"real-turn","root_turn_id":"parent-turn","model":"source-model"}),
+        ),
+    );
+    let bytes = serde_json::to_vec(&context).unwrap();
+    let mut restored: CodexContext = serde_json::from_slice(&bytes).unwrap();
+    let source = row(
+        "response_item",
+        json!({"type":"message","role":"assistant","content":[{"text":"same"}]}),
+    );
+    assert_eq!(
+        serde_json::to_value(convert(&a, &mut context, source.clone())).unwrap(),
+        serde_json::to_value(convert(&a, &mut restored, source)).unwrap()
+    );
+    assert_eq!(restored.inherited_before, Some(4));
+    assert_eq!(restored.parent.as_deref(), Some("parent-turn"));
+    convert(
+        &a,
+        &mut restored,
+        row(
+            "event_msg",
+            json!({"type":"task_complete","turn_id":"real-turn"}),
+        ),
+    );
+    let mut ended: CodexContext =
+        serde_json::from_slice(&serde_json::to_vec(&restored).unwrap()).unwrap();
+    let next = convert(
+        &a,
+        &mut ended,
+        row(
+            "response_item",
+            json!({"type":"message","role":"user","content":[{"text":"next unowned"}]}),
+        ),
+    );
+    assert!(next.source_task_id.is_empty());
+    assert_eq!(next.parent_source_task_id, None);
+    assert_eq!(next.model_id.as_deref(), Some("source-model"));
+}

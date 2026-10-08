@@ -52,6 +52,8 @@ impl SourceAdapter for Generic {
     }
 }
 struct Fixture {
+    fail_request: Arc<Mutex<Option<usize>>>,
+    wire_lengths: Arc<Mutex<Vec<usize>>>,
     directory: PathBuf,
     config: Config,
     received: Arc<Mutex<Vec<Value>>>,
@@ -70,6 +72,10 @@ impl Fixture {
         let received = Arc::new(Mutex::new(Vec::new()));
         let response = Arc::new(Mutex::new((200, None::<Value>)));
         let stop = Arc::new(AtomicBool::new(false));
+        let fail_request = Arc::new(Mutex::new(None));
+        let wire_lengths = Arc::new(Mutex::new(Vec::new()));
+        let failure = fail_request.clone();
+        let lengths = wire_lengths.clone();
         let (r, status, done) = (received.clone(), response.clone(), stop.clone());
         let server = thread::spawn(move || {
             while !done.load(Ordering::SeqCst) {
@@ -114,7 +120,11 @@ impl Fixture {
                     serde_json::from_slice(&data[header_end..header_end + content_len]).unwrap();
                 let len = body["events"].as_array().unwrap().len();
                 r.lock().unwrap().push(body);
-                let (code, override_receipt) = status.lock().unwrap().clone();
+                lengths.lock().unwrap().push(content_len);
+                let (mut code, override_receipt) = status.lock().unwrap().clone();
+                if *failure.lock().unwrap() == Some(r.lock().unwrap().len()) {
+                    code = 503;
+                }
                 let body = override_receipt.unwrap_or_else(|| json!({"data":{"accepted_events":len,"duplicate_events":0,"record_ids":["00000000-0000-4000-8000-000000000001"]},"meta":null})).to_string();
                 write!(socket, "HTTP/1.1 {code} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
             }
@@ -127,6 +137,8 @@ impl Fixture {
             api_key: "fixture-secret".into(),
         };
         Self {
+            fail_request,
+            wire_lengths,
             directory,
             config,
             received,
@@ -219,7 +231,11 @@ async fn identity_saved_before_failed_http_and_full_ack_required() {
         .to_string()
         .contains("503"));
     let identity = f.state()["source_id"].clone();
-    assert_eq!(f.state()["files"], json!({}));
+    assert!(f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .all(|cp| cp["offset"] == 0));
     let invalid = [
         json!({"accepted_events":2,"duplicate_events":0,"record_ids":[]}),
         json!({"data":null}),
@@ -231,7 +247,11 @@ async fn identity_saved_before_failed_http_and_full_ack_required() {
     for receipt in invalid {
         *f.response.lock().unwrap() = (200, Some(receipt));
         assert!(collect(&f.config, &Generic).await.is_err());
-        assert_eq!(f.state()["files"], json!({}));
+        assert!(f.state()["files"]
+            .as_object()
+            .unwrap()
+            .values()
+            .all(|cp| cp["offset"] == 0));
         assert_eq!(f.state()["source_id"], identity);
     }
     *f.response.lock().unwrap() = (
@@ -286,7 +306,11 @@ async fn unowned_facts_wait_then_preserve_identity_and_raw_when_claimed() {
     let report = collect(&f.config, &Generic).await.unwrap();
     assert_eq!(report.uploaded, 0);
     assert_eq!(report.unattributed_files, 1);
-    assert_eq!(f.state()["files"], json!({}));
+    assert!(f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .all(|cp| !cp["pending"].is_null()));
     f.write(&[rows[0].clone(), rows[1].clone(), json!({"turn":"explicit"})]);
     assert_eq!(collect(&f.config, &Generic).await.unwrap().uploaded, 3);
     assert_eq!(f.events()[1]["raw"], rows[1]);
@@ -383,7 +407,11 @@ async fn malformed_committed_record_never_uploads_pending_data() {
     .unwrap();
     assert!(collect(&f.config, &Generic).await.is_err());
     assert!(f.events().is_empty());
-    assert_eq!(f.state()["files"], json!({}));
+    assert!(f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .all(|cp| cp["offset"] == 0));
 }
 
 #[tokio::test]
@@ -394,14 +422,30 @@ async fn no_total_capacity_limit_and_ack_each_batch_before_advancing() {
         rows.push(json!({"content":format!("entry-{n}")}));
     }
     f.write(&rows);
-    assert_eq!(collect(&f.config, &Generic).await.unwrap().uploaded, 215);
+    let options = CollectOptions {
+        batch_target_bytes: 1600,
+    };
+    assert_eq!(
+        collect_with_options(&f.config, &Generic, options)
+            .await
+            .unwrap()
+            .uploaded,
+        215
+    );
     let received = f.received.lock().unwrap();
+    assert!(received.len() > 3);
+    assert!(f
+        .wire_lengths
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|len| *len <= options.batch_target_bytes));
     assert_eq!(
         received
             .iter()
             .map(|batch| batch["events"].as_array().unwrap().len())
-            .collect::<Vec<_>>(),
-        vec![100, 100, 15]
+            .sum::<usize>(),
+        215
     );
 }
 
@@ -424,5 +468,541 @@ async fn empty_truncation_and_header_replacement_fail_after_ack() {
         .unwrap_err()
         .to_string()
         .contains("header changed"));
+    assert_eq!(f.state(), state);
+}
+
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+struct StatefulContext {
+    task: Option<String>,
+    model: Option<String>,
+    provider: Option<String>,
+}
+#[derive(Default)]
+struct Stateful {
+    converted: Mutex<Vec<u64>>,
+}
+impl SourceAdapter for Stateful {
+    type Context = StatefulContext;
+    fn source_client(&self) -> &'static str {
+        "stateful-fixture"
+    }
+    fn create_context(&self, _: &Value) -> anyhow::Result<Self::Context> {
+        Ok(StatefulContext::default())
+    }
+    fn convert(
+        &self,
+        record: &Position,
+        context: &mut Self::Context,
+    ) -> anyhow::Result<Option<AgentLogEvent>> {
+        self.converted.lock().unwrap().push(record.start);
+        if let Some(value) = record.line["model"].as_str() {
+            context.model = Some(value.into());
+        }
+        if let Some(value) = record.line["provider"].as_str() {
+            context.provider = Some(value.into());
+        }
+        if record.line["skip"] == true {
+            return Ok(None);
+        }
+        let mut event = Generic.convert(record, &mut context.task)?.unwrap();
+        event.model_id = context.model.clone();
+        event.provider_code = context.provider.clone();
+        event.inherited = record.line["inherited"] == true;
+        if record.line["end"] == true {
+            event.kind = AgentLogEventKind::TaskEnd;
+            context.task = None;
+        }
+        Ok(Some(event))
+    }
+}
+#[tokio::test]
+async fn current_snapshot_skips_all_historical_convert_and_preserves_none_updates() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let rows = [
+        json!({"turn":"a"}),
+        json!({"skip":true,"model":"quiet-model","provider":"quiet-provider"}),
+    ];
+    f.write(&rows);
+    assert_eq!(collect(&f.config, &adapter).await.unwrap().uploaded, 1);
+    adapter.converted.lock().unwrap().clear();
+    assert_eq!(collect(&f.config, &adapter).await.unwrap().uploaded, 0);
+    assert!(adapter.converted.lock().unwrap().is_empty());
+    f.write(&[
+        rows[0].clone(),
+        rows[1].clone(),
+        json!({"content":"appended"}),
+    ]);
+    assert_eq!(collect(&f.config, &adapter).await.unwrap().uploaded, 1);
+    assert_eq!(
+        *adapter.converted.lock().unwrap(),
+        vec![encode(&rows).len() as u64]
+    );
+    let last = f.events().pop().unwrap();
+    assert_eq!(last["model_id"], "quiet-model");
+    assert_eq!(last["provider_code"], "quiet-provider");
+}
+#[tokio::test]
+async fn pending_claim_intermediate_failure_replays_original_context_exactly() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let rows = [
+        json!({"header":"fixed","model":"original","provider":"first"}),
+        json!({"content":"unowned","inherited":true}),
+        json!({"skip":true,"model":"middle"}),
+        json!({"content":"second"}),
+        json!({"turn":"future","model":"future-model","provider":"future-provider"}),
+        json!({"content":"tail"}),
+    ];
+    f.write(&rows[..4]);
+    let options = CollectOptions {
+        batch_target_bytes: 1,
+    };
+    assert_eq!(
+        collect_with_options(&f.config, &adapter, options)
+            .await
+            .unwrap()
+            .uploaded,
+        0
+    );
+    f.write(&rows);
+    *f.fail_request.lock().unwrap() = Some(2);
+    assert!(collect_with_options(&f.config, &adapter, options)
+        .await
+        .is_err());
+    let cp = f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(cp["context"]["value"]["model"], "original");
+    assert_eq!(cp["context"]["value"]["task"], Value::Null);
+    assert_eq!(cp["claim"]["task"], "future");
+    assert_eq!(cp["offset"], encode(&rows[..1]).len() as u64);
+    let failed = f.received.lock().unwrap()[1]["events"].clone();
+    *f.fail_request.lock().unwrap() = None;
+    assert_eq!(
+        collect_with_options(&f.config, &adapter, options)
+            .await
+            .unwrap()
+            .uploaded,
+        4
+    );
+    assert_eq!(f.received.lock().unwrap()[2]["events"], failed);
+    let events = f.events();
+    assert!(events.iter().all(|e| e["source_task_id"] == "future"));
+    assert_eq!(events[0]["model_id"], "original");
+    assert_eq!(events[1]["model_id"], "original");
+    assert_eq!(events[1]["provider_code"], "first");
+    assert_eq!(events[1]["inherited"], true);
+    assert_eq!(events[3]["model_id"], "middle");
+    assert_eq!(events[4]["model_id"], "future-model");
+    assert_eq!(events[1]["raw"], rows[1]);
+    let identity = hash(format!("stateful-fixture:{}", rows[0]));
+    assert_eq!(
+        events[1]["event_id"],
+        hash(format!("{identity}:{}", encode(&rows[..1]).len()))
+    );
+    let cp = f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert!(cp["claim"].is_null());
+    assert!(cp["pending"].is_null());
+}
+#[tokio::test]
+async fn task_end_snapshot_clears_turn_and_next_claim_only_changes_ownership() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let first = [
+        json!({"turn":"old","model":"old-model"}),
+        json!({"end":true}),
+    ];
+    f.write(&first);
+    collect(&f.config, &adapter).await.unwrap();
+    let cp = f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert!(cp["context"]["value"]["task"].is_null());
+    f.write(&[
+        first[0].clone(),
+        first[1].clone(),
+        json!({"content":"between"}),
+        json!({"turn":"new","model":"new-model"}),
+    ]);
+    collect(&f.config, &adapter).await.unwrap();
+    let events = f.events();
+    assert_eq!(events[2]["source_task_id"], "new");
+    assert_eq!(events[2]["model_id"], "old-model");
+    assert_eq!(events[3]["model_id"], "new-model");
+}
+fn legacy_state(f: &Fixture, rows: &[Value], digest: String) -> Value {
+    let identity = hash(format!("stateful-fixture:{}", rows[0]));
+    json!({"version":1,"source_id":"legacy-installation","source_client":"stateful-fixture","endpoint":f.config.endpoint,"source_path":f.config.source_path,
+        "files":{(identity):{"offset":encode(rows).len(),"prefix_hash":digest,"paths":[f.config.source_path.join("a.jsonl")]}}})
+}
+#[tokio::test]
+async fn v1_migration_verifies_old_nonblank_end_digest_then_replays_once() {
+    use sha2::{Digest, Sha256};
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let rows = [
+        json!({"turn":"a","model":"old-model"}),
+        json!({"skip":true,"model":"updated"}),
+    ];
+    let source = format!("{}\n \n{}\n", rows[0], rows[1]);
+    fs::write(f.config.source_path.join("a.jsonl"), &source).unwrap();
+    let mut digest = Sha256::new();
+    digest.update(rows[0].to_string().as_bytes());
+    digest.update((rows[0].to_string().len() + 1).to_string().as_bytes());
+    digest.update(rows[1].to_string().as_bytes());
+    digest.update(source.len().to_string().as_bytes());
+    let mut legacy = legacy_state(&f, &rows, format!("{:x}", digest.finalize()));
+    let id = legacy["files"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .next()
+        .unwrap()
+        .clone();
+    legacy["files"][&id]["offset"] = json!(source.len());
+    fs::write(&f.config.state_path, legacy.to_string()).unwrap();
+    let report = collect(&f.config, &adapter).await.unwrap();
+    assert_eq!(report.source_id, "legacy-installation");
+    assert_eq!(report.uploaded, 0);
+    assert_eq!(adapter.converted.lock().unwrap().len(), 2);
+    assert_eq!(f.state()["version"], 2);
+    assert_eq!(
+        f.state()["files"][&id]["context"]["value"]["model"],
+        "updated"
+    );
+    adapter.converted.lock().unwrap().clear();
+    collect(&f.config, &adapter).await.unwrap();
+    assert!(adapter.converted.lock().unwrap().is_empty());
+    use std::io::Write;
+    fs::OpenOptions::new()
+        .append(true)
+        .open(f.config.source_path.join("a.jsonl"))
+        .unwrap()
+        .write_all(b"{\"content\":\"new\"}\n")
+        .unwrap();
+    collect(&f.config, &adapter).await.unwrap();
+    let event = f.events().pop().unwrap();
+    assert_eq!(event["event_id"], hash(format!("{id}:{}", source.len())));
+    assert_eq!(event["model_id"], "updated");
+}
+#[tokio::test]
+async fn incorrect_legacy_digest_never_replays_or_migrates() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let rows = [json!({"turn":"a"}), json!({"content":"old"})];
+    f.write(&rows);
+    // Controlled negative: raw SHA must NOT be accepted as the original v1 digest.
+    let state = legacy_state(&f, &rows, hash(encode(&rows)));
+    fs::write(&f.config.state_path, state.to_string()).unwrap();
+    assert!(collect(&f.config, &adapter).await.is_err());
+    assert!(adapter.converted.lock().unwrap().is_empty());
+    assert_eq!(f.state(), state);
+}
+#[tokio::test]
+async fn exact_wire_bytes_escaping_metadata_oversized_singleton_and_round_robin() {
+    let f = Fixture::new();
+    let options = CollectOptions {
+        batch_target_bytes: 1800,
+    };
+    let mut rows_a = vec![json!({"turn":"a","header":"a"})];
+    let mut rows_b = vec![json!({"turn":"b","header":"b"})];
+    for n in 0..6 {
+        rows_a.push(json!({"content":format!("a-{n}\n\\\"{}","λ".repeat(70))}));
+        rows_b.push(json!({"content":format!("b-{n}\n\\\"{}","λ".repeat(70))}));
+    }
+    rows_a.push(json!({"content":"oversized".repeat(1500)}));
+    f.write(&rows_a);
+    fs::write(f.config.source_path.join("b.jsonl"), encode(&rows_b)).unwrap();
+    assert_eq!(
+        collect_with_options(&f.config, &Generic, options)
+            .await
+            .unwrap()
+            .uploaded,
+        15
+    );
+    let received = f.received.lock().unwrap();
+    let lengths = f.wire_lengths.lock().unwrap();
+    for (batch, len) in received.iter().zip(lengths.iter()) {
+        assert_eq!(*len, serde_json::to_vec(batch).unwrap().len());
+        assert!(
+            *len <= options.batch_target_bytes || batch["events"].as_array().unwrap().len() == 1
+        );
+    }
+    let turns: Vec<_> = received
+        .iter()
+        .map(|b| b["events"][0]["source_task_id"].as_str().unwrap())
+        .collect();
+    assert_eq!(&turns[..4], &["a", "b", "a", "b"]);
+    let events = received
+        .iter()
+        .flat_map(|b| b["events"].as_array().unwrap())
+        .collect::<Vec<_>>();
+    for turn in ["a", "b"] {
+        let sequence = events
+            .iter()
+            .filter(|e| e["source_task_id"] == turn)
+            .map(|e| e["sequence"].as_i64().unwrap())
+            .collect::<Vec<_>>();
+        assert!(sequence.windows(2).all(|w| w[0] < w[1]));
+    }
+    let largest = received
+        .iter()
+        .max_by_key(|b| serde_json::to_vec(b).unwrap().len())
+        .unwrap();
+    assert_eq!(largest["events"].as_array().unwrap().len(), 1);
+    assert_eq!(largest["events"][0]["raw"], rows_a.last().unwrap().clone());
+}
+
+#[tokio::test]
+async fn persisted_claim_also_guards_scanned_future_prefix_against_mutation() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let rows = [
+        json!({"header":"fixed"}),
+        json!({"content":"pending"}),
+        json!({"turn":"future"}),
+    ];
+    f.write(&rows);
+    *f.fail_request.lock().unwrap() = Some(2);
+    assert!(collect_with_options(
+        &f.config,
+        &adapter,
+        CollectOptions {
+            batch_target_bytes: 1
+        }
+    )
+    .await
+    .is_err());
+    let state = f.state();
+    f.write(&[rows[0].clone(), rows[1].clone(), json!({"turn":"altered"})]);
+    adapter.converted.lock().unwrap().clear();
+    assert!(collect(&f.config, &adapter).await.is_err());
+    assert!(adapter.converted.lock().unwrap().is_empty());
+    assert_eq!(f.state(), state);
+}
+
+#[tokio::test]
+async fn byte_boundary_failure_snapshot_matches_original_record_before_none_update() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    f.write(&[
+        json!({"turn":"a","model":"original"}),
+        json!({"skip":true,"model":"none-updated"}),
+        json!({"content":"second"}),
+    ]);
+    *f.fail_request.lock().unwrap() = Some(2);
+    let options = CollectOptions {
+        batch_target_bytes: 1,
+    };
+    assert!(collect_with_options(&f.config, &adapter, options)
+        .await
+        .is_err());
+    let cp = f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(cp["context"]["value"]["model"], "original");
+    let failed = f.received.lock().unwrap()[1]["events"].clone();
+    *f.fail_request.lock().unwrap() = None;
+    assert_eq!(
+        collect_with_options(&f.config, &adapter, options)
+            .await
+            .unwrap()
+            .uploaded,
+        1
+    );
+    assert_eq!(f.received.lock().unwrap()[2]["events"], failed);
+    assert_eq!(failed[0]["model_id"], "none-updated");
+}
+
+#[tokio::test]
+async fn simultaneous_archive_snapshot_deduplicates_and_keeps_longest_suffix() {
+    let f = Fixture::new();
+    let rows = [
+        json!({"turn":"a"}),
+        json!({"content":"old"}),
+        json!({"content":"new"}),
+    ];
+    fs::create_dir_all(f.config.source_path.join("archive")).unwrap();
+    fs::write(
+        f.config.source_path.join("archive/old.jsonl"),
+        encode(&rows[..2]),
+    )
+    .unwrap();
+    f.write(&rows);
+    assert_eq!(collect(&f.config, &Generic).await.unwrap().uploaded, 3);
+    let cp = f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(cp["paths"].as_array().unwrap().len(), 2);
+    assert_eq!(f.events().last().unwrap()["raw"], rows[2]);
+    assert_eq!(collect(&f.config, &Generic).await.unwrap().uploaded, 0);
+}
+
+#[tokio::test]
+async fn pending_scan_is_durable_without_advancing_acknowledged_cursor() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let rows = [
+        json!({"header":"fixed","model":"old"}),
+        json!({"content":"pending"}),
+        json!({"skip":true,"model":"scanned"}),
+    ];
+    f.write(&rows);
+    assert_eq!(collect(&f.config, &adapter).await.unwrap().uploaded, 0);
+    let cp = f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(cp["offset"], 0);
+    assert!(cp["context"]["value"]["model"].is_null());
+    assert_eq!(cp["scan"]["offset"], encode(&rows).len() as u64);
+    assert_eq!(cp["scan"]["context"]["value"]["model"], "scanned");
+    assert!(cp["pending"]["context"]["value"]["model"].is_null());
+    adapter.converted.lock().unwrap().clear();
+    collect(&f.config, &adapter).await.unwrap();
+    assert!(adapter.converted.lock().unwrap().is_empty());
+    assert_eq!(
+        f.state()["files"]
+            .as_object()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap()["offset"],
+        0
+    );
+}
+#[tokio::test]
+async fn missing_legacy_source_does_not_block_new_files_and_migrates_when_returned() {
+    use sha2::{Digest, Sha256};
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    let old = [json!({"turn":"old"}), json!({"content":"acknowledged"})];
+    let mut digest = Sha256::new();
+    let mut end = 0;
+    for row in &old {
+        end += row.to_string().len() + 1;
+        digest.update(row.to_string().as_bytes());
+        digest.update(end.to_string().as_bytes());
+    }
+    let state = legacy_state(&f, &old, format!("{:x}", digest.finalize()));
+    let old_id = state["files"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .next()
+        .unwrap()
+        .clone();
+    fs::write(&f.config.state_path, state.to_string()).unwrap();
+    // Original old path is absent; a distinct new source must still upload normally.
+    fs::write(
+        f.config.source_path.join("new.jsonl"),
+        encode(&[json!({"turn":"new"})]),
+    )
+    .unwrap();
+    assert_eq!(collect(&f.config, &adapter).await.unwrap().uploaded, 1);
+    assert_eq!(f.state()["files"][&old_id]["offset"], end);
+    assert_eq!(f.state()["files"][&old_id]["legacy"], true);
+    f.write(&old);
+    adapter.converted.lock().unwrap().clear();
+    assert_eq!(collect(&f.config, &adapter).await.unwrap().uploaded, 0);
+    assert_eq!(adapter.converted.lock().unwrap().len(), 2);
+    assert_eq!(f.state()["files"][&old_id]["legacy"], false);
+    adapter.converted.lock().unwrap().clear();
+    collect(&f.config, &adapter).await.unwrap();
+    assert!(adapter.converted.lock().unwrap().is_empty());
+}
+#[tokio::test]
+async fn divergent_same_header_aliases_fail_before_any_upload() {
+    let f = Fixture::new();
+    f.write(&[json!({"turn":"a"}), json!({"content":"first"})]);
+    fs::write(
+        f.config.source_path.join("b.jsonl"),
+        encode(&[json!({"turn":"a"}), json!({"content":"other"})]),
+    )
+    .unwrap();
+    assert!(collect(&f.config, &Generic)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("aliases diverged"));
+    assert!(f.events().is_empty());
+    assert!(f.state()["files"].as_object().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn idle_collect_does_not_rewrite_checkpoint_file() {
+    let f = Fixture::new();
+    f.write(&[json!({"turn":"a"}), json!({"content":"done"})]);
+    collect(&f.config, &Generic).await.unwrap();
+    let time = std::time::SystemTime::UNIX_EPOCH + Duration::from_secs(18_000);
+    fs::File::options()
+        .write(true)
+        .open(&f.config.state_path)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(time))
+        .unwrap();
+    let before = fs::metadata(&f.config.state_path)
+        .unwrap()
+        .modified()
+        .unwrap();
+    let bytes = fs::read(&f.config.state_path).unwrap();
+    assert_eq!(collect(&f.config, &Generic).await.unwrap().uploaded, 0);
+    assert_eq!(fs::read(&f.config.state_path).unwrap(), bytes);
+    assert_eq!(
+        fs::metadata(&f.config.state_path)
+            .unwrap()
+            .modified()
+            .unwrap(),
+        before
+    );
+}
+#[tokio::test]
+async fn unsupported_snapshot_version_fails_without_converting_history() {
+    let f = Fixture::new();
+    let adapter = Stateful::default();
+    f.write(&[json!({"turn":"a"})]);
+    collect(&f.config, &adapter).await.unwrap();
+    let mut state = f.state();
+    let cp = state["files"]
+        .as_object_mut()
+        .unwrap()
+        .values_mut()
+        .next()
+        .unwrap();
+    cp["context"]["version"] = json!(99);
+    fs::write(&f.config.state_path, state.to_string()).unwrap();
+    adapter.converted.lock().unwrap().clear();
+    assert!(collect(&f.config, &adapter)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("context version"));
+    assert!(adapter.converted.lock().unwrap().is_empty());
     assert_eq!(f.state(), state);
 }

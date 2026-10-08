@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 pub struct CodexAdapter {
     pub codex_home: PathBuf,
 }
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CodexContext {
     session: String,
     provider: Option<String>,
