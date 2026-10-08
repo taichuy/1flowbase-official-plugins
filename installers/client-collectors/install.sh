@@ -72,8 +72,8 @@ if ((uninstall)); then
   printf 'Collector removed. Configuration, checkpoint and source logs retained.\n'
   exit 0
 fi
-[[ -n "$endpoint" ]] || { printf '--endpoint is required\n' >&2; exit 2; }
-[[ -n "$release_base" ]] || { printf '--release-base is required (copy the command from 1flowbase)\n' >&2; exit 2; }
+[[ -n "$endpoint" ]] || { printf '%s\n' '--endpoint is required' >&2; exit 2; }
+[[ -n "$release_base" ]] || { printf '%s\n' '--release-base is required (copy the command from 1flowbase)' >&2; exit 2; }
 release_base=${release_base%/}
 [[ "$release_base" == https://* || "$release_base" == http://* ]] && [[ "$release_base" != *@* && "$release_base" != *'?'* && "$release_base" != *'#'* ]] || { printf 'Invalid public release URL\n' >&2; exit 2; }
 umask 077
