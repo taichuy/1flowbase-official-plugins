@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Public installer. Application credentials are read locally, never from a URL.
 set -euo pipefail
-version=0.1.0
+version=0.2.0
 endpoint=''
 source_path="${CODEX_HOME:-$HOME/.codex}"
 installation_id=default
@@ -16,7 +16,7 @@ Codex native logs collector installer
   --endpoint URL             Exact 1flowbase /api/logs/v1/events endpoint
   --installation-id ID       Application-specific installation (default: default)
   --source PATH              Codex home, selected directory or rollout file
-  --version VERSION          Immutable collector release (default: 0.1.0)
+  --version VERSION          Immutable collector release (default: 0.2.0)
   --install-dir PATH         Override the user installation directory
   --config PATH              Override the private configuration path
   --release-base URL         Required 1flowbase version-pinned asset base URL

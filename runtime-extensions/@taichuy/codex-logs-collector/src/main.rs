@@ -1,8 +1,15 @@
-use agent_logs_collector::{collect, configure, Config};
+use agent_logs_collector::{collect_with_options, configure, CollectOptions, Config};
 use anyhow::{ensure, Result};
 use codex_logs_collector::CodexAdapter;
 use std::{collections::BTreeMap, io::Read, path::PathBuf, time::Duration};
-const HELP: &str = "codex-logs-collector 0.1.0\n\nconfigure --endpoint URL --source PATH --config PATH [--key-stdin]\nimport --config PATH\nwatch --config PATH\n--help | --version\n\nKey: --key-stdin or FLOWBASE_AGENT_LOGS_API_KEY. Default source: CODEX_HOME or ~/.codex.\nConfig credentials are private; source/state identity is preserved on upgrades.\n";
+const HELP: &str = concat!(
+    "codex-logs-collector ", env!("CARGO_PKG_VERSION"),
+    "\n\nconfigure --endpoint URL --source PATH --config PATH [--key-stdin]\n",
+    "import --config PATH [--batch-bytes BYTES]\nwatch --config PATH [--batch-bytes BYTES]\n",
+    "--help | --version\n\nKey: --key-stdin or FLOWBASE_AGENT_LOGS_API_KEY. Default source: CODEX_HOME or ~/.codex.\n",
+    "Batch bytes: positive serialized request target (default 1048576); oversized events are sent intact.\n",
+    "Config credentials are private; source/state identity is preserved on upgrades.\n"
+);
 fn codex_home() -> Result<PathBuf> {
     if let Some(path) = std::env::var_os("CODEX_HOME") {
         return absolute(PathBuf::from(path));
@@ -43,7 +50,8 @@ fn options(args: &[String], command: &str) -> Result<(BTreeMap<String, String>, 
             continue;
         }
         let allowed = option == "--config"
-            || (command == "configure" && matches!(option.as_str(), "--endpoint" | "--source"));
+            || (command == "configure" && matches!(option.as_str(), "--endpoint" | "--source"))
+            || (matches!(command, "import" | "watch") && option == "--batch-bytes");
         ensure!(allowed, "Unknown option; use --help");
         let value = args
             .get(index + 1)
@@ -78,7 +86,7 @@ async fn run() -> Result<()> {
         return Ok(());
     }
     if args == ["--version"] {
-        println!("codex-logs-collector 0.1.0");
+        println!("codex-logs-collector {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     let command = args[0].as_str();
@@ -115,9 +123,19 @@ async fn run() -> Result<()> {
         return Ok(());
     }
     let config = Config::load(&PathBuf::from(path))?;
+    let mut collect_options = CollectOptions::default();
+    if let Some(bytes) = values.get("--batch-bytes") {
+        collect_options.batch_target_bytes = bytes
+            .parse()
+            .map_err(|_| anyhow::anyhow!("--batch-bytes requires a positive integer"))?;
+        ensure!(
+            collect_options.batch_target_bytes > 0,
+            "--batch-bytes requires a positive integer"
+        );
+    }
     let adapter = CodexAdapter { codex_home: home };
     if command == "import" {
-        let report = tokio::select! { result = collect(&config, &adapter) => result?, _ = shutdown() => { return Ok(()); } };
+        let report = tokio::select! { result = collect_with_options(&config, &adapter, collect_options) => result?, _ = shutdown() => { return Ok(()); } };
         println!(
             "Uploaded {} events; {} files await explicit turn ownership",
             report.uploaded, report.unattributed_files
@@ -128,7 +146,7 @@ async fn run() -> Result<()> {
     tokio::pin!(stop);
     let mut backoff = 1u64;
     loop {
-        let outcome = tokio::select! { result = collect(&config, &adapter) => result, _ = &mut stop => return Ok(()) };
+        let outcome = tokio::select! { result = collect_with_options(&config, &adapter, collect_options) => result, _ = &mut stop => return Ok(()) };
         let delay = match outcome {
             Ok(report) => {
                 if report.uploaded > 0 {

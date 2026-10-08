@@ -4,7 +4,7 @@ param(
     [string]$Endpoint,
     [string]$InstallationId = 'default',
     [string]$Source = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }),
-    [string]$Version = '0.1.0',
+    [string]$Version = '0.2.0',
     [string]$InstallDir,
     [string]$Config,
     [string]$ReleaseBase,

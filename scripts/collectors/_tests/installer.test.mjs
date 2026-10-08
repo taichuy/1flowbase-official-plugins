@@ -11,6 +11,8 @@ const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const installer = path.join(repoRoot, 'installers/client-collectors/install.sh');
 const nativeBinary = process.env.FLOWBASE_COLLECTOR_TEST_BINARY;
 if (!nativeBinary) throw new Error('FLOWBASE_COLLECTOR_TEST_BINARY must identify the built native collector');
+const collectorVersion = JSON.parse(await fs.readFile(path.join(repoRoot,
+  'runtime-extensions/@taichuy/codex-logs-collector/collector-manifest.json'), 'utf8')).version;
 const row = (type, payload) => ({ type, payload, timestamp: '2026-10-07T08:00:00Z' });
 const encode = rows => rows.map(item => JSON.stringify(item)).join('\n') + '\n';
 const run = (command, args, env = {}, input = '') => new Promise((resolve, reject) => {
@@ -35,7 +37,7 @@ async function fixture(t) {
   const staging = path.join(directory, 'release'); await fs.mkdir(staging);
   await fs.copyFile(nativeBinary, path.join(staging, 'codex-logs-collector'));
   await fs.chmod(path.join(staging, 'codex-logs-collector'), 0o755);
-  const archiveName = `codex-logs-collector-0.1.0-linux-${os.arch() === 'arm64' ? 'arm64' : 'amd64'}.tar.gz`;
+  const archiveName = `codex-logs-collector-${collectorVersion}-linux-${os.arch() === 'arm64' ? 'arm64' : 'amd64'}.tar.gz`;
   const archivePath = path.join(directory, archiveName);
   execFileSync('tar', ['-czf', archivePath, '-C', staging, './codex-logs-collector']);
   const bytes = await fs.readFile(archivePath);
@@ -62,7 +64,7 @@ async function fixture(t) {
   const id = `qa-${process.pid}-${crypto.randomUUID()}`;
   const installDir = path.join(directory, 'installed'); const config = path.join(installDir, 'config.json');
   const args = ['--endpoint', `${base}/api/logs/v1/events`, '--installation-id', id, '--source', source,
-    '--install-dir', installDir, '--release-base', `${base}/download`, '--version', '0.1.0'];
+    '--install-dir', installDir, '--release-base', `${base}/download`, '--version', collectorVersion];
   t.after(async () => {
     if (process.env.FLOWBASE_COLLECTOR_SYSTEMD_TEST === '1') await run('bash', [installer, '--uninstall', '--installation-id', id, '--install-dir', installDir]);
     await new Promise(resolve => server.close(resolve)); await fs.rm(directory, { recursive: true, force: true });
@@ -103,6 +105,28 @@ test('corrupted release cannot replace existing executable or configuration', as
   const result = await run('bash', [installer, ...f.args, '--no-start'], env);
   assert.notEqual(result.code, 0); assert.match(result.output, /checksum mismatch/);
   assert.deepEqual(await fs.readFile(binary), before); assert.deepEqual(await fs.readFile(f.config), config);
+});
+
+test('native CLI validates byte targets and retains oversized singleton events', async t => {
+  const f = await fixture(t);
+  const installed = await run('bash', [installer, ...f.args, '--no-start'],
+    { FLOWBASE_AGENT_LOGS_API_KEY: 'fixture-secret' });
+  assert.equal(installed.code, 0, installed.output);
+  const binary = path.join(f.installDir, 'bin/codex-logs-collector');
+  for (const target of ['0', '-1', 'invalid']) {
+    const rejected = await run(binary, ['import', '--config', f.config, '--batch-bytes', target]);
+    assert.notEqual(rejected.code, 0);
+    assert.match(rejected.output, /positive integer/);
+    assert.equal(f.received.length, 0);
+  }
+  const imported = await run(binary, ['import', '--config', f.config, '--batch-bytes', '1']);
+  assert.equal(imported.code, 0, imported.output);
+  assert.equal(f.events.size, 4);
+  assert.equal(f.received.length, 4);
+  assert.ok(f.received.every(item => item.batch.events.length === 1));
+  const resumed = await run(binary, ['import', '--config', f.config]);
+  assert.equal(resumed.code, 0, resumed.output);
+  assert.equal(f.received.length, 4);
 });
 
 if (process.env.FLOWBASE_COLLECTOR_SYSTEMD_TEST === '1') {
