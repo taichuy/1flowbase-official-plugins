@@ -326,16 +326,35 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
   const publishedI18nCount = fs.existsSync(releaseCatalogPath)
     ? JSON.parse(fs.readFileSync(releaseCatalogPath, 'utf8')).releases.length > 0 ? 1 : 0
     : 0;
+  // Publisher registries and canonical published entries are independent inputs.
+  // Compare identities as well as counts so adding a client cannot hide a lost host.
+  const runtimeIdentities = new Set(
+    read(repositoryRoot, 'official-registry.json').plugins
+      .filter((plugin) => fs.existsSync(path.join(repositoryRoot, plugin.manifest_locator)))
+      .map((plugin) => `runtime-extensions:${plugin.publisher_namespace}/${plugin.provider_code}`),
+  );
+  const runtimeRoot = path.join(repositoryRoot, 'runtime-extensions');
+  for (const organization of fs.readdirSync(runtimeRoot, { withFileTypes: true })) {
+    if (!organization.isDirectory() || !organization.name.startsWith('@')) continue;
+    for (const artifact of fs.readdirSync(path.join(runtimeRoot, organization.name), { withFileTypes: true })) {
+      if (artifact.isDirectory() && fs.existsSync(path.join(runtimeRoot, organization.name, artifact.name, 'catalog-entry.json'))) {
+        runtimeIdentities.add(`runtime-extensions:${organization.name.slice(1)}/${artifact.name}`);
+      }
+    }
+  }
   const expectedCounts = new Map([
     ['agent-flow', 2],
     ['i18n', publishedI18nCount],
     ['mcp', 1],
-    ['runtime-extensions', 9],
+    ['runtime-extensions', runtimeIdentities.size],
   ]);
 
   for (const [category, expectedCount] of expectedCounts) {
     const entries = discoverCatalogEntries({ repoRoot: repositoryRoot, category });
     assert.equal(entries.length, expectedCount);
+    if (category === 'runtime-extensions') {
+      assert.deepEqual(new Set(entries.map((entry) => entry.id)), runtimeIdentities);
+    }
     for (const entry of entries) {
       if (category === 'runtime-extensions') {
         assert.equal(fs.existsSync(path.join(repositoryRoot, entry.source.locator)), true);
@@ -349,7 +368,7 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
             '1flowbase.provider-distribution-rule/v1'
           );
           assert.equal(entry.download_locator.artifacts.length, 6);
-        } else {
+        } else if (entry.source.distribution_kind !== 'client_collector') {
           assert.equal(entry.organization, '1flowbase');
         }
         continue;
@@ -363,6 +382,22 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
   }
 
   for (const entry of discoverCatalogEntries({ repoRoot: repositoryRoot, category: 'runtime-extensions' })) {
+    if (entry.source.distribution_kind === 'client_collector') {
+      const published = read(repositoryRoot, `runtime-extensions/@${entry.organization}/${entry.artifact}/catalog-entry.json`);
+      assert.equal(entry.source.locator, `runtime-extensions/@${entry.organization}/${entry.artifact}/collector-manifest.json`);
+      assert.equal(entry.version, published.version);
+      assert.equal(entry.checksum, published.checksum);
+      assert.deepEqual(entry.signature, published.signature);
+      assert.equal(entry.signature.algorithm, 'ed25519');
+      assert.equal(entry.download_locator.kind, 'release_asset');
+      assert.deepEqual(entry.slot_codes, []);
+      assert.equal(entry.source.client_collector.collector_code, entry.artifact);
+      assert.equal(entry.source.client_collector.execution_target, 'client');
+      assert.equal(entry.source.client_collector.protocol_version, '1flowbase.agent-logs/v1');
+      assert.equal(Object.hasOwn(entry.source, 'plugin_type'), false);
+      assert.equal(Object.hasOwn(entry.source, 'provider_code'), false);
+      continue;
+    }
     assert.ok(
       ['model_provider', 'network_egress_provider', 'provider_distribution_rule'].includes(entry.source.plugin_type),
       `${entry.id} must expose a supported provider plugin type`
