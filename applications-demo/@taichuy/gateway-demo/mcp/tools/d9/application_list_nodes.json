@@ -2,7 +2,7 @@
   "tool_id": "application_list_nodes",
   "name": "list_application_nodes",
   "short_description": "按 Application 类型返回边界节点、内置节点、插件节点及其结构化配置契约和运行状态。",
-  "full_description": "nodes[].field_contract 中 config_fields 表示持久化节点配置，input_fields 表示运行时绑定或输入，output_fields 表示运行结果；每项以 key、required、value_types、allowed_values 表达结构约束。runtime_status 表示当前运行时是否可执行；插件节点的 plugin 对象保留插件自有 schema_ui 与 output_schema_snapshot。",
+  "full_description": "创建或复用应用后查询当前全部节点。field_contract分别给config、bindings/输入和outputs约束；runtime_status=ready、authoring_status=published的节点优先使用。HTTP请求外部接口；SQL使用可选数据源查询；data_model_list/get/create/update/delete操作数据记录；template_transform转换文本；code运行代码；if_else分支；variable_assigner/aggregator处理变量；llm生成内容。先浏览清单，再按需要用mcp_result获取字段契约与插件schema。具体使用路径见mcp_get(workflow_ops_create_application)，节点单点调试见Workflow节点工具分组。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "list_node_contributions"
@@ -44,10 +44,9 @@
             "source_kind",
             "node_type",
             "title",
-            "description",
             "category",
+            "authoring_status",
             "runtime_status",
-            "runtime_status_description",
             "dependency_status",
             "field_contract"
           ],
@@ -183,9 +182,6 @@
               "type": "string",
               "description": "Flow document node.type. Plugin contributions use plugin_node and retain their exact\ncontribution identity under plugin."
             },
-            "description": {
-              "type": "string"
-            },
             "source_kind": {
               "enum": [
                 "builtin",
@@ -207,7 +203,6 @@
                     "type": "object",
                     "required": [
                       "key",
-                      "description",
                       "required",
                       "value_types",
                       "allowed_values"
@@ -219,11 +214,7 @@
                       },
                       "required": {
                         "type": "boolean",
-                        "description": "Whether this field is required when its applicability condition is met."
-                      },
-                      "description": {
-                        "type": "string",
-                        "description": "Stable semantic description for an Agent constructing node configuration."
+                        "description": "Whether this field is required."
                       },
                       "value_types": {
                         "type": "array",
@@ -231,13 +222,6 @@
                           "type": "string"
                         },
                         "description": "Accepted flow-document or JSON value kinds."
-                      },
-                      "applicability": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "description": "Conditional applicability, when the field does not apply to every configuration."
                       },
                       "allowed_values": {
                         "type": "array",
@@ -256,7 +240,6 @@
                     "type": "object",
                     "required": [
                       "key",
-                      "description",
                       "required",
                       "value_types",
                       "allowed_values"
@@ -268,11 +251,7 @@
                       },
                       "required": {
                         "type": "boolean",
-                        "description": "Whether this field is required when its applicability condition is met."
-                      },
-                      "description": {
-                        "type": "string",
-                        "description": "Stable semantic description for an Agent constructing node configuration."
+                        "description": "Whether this field is required."
                       },
                       "value_types": {
                         "type": "array",
@@ -280,13 +259,6 @@
                           "type": "string"
                         },
                         "description": "Accepted flow-document or JSON value kinds."
-                      },
-                      "applicability": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "description": "Conditional applicability, when the field does not apply to every configuration."
                       },
                       "allowed_values": {
                         "type": "array",
@@ -305,7 +277,6 @@
                     "type": "object",
                     "required": [
                       "key",
-                      "description",
                       "required",
                       "value_types",
                       "allowed_values"
@@ -317,11 +288,7 @@
                       },
                       "required": {
                         "type": "boolean",
-                        "description": "Whether this field is required when its applicability condition is met."
-                      },
-                      "description": {
-                        "type": "string",
-                        "description": "Stable semantic description for an Agent constructing node configuration."
+                        "description": "Whether this field is required."
                       },
                       "value_types": {
                         "type": "array",
@@ -329,13 +296,6 @@
                           "type": "string"
                         },
                         "description": "Accepted flow-document or JSON value kinds."
-                      },
-                      "applicability": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "description": "Conditional applicability, when the field does not apply to every configuration."
                       },
                       "allowed_values": {
                         "type": "array",
@@ -357,6 +317,13 @@
               ],
               "type": "string"
             },
+            "authoring_status": {
+              "enum": [
+                "published",
+                "hidden"
+              ],
+              "type": "string"
+            },
             "dependency_status": {
               "enum": [
                 "not_applicable",
@@ -365,9 +332,6 @@
                 "version_mismatch",
                 "disabled_plugin"
               ],
-              "type": "string"
-            },
-            "runtime_status_description": {
               "type": "string"
             }
           }
@@ -379,9 +343,11 @@
   "input_mapping": {
     "mappings": [
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "query.application_id",
         "description": "目标 Application 稳定标识；其 application_type 决定 Start/End 边界节点。",
+        "default_value": null,
         "interface_param": "application_id"
       }
     ],

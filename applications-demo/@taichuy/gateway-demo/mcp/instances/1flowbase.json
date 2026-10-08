@@ -190,7 +190,7 @@
     {
       "path": "/business-systems/applications/workflows",
       "display_name": "Workflow",
-      "description_short": "创建、编排并发布普通 extension 或管理 schedule 触发的 Workflow。",
+      "description_short": "通过节点搭建工作流：先读取创建工具的完整使用说明，再创建/复用应用、发现节点、保存编排并调试。",
       "enabled": true,
       "sort_order": 30
     },
@@ -270,6 +270,20 @@
       "description_short": "维护应用、节点配置与 Agent 模板，生成固定编排后保存并发布。",
       "enabled": true,
       "sort_order": 80
+    },
+    {
+      "path": "/business-systems/applications/workflows/node-tools",
+      "display_name": "工作流节点工具",
+      "description_short": "HTTP请求、SQL查询、数据List/Get/Create/Update/Delete与模板转换。先mcp_get(workflow_ops_create_application)阅读使用说明；这些工具执行应用内已保存的节点。",
+      "enabled": true,
+      "sort_order": 25
+    },
+    {
+      "path": "/business-systems/applications/workflows/debug",
+      "display_name": "工作流调试",
+      "description_short": "单点调试已保存节点；前置说明des_id与应用/节点参数均须有效，不自动执行上游。",
+      "enabled": true,
+      "sort_order": 30
     }
   ],
   "bindings": [
@@ -1292,6 +1306,83 @@
       "group_path": "/system_mcp/policies/discovery",
       "tool_id": "system_mcp_update_mcp_instance_discovery_policy",
       "display_alias": null,
+      "visible": true,
+      "sort_order": 20
+    },
+    {
+      "tool_id": "workflow_node_debug_http_request",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "HTTP 请求",
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "tool_id": "workflow_node_debug_sql",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "SQL 查询",
+      "visible": true,
+      "sort_order": 11
+    },
+    {
+      "tool_id": "workflow_node_debug_data_model_list",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "数据 List",
+      "visible": true,
+      "sort_order": 12
+    },
+    {
+      "tool_id": "workflow_node_debug_data_model_get",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "数据 Get",
+      "visible": true,
+      "sort_order": 13
+    },
+    {
+      "tool_id": "workflow_node_debug_data_model_create",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "数据 Create / Add",
+      "visible": true,
+      "sort_order": 14
+    },
+    {
+      "tool_id": "workflow_node_debug_data_model_update",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "数据 Update",
+      "visible": true,
+      "sort_order": 15
+    },
+    {
+      "tool_id": "workflow_node_debug_data_model_delete",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "数据 Delete",
+      "visible": true,
+      "sort_order": 16
+    },
+    {
+      "tool_id": "workflow_node_debug_template_transform",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "模板转换",
+      "visible": true,
+      "sort_order": 17
+    },
+    {
+      "tool_id": "workflow_node_debug_code",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "代码执行",
+      "visible": true,
+      "sort_order": 18
+    },
+    {
+      "tool_id": "workflow_node_debug_variable_aggregator",
+      "group_path": "/business-systems/applications/workflows/node-tools",
+      "display_alias": "变量聚合",
+      "visible": true,
+      "sort_order": 19
+    },
+    {
+      "tool_id": "workflow_ops_debug_node",
+      "group_path": "/business-systems/applications/workflows/debug",
+      "display_alias": "单点调试任意支持节点",
       "visible": true,
       "sort_order": 20
     }

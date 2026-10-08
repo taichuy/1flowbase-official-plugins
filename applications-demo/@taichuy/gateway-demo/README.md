@@ -11,3 +11,11 @@ release v3 同步报表三个区块的源码、`reportState` 端口声明和 `us
 后端镜像内置本目录。默认在启动时安装或更新模板，已有资源直接覆盖，缺失资源新增；不会根据用户是否编辑进行保护。设置 `API_APPLICATION_TEMPLATE_AUTO_UPDATE=false` 可同时关闭空库初始化和后续自动更新。扩展中心的“应用模板”仍允许手动安装。
 
 升级不删除模板未提及的资源与业务记录。安装失败不会记录为成功版本，后续启动可重试。
+
+## 工作流节点 MCP
+
+release v4 增加工作流节点工具分组，提供 HTTP、SQL、数据 CRUD、模板转换、代码和变量聚合的配置示例与单点调试入口。先读取 `workflow_ops_create_application` 的完整说明，再创建或复用应用、获取节点目录、保存编排并调试。节点调用在 `mcp_call` 外层传入这份前置说明的当前 `des_id`；应用、节点与权限仍由后端校验。单点执行不会自动运行上游，写节点会真实修改授权数据。需支持此描述校验契约的宿主（导出版本 0.5.3）。模板不包含验收应用或测试记录。
+
+## Workflow node MCP
+
+Release v4 adds configuration examples and node-preview tools for HTTP, SQL, data CRUD, template transforms, code, and variable aggregation. Read the complete `workflow_ops_create_application` description first, create or reuse an application, discover its nodes, save the graph, and preview a target node. Pass the prerequisite description’s current `des_id` at the outer `mcp_call` level. The backend still validates the application, node, and permissions. A preview does not run upstream nodes, and write nodes modify authorized data. The host must support this description-validation contract (exported from 0.5.3). This template excludes acceptance applications and test records.

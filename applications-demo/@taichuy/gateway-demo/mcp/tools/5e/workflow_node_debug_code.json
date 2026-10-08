@@ -1,0 +1,455 @@
+{
+  "tool_id": "workflow_node_debug_code",
+  "name": "debug_workflow_code",
+  "short_description": "执行工作流代码节点，返回main函数的结果。",
+  "full_description": "前置：mcp_get(workflow_ops_create_application)阅读工作流使用说明，mcp_call外层des_id传该工具当前值。先创建/复用Workflow、获取节点目录、在graph.nodes添加type=code的节点并保存，再用path.id与path.node_id单点调试。本工具复用统一debug接口，不自动插入节点。config.language/source/entrypoint指定执行代码；main接收bindings解析后的inputs并返回结果对象；实际output_payload.result包含该对象，如示例返回{result:\"ADA\"}时输出为{result:{result:\"ADA\"},error:null}，下游用[\"node-code\",\"result\",\"result\"]引用字符串。outputs的key声明main返回字段，运行结果不会自动扁平化。不要把代码放bindings里，变量输入必须显式提供；运行时依赖与限制以当前节点契约为准。\n目标节点配置片段（替换占位符，不是完整编排）：{\"type\": \"code\", \"config\": {\"language\": \"javascript\", \"source\": \"function main(inputs) { return { result: inputs.name.toUpperCase() }; }\", \"entrypoint\": \"main\"}, \"bindings\": {\"name\": {\"kind\": \"selector\", \"value\": [\"node-start\", \"name\"]}}, \"outputs\": [{\"key\": \"result\", \"title\": \"Result\", \"valueType\": \"string\"}]}\n检查node_run.status/error_payload/output_payload；副作用已执行但响应取回失败时用result_ref或查询回读，不重复调用写操作。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "start_node_debug_preview"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "input_payload"
+        ],
+        "properties": {
+          "document": {},
+          "input_payload": {},
+          "debug_session_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "node_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          },
+          "node_id": {
+            "type": "string",
+            "description": "Node id"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "flow_run",
+      "node_run",
+      "checkpoints",
+      "events"
+    ],
+    "properties": {
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "flow_run_id",
+            "sequence",
+            "event_type",
+            "payload",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "payload": {},
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "event_type": {
+              "type": "string"
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "node_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "flow_run": {
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "flow_id",
+          "draft_id",
+          "run_mode",
+          "status",
+          "title",
+          "input_payload",
+          "output_payload",
+          "created_by",
+          "started_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "flow_id": {
+            "type": "string"
+          },
+          "draft_id": {
+            "type": "string"
+          },
+          "run_mode": {
+            "type": "string"
+          },
+          "expand_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_payload": {},
+          "input_payload": {},
+          "application_id": {
+            "type": "string"
+          },
+          "output_payload": {},
+          "target_node_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compiled_plan_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authorized_account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "external_conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "node_run": {
+        "type": "object",
+        "required": [
+          "id",
+          "flow_run_id",
+          "node_id",
+          "node_type",
+          "node_alias",
+          "status",
+          "input_payload",
+          "input_payload_view",
+          "output_payload",
+          "metrics_payload",
+          "debug_payload",
+          "started_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "node_type": {
+            "type": "string"
+          },
+          "node_alias": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "flow_run_id": {
+            "type": "string"
+          },
+          "debug_payload": {},
+          "error_payload": {},
+          "input_payload": {},
+          "output_payload": {},
+          "metrics_payload": {},
+          "input_payload_view": {}
+        }
+      },
+      "checkpoints": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "flow_run_id",
+            "status",
+            "reason",
+            "locator_payload",
+            "variable_snapshot",
+            "created_at"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "flow_run_id": {
+              "type": "string"
+            },
+            "node_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator_payload": {},
+            "variable_snapshot": {},
+            "external_ref_payload": {}
+          }
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "Workflow application_id；先创建或复用应用。",
+        "default_value": null,
+        "interface_param": "id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.node_id",
+        "description": "已保存编排中目标code节点的稳定id。",
+        "default_value": null,
+        "interface_param": "node_id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "body.input_payload",
+        "description": "本次单点调试变量池；只执行目标节点，所需上游输出按节点id显式提供，常量节点传{}。",
+        "default_value": null,
+        "interface_param": "input_payload"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.document",
+        "description": "可选完整编排快照；通常省略，使用保存后的草稿。",
+        "default_value": null,
+        "interface_param": "document"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.debug_session_id",
+        "description": "可选调试会话id。",
+        "default_value": null,
+        "interface_param": "debug_session_id"
+      },
+      {
+        "hidden": false,
+        "source": {
+          "kind": "mcp_call",
+          "path": "des_id",
+          "tool_id": "workflow_ops_create_application"
+        },
+        "required": true,
+        "mcp_param": "des_id",
+        "description": "先读取前置工作流说明，再传其当前des_id。",
+        "default_value": null,
+        "interface_param": "des_id"
+      },
+      {
+        "hidden": false,
+        "source": {
+          "kind": "mcp_call",
+          "path": "max_inline_chars"
+        },
+        "required": false,
+        "mcp_param": "max_inline_chars",
+        "description": "本次返回的有限字符预算。",
+        "default_value": null,
+        "interface_param": "max_inline_chars"
+      },
+      {
+        "hidden": false,
+        "source": {
+          "kind": "mcp_call",
+          "path": "response_fields"
+        },
+        "required": false,
+        "mcp_param": "response_fields",
+        "description": "按JSON Pointer选择返回字段。",
+        "default_value": null,
+        "interface_param": "response_fields"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "field_type": "string",
+        "description": "Workflow application_id；先创建或复用应用。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "node_id",
+        "required": true,
+        "field_type": "string",
+        "description": "已保存编排中目标code节点的稳定id。",
+        "parameter_type": "url"
+      },
+      {
+        "name": "input_payload",
+        "required": true,
+        "field_type": "object",
+        "description": "本次单点调试变量池；只执行目标节点，所需上游输出按节点id显式提供，常量节点传{}。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "document",
+        "required": false,
+        "field_type": "object",
+        "description": "可选完整编排快照；通常省略，使用保存后的草稿。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "debug_session_id",
+        "required": false,
+        "field_type": "string",
+        "description": "可选调试会话id。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "des_id",
+        "source": {
+          "kind": "mcp_call"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": "先读取前置工作流说明，再传其当前des_id。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_inline_chars",
+        "source": {
+          "kind": "mcp_call"
+        },
+        "required": false,
+        "field_type": "integer",
+        "description": "本次返回的有限字符预算。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "response_fields",
+        "source": {
+          "kind": "mcp_call"
+        },
+        "required": false,
+        "field_type": "array",
+        "description": "按JSON Pointer选择返回字段。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
