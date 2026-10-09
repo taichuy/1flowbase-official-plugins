@@ -6,6 +6,8 @@
 
 The runtime is packaged with plugin manifest v1 and invoked through the host `stdio_json_multiplex_v1` contract.
 
+OpenAI 0.2.72 requires host 0.5.4 or later to validate full native-context HTTP recovery receipts. Official installation and updates use the existing minimum-host-version check; older 0.5.3 hosts are incompatible with this recovery path. Compatibility overrides and direct loading bypass that default check and are outside the supported deployment path for this release.
+
 It targets:
 
 - `GET /models`
