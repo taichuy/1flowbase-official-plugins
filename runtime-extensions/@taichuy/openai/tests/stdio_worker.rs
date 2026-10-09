@@ -1750,32 +1750,12 @@ fn websocket_close_after_function_call_arguments_done_interrupts_without_complet
     .expect("request should write");
     stdin.flush().expect("request should flush");
 
-    let mut saw_tool_item_added = false;
-    let mut saw_arguments_done = false;
     let mut observed_error = None;
     loop {
         let line = next_json_line(&mut stdout);
         match line["type"].as_str() {
-            Some("output_item") => {
-                assert_eq!(line["phase"], "added", "close must not fabricate item.done");
-                assert_eq!(line["output_index"], 0);
-                assert_eq!(line["item"]["type"], "function_call");
-                assert_eq!(line["item"]["call_id"], "call_lookup");
-                assert_eq!(line["item"]["name"], "lookup");
-                assert_eq!(line["item"]["arguments"], "");
-                assert!(!saw_tool_item_added, "tool item must be emitted once");
-                saw_tool_item_added = true;
-            }
-            Some("responses_output_delta") => {
-                assert_eq!(
-                    line["event"]["type"],
-                    "response.function_call_arguments.done"
-                );
-                assert_eq!(line["event"]["call_id"], "call_lookup");
-                assert_eq!(line["event"]["arguments"], r#"{"query":"refund"}"#);
-                assert!(saw_tool_item_added, "arguments follow the added tool item");
-                assert!(!saw_arguments_done, "arguments must be emitted once");
-                saw_arguments_done = true;
+            Some("output_item") | Some("responses_output_delta") => {
+                panic!("semantic invocation must not expose native output frames: {line}");
             }
             Some("tool_call_commit") | Some("finish") => {
                 panic!(
@@ -1783,10 +1763,6 @@ fn websocket_close_after_function_call_arguments_done_interrupts_without_complet
                 );
             }
             Some("error") => {
-                assert!(
-                    saw_tool_item_added && saw_arguments_done,
-                    "observed tool and arguments precede interruption"
-                );
                 assert!(
                     observed_error.is_none(),
                     "one typed interruption is expected"
@@ -1819,9 +1795,6 @@ fn websocket_close_after_function_call_arguments_done_interrupts_without_complet
             _ => {}
         }
     }
-    assert!(saw_tool_item_added);
-    assert!(saw_arguments_done);
-
     drop(child);
     server.join().expect("server thread should finish");
 }
