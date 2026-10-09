@@ -1,4 +1,4 @@
-//! Closed, bounded diagnostics: upstream text, URLs and routing tokens never cross this boundary.
+//! Bounded local diagnostics accompany original typed upstream facts.
 use super::{ProviderRuntimeError, ProviderRuntimeErrorKind};
 use serde_json::{json, Value};
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
@@ -149,6 +149,11 @@ pub(crate) fn network_error(error: &std::io::Error) -> anyhow::Error {
 }
 
 pub(crate) fn safe_error(error: &anyhow::Error) -> ProviderRuntimeError {
+    if let Some(typed) = error.downcast_ref::<ProviderRuntimeError>() {
+        if typed.kind == ProviderRuntimeErrorKind::ProviderUpstreamError {
+            return typed.clone();
+        }
+    }
     let diagnostic = failure(error, None, None);
     ProviderRuntimeError {
         kind: error
