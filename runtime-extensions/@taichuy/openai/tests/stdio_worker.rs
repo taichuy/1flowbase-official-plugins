@@ -1705,16 +1705,25 @@ fn websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output() 
 }
 
 #[test]
-fn websocket_close_after_function_call_done_finalizes_tool_call() {
+fn websocket_close_after_function_call_arguments_done_interrupts_without_completion() {
     let (base_url, server) = start_websocket_function_call_done_then_close_server();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("openai provider binary should spawn");
-    let mut stdin = MultiplexStdin::new(child.stdin.take().expect("stdin should be piped"));
-    let stdout = child.stdout.take().expect("stdout should be piped");
+    struct Worker(std::process::Child);
+    impl Drop for Worker {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    let mut child = Worker(
+        Command::new(env!("CARGO_BIN_EXE_openai-provider"))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("openai provider binary should spawn"),
+    );
+    let mut stdin = MultiplexStdin::new(child.0.stdin.take().expect("stdin should be piped"));
+    let stdout = child.0.stdout.take().expect("stdout should be piped");
     let mut stdout = BufReader::new(stdout);
 
     writeln!(stdin, "{}", invoke_line(&base_url, "responses_websocket"))
@@ -1741,30 +1750,79 @@ fn websocket_close_after_function_call_done_finalizes_tool_call() {
     .expect("request should write");
     stdin.flush().expect("request should flush");
 
-    let mut saw_tool_call_commit = false;
+    let mut saw_tool_item_added = false;
+    let mut saw_arguments_done = false;
+    let mut observed_error = None;
     loop {
         let line = next_json_line(&mut stdout);
         match line["type"].as_str() {
-            Some("tool_call_commit") => {
-                saw_tool_call_commit = true;
-                assert_eq!(line["call"]["id"], "call_lookup");
-                assert_eq!(line["call"]["name"], "lookup");
-                assert_eq!(line["call"]["arguments"]["query"], "refund");
+            Some("output_item") => {
+                assert_eq!(line["phase"], "added", "close must not fabricate item.done");
+                assert_eq!(line["output_index"], 0);
+                assert_eq!(line["item"]["type"], "function_call");
+                assert_eq!(line["item"]["call_id"], "call_lookup");
+                assert_eq!(line["item"]["name"], "lookup");
+                assert_eq!(line["item"]["arguments"], "");
+                assert!(!saw_tool_item_added, "tool item must be emitted once");
+                saw_tool_item_added = true;
+            }
+            Some("responses_output_delta") => {
+                assert_eq!(
+                    line["event"]["type"],
+                    "response.function_call_arguments.done"
+                );
+                assert_eq!(line["event"]["call_id"], "call_lookup");
+                assert_eq!(line["event"]["arguments"], r#"{"query":"refund"}"#);
+                assert!(saw_tool_item_added, "arguments follow the added tool item");
+                assert!(!saw_arguments_done, "arguments must be emitted once");
+                saw_arguments_done = true;
+            }
+            Some("tool_call_commit") | Some("finish") => {
+                panic!(
+                    "arguments.done and Close cannot fabricate tool or response completion: {line}"
+                );
+            }
+            Some("error") => {
+                assert!(
+                    saw_tool_item_added && saw_arguments_done,
+                    "observed tool and arguments precede interruption"
+                );
+                assert!(
+                    observed_error.is_none(),
+                    "one typed interruption is expected"
+                );
+                assert_eq!(line["error"]["kind"], "provider_transport_unavailable");
+                let details = &line["error"]["provider_details"];
+                let failure = &details["1flowbase_transport_failure"];
+                assert_eq!(failure["reason_category"], "transport_disconnected");
+                assert_eq!(failure["semantic_event_kind"], "tool_item_added");
+                let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
+                assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
+                assert_eq!(
+                    diagnostics["last_failure"]["recovery_decision"],
+                    "committed"
+                );
+                observed_error = Some(line);
             }
             Some("result") => {
-                assert_eq!(line["result"]["response_id"], "resp_tool_close");
-                assert_eq!(line["result"]["finish_reason"], "tool_call");
-                assert_eq!(line["result"]["tool_calls"][0]["id"], "call_lookup");
+                assert!(
+                    observed_error.is_some(),
+                    "failure result follows the typed interruption"
+                );
+                assert_eq!(line["result"]["finish_reason"], "error");
+                assert!(line["result"]["response_id"].is_null());
+                assert!(line["result"]["final_content"].is_null());
+                assert_eq!(line["result"]["tool_calls"], json!([]));
+                assert_eq!(line["result"]["mcp_calls"], json!([]));
                 break;
             }
-            Some("error") => panic!("function call close should finalize without error: {line}"),
             _ => {}
         }
     }
-    assert!(saw_tool_call_commit);
+    assert!(saw_tool_item_added);
+    assert!(saw_arguments_done);
 
-    let _ = child.kill();
-    let _ = child.wait();
+    drop(child);
     server.join().expect("server thread should finish");
 }
 

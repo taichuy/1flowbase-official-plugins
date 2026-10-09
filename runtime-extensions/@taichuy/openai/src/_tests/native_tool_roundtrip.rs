@@ -167,7 +167,8 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
         ProviderInvocationInput {
         provider_instance_id: "fixture".into(), provider_code: "openai".into(),
         model: "fixture-model".into(), protocol: "openai_responses".into(),
-        provider_config: json!({"base_url":base,"api_key":"fixture","transport_mode":if case == NativeFallbackCase::ForceWebsocket {"force_websocket"} else {"responses_websocket"}}),
+        provider_config: json!({"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"}),
+        model_parameters: [("responses_transport_policy".into(), json!(if case == NativeFallbackCase::ForceWebsocket {"force_websocket"} else {"inherit"}))].into(),
         required_capabilities: [ProviderInvocationCapability::ResponsesNativePassthrough, ProviderInvocationCapability::ResponsesNativeOutputV1].into(),
         run_context: [
             (TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-fixture","generation":41,"task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64})),
