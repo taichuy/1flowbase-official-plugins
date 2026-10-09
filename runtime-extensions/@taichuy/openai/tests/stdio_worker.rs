@@ -1520,7 +1520,20 @@ fn invoke_error_emits_result_line_and_keeps_worker_reusable() {
     );
     let encoded_error = error_line.to_string();
     assert!(!encoded_error.contains("should-not-leak"));
-    assert!(!encoded_error.contains("response.failed"));
+    assert_eq!(error_line["error"]["provider_details"]["status_code"], 400);
+    assert_eq!(
+        error_line["error"]["provider_details"]["upstream_error"],
+        json!({"message":"OpenAI codex passthrough requires a non-empty instructions field"})
+    );
+    assert_eq!(
+        error_line["error"]["provider_details"]["raw_body"],
+        concat!(
+            r#"{"error":{"message":"OpenAI codex passthrough requires a non-empty instructions field"}}"#,
+            "\n",
+            r#"data: {"type":"response.failed"}"#,
+            "\n\n"
+        )
+    );
 
     let result_line = next_json_line(&mut stdout);
     assert_eq!(result_line["type"], "result");
@@ -1980,3 +1993,6 @@ fn websocket_managed_proxy_failure_uses_verified_owner_instead_of_terminating() 
 
 #[path = "continuation/fallback.rs"]
 mod fallback_budget;
+
+#[path = "upstream_error/mod.rs"]
+mod upstream_error;

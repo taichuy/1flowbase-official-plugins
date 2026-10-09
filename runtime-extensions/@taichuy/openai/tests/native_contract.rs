@@ -876,3 +876,115 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
         server.join().unwrap();
     }
 }
+
+#[test]
+fn native_upstream_terminals_preserve_facts_and_never_open_a_second_socket() {
+    for terminal in ["error", "response.failed", "response.done"] {
+        let original = json!({
+            "code":"context_length_exceeded", "type":"invalid_request_error", "param":null,
+            "message":"Your input exceeds the context window\nReduce the input and try again.",
+            "future_supplier_field":{"limit":128000,"received":128001}
+        });
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let fixture_error = original.clone();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut socket = accept_hdr(
+                stream,
+                |_: &tokio_tungstenite::tungstenite::handshake::server::Request,
+                 response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                    Ok(response)
+                },
+            )
+            .unwrap();
+            let request = socket.read().unwrap();
+            assert!(request.to_text().unwrap().contains("response.create"));
+            let payload = if terminal == "error" {
+                json!({"type":terminal,"error":fixture_error})
+            } else {
+                json!({"type":terminal,"response":{"id":"resp_rejected","status":"failed","error":fixture_error}})
+            };
+            socket
+                .send(Message::Text(payload.to_string().into()))
+                .unwrap();
+            // Keep the connection alive: the structured terminal, rather than
+            // a subsequent EOF, must stop the invocation.
+            use tokio_tungstenite::tungstenite::{error::ProtocolError, Error};
+            let peer_deadline = std::time::Instant::now() + Duration::from_secs(5);
+            loop {
+                let remaining = peer_deadline.saturating_duration_since(std::time::Instant::now());
+                assert!(
+                    !remaining.is_zero(),
+                    "provider did not release the terminal socket within the fixture deadline"
+                );
+                socket.get_mut().set_read_timeout(Some(remaining)).unwrap();
+                match socket.read() {
+                    Ok(Message::Close(_)) => {
+                        let _ = socket.flush();
+                        break;
+                    }
+                    Err(Error::ConnectionClosed | Error::AlreadyClosed)
+                    | Err(Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => break,
+                    Err(Error::Io(error))
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::UnexpectedEof
+                                | std::io::ErrorKind::ConnectionReset
+                                | std::io::ErrorKind::ConnectionAborted
+                                | std::io::ErrorKind::BrokenPipe
+                        ) =>
+                    {
+                        break
+                    }
+                    Ok(Message::Ping(_) | Message::Pong(_)) => {
+                        socket.flush().unwrap();
+                    }
+                    // A terminal may release the peer through Close or EOF/reset.
+                    // Timeout and application frames both fail this bounded check;
+                    // in particular, same-socket response.create replay is forbidden.
+                    other => panic!("unexpected peer behavior after upstream terminal: {other:?}"),
+                }
+            }
+            listener.set_nonblocking(true).unwrap();
+            listener
+        });
+        let (mut child, mut stdin, mut stdout) = spawn_native_worker();
+        let lines = next_turn(
+            &mut stdin,
+            &mut stdout,
+            native_managed_input(&base, json!({"input":[]}), native_opaque_directive(3)),
+        );
+        let event = lines.iter().find(|event| event["type"] == "error").unwrap();
+        assert_eq!(event["error"]["kind"], "provider_upstream_error");
+        assert_eq!(event["error"]["message"], original["message"]);
+        let details = &event["error"]["provider_details"];
+        assert_eq!(details["upstream_error"], original);
+        assert_eq!(details["semantic_terminal"], true);
+        assert!(details.get("status_code").is_none());
+        assert_eq!(lines.last().unwrap()["result"]["finish_reason"], "error");
+        assert_eq!(
+            details["1flowbase_provider_recovery"]["disposition"],
+            "semantic_terminal"
+        );
+        assert_eq!(details["1flowbase_provider_recovery"]["attempt"], 0);
+        assert_eq!(
+            details["1flowbase_provider_recovery_diagnostics"]["attempts"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        // Observe provider-owned release before any process cleanup. Keep the
+        // listener through completion so replacement connections remain visible.
+        let listener = server.join().unwrap();
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
+        );
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}

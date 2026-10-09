@@ -508,6 +508,39 @@ impl RecoveryFsm {
             reason,
         }
     }
+
+    /// Called only with a provider-owned materialized scoped native request.
+    /// The ordinary NativeOpaque HTTP fallback prohibition remains unchanged.
+    pub(crate) fn decide_native_full_context_http_transition(
+        &mut self,
+        facts: RecoveryFacts,
+    ) -> RecoveryTransition {
+        let eligible = self.constraints.policy == RecoveryPolicyKind::NativeOpaque
+            && self.full_context_rebuild_used
+            && self.allow_http_fallback
+            && facts.full_context_available
+            && facts.cursor == CursorState::None
+            && matches!(
+                facts.signal,
+                RecoverySignal::TransportDisconnected
+                    | RecoverySignal::TransportRejected
+                    | RecoverySignal::ProxyFailed
+            );
+        let mut transition = self.decide_transition(facts);
+        if eligible
+            && transition.disposition == RecoveryDisposition::LogicalInvocationRetry
+            && transition.commit_level == CommitLevel::LifecycleOnly
+            && matches!(
+                transition.reason,
+                RecoveryReason::TransportDisconnected | RecoveryReason::TransportRejected
+            )
+        {
+            // The receipt retains OneFullContextRebuild; this internal decision
+            // records the distinct HTTP transition in bounded diagnostics.
+            transition.disposition = RecoveryDisposition::PreCommitHttpFallback;
+        }
+        transition
+    }
 }
 
 pub(crate) fn deadline_expired(deadline: Option<i64>) -> bool {
@@ -665,7 +698,7 @@ mod tests {
     }
 
     #[test]
-    fn native_opaque_never_crosses_to_http() {
+    fn native_opaque_without_materialized_context_never_crosses_to_http() {
         let mut machine = fsm(RecoveryPolicyKind::NativeOpaque);
         assert_eq!(
             machine.decide(RecoveryFacts {
@@ -675,6 +708,94 @@ mod tests {
             }),
             RecoveryDisposition::LogicalInvocationRetry
         );
+    }
+
+    #[test]
+    fn native_materialized_context_http_keeps_budget_commit_and_failure_fences() {
+        let rebuild = RecoveryFacts {
+            signal: RecoverySignal::TransportDisconnected,
+            cursor: CursorState::OpaqueUnowned,
+            full_context_available: true,
+        };
+        for signal in [
+            RecoverySignal::TransportDisconnected,
+            RecoverySignal::TransportRejected,
+            RecoverySignal::ProxyFailed,
+            RecoverySignal::ProtocolError,
+            RecoverySignal::PolicyRejected,
+            RecoverySignal::SemanticTerminal,
+        ] {
+            let mut machine = fsm(RecoveryPolicyKind::NativeOpaque);
+            machine.begin_attempt().unwrap();
+            assert_eq!(
+                machine.decide(rebuild),
+                RecoveryDisposition::OneFullContextRebuild
+            );
+            machine.begin_attempt().unwrap();
+            let transition = machine.decide_native_full_context_http_transition(RecoveryFacts {
+                signal,
+                cursor: CursorState::None,
+                full_context_available: true,
+            });
+            assert_eq!(
+                transition.disposition == RecoveryDisposition::PreCommitHttpFallback,
+                matches!(
+                    signal,
+                    RecoverySignal::TransportDisconnected
+                        | RecoverySignal::TransportRejected
+                        | RecoverySignal::ProxyFailed
+                )
+            );
+            assert_eq!(
+                machine.consumed_attempts(),
+                2,
+                "deciding HTTP does not consume its attempt"
+            );
+        }
+        for fence in [
+            "no_materialization",
+            "bound",
+            "force_websocket",
+            "semantic",
+            "budget",
+            "deadline",
+        ] {
+            let mut machine = fsm(RecoveryPolicyKind::NativeOpaque);
+            machine.begin_attempt().unwrap();
+            assert_eq!(
+                machine.decide(rebuild),
+                RecoveryDisposition::OneFullContextRebuild
+            );
+            machine.begin_attempt().unwrap();
+            let mut facts = RecoveryFacts {
+                cursor: CursorState::None,
+                ..rebuild
+            };
+            match fence {
+                "no_materialization" => facts.full_context_available = false,
+                "bound" => {
+                    facts.cursor = CursorState::ConnectionBound {
+                        same_epoch: true,
+                        owner_available: true,
+                        turn_state_available: true,
+                    }
+                }
+                "force_websocket" => machine.allow_http_fallback = false,
+                "semantic" => machine.observe_semantic_event(),
+                "budget" => {
+                    machine.begin_attempt().unwrap();
+                }
+                "deadline" => machine.constraints.absolute_deadline_unix_ms = Some(1),
+                _ => unreachable!(),
+            }
+            assert_ne!(
+                machine
+                    .decide_native_full_context_http_transition(facts)
+                    .disposition,
+                RecoveryDisposition::PreCommitHttpFallback,
+                "fence={fence}"
+            );
+        }
     }
 
     #[test]
