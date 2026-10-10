@@ -345,7 +345,7 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
   const expectedCounts = new Map([
     ['agent-flow', 2],
     ['i18n', publishedI18nCount],
-    ['mcp', 1],
+    ['mcp', 2],
     ['runtime-extensions', runtimeIdentities.size],
   ]);
 
