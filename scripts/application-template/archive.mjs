@@ -10,7 +10,7 @@ function safe(value) {
 }
 const component = value => encodeURIComponent(String(value)).replace(/\./g, '%2E');
 export async function splitPackage(packageValue, directory) {
-  if (packageValue?.schema_version !== '1flowbase.portable-template/v1') throw new Error('invalid portable template schema');
+  if (!['1flowbase.portable-template/v1', '1flowbase.portable-template/v2'].includes(packageValue?.schema_version)) throw new Error('invalid portable template schema');
   const files = new Map();
   const put = (name, value) => { safe(name); if (files.has(name)) throw new Error(`duplicate path ${name}`); files.set(name, json(value)); return { $file: name }; };
   const p = structuredClone(packageValue);
@@ -30,6 +30,17 @@ export async function splitPackage(packageValue, directory) {
   });
   p.data_models = p.data_models.map(model => put(`data-models/${component(model.id)}.json`, model));
   p.plugins = put('plugins/dependencies.json', p.plugins);
+  if (p.i18n_entries !== undefined) {
+    if (!Array.isArray(p.i18n_entries)) throw new Error('invalid template translations');
+    p.i18n_entries = p.i18n_entries.map(entry => {
+      if (!entry || typeof entry.key !== 'string' || !entry.key.trim() ||
+          typeof entry.locale !== 'string' || !/^[a-z]{2,3}(_[A-Z][A-Za-z]{1,7})?$/.test(entry.locale) ||
+          typeof entry.translation !== 'string') throw new Error('invalid template translation');
+      const identity = createHash('sha256').update(JSON.stringify([entry.key, entry.locale])).digest('hex');
+      return put(`i18n/${entry.locale}/${identity.slice(0, 2)}/${identity}.json`, entry);
+    });
+  }
+
   if (p.mcp_bundle) {
     p.mcp_bundle.manifest = put('mcp/manifest.json', p.mcp_bundle.manifest);
     for (const [kind, key] of [['tools', 'tool_id'], ['instances', 'instance_id'], ['connections', 'connection_id']]) {
@@ -83,7 +94,7 @@ async function load(directory) {
     return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, resolve(v, stack, depth + 1)]));
   }
   const packageValue = resolve(manifest.package);
-  if (packageValue?.schema_version !== '1flowbase.portable-template/v1') throw new Error('invalid portable template schema');
+  if (!['1flowbase.portable-template/v1', '1flowbase.portable-template/v2'].includes(packageValue?.schema_version)) throw new Error('invalid portable template schema');
   if (used.size !== manifest.files.length) throw new Error('unreferenced archive file');
   return { files, packageValue };
 }

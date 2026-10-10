@@ -52,3 +52,28 @@ test('duplicate, undeclared and manifest self references are rejected', async t 
   manifest.package.plugins = { $file: 'manifest.json' };
   await fs.writeFile(path.join(root, 'manifest.json'), JSON.stringify(manifest)); await assert.rejects(readPackage(root), /undeclared/);
 });
+
+
+test('selected translation entries round-trip as checksummed files without altering legacy archives', async t => {
+  const root = await temporary(t);
+  const legacy = fixture();
+  await splitPackage(legacy, root);
+  const legacyBytes = await buildArchive(root);
+  const pkg = { ...legacy, schema_version: '1flowbase.portable-template/v2', i18n_entries: [
+    { key: 'Reports / ../ 😀', locale: 'zh_Hans', translation: '报表' },
+    { key: 'Reports / ../ 😀', locale: 'en_US', translation: 'Reports' },
+    { key: 'Empty value', locale: 'zh_Hans', translation: '' },
+  ] };
+  const manifest = await splitPackage(pkg, root);
+  assert.deepEqual(await readPackage(root), pkg);
+  const entries = manifest.files.filter(x => x.path.startsWith('i18n/'));
+  assert.equal(entries.length, 3);
+  assert(entries.every(x => /^i18n\/[a-z_]+\/[a-f0-9]{2}\/[a-f0-9]{64}\.json$/i.test(x.path)));
+  await fs.appendFile(path.join(root, entries[0].path), ' ');
+  await assert.rejects(readPackage(root), /hash mismatch/);
+  await splitPackage(legacy, root);
+  assert.deepEqual(await buildArchive(root), legacyBytes);
+  assert.equal('i18n_entries' in await readPackage(root), false);
+  await assert.rejects(splitPackage({ ...legacy, i18n_entries: [pkg.i18n_entries[0], pkg.i18n_entries[0]] }, root), /duplicate path/);
+  await assert.rejects(splitPackage({ ...legacy, i18n_entries: [{ key: 'A', locale: '../zh', translation: 'B' }] }, root), /invalid template translation/);
+});
