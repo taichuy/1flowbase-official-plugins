@@ -1,8 +1,8 @@
 {
-  "tool_id": "agent_flow_get_publication",
-  "name": "get_agent_flow_publication",
-  "short_description": "返回 Agent Flow 当前活动 publication、版本、mapping 快照与公开 URL。",
-  "full_description": "",
+  "tool_id": "api_get_publication",
+  "name": "查看 API 发布状态",
+  "short_description": "返回应用当前发布版本、映射快照与公开 URL。",
+  "full_description": "使用目标应用 id 查看发布状态。工作流先读取映射再发布；publication 存在不代表接口已启用，也不保证可以直接通过 MCP 调用公开 API。 未发布应用可能返回 404；这不等于没有权限。schedule 工作流没有公开 HTTP 调用入口，构建 HTTP API 使用 extension 工作流。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "get_application_api_publication"
@@ -338,15 +338,21 @@
   "input_mapping": {
     "mappings": [
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "path.application_id",
-        "description": "Agent Flow application 的稳定 application_id。",
+        "description": "目标应用的稳定 id，可从 application_list 获取。",
+        "default_value": null,
         "interface_param": "application_id"
       }
     ],
     "interface_parameters": [
       {
         "name": "application_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
         "required": true,
         "field_type": "string",
         "description": "Application id",
@@ -355,7 +361,7 @@
     ]
   },
   "output_mapping": {},
-  "max_inline_chars": null,
+  "max_inline_chars": 5000,
   "response_fields": null,
   "permission_code_snapshot": "application.view.all",
   "risk_level_snapshot": "low",

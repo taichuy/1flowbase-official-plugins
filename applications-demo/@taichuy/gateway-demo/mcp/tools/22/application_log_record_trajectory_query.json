@@ -1,0 +1,489 @@
+{
+  "tool_id": "application_log_record_trajectory_query",
+  "name": "query_application_log_record_trajectory",
+  "short_description": "筛选指定记录的客户端步骤，并在选定语义正文中定位关键词命中。",
+  "full_description": "三级检索：使用记录摘要中的 application_id 与 record_id。keyword 在恢复后的语义正文中检索，search_sections 可选 overview、parameters、result，默认 result；raw 原始协议不参与关键词检索。先查看返回 matches/steps 摘要，再按 step_id 和 section 分段读取正文，避免一次拉取整个聊天历史。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "query_record_trajectory"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filter": {
+            "description": "Existing resource grammar, limited to the fields declared by query-fields."
+          },
+          "keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Search restored semantic section bodies, not only previews. Raw archive search is excluded."
+          },
+          "search_sections": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "overview, parameters or result; default result when keyword is present."
+          }
+        },
+        "additionalProperties": false
+      },
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "record_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "matches",
+      "next_cursor",
+      "search_sections",
+      "integrity"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "request_id",
+            "sequence",
+            "created_at",
+            "category",
+            "name",
+            "namespace",
+            "status",
+            "origin",
+            "protocol",
+            "transport",
+            "flow_run_id",
+            "node_run_id",
+            "parent_id",
+            "related_step_id",
+            "call_id",
+            "item_id",
+            "response_id",
+            "turn_id",
+            "preview",
+            "parameters_preview",
+            "result_preview",
+            "available_sections"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string"
+            },
+            "origin": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "call_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "item_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "preview": {
+              "type": "string"
+            },
+            "turn_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "category": {
+              "type": "string"
+            },
+            "protocol": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "namespace": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parent_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "transport": {
+              "enum": [
+                "http",
+                "websocket",
+                "file"
+              ],
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "request_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "flow_run_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "node_run_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "response_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "result_preview": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "related_step_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "available_sections": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "parameters_preview": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "matches": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "step_id",
+            "section",
+            "sequence",
+            "snippet"
+          ],
+          "properties": {
+            "section": {
+              "type": "string"
+            },
+            "snippet": {
+              "type": "string"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "integrity": {
+        "type": "string"
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "search_sections": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "记录摘要返回的 application_id；必须与 record_id 归属一致。",
+        "default_value": null,
+        "interface_param": "id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.record_id",
+        "description": "统一记录查询返回的 record_id，两种来源均使用这个标识。",
+        "default_value": null,
+        "interface_param": "record_id"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.cursor",
+        "description": "上次响应的 next_cursor；只在应用范围、filter、关键词、排序和检索分区不变时续页；null 表示结束。",
+        "default_value": null,
+        "interface_param": "cursor"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.filter",
+        "description": "使用字段发现工具的 trajectory_fields 与操作符组合 $and/$or，筛选此记录的轨迹步骤。",
+        "default_value": null,
+        "interface_param": "filter"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.keyword",
+        "description": "在选定并恢复的语义正文中匹配字面子串，忽略大小写；不只查 preview，raw 不参与检索。",
+        "default_value": null,
+        "interface_param": "keyword"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.limit",
+        "description": "本页返回数量，必须为正整数；不会截断搜索范围，也不返回精确总数。",
+        "default_value": null,
+        "interface_param": "limit"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.search_sections",
+        "description": "关键词检索分区，可选 overview、parameters、result；默认 result。raw 原始协议不参与关键词检索。",
+        "default_value": null,
+        "interface_param": "search_sections"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "record_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "cursor",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "filter",
+        "schema": {
+          "description": "Existing resource grammar, limited to the fields declared by query-fields."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Existing resource grammar, limited to the fields declared by query-fields.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "keyword",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Search restored semantic section bodies, not only previews. Raw archive search is excluded."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Search restored semantic section bodies, not only previews. Raw archive search is excluded.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "limit",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "search_sections",
+        "schema": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "overview, parameters or result; default result when keyword is present."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "overview, parameters or result; default result when keyword is present.",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,321 @@
+{
+  "tool_id": "backend_settings_interfaces",
+  "name": "查看后台设置接口",
+  "short_description": "返回设置分组及每个操作的名称、稳定标识和原生路由。",
+  "full_description": "先用 backend_settings_discover 了解设置分组。此工具复用角色目录，保留操作的 operation_id、summary、description、route，省略角色策略表单。接口目录不代表当前用户拥有权限；用 /system_mcp/discover/interfaces 核对可绑定接口及输入输出参数，再复用或封装 Tool。较大结果用 mcp_result(result_ref) 按 /groups/<索引>/operations 分段读取，不重复执行原查询。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_console_policy_catalog"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "schema_version",
+      "locale",
+      "settings_order_revision",
+      "group_strategy_options",
+      "groups",
+      "resources"
+    ],
+    "properties": {
+      "groups": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "kind",
+            "group_id",
+            "label",
+            "description",
+            "operations"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "settings_feature",
+                "other"
+              ],
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "group_id": {
+              "type": "string"
+            },
+            "operations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "operation_id",
+                  "summary",
+                  "description",
+                  "order",
+                  "route",
+                  "full_profile",
+                  "allowed_row_scopes",
+                  "authorization"
+                ],
+                "properties": {
+                  "order": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "route": {
+                    "type": "object",
+                    "required": [
+                      "method",
+                      "path"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "full_profile": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "enabled",
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "simple"
+                            ],
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "scope",
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "row"
+                            ],
+                            "type": "string"
+                          },
+                          "scope": {
+                            "enum": [
+                              "disabled",
+                              "own",
+                              "scope_all"
+                            ],
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "operation_id": {
+                    "type": "string"
+                  },
+                  "authorization": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "simple"
+                            ],
+                            "type": "string"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "resource_code",
+                          "action_code",
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "resource_action"
+                            ],
+                            "type": "string"
+                          },
+                          "action_code": {
+                            "type": "string"
+                          },
+                          "resource_code": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "allowed_row_scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "label",
+                        "description"
+                      ],
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "locale": {
+        "type": "string"
+      },
+      "resources": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "resource_code",
+            "label",
+            "description",
+            "actions"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "action_code",
+                  "label",
+                  "description"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "action_code": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "description": {
+              "type": "string"
+            },
+            "resource_code": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "schema_version": {
+        "type": "string"
+      },
+      "group_strategy_options": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "label",
+            "description"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "settings_order_revision": {
+        "type": "integer",
+        "format": "int64"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {
+    "properties": {
+      "groups": {
+        "items": {
+          "properties": {
+            "kind": {},
+            "label": {},
+            "group_id": {},
+            "operations": {
+              "items": {
+                "properties": {
+                  "route": {},
+                  "summary": {},
+                  "description": {},
+                  "operation_id": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "settings_feature.access.system.roles",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

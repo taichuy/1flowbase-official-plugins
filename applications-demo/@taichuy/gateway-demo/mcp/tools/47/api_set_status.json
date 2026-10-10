@@ -1,8 +1,8 @@
 {
-  "tool_id": "agent_flow_set_api_status",
-  "name": "set_agent_flow_api_status",
-  "short_description": "启用或停用已发布 Agent Flow 的 API 调用状态。",
-  "full_description": "",
+  "tool_id": "api_set_status",
+  "name": "启停已发布 API",
+  "short_description": "设置应用 API 调用开关并返回状态。",
+  "full_description": "设置 api_enabled 不会创建 publication；即使设置成功，未发布的应用也不能据此认定 API 可调用。需要公开工作流 HTTP API 时，使用 extension 工作流并先完成发布；不要把 schedule 状态当作 HTTP API 状态。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "patch_application_api_status"
@@ -65,21 +65,29 @@
   "input_mapping": {
     "mappings": [
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "path.application_id",
-        "description": "Agent Flow application 的稳定 application_id。",
+        "description": "目标应用的稳定 id，可从 application_list 获取。",
+        "default_value": null,
         "interface_param": "application_id"
       },
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "body.api_enabled",
         "description": "是否允许调用当前 publication 的公开 API。",
+        "default_value": null,
         "interface_param": "api_enabled"
       }
     ],
     "interface_parameters": [
       {
         "name": "application_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
         "required": true,
         "field_type": "string",
         "description": "Application id",
@@ -87,15 +95,18 @@
       },
       {
         "name": "api_enabled",
+        "schema": {
+          "type": "boolean"
+        },
         "required": true,
         "field_type": "boolean",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       }
     ]
   },
   "output_mapping": {},
-  "max_inline_chars": null,
+  "max_inline_chars": 5000,
   "response_fields": null,
   "permission_code_snapshot": "application.edit.all",
   "risk_level_snapshot": "high",

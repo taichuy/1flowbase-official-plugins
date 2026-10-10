@@ -1,0 +1,139 @@
+{
+  "tool_id": "application_log_query_fields",
+  "name": "discover_application_log_query_fields",
+  "short_description": "返回统一聊天记录与轨迹的筛选字段、操作符、排序字段和关键词范围。",
+  "full_description": "检索前按需读取当前支持的记录字段、轨迹字段和比较操作符。用这些真实字段构造 filter，不猜测未知字段。常用关键词检索可直接调用 application_log_records_query。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_query_fields"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "record_fields",
+      "trajectory_fields",
+      "logical_operators",
+      "record_keyword_fields",
+      "trajectory_search_sections",
+      "record_contains_semantics",
+      "trajectory_keyword_semantics",
+      "pagination"
+    ],
+    "properties": {
+      "pagination": {
+        "type": "string"
+      },
+      "record_fields": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "field",
+            "value_type",
+            "operators",
+            "sortable"
+          ],
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "sortable": {
+              "type": "boolean"
+            },
+            "operators": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value_type": {
+              "enum": [
+                "string",
+                "uuid",
+                "number",
+                "boolean",
+                "datetime"
+              ],
+              "type": "string"
+            }
+          }
+        }
+      },
+      "logical_operators": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "trajectory_fields": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "field",
+            "value_type",
+            "operators",
+            "sortable"
+          ],
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "sortable": {
+              "type": "boolean"
+            },
+            "operators": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value_type": {
+              "enum": [
+                "string",
+                "uuid",
+                "number",
+                "boolean",
+                "datetime"
+              ],
+              "type": "string"
+            }
+          }
+        }
+      },
+      "record_keyword_fields": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "record_contains_semantics": {
+        "type": "string"
+      },
+      "trajectory_search_sections": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "trajectory_keyword_semantics": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

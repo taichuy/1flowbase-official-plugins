@@ -1,8 +1,8 @@
 {
-  "tool_id": "workflow_ops_create_application",
-  "name": "create_workflow_application",
-  "short_description": "创建 Workflow，并返回 application_id、触发方式和各功能区初始状态。",
-  "full_description": "工作流节点使用路径：先创建或复用 workflow Application，读取当前编排与 application_list_nodes，再添加目标节点、保存完整草稿，最后单点调试。不要临时创建第二套无应用执行体系，也不要为一次调试发布API或启用schedule。extension/schedule是触发方式，创建schedule后保持禁用即可调试。\n编排文档使用 schemaVersion=1flowbase.flow/v2；meta.flowId取 get_workflow_orchestration 返回的flow_id。保留返回的meta/editor与Workflow Start/End，用graph.nodes和graph.edges保存节点与连线，不使用顶层nodes/edges。每个节点包含id,type,alias,description,containerId:null,position:{x,y},configVersion:1,config,bindings,outputs。id稳定且唯一，edge.source/target引用id，edge包含id,source,target,sourceHandle:null,targetHandle:null,containerId:null,points:[]。新增普通节点放在workflow_start与workflow_end之间；读取后再修改，保留其他节点和用户内容。\n节点能力以application_list_nodes当前返回为准；runtime_status=ready只说明运行时可用，authoring_status=hidden的节点不要当作默认可编排节点。边界节点为workflow_start/workflow_end；处理能力包括HTTP、SQL、数据List/Get/Create/Update/Delete、模板转换、代码、条件分支、变量赋值/聚合、LLM等；插件可用性和契约以plugin字段为准，不能猜测未安装插件或未知节点。\nconfig保存静态配置，bindings保存运行时输入，outputs声明可供下游引用的结果。静态值填写节点支持的config字段；顶层bindings不支持constant，不能把任意JSON直接写成binding。对象键值输入可用named_bindings，例如{\"kind\":\"named_bindings\",\"value\":[{\"name\":\"Accept\",\"value\":{\"kind\":\"constant\",\"value\":\"application/json\"}}]}；变量绑定：{\"kind\":\"selector\",\"value\":[\"上游节点id\",\"字段key\"]}；文本模板：{\"kind\":\"templated_text\",\"value\":\"Hello {{ node-start.name }}\"}。outputs元素通常为{\"key\":\"result\",\"title\":\"Result\",\"valueType\":\"string\"}，valueType按结果实际类型选取。Start config.input_fields的元素包含key,label,inputType,valueType,required，例如{\"key\":\"name\",\"label\":\"Name\",\"inputType\":\"text\",\"valueType\":\"string\",\"required\":true}。Workflow Start的outputs建议与input_fields逐项声明同名key/valueType，例如name字段使用{\"key\":\"name\",\"title\":\"Name\",\"valueType\":\"string\"}；不要照搬Agent Flow start的空outputs规则。End在bindings中引用结果，并在outputs声明相同key。\nselector数组每段是一个对象键，嵌套记录id使用[\"node-create\",\"record\",\"id\"]，不要把record.id写成一段；文本模板则使用{{ node-create.record.id }}。引用源节点必须通过graph.edges处于上游，且结果字段在源outputs中声明。单点debug虽不执行上游，仍校验目标及上游编排契约，所以上游无效bindings也会阻断目标；遇到bindings校验错误应检查整条上游链。代码输出有result对象包裹，main返回{greeting:\"Hi\"}时实际output_payload为{result:{greeting:\"Hi\"},error:null}，下游selector使用[\"node-code\",\"result\",\"greeting\"]，显式调试变量池保留这个结构。\n单点调试只执行目标节点，不运行上游；body.input_payload是变量池，如{\"node-start\":{\"name\":\"Ada\"},\"node-upstream\":{\"result\":123}}，其中node-start替换成实际Start id。常量节点可传{}。先保存节点，debug传path.id=application_id与path.node_id=目标id；通常省略body.document使用已保存草稿。调试会持久化运行记录，检查node_run.status/error_payload/output_payload，不把MCP调用成功等同于节点执行成功。大型结果用mcp_result按result_ref取回，不重复执行写节点。\n节点调试工具要求des_id：先mcp_get(workflow_ops_create_application)阅读本说明，再把其当前des_id放在mcp_call外层，不能使用节点工具自身des_id。这个标识检查前置说明版本，application_id、节点、权限与输入仍由后端独立校验。写节点会真实修改数据；仅对明确授权资源执行。",
+  "tool_id": "application_create_agent_flow",
+  "name": "create_agent_flow_application",
+  "short_description": "创建 Agent Flow 应用，类型已固定，无需重复填写。",
+  "full_description": "",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "create_application"
@@ -389,68 +389,28 @@
   "input_mapping": {
     "mappings": [
       {
-        "hidden": false,
-        "required": true,
+        "hidden": true,
+        "required": false,
         "mcp_param": "body.application_type",
-        "description": "固定填写 workflow；Agent Flow 使用独立创建入口。",
-        "default_value": null,
+        "description": "固定填写 agent_flow。",
+        "default_value": "agent_flow",
         "interface_param": "application_type"
       },
       {
         "hidden": false,
         "required": true,
-        "mcp_param": "body.name",
-        "description": "Workflow 名称。",
-        "default_value": null,
-        "interface_param": "name"
-      },
-      {
-        "hidden": false,
-        "required": true,
         "mcp_param": "body.description",
-        "description": "Workflow 的用户目标与预期结果。",
+        "description": "Agent Flow 应用用途说明。",
         "default_value": null,
         "interface_param": "description"
       },
       {
         "hidden": false,
-        "required": false,
-        "mcp_param": "body.icon",
-        "description": "可选图标内容。",
-        "default_value": null,
-        "interface_param": "icon"
-      },
-      {
-        "hidden": false,
-        "required": false,
-        "mcp_param": "body.icon_background",
-        "description": "可选图标背景色。",
-        "default_value": null,
-        "interface_param": "icon_background"
-      },
-      {
-        "hidden": false,
-        "required": false,
-        "mcp_param": "body.icon_type",
-        "description": "可选图标类型。",
-        "default_value": null,
-        "interface_param": "icon_type"
-      },
-      {
-        "hidden": false,
         "required": true,
-        "mcp_param": "body.workflow_trigger_type",
-        "description": "Workflow 触发器：extension 或 schedule。",
+        "mcp_param": "body.name",
+        "description": "Agent Flow 应用名称。",
         "default_value": null,
-        "interface_param": "workflow_trigger_type"
-      },
-      {
-        "hidden": false,
-        "required": true,
-        "mcp_param": "body.workflow_trigger_config",
-        "description": "与 workflow_trigger_type 对应的初始触发器配置。",
-        "default_value": null,
-        "interface_param": "workflow_trigger_config"
+        "interface_param": "name"
       }
     ],
     "interface_parameters": [
@@ -458,56 +418,56 @@
         "name": "application_type",
         "required": true,
         "field_type": "string",
-        "description": "固定填写 workflow；Agent Flow 使用独立创建入口。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "description",
         "required": true,
         "field_type": "string",
-        "description": "Workflow 的用户目标与预期结果。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "icon",
         "required": false,
         "field_type": "object",
-        "description": "可选图标内容。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "icon_background",
         "required": false,
         "field_type": "object",
-        "description": "可选图标背景色。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "icon_type",
         "required": false,
         "field_type": "object",
-        "description": "可选图标类型。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "name",
         "required": true,
         "field_type": "string",
-        "description": "Workflow 名称。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "workflow_trigger_config",
         "required": false,
         "field_type": "object",
-        "description": "与 workflow_trigger_type 对应的初始触发器配置。",
+        "description": "",
         "parameter_type": "json_body"
       },
       {
         "name": "workflow_trigger_type",
         "required": false,
         "field_type": "object",
-        "description": "Workflow 触发器：extension 或 schedule。",
+        "description": "",
         "parameter_type": "json_body"
       }
     ]

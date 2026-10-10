@@ -1,8 +1,8 @@
 {
-  "tool_id": "agent_flow_create_application",
-  "name": "create_agent_flow_application",
-  "short_description": "创建 Agent Flow 应用并返回 application_id 与各功能区初始状态。",
-  "full_description": "",
+  "tool_id": "application_create_agent_logs",
+  "name": "创建日志应用",
+  "short_description": "创建 Agent Logs 应用，应用类型已固定。",
+  "full_description": "创建专门接收与查看客户端日志的 agent_logs 应用。name、description 描述日志来源和用途；完成后用 application_get 读取详情。它不是 Agent Flow，不使用工作流编排或发布入口。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "create_application"
@@ -47,6 +47,7 @@
           },
           "application_type": {
             "enum": [
+              "agent_logs",
               "agent_flow",
               "workflow"
             ],
@@ -363,6 +364,7 @@
       },
       "application_type": {
         "enum": [
+          "agent_logs",
           "agent_flow",
           "workflow"
         ],
@@ -387,85 +389,212 @@
   "input_mapping": {
     "mappings": [
       {
-        "required": true,
+        "hidden": true,
+        "required": false,
         "mcp_param": "body.application_type",
         "description": "固定填写 agent_flow。",
+        "default_value": "agent_logs",
         "interface_param": "application_type"
       },
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "body.description",
-        "description": "Agent Flow 应用用途说明。",
+        "description": "Agent Logs 应用用途说明。",
+        "default_value": null,
         "interface_param": "description"
       },
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "body.name",
-        "description": "Agent Flow 应用名称。",
+        "description": "Agent Logs 应用名称。",
+        "default_value": null,
         "interface_param": "name"
       }
     ],
     "interface_parameters": [
       {
         "name": "application_type",
+        "schema": {
+          "enum": [
+            "agent_logs",
+            "agent_flow",
+            "workflow"
+          ],
+          "type": "string",
+          "description": "Closed Application family. Agent Flow and Workflow have different boundary nodes and API\npublication semantics."
+        },
         "required": true,
         "field_type": "string",
-        "description": "",
+        "description": "Closed Application family. Agent Flow and Workflow have different boundary nodes and API\npublication semantics.",
         "parameter_type": "json_body"
       },
       {
         "name": "description",
+        "schema": {
+          "type": "string"
+        },
         "required": true,
         "field_type": "string",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       },
       {
         "name": "icon",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "required": false,
         "field_type": "object",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       },
       {
         "name": "icon_background",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "required": false,
         "field_type": "object",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       },
       {
         "name": "icon_type",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "required": false,
         "field_type": "object",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       },
       {
         "name": "name",
+        "schema": {
+          "type": "string"
+        },
         "required": true,
         "field_type": "string",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       },
       {
         "name": "workflow_trigger_config",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "cron": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Required for schedule triggers; standard cron expression."
+                },
+                "subpath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Required for extension triggers; route template below /api/ex/ without leading slash."
+                },
+                "timezone": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Required for schedule triggers; IANA timezone name."
+                },
+                "http_method": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "enum": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "HEAD",
+                        "OPTIONS"
+                      ],
+                      "type": "string",
+                      "description": "Extension HTTP method. Defaults to POST."
+                    }
+                  ]
+                },
+                "input_payload": {
+                  "description": "Optional schedule defaults keyed by Workflow Start input field key."
+                },
+                "response_mode": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "enum": [
+                        "sync",
+                        "async"
+                      ],
+                      "type": "string",
+                      "description": "Extension response mode: sync or async. Defaults to sync."
+                    }
+                  ]
+                }
+              },
+              "description": "Optional initial config for the selected Workflow trigger. Schedule creation is always\ndisabled until its schedule resource is enabled with PUT.",
+              "additionalProperties": false
+            }
+          ]
+        },
         "required": false,
         "field_type": "object",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       },
       {
         "name": "workflow_trigger_type",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "extension",
+                "schedule"
+              ],
+              "type": "string",
+              "description": "Applies only to workflow. Defaults to extension when omitted; Agent Flow ignores no trigger\nvalue and rejects trigger configuration."
+            }
+          ]
+        },
         "required": false,
         "field_type": "object",
-        "description": "",
+        "description": null,
         "parameter_type": "json_body"
       }
     ]
   },
   "output_mapping": {},
-  "max_inline_chars": null,
+  "max_inline_chars": 5000,
   "response_fields": null,
   "permission_code_snapshot": "application.create.all",
   "risk_level_snapshot": "high",

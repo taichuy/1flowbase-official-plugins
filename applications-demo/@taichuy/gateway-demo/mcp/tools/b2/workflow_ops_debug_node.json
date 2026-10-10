@@ -2,7 +2,7 @@
   "tool_id": "workflow_ops_debug_node",
   "name": "debug_workflow_node",
   "short_description": "单点调试已保存Workflow中的一个节点并返回持久化运行结果。",
-  "full_description": "先mcp_get(workflow_ops_create_application)阅读完整使用说明，mcp_call外层des_id传该前置工具当前值。先创建/复用Workflow，发现节点、保存编排；path.id为application_id，path.node_id为目标节点id。只执行该节点，body.input_payload显式提供其所需上游变量，常量节点传{}。节点能力和配置以application_list_nodes为准；HTTP、SQL、数据CRUD、模板转换、代码和变量处理可单点执行；依赖控制流、等待人工确认或回调的节点使用整链调试。调用成功后检查node_run.status/error_payload/output_payload，不重复执行写操作。",
+  "full_description": "先mcp_get(application_create_workflow)阅读完整使用说明，mcp_call外层des_id传该前置工具当前值。先创建/复用Workflow，发现节点、保存编排；path.id为application_id，path.node_id为目标节点id。只执行该节点，body.input_payload显式提供其所需上游变量，常量节点传{}。节点能力和配置以application_list_nodes为准；HTTP、SQL、数据CRUD、模板转换、代码和变量处理可单点执行；依赖控制流、等待人工确认或回调的节点使用整链调试。调用成功后检查node_run.status/error_payload/output_payload，不重复执行写操作。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "start_node_debug_preview"
@@ -301,59 +301,60 @@
   "input_mapping": {
     "mappings": [
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "path.id",
         "description": "Workflow application_id；先创建或复用应用。",
-        "interface_param": "id",
         "default_value": null,
-        "hidden": false
+        "interface_param": "id"
       },
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "path.node_id",
         "description": "当前Workflow编排中目标节点的稳定id。",
-        "interface_param": "node_id",
         "default_value": null,
-        "hidden": false
+        "interface_param": "node_id"
       },
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "body.input_payload",
         "description": "本次单点调试变量池；只执行目标节点，所需上游输出按节点id显式提供，常量节点传{}。",
-        "interface_param": "input_payload",
         "default_value": null,
-        "hidden": false
+        "interface_param": "input_payload"
       },
       {
+        "hidden": false,
         "required": false,
         "mcp_param": "body.document",
         "description": "可选完整编排快照；通常省略，使用保存后的草稿。",
-        "interface_param": "document",
         "default_value": null,
-        "hidden": false
+        "interface_param": "document"
       },
       {
+        "hidden": false,
         "required": false,
         "mcp_param": "body.debug_session_id",
         "description": "可选调试会话id。",
-        "interface_param": "debug_session_id",
         "default_value": null,
-        "hidden": false
+        "interface_param": "debug_session_id"
       },
       {
+        "hidden": false,
         "source": {
           "kind": "mcp_call",
           "path": "des_id",
-          "tool_id": "workflow_ops_create_application"
+          "tool_id": "application_create_workflow"
         },
         "required": true,
         "mcp_param": "des_id",
         "description": "先读取前置工作流说明，再传其当前des_id。",
-        "interface_param": "des_id",
         "default_value": null,
-        "hidden": false
+        "interface_param": "des_id"
       },
       {
+        "hidden": false,
         "source": {
           "kind": "mcp_call",
           "path": "max_inline_chars"
@@ -361,11 +362,11 @@
         "required": false,
         "mcp_param": "max_inline_chars",
         "description": "本次返回的有限字符预算。",
-        "interface_param": "max_inline_chars",
         "default_value": null,
-        "hidden": false
+        "interface_param": "max_inline_chars"
       },
       {
+        "hidden": false,
         "source": {
           "kind": "mcp_call",
           "path": "response_fields"
@@ -373,9 +374,8 @@
         "required": false,
         "mcp_param": "response_fields",
         "description": "按JSON Pointer选择返回字段。",
-        "interface_param": "response_fields",
         "default_value": null,
-        "hidden": false
+        "interface_param": "response_fields"
       }
     ],
     "interface_parameters": [

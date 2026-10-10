@@ -1,0 +1,328 @@
+{
+  "tool_id": "application_log_record_get",
+  "name": "get_application_log_record",
+  "short_description": "读取一轮聊天的系统上下文、用户输入、最终回复和输出状态。",
+  "full_description": "读取统一查询返回的 application_id 与 record_id 对应记录详情。不要把 conversation_id 或 run_id 当作 record_id。获取步骤使用 application_log_record_trajectory_query，读取正文使用 application_log_record_trajectory_section_get。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_log_record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "record_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "record_id",
+      "source_kind",
+      "source_id",
+      "source_client",
+      "source_session_id",
+      "source_task_id",
+      "native_run_id",
+      "status",
+      "title",
+      "outcome",
+      "projection_output",
+      "output_state",
+      "messages",
+      "total_tokens",
+      "input_tokens",
+      "output_tokens",
+      "input_cache_hit_tokens",
+      "cost_breakdown",
+      "available_views"
+    ],
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "outcome": {
+        "type": "string"
+      },
+      "messages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "role",
+            "content",
+            "sequence"
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "record_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "source_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "source_kind": {
+        "type": "string"
+      },
+      "input_tokens": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "output_state": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "flow_run_id",
+              "status",
+              "call_kind",
+              "request_kind",
+              "output_source",
+              "output_item_count"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "call_kind": {
+                "type": "string"
+              },
+              "flow_run_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "request_kind": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "output_source": {
+                "type": "string"
+              },
+              "output_item_count": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "total_tokens": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "native_run_id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "output_tokens": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "source_client": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "cost_breakdown": {
+        "type": "object",
+        "required": [
+          "total_cost"
+        ],
+        "properties": {
+          "total_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "source_task_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "available_views": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "projection_output": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "source_session_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "input_cache_hit_tokens": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "记录摘要返回的 application_id；必须与 record_id 归属一致。",
+        "default_value": null,
+        "interface_param": "id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.record_id",
+        "description": "统一记录查询返回的 record_id，两种来源均使用这个标识。",
+        "default_value": null,
+        "interface_param": "record_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "record_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

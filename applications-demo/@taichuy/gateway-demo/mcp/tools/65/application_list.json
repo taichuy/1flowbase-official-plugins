@@ -1,0 +1,101 @@
+{
+  "tool_id": "application_list",
+  "name": "列出应用",
+  "short_description": "返回当前可见应用的类型、名称、标识与标签。",
+  "full_description": "先读取 application_catalog 确认当前支持的应用类型，再按 application_type 选择 /application/agent-flows 或 /application/workflows。日志统计和 API 发布均使用真实应用 id；本接口不支持按类型服务端过滤，不伪造过滤参数。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_applications"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": [
+        "id",
+        "application_type",
+        "name",
+        "description",
+        "created_by",
+        "updated_at",
+        "tags"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "icon_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_by": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon_background": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "application_type": {
+          "enum": [
+            "agent_logs",
+            "agent_flow",
+            "workflow"
+          ],
+          "type": "string"
+        }
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

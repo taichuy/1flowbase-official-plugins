@@ -1,8 +1,8 @@
 {
-  "tool_id": "agent_flow_list_api_keys",
-  "name": "list_agent_flow_api_keys",
-  "short_description": "列出 Agent Flow 应用的 API Key 元数据和启用状态，不返回密钥明文。",
-  "full_description": "",
+  "tool_id": "api_list_keys",
+  "name": "列出应用 API Key",
+  "short_description": "返回应用 API Key 的元数据与启用状态，不返回密钥明文。",
+  "full_description": "仅 Agent Flow 与 Agent Logs 支持应用 API Key；Workflow 不支持此接口，不能为工作流发布流程要求创建应用 Key。使用目标应用 id 查询，创建或撤销使用同目录原生 Key 工具。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "list_application_api_keys"
@@ -85,15 +85,21 @@
   "input_mapping": {
     "mappings": [
       {
+        "hidden": false,
         "required": true,
         "mcp_param": "path.application_id",
-        "description": "Agent Flow 应用的稳定 application_id。",
+        "description": "目标应用的稳定 id，可从 application_list 获取。",
+        "default_value": null,
         "interface_param": "application_id"
       }
     ],
     "interface_parameters": [
       {
         "name": "application_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
         "required": true,
         "field_type": "string",
         "description": "Application id",
@@ -102,7 +108,7 @@
     ]
   },
   "output_mapping": {},
-  "max_inline_chars": null,
+  "max_inline_chars": 5000,
   "response_fields": null,
   "permission_code_snapshot": "application.view.all",
   "risk_level_snapshot": "low",

@@ -2,7 +2,7 @@
   "tool_id": "workflow_node_debug_code",
   "name": "debug_workflow_code",
   "short_description": "执行工作流代码节点，返回main函数的结果。",
-  "full_description": "前置：mcp_get(workflow_ops_create_application)阅读工作流使用说明，mcp_call外层des_id传该工具当前值。先创建/复用Workflow、获取节点目录、在graph.nodes添加type=code的节点并保存，再用path.id与path.node_id单点调试。本工具复用统一debug接口，不自动插入节点。config.language/source/entrypoint指定执行代码；main接收bindings解析后的inputs并返回结果对象；实际output_payload.result包含该对象，如示例返回{result:\"ADA\"}时输出为{result:{result:\"ADA\"},error:null}，下游用[\"node-code\",\"result\",\"result\"]引用字符串。outputs的key声明main返回字段，运行结果不会自动扁平化。不要把代码放bindings里，变量输入必须显式提供；运行时依赖与限制以当前节点契约为准。\n目标节点配置片段（替换占位符，不是完整编排）：{\"type\": \"code\", \"config\": {\"language\": \"javascript\", \"source\": \"function main(inputs) { return { result: inputs.name.toUpperCase() }; }\", \"entrypoint\": \"main\"}, \"bindings\": {\"name\": {\"kind\": \"selector\", \"value\": [\"node-start\", \"name\"]}}, \"outputs\": [{\"key\": \"result\", \"title\": \"Result\", \"valueType\": \"string\"}]}\n检查node_run.status/error_payload/output_payload；副作用已执行但响应取回失败时用result_ref或查询回读，不重复调用写操作。",
+  "full_description": "前置：mcp_get(application_create_workflow)阅读工作流使用说明，mcp_call外层des_id传该工具当前值。先创建/复用Workflow、获取节点目录、在graph.nodes添加type=code的节点并保存，再用path.id与path.node_id单点调试。本工具复用统一debug接口，不自动插入节点。config.language/source/entrypoint指定执行代码；main接收bindings解析后的inputs并返回结果对象；实际output_payload.result包含该对象，如示例返回{result:\"ADA\"}时输出为{result:{result:\"ADA\"},error:null}，下游用[\"node-code\",\"result\",\"result\"]引用字符串。outputs的key声明main返回字段，运行结果不会自动扁平化。不要把代码放bindings里，变量输入必须显式提供；运行时依赖与限制以当前节点契约为准。\n目标节点配置片段（替换占位符，不是完整编排）：{\"type\": \"code\", \"config\": {\"language\": \"javascript\", \"source\": \"function main(inputs) { return { result: inputs.name.toUpperCase() }; }\", \"entrypoint\": \"main\"}, \"bindings\": {\"name\": {\"kind\": \"selector\", \"value\": [\"node-start\", \"name\"]}}, \"outputs\": [{\"key\": \"result\", \"title\": \"Result\", \"valueType\": \"string\"}]}\n检查node_run.status/error_payload/output_payload；副作用已执行但响应取回失败时用result_ref或查询回读，不重复调用写操作。\n本封装使用已保存草稿，隐藏 document/debug_session_id；默认 input_payload={}，只返回节点结果、错误与运行标识。它不会校验节点必须是此名称对应的类型，调用前须从编排确认目标节点。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "start_node_debug_preview"
@@ -318,14 +318,14 @@
       },
       {
         "hidden": false,
-        "required": true,
+        "required": false,
         "mcp_param": "body.input_payload",
         "description": "本次单点调试变量池；只执行目标节点，所需上游输出按节点id显式提供，常量节点传{}。",
-        "default_value": null,
+        "default_value": {},
         "interface_param": "input_payload"
       },
       {
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "mcp_param": "body.document",
         "description": "可选完整编排快照；通常省略，使用保存后的草稿。",
@@ -333,7 +333,7 @@
         "interface_param": "document"
       },
       {
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "mcp_param": "body.debug_session_id",
         "description": "可选调试会话id。",
@@ -345,7 +345,7 @@
         "source": {
           "kind": "mcp_call",
           "path": "des_id",
-          "tool_id": "workflow_ops_create_application"
+          "tool_id": "application_create_workflow"
         },
         "required": true,
         "mcp_param": "des_id",
@@ -446,8 +446,25 @@
       }
     ]
   },
-  "output_mapping": {},
-  "max_inline_chars": null,
+  "output_mapping": {
+    "properties": {
+      "flow_run": {
+        "properties": {
+          "id": {},
+          "status": {}
+        }
+      },
+      "node_run": {
+        "properties": {
+          "id": {},
+          "status": {},
+          "error_payload": {},
+          "output_payload": {}
+        }
+      }
+    }
+  },
+  "max_inline_chars": 5000,
   "response_fields": null,
   "permission_code_snapshot": "application.edit.all",
   "risk_level_snapshot": "high",

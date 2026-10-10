@@ -1,0 +1,521 @@
+{
+  "tool_id": "application_create_workflow",
+  "name": "create_workflow_application",
+  "short_description": "创建 Workflow 应用，类型已固定，无需重复填写。",
+  "full_description": "工作流节点使用路径：先创建或复用 workflow Application，读取当前编排与 application_list_nodes，再添加目标节点、保存完整草稿，最后单点调试。不要临时创建第二套无应用执行体系，也不要为一次调试发布API或启用schedule。extension/schedule是触发方式，创建schedule后保持禁用即可调试。\n编排文档使用 schemaVersion=1flowbase.flow/v2；meta.flowId取 workflow_ops_get_orchestration 返回的flow_id。保留返回的meta/editor与Workflow Start/End，用graph.nodes和graph.edges保存节点与连线，不使用顶层nodes/edges。每个节点包含id,type,alias,description,containerId:null,position:{x,y},configVersion:1,config,bindings,outputs。id稳定且唯一，edge.source/target引用id，edge包含id,source,target,sourceHandle:null,targetHandle:null,containerId:null,points:[]。新增普通节点放在workflow_start与workflow_end之间；读取后再修改，保留其他节点和用户内容。\n节点能力以application_list_nodes当前返回为准；runtime_status=ready只说明运行时可用，authoring_status=hidden的节点不要当作默认可编排节点。边界节点为workflow_start/workflow_end；处理能力包括HTTP、SQL、数据List/Get/Create/Update/Delete、模板转换、代码、条件分支、变量赋值/聚合、LLM等；插件可用性和契约以plugin字段为准，不能猜测未安装插件或未知节点。\nconfig保存静态配置，bindings保存运行时输入，outputs声明可供下游引用的结果。静态值填写节点支持的config字段；顶层bindings不支持constant，不能把任意JSON直接写成binding。对象键值输入可用named_bindings，例如{\"kind\":\"named_bindings\",\"value\":[{\"name\":\"Accept\",\"value\":{\"kind\":\"constant\",\"value\":\"application/json\"}}]}；变量绑定：{\"kind\":\"selector\",\"value\":[\"上游节点id\",\"字段key\"]}；文本模板：{\"kind\":\"templated_text\",\"value\":\"Hello {{ node-start.name }}\"}。outputs元素通常为{\"key\":\"result\",\"title\":\"Result\",\"valueType\":\"string\"}，valueType按结果实际类型选取。Start config.input_fields的元素包含key,label,inputType,valueType,required，例如{\"key\":\"name\",\"label\":\"Name\",\"inputType\":\"text\",\"valueType\":\"string\",\"required\":true}。Workflow Start的outputs建议与input_fields逐项声明同名key/valueType，例如name字段使用{\"key\":\"name\",\"title\":\"Name\",\"valueType\":\"string\"}；不要照搬Agent Flow start的空outputs规则。End在bindings中引用结果，并在outputs声明相同key。\nselector数组每段是一个对象键，嵌套记录id使用[\"node-create\",\"record\",\"id\"]，不要把record.id写成一段；文本模板则使用{{ node-create.record.id }}。引用源节点必须通过graph.edges处于上游，且结果字段在源outputs中声明。单点debug虽不执行上游，仍校验目标及上游编排契约，所以上游无效bindings也会阻断目标；遇到bindings校验错误应检查整条上游链。代码输出有result对象包裹，main返回{greeting:\"Hi\"}时实际output_payload为{result:{greeting:\"Hi\"},error:null}，下游selector使用[\"node-code\",\"result\",\"greeting\"]，显式调试变量池保留这个结构。\n单点调试只执行目标节点，不运行上游；body.input_payload是变量池，如{\"node-start\":{\"name\":\"Ada\"},\"node-upstream\":{\"result\":123}}，其中node-start替换成实际Start id。常量节点可传{}。先保存节点，debug传path.id=application_id与path.node_id=目标id；通常省略body.document使用已保存草稿。调试会持久化运行记录，检查node_run.status/error_payload/output_payload，不把MCP调用成功等同于节点执行成功。大型结果用mcp_result按result_ref取回，不重复执行写节点。\n节点调试工具要求des_id：先mcp_get(application_create_workflow)阅读本说明，再把其当前des_id放在mcp_call外层，不能使用节点工具自身des_id。这个标识检查前置说明版本，application_id、节点、权限与输入仍由后端独立校验。写节点会真实修改数据；仅对明确授权资源执行。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "create_application"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "application_type",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon_background": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "application_type": {
+            "enum": [
+              "agent_logs",
+              "agent_flow",
+              "workflow"
+            ],
+            "type": "string",
+            "description": "Closed Application family. Agent Flow and Workflow have different boundary nodes and API\npublication semantics."
+          },
+          "workflow_trigger_type": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "extension",
+                  "schedule"
+                ],
+                "type": "string",
+                "description": "Applies only to workflow. Defaults to extension when omitted; Agent Flow ignores no trigger\nvalue and rejects trigger configuration."
+              }
+            ]
+          },
+          "workflow_trigger_config": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "cron": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Required for schedule triggers; standard cron expression."
+                  },
+                  "subpath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Required for extension triggers; route template below /api/ex/ without leading slash."
+                  },
+                  "timezone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Required for schedule triggers; IANA timezone name."
+                  },
+                  "http_method": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE",
+                          "HEAD",
+                          "OPTIONS"
+                        ],
+                        "type": "string",
+                        "description": "Extension HTTP method. Defaults to POST."
+                      }
+                    ]
+                  },
+                  "input_payload": {
+                    "description": "Optional schedule defaults keyed by Workflow Start input field key."
+                  },
+                  "response_mode": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "sync",
+                          "async"
+                        ],
+                        "type": "string",
+                        "description": "Extension response mode: sync or async. Defaults to sync."
+                      }
+                    ]
+                  }
+                },
+                "description": "Optional initial config for the selected Workflow trigger. Schedule creation is always\ndisabled until its schedule resource is enabled with PUT.",
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "description": "Creates exactly one Agent Flow or Workflow Application."
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "id",
+      "application_type",
+      "name",
+      "description",
+      "created_by",
+      "updated_at",
+      "tags",
+      "sections"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "sections": {
+        "type": "object",
+        "required": [
+          "orchestration",
+          "api",
+          "logs",
+          "monitoring"
+        ],
+        "properties": {
+          "api": {
+            "type": "object",
+            "required": [
+              "status",
+              "credential_kind",
+              "invoke_routing_mode",
+              "api_capability_status",
+              "credentials_status"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "active",
+                  "planned",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              "credential_kind": {
+                "enum": [
+                  "application_api_key",
+                  "user_or_public",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              "credentials_status": {
+                "enum": [
+                  "configured",
+                  "missing",
+                  "not_required",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              "invoke_routing_mode": {
+                "enum": [
+                  "api_key_bound_application",
+                  "published_workflow_operation",
+                  "not_available"
+                ],
+                "type": "string"
+              },
+              "invoke_path_template": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "api_capability_status": {
+                "enum": [
+                  "enabled",
+                  "disabled",
+                  "not_published",
+                  "available",
+                  "unavailable"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          "logs": {
+            "type": "object",
+            "required": [
+              "status",
+              "runs_capability_status",
+              "run_object_kind",
+              "log_retention_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "run_object_kind": {
+                "type": "string"
+              },
+              "log_retention_status": {
+                "type": "string"
+              },
+              "runs_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "monitoring": {
+            "type": "object",
+            "required": [
+              "status",
+              "metrics_capability_status",
+              "metrics_object_kind",
+              "tracing_config_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "metrics_object_kind": {
+                "type": "string"
+              },
+              "tracing_config_status": {
+                "type": "string"
+              },
+              "metrics_capability_status": {
+                "type": "string"
+              }
+            }
+          },
+          "orchestration": {
+            "type": "object",
+            "required": [
+              "status",
+              "subject_kind",
+              "subject_status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "subject_kind": {
+                "type": "string"
+              },
+              "subject_status": {
+                "type": "string"
+              },
+              "current_draft_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current_subject_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "icon_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_by": {
+        "type": "string"
+      },
+      "updated_at": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "icon_background": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "application_type": {
+        "enum": [
+          "agent_logs",
+          "agent_flow",
+          "workflow"
+        ],
+        "type": "string"
+      },
+      "workflow_trigger_type": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "enum": [
+              "extension",
+              "schedule"
+            ],
+            "type": "string"
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": true,
+        "required": false,
+        "mcp_param": "body.application_type",
+        "description": "固定填写 workflow；Agent Flow 使用独立创建入口。",
+        "default_value": "workflow",
+        "interface_param": "application_type"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "body.name",
+        "description": "Workflow 名称。",
+        "default_value": null,
+        "interface_param": "name"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "body.description",
+        "description": "Workflow 的用户目标与预期结果。",
+        "default_value": null,
+        "interface_param": "description"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.icon",
+        "description": "可选图标内容。",
+        "default_value": null,
+        "interface_param": "icon"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.icon_background",
+        "description": "可选图标背景色。",
+        "default_value": null,
+        "interface_param": "icon_background"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.icon_type",
+        "description": "可选图标类型。",
+        "default_value": null,
+        "interface_param": "icon_type"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "body.workflow_trigger_type",
+        "description": "Workflow 触发器：extension 或 schedule。",
+        "default_value": null,
+        "interface_param": "workflow_trigger_type"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "body.workflow_trigger_config",
+        "description": "与 workflow_trigger_type 对应的初始触发器配置。",
+        "default_value": null,
+        "interface_param": "workflow_trigger_config"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_type",
+        "required": true,
+        "field_type": "string",
+        "description": "固定填写 workflow；Agent Flow 使用独立创建入口。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "description",
+        "required": true,
+        "field_type": "string",
+        "description": "Workflow 的用户目标与预期结果。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon",
+        "required": false,
+        "field_type": "object",
+        "description": "可选图标内容。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon_background",
+        "required": false,
+        "field_type": "object",
+        "description": "可选图标背景色。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "icon_type",
+        "required": false,
+        "field_type": "object",
+        "description": "可选图标类型。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "field_type": "string",
+        "description": "Workflow 名称。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "workflow_trigger_config",
+        "required": false,
+        "field_type": "object",
+        "description": "与 workflow_trigger_type 对应的初始触发器配置。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "workflow_trigger_type",
+        "required": false,
+        "field_type": "object",
+        "description": "Workflow 触发器：extension 或 schedule。",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": "application.create.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

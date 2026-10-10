@@ -1,0 +1,225 @@
+{
+  "tool_id": "application_log_record_trajectory_section_get",
+  "name": "get_application_log_record_trajectory_section",
+  "short_description": "按步骤和内容分区分页读取真实客户端轨迹，包括按需读取原始协议。",
+  "full_description": "读取客户端步骤正文：application_id、record_id 来自记录查询，step_id 来自轨迹检索；section 选步骤 available_sections 中的值。cursor/limit 控制正文分段，按返回游标续读；不要重复运行业务工具来获取日志。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_record_client_trajectory_section"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "record_id",
+          "step_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "step_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cursor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "step_id",
+      "request_id",
+      "evidence_scope",
+      "section",
+      "items",
+      "next_cursor"
+    ],
+    "properties": {
+      "items": {
+        "type": "array"
+      },
+      "section": {
+        "type": "string"
+      },
+      "step_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "request_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "evidence_scope": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.application_id",
+        "description": "记录摘要返回的 application_id；必须与 record_id 归属一致。",
+        "default_value": null,
+        "interface_param": "id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.record_id",
+        "description": "统一记录查询返回的 record_id，两种来源均使用这个标识。",
+        "default_value": null,
+        "interface_param": "record_id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.step_id",
+        "description": "轨迹查询返回的步骤 id 或 matches.step_id；必须属于同一应用与记录。",
+        "default_value": null,
+        "interface_param": "step_id"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.section",
+        "description": "读取分区：overview、parameters、result 或 raw；以步骤 available_sections 为准。raw 按需分页读取。",
+        "default_value": null,
+        "interface_param": "section"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.cursor",
+        "description": "该步骤分区响应中的 next_cursor 整数；保持相同应用、记录、步骤和分区续读，null 表示结束。",
+        "default_value": null,
+        "interface_param": "cursor"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "本页读取的正文片段数；省略沿用接口默认值，用 next_cursor 读取后续片段。",
+        "default_value": null,
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "record_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "step_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "section",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "cursor",
+        "schema": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "required": false,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "schema": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "required": false,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

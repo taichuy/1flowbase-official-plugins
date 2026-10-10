@@ -1,0 +1,501 @@
+{
+  "tool_id": "application_log_records_query",
+  "name": "query_application_log_records",
+  "short_description": "组合筛选当前工作区可读的 Agent Flow 与采集记录，返回来源、模型、用量费用和分页游标。",
+  "full_description": "二级检索入口：可跨当前工作区有权访问的应用查询，application_ids 省略表示全部可读应用，空数组表示无应用。先用 keyword 或已发现的 filter 筛选，默认按 started_at 排序。返回摘要中的 application_id、record_id 用于详情和三级客户端日志；next_cursor 仅在筛选和排序不变时续页。检索数量不是统计总数，一级统计使用 ai_chat_logs_statistics。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "query_log_records"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Page size; positive values only. This limits output, not the rows searched."
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reuse only with the same scope, application selection, filter and sort."
+          },
+          "filter": {
+            "description": "Existing resource grammar: $and/$or and field comparisons. See query-fields."
+          },
+          "keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Case-insensitive SQL contains across task title, user_input and final_output snapshots.\nExisting $includes semantics apply: % and _ are SQL pattern wildcards."
+          },
+          "descending": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sort_field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A declared datetime field, default started_at. Equal values are ordered by record UUID."
+          },
+          "application_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Omit for all applications readable in the current workspace. An empty array selects none."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "next_cursor"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "record_id",
+            "application_id",
+            "source_kind",
+            "source_id",
+            "source_client",
+            "source_session_id",
+            "source_task_id",
+            "native_run_id",
+            "log_conversation_id",
+            "requested_model_id",
+            "reasoning_effort",
+            "status",
+            "outcome",
+            "title",
+            "total_tokens",
+            "input_tokens",
+            "output_tokens",
+            "input_cache_hit_tokens",
+            "total_cost",
+            "cost_breakdown",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "updated_at",
+            "available_views"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "outcome": {
+              "type": "string"
+            },
+            "record_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "source_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "started_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "total_cost": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "finished_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source_kind": {
+              "enum": [
+                "native",
+                "imported"
+              ],
+              "type": "string"
+            },
+            "input_tokens": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "total_tokens": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "native_run_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "output_tokens": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source_client": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "application_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "cost_breakdown": {
+              "type": "object",
+              "required": [
+                "total_cost"
+              ],
+              "properties": {
+                "total_cost": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "source_task_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "available_views": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reasoning_effort": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source_session_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "requested_model_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "log_conversation_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "input_cache_hit_tokens": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.application_ids",
+        "description": "限定应用的稳定 application_id 列表；省略表示当前工作区所有可读应用，[] 表示不选择应用。",
+        "default_value": null,
+        "interface_param": "application_ids"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.cursor",
+        "description": "上次响应的 next_cursor；只在应用范围、filter、关键词、排序和检索分区不变时续页；null 表示结束。",
+        "default_value": null,
+        "interface_param": "cursor"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.descending",
+        "description": "记录时间排序方向；默认 true 表示降序。",
+        "default_value": null,
+        "interface_param": "descending"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.filter",
+        "description": "使用字段发现工具声明的字段与操作符组合 $and/$or；例如 {\"requested_model_id\":{\"$eq\":\"gpt-6-luna\"}}。轨迹使用 trajectory_fields，记录使用 record_fields。",
+        "default_value": null,
+        "interface_param": "filter"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.keyword",
+        "description": "对 title/user_input/final_output 完整任务快照做忽略大小写的 SQL 包含检索；% 和 _ 是模式通配符。",
+        "default_value": null,
+        "interface_param": "keyword"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.limit",
+        "description": "本页返回数量，必须为正整数；不会截断搜索范围，也不返回精确总数。 建议显式传 20 控制单页上下文。",
+        "default_value": null,
+        "interface_param": "limit"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "body.sort_field",
+        "description": "字段发现中 sortable=true 的记录时间字段；默认 started_at，同值按 record_id 排序。",
+        "default_value": null,
+        "interface_param": "sort_field"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "application_ids",
+        "schema": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Omit for all applications readable in the current workspace. An empty array selects none."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Omit for all applications readable in the current workspace. An empty array selects none.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "cursor",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Reuse only with the same scope, application selection, filter and sort."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Reuse only with the same scope, application selection, filter and sort.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "descending",
+        "schema": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "filter",
+        "schema": {
+          "description": "Existing resource grammar: $and/$or and field comparisons. See query-fields."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Existing resource grammar: $and/$or and field comparisons. See query-fields.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "keyword",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Case-insensitive SQL contains across task title, user_input and final_output snapshots.\nExisting $includes semantics apply: % and _ are SQL pattern wildcards."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Case-insensitive SQL contains across task title, user_input and final_output snapshots.\nExisting $includes semantics apply: % and _ are SQL pattern wildcards.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "limit",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "description": "Page size; positive values only. This limits output, not the rows searched."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "Page size; positive values only. This limits output, not the rows searched.",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "sort_field",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A declared datetime field, default started_at. Equal values are ordered by record UUID."
+        },
+        "required": false,
+        "field_type": "object",
+        "description": "A declared datetime field, default started_at. Equal values are ordered by record UUID.",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.edit.all",
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

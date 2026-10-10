@@ -1,0 +1,200 @@
+{
+  "tool_id": "application_catalog",
+  "name": "发现应用分类",
+  "short_description": "返回当前应用类型、触发器、标签及日志采集器目录。",
+  "full_description": "应用类型以当前 types 为准，当前包括 agent_flow、workflow、agent_logs。先选类型，再进入 /application 对应分类；日志采集器仅返回已有目录信息，不自动安装或执行客户端程序。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "get_application_catalog"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "collectors",
+      "types",
+      "workflow_triggers",
+      "tags"
+    ],
+    "properties": {
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "application_count"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "application_count": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "types": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "value": {
+              "enum": [
+                "agent_logs",
+                "agent_flow",
+                "workflow"
+              ],
+              "type": "string"
+            }
+          }
+        }
+      },
+      "collectors": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "collector_code",
+            "source_client",
+            "display_name",
+            "description",
+            "version",
+            "execution_target",
+            "catalog_id",
+            "category",
+            "installation_status",
+            "installable",
+            "can_install",
+            "can_update"
+          ],
+          "properties": {
+            "version": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "can_update": {
+              "type": "boolean"
+            },
+            "catalog_id": {
+              "type": "string"
+            },
+            "can_install": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "installable": {
+              "type": "boolean"
+            },
+            "display_name": {
+              "type": "string"
+            },
+            "source_client": {
+              "type": "string"
+            },
+            "asset_base_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "collector_code": {
+              "type": "string"
+            },
+            "execution_target": {
+              "type": "string"
+            },
+            "documentation_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "installed_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "installation_status": {
+              "type": "string"
+            },
+            "shell_installer_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "powershell_installer_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extension_installation_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "description": "Curated client-side collectors compatible with the application log ingestion API."
+        }
+      },
+      "workflow_triggers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "value": {
+              "enum": [
+                "extension",
+                "schedule"
+              ],
+              "type": "string"
+            }
+          }
+        },
+        "description": "Closed Workflow trigger set: extension and schedule only."
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

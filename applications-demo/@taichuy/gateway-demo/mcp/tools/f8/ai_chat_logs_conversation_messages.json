@@ -1,0 +1,365 @@
+{
+  "tool_id": "ai_chat_logs_conversation_messages",
+  "name": "读取对话消息",
+  "short_description": "按应用和外部 conversation_id 分页读取历史对话消息。",
+  "full_description": "id 是 application_id，conversation_id 使用日志中的真实外部会话标识。before/after 是运行游标，around_run_id 用于定位某次运行附近的消息；默认每页 5 次运行。需要客户端协议或工具步骤时使用 record_id 进入 client_logs，conversation_id、record_id、run_id 不可混用。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "list_application_conversation_messages"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "object",
+        "required": [
+          "id",
+          "conversation_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Application id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "description": "External conversation id"
+          }
+        },
+        "additionalProperties": false
+      },
+      "query": {
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": "string",
+            "description": "Load runs after this cursor run id"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Page size, defaults to 5"
+          },
+          "before": {
+            "type": "string",
+            "description": "Load runs before this cursor run id"
+          },
+          "around_run_id": {
+            "type": "string",
+            "description": "Flow run id to center the page around"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "items",
+      "page"
+    ],
+    "properties": {
+      "page": {
+        "type": "object",
+        "required": [
+          "has_before",
+          "has_after"
+        ],
+        "properties": {
+          "has_after": {
+            "type": "boolean"
+          },
+          "has_before": {
+            "type": "boolean"
+          },
+          "after_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "newest_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor at the newest item of this page. Pass it as `after` to\nread only what was appended since, so a client can catch up on more new\nitems than one page holds without knowing the cursor format."
+          }
+        }
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "message_id",
+            "run_id",
+            "can_open_detail",
+            "started_at",
+            "status",
+            "is_current"
+          ],
+          "properties": {
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "model": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "query": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "answer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "run_id": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "content": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sequence": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64",
+              "description": "Position in the run conversation stream. Clients order merged pages by\nit instead of by arrival order."
+            },
+            "is_current": {
+              "type": "boolean"
+            },
+            "message_id": {
+              "type": "string"
+            },
+            "started_at": {
+              "type": "string"
+            },
+            "finished_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "detail_run_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output_source": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Where this item's visible output came from: a formal provider output\nitem, the call's persisted answer, its error, nothing at all, or no\noutput claim (`None` for prompts, context and tool results)."
+            },
+            "context_source": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Set for the system/developer context entries that open the conversation.\nThey carry the layer the context came from; the console renders them as\nthe first turns instead of a separate panel."
+            },
+            "can_open_detail": {
+              "type": "boolean"
+            }
+          }
+        },
+        "description": "Conversation turns, preceded by the system/developer context entries in\nforce for this run. Context is part of every page, so paging never hides\nit and the console needs no separate surface for it."
+      },
+      "output_state": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "required": [
+              "run_id",
+              "status",
+              "call_kind",
+              "output_source",
+              "output_item_count"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "call_kind": {
+                "type": "string"
+              },
+              "request_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "output_source": {
+                "type": "string"
+              },
+              "output_item_count": {
+                "type": "integer",
+                "format": "int64"
+              }
+            },
+            "description": "Where one call's visible output came from, independent of the paged items."
+          }
+        ]
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.id",
+        "description": "Application id",
+        "default_value": null,
+        "interface_param": "id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path.conversation_id",
+        "description": "External conversation id",
+        "default_value": null,
+        "interface_param": "conversation_id"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.around_run_id",
+        "description": "Flow run id to center the page around",
+        "default_value": null,
+        "interface_param": "around_run_id"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.before",
+        "description": "Load runs before this cursor run id",
+        "default_value": null,
+        "interface_param": "before"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.after",
+        "description": "Load runs after this cursor run id",
+        "default_value": null,
+        "interface_param": "after"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "query.limit",
+        "description": "Page size, defaults to 5",
+        "default_value": null,
+        "interface_param": "limit"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": "Application id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "conversation_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": "External conversation id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "around_run_id",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": "Flow run id to center the page around",
+        "parameter_type": "url"
+      },
+      {
+        "name": "before",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": "Load runs before this cursor run id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "after",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "field_type": "string",
+        "description": "Load runs after this cursor run id",
+        "parameter_type": "url"
+      },
+      {
+        "name": "limit",
+        "schema": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "required": false,
+        "field_type": "integer",
+        "description": "Page size, defaults to 5",
+        "parameter_type": "url"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": 5000,
+  "response_fields": null,
+  "permission_code_snapshot": "application.view.all",
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}
