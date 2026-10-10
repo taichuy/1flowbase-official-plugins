@@ -1,0 +1,56 @@
+name: signing-key-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_key_id:
+        description: Expected signing key ID (public metadata)
+        required: true
+        type: string
+      expected_public_key_base64:
+        description: Base64-encoded public PEM, never a private key
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify both signing secret conventions against the expected public key
+        env:
+          CANONICAL_PRIVATE_KEY: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          EFFECTIVE_PRIVATE_KEY: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_PEM || secrets.OFFICIAL_PLUGIN_SIGNING_PRIVATE_KEY_PEM }}
+          ACTUAL_KEY_ID: ${{ secrets.OFFICIAL_PLUGIN_SIGNING_KEY_ID }}
+          EXPECTED_KEY_ID: ${{ inputs.expected_key_id }}
+          EXPECTED_PUBLIC_KEY_BASE64: ${{ inputs.expected_public_key_base64 }}
+        run: |
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          try {
+            if (process.env.ACTUAL_KEY_ID !== process.env.EXPECTED_KEY_ID) throw Error('key ID mismatch');
+            const expected = crypto.createPublicKey(Buffer.from(process.env.EXPECTED_PUBLIC_KEY_BASE64, 'base64'));
+            if (expected.asymmetricKeyType !== 'ed25519') throw Error('expected Ed25519 public key');
+            const publicDer = expected.export({type: 'spki', format: 'der'});
+            const challenge = crypto.randomBytes(64);
+            for (const name of ['CANONICAL_PRIVATE_KEY', 'EFFECTIVE_PRIVATE_KEY']) {
+              const key = crypto.createPrivateKey(process.env[name]);
+              if (key.asymmetricKeyType !== 'ed25519') throw Error('expected Ed25519 private key');
+              const actualDer = crypto.createPublicKey(key).export({type: 'spki', format: 'der'});
+              if (!actualDer.equals(publicDer)) throw Error('public key mismatch');
+              if (!crypto.verify(null, challenge, expected, crypto.sign(null, challenge, key))) throw Error('signature verification failed');
+            }
+            const fingerprint = crypto.createHash('sha256').update(publicDer).digest('hex');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Both signing secret conventions verified. Public-key SHA-256: ${fingerprint}\n`);
+            console.log('PASS: key ID, public key, and Ed25519 signing agree.');
+          } catch {
+            console.error('Signing configuration verification failed; inspect key ID, key type, and both secret names. No key material was logged.');
+            process.exitCode = 1;
+          }
+          NODE

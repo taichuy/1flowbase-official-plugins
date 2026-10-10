@@ -167,7 +167,7 @@ test('official-registry.json keeps the published openai_compatible state consist
       `${entry.provider_code} ${artifact.os}-${artifact.arch} has an unsupported package URL`
     );
     assert.equal(artifact.signature_algorithm, 'ed25519');
-    assert.equal(artifact.signing_key_id, 'official-key-2026-04');
+    assert.equal(artifact.signing_key_id, '1flowbase-signing-20261010-e7a2c47a');
   }
 });
 
