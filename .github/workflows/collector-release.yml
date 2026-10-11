@@ -29,8 +29,11 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/collectors
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
+      has_builds: ${{ steps.matrix.outputs.has_builds }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -52,10 +55,16 @@ jobs:
           node --test scripts/collectors/_tests/*.test.mjs scripts/_tests/extension-catalog.test.mjs
           bash -n installers/client-collectors/install.sh
       - id: matrix
-        run: echo "value=$(node scripts/collectors/catalog.mjs all)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          plan="$(node scripts/collectors/release-plan.mjs)"
+          echo "value=$plan" >> "$GITHUB_OUTPUT"
+          echo "has_builds=$(jq -r '.include | length > 0' <<< "$plan")" >> "$GITHUB_OUTPUT"
 
   build:
     needs: verify
+    if: needs.verify.outputs.has_builds == 'true'
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
@@ -93,13 +102,17 @@ jobs:
 
   publish:
     needs: [verify, build]
+    if: ${{ always() && !cancelled() && needs.verify.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
       - uses: actions/download-artifact@v8
+        if: needs.verify.outputs.has_builds == 'true'
         with:
           pattern: collector-*
           path: dist/collectors
