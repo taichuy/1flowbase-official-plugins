@@ -236,7 +236,12 @@ impl SourceAdapter for ClaudeAdapter {
                     // Preserve the native message usage snapshot, never sum snapshots.
                     basis: AgentLogUsageBasis::Cumulative,
                     response_id: string(&message["id"]),
-                    input_tokens: count(usage, "input_tokens"),
+                    // Anthropic raw input is uncached; canonical input includes both cache classes.
+                    input_tokens: inclusive_input(
+                        count(usage, "input_tokens"),
+                        count(usage, "cache_read_input_tokens"),
+                        count(usage, "cache_creation_input_tokens"),
+                    ),
                     output_tokens: count(usage, "output_tokens"),
                     input_cache_hit_tokens: count(usage, "cache_read_input_tokens"),
                     cache_write_tokens: count(usage, "cache_creation_input_tokens"),
@@ -269,3 +274,10 @@ impl SourceAdapter for ClaudeAdapter {
 #[cfg(test)]
 #[path = "_tests/adapter.rs"]
 mod tests;
+
+fn inclusive_input(uncached: Option<i64>, read: Option<i64>, write: Option<i64>) -> Option<i64> {
+    uncached?
+        .checked_add(read?)?
+        .checked_add(write?)
+        .filter(|value| (0..=9_007_199_254_740_991).contains(value))
+}

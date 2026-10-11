@@ -31,13 +31,27 @@ fn usage(v: &Value) -> AgentLogUsage {
             .as_i64()
             .filter(|n| (0..=9_007_199_254_740_991).contains(n))
     };
+    let cache_count = |key: &str| {
+        if v.get(key).is_none() {
+            // Zero omission applies only to a present valid native usage record.
+            count("inputTokens").map(|_| 0)
+        } else {
+            count(key)
+        }
+    };
     AgentLogUsage {
         basis: AgentLogUsageBasis::Delta,
         response_id: None,
-        input_tokens: count("inputTokens"),
+        // DSH TokenUsage is disjoint; omitted optional cache fields mean zero
+        // (token-meter/usage-projection and llm-pi-ai/mapUsage). Present null/invalid is unknown.
+        input_tokens: inclusive_input(
+            count("inputTokens"),
+            cache_count("cacheReadTokens"),
+            cache_count("cacheWriteTokens"),
+        ),
         output_tokens: count("outputTokens"),
-        input_cache_hit_tokens: count("cacheReadTokens"),
-        cache_write_tokens: count("cacheWriteTokens"),
+        input_cache_hit_tokens: cache_count("cacheReadTokens"),
+        cache_write_tokens: cache_count("cacheWriteTokens"),
         total_tokens: count("totalTokens"),
     }
 }
@@ -291,3 +305,10 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
 }
 #[cfg(test)]
 mod tests;
+
+fn inclusive_input(uncached: Option<i64>, read: Option<i64>, write: Option<i64>) -> Option<i64> {
+    uncached?
+        .checked_add(read?)?
+        .checked_add(write?)
+        .filter(|value| (0..=9_007_199_254_740_991).contains(value))
+}

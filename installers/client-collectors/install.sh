@@ -25,7 +25,7 @@ Native client logs collector installer
   --install-dir PATH         Override the user installation directory
   --config PATH              Override the private configuration path
   --release-base URL         Required 1flowbase version-pinned asset base URL
-  --no-start                 Configure without registering Codex hooks
+  --no-start                 Configure without registering native hooks/plugins
   --uninstall                Stop/remove collector; retain config and checkpoint
 Credentials: local terminal prompt, or FLOWBASE_AGENT_LOGS_API_KEY environment.
 No sudo, Node.js or Rust toolchain is required.

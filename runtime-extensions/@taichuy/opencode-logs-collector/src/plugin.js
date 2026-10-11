@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 const binary = __COLLECTOR_BINARY__;
 const config = __COLLECTOR_CONFIG__;
 const supported = new Set([
+  "message.updated", "message.part.updated",
   "session.next.prompted", "session.next.step.started", "session.next.step.ended",
   "session.next.step.failed", "session.next.text.ended", "session.next.reasoning.ended",
   "session.next.tool.called", "session.next.tool.success", "session.next.tool.failed",
@@ -16,7 +17,7 @@ export default async function AgentLogs() {
   }
   return {
     event({ event }) {
-      const session = event.properties?.sessionID;
+      const session = event.properties?.sessionID ?? event.properties?.info?.sessionID ?? event.properties?.part?.sessionID;
       if (supported.has(event.type) && typeof session === "string") {
         const result = spawnSync(binary, ["record", "--config", config, "--session", session],
           { input: JSON.stringify(event), encoding: "utf8", stdio: ["pipe", "ignore", "pipe"] });

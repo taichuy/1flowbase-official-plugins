@@ -255,8 +255,20 @@ fn registration_preserves_user_config_and_other_plugins() {
     .unwrap();
     hooks::register(&config, &home, true).unwrap();
     hooks::register(&config, &home, true).unwrap();
-    let installed = std::fs::read_dir(home.join("plugins")).unwrap().count();
-    assert_eq!(installed, 2);
+    let loadable = || {
+        std::fs::read_dir(home.join("plugins"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|extension| extension == "js"))
+            .collect::<Vec<_>>()
+    };
+    let installed = loadable();
+    assert_eq!(installed.len(), 2);
+    let owned = installed
+        .iter()
+        .find(|path| **path != other)
+        .unwrap()
+        .clone();
     hooks::register(&config, &home, false).unwrap();
     hooks::register(&config, &home, false).unwrap();
     assert_eq!(
@@ -264,6 +276,11 @@ fn registration_preserves_user_config_and_other_plugins() {
         r#"// user-owned\n{"model":"fixture/model"}"#
     );
     assert!(other.is_file());
+    assert!(
+        !owned.exists(),
+        "uninstall removes the owned loadable plugin"
+    );
+    assert_eq!(loadable(), vec![other]);
 }
 #[cfg(unix)]
 #[test]
@@ -275,4 +292,252 @@ fn registration_rejects_symlink_client_root() {
     std::os::unix::fs::symlink(&target, &linked).unwrap();
     assert!(hooks::register(&fixture.0.join("config.json"), &linked, false).is_err());
     assert!(std::fs::read_dir(target).unwrap().next().is_none());
+}
+
+fn v1(kind: &str, properties: Value) -> Position {
+    let line = json!({"id":"evt_v1","type":kind,"properties":properties});
+    let bytes = serde_json::to_vec(&line).unwrap();
+    Position {
+        line,
+        start: 0,
+        end: bytes.len() as u64,
+        bytes,
+    }
+}
+fn v1_fixture() -> Vec<Position> {
+    include_str!("fixtures/v1-events.jsonl")
+        .lines()
+        .enumerate()
+        .map(|(index, line)| Position {
+            line: serde_json::from_str(line).unwrap(),
+            start: index as u64,
+            end: index as u64 + 1,
+            bytes: line.as_bytes().to_vec(),
+        })
+        .collect()
+}
+#[test]
+fn default_v1_preserves_final_text_and_tool_continuation_after_checkpoint_restore() {
+    let rows = v1_fixture();
+    let mut context = context();
+    let mut all = Vec::new();
+    for record in &rows[..5] {
+        all.extend(OpenCodeAdapter.convert(record, &mut context).unwrap());
+    }
+    let checkpoint = serde_json::to_vec(&context).unwrap();
+    let mut restored: OpenCodeContext = serde_json::from_slice(&checkpoint).unwrap();
+    assert!(
+        OpenCodeAdapter
+            .convert(&rows[4], &mut restored)
+            .unwrap()
+            .is_empty(),
+        "running tool retry is deduplicated"
+    );
+    for record in &rows[5..] {
+        all.extend(OpenCodeAdapter.convert(record, &mut restored).unwrap());
+    }
+    assert_eq!(
+        all.iter()
+            .filter(|fact| fact.kind == Kind::ToolCall)
+            .count(),
+        1
+    );
+    assert_eq!(
+        all.iter()
+            .filter(|fact| fact.kind == Kind::ToolResult)
+            .count(),
+        1
+    );
+    assert_eq!(
+        all.iter().filter(|fact| fact.kind == Kind::TaskEnd).count(),
+        1
+    );
+    assert_eq!(
+        all.iter().filter(|fact| fact.kind == Kind::Usage).count(),
+        2
+    );
+    let final_fact = all.last().unwrap();
+    assert_eq!(final_fact.kind, Kind::TaskEnd);
+    assert_eq!(final_fact.phase.as_deref(), Some("final_answer"));
+    assert_eq!(final_fact.content.as_deref(), Some("fixture contents"));
+    assert!(all.iter().all(|fact| fact.source_task_id == "msg_user"));
+    assert!(!all
+        .iter()
+        .any(|fact| fact.content.as_deref() == Some("partial")));
+    assert!(OpenCodeAdapter
+        .convert(rows.last().unwrap(), &mut restored)
+        .unwrap()
+        .is_empty());
+}
+#[test]
+fn default_v1_completed_tool_contains_call_even_without_running_notification() {
+    let rows = v1_fixture();
+    let mut context = context();
+    OpenCodeAdapter.convert(&rows[0], &mut context).unwrap();
+    OpenCodeAdapter.convert(&rows[2], &mut context).unwrap();
+    let facts = OpenCodeAdapter.convert(&rows[5], &mut context).unwrap();
+    assert_eq!(
+        facts
+            .iter()
+            .map(|fact| fact.kind.clone())
+            .collect::<Vec<_>>(),
+        vec![Kind::ToolCall, Kind::ToolResult]
+    );
+    assert_eq!(facts[0].content.as_deref(), Some("{\"path\":\"/fixture\"}"));
+}
+#[test]
+fn default_v1_rejects_foreign_parts_and_conflicting_completed_text() {
+    let rows = v1_fixture();
+    let mut context = context();
+    OpenCodeAdapter.convert(&rows[0], &mut context).unwrap();
+    OpenCodeAdapter.convert(&rows[7], &mut context).unwrap();
+    OpenCodeAdapter.convert(&rows[9], &mut context).unwrap();
+    let mut changed = rows[9].line["properties"].clone();
+    changed["part"]["text"] = json!("conflict");
+    assert!(OpenCodeAdapter
+        .convert(&v1("message.part.updated", changed), &mut context)
+        .is_err());
+    let mut foreign = rows[9].line["properties"].clone();
+    foreign["part"]["sessionID"] = json!("foreign");
+    assert!(OpenCodeAdapter
+        .convert(&v1("message.part.updated", foreign), &mut context)
+        .is_err());
+}
+#[test]
+fn next_user_prunes_settled_current_turn_checkpoint_state() {
+    let rows = v1_fixture();
+    let mut context = context();
+    for record in rows {
+        OpenCodeAdapter.convert(&record, &mut context).unwrap();
+    }
+    let fresh = v1(
+        "message.updated",
+        json!({"sessionID":"ses_fixture","info":{
+            "sessionID":"ses_fixture","id":"msg_next","role":"user","time":{"created":1780000000010_i64}
+        }}),
+    );
+    OpenCodeAdapter.convert(&fresh, &mut context).unwrap();
+    assert_eq!(context.messages.len(), 1);
+    assert_eq!(context.emitted.len(), 1);
+    assert_eq!(context.turn.as_deref(), Some("msg_next"));
+}
+
+#[test]
+fn user_part_without_end_or_notification_time_uses_message_creation() {
+    let rows = v1_fixture();
+    let mut context = context();
+    OpenCodeAdapter.convert(&rows[0], &mut context).unwrap();
+    let mut properties = rows[1].line["properties"].clone();
+    properties.as_object_mut().unwrap().remove("time");
+    let facts = OpenCodeAdapter
+        .convert(&v1("message.part.updated", properties), &mut context)
+        .unwrap();
+    assert_eq!(facts[0].kind, Kind::User);
+    assert_eq!(
+        facts[0].occurred_at,
+        timestamp(&json!(1780000000000_i64)).unwrap()
+    );
+}
+#[test]
+fn v2_final_projection_uses_full_value_text_without_tool_step_completion() {
+    let mut context = context();
+    OpenCodeAdapter
+        .convert(
+            &record(
+                "prompted",
+                props(json!({"messageID":"msg_prompt","prompt":{"text":"task"}})),
+            ),
+            &mut context,
+        )
+        .unwrap();
+    OpenCodeAdapter
+        .convert(
+            &record(
+                "step.started",
+                props(json!({"model":{"id":"fixture","providerID":"gateway"}})),
+            ),
+            &mut context,
+        )
+        .unwrap();
+    OpenCodeAdapter
+        .convert(
+            &record("text.ended", props(json!({"text":"actual answer"}))),
+            &mut context,
+        )
+        .unwrap();
+    let facts = OpenCodeAdapter
+        .convert(
+            &record("step.ended", props(json!({"finish":"stop","tokens":{}}))),
+            &mut context,
+        )
+        .unwrap();
+    assert_eq!(facts.last().unwrap().phase.as_deref(), Some("final_answer"));
+    assert_eq!(
+        facts.last().unwrap().content.as_deref(),
+        Some("actual answer")
+    );
+}
+
+#[test]
+fn inclusive_input_preserves_unknown_and_rejects_overflow() {
+    assert_eq!(inclusive_input(Some(3), Some(5), Some(7)), Some(15));
+    assert_eq!(inclusive_input(None, Some(5), Some(7)), None);
+    assert_eq!(inclusive_input(Some(3), None, Some(7)), None);
+    assert_eq!(inclusive_input(Some(3), Some(5), None), None);
+    assert_eq!(inclusive_input(Some(i64::MAX), Some(1), Some(0)), None);
+    assert_eq!(
+        inclusive_input(Some(9_007_199_254_740_991), Some(1), Some(0)),
+        None
+    );
+}
+
+#[test]
+fn opencode_v1_and_v2_usage_includes_disjoint_cache_tokens() {
+    let tokens = json!({"input":3,"output":2,"cache":{"read":5,"write":7}});
+    let usage = native_usage(&tokens, Some("msg_usage".into())).unwrap();
+    assert_eq!(usage.input_tokens, Some(15));
+    assert_eq!(usage.input_cache_hit_tokens, Some(5));
+    assert_eq!(usage.cache_write_tokens, Some(7));
+    assert_eq!(
+        native_usage(&json!({"input":3,"cache":{"read":5}}), None)
+            .unwrap()
+            .input_tokens,
+        None
+    );
+    let mut context = context();
+    OpenCodeAdapter
+        .convert(
+            &record(
+                "prompted",
+                props(json!({"messageID":"msg_prompt","prompt":{"text":"usage"}})),
+            ),
+            &mut context,
+        )
+        .unwrap();
+    let facts = OpenCodeAdapter
+        .convert(
+            &record(
+                "step.ended",
+                props(json!({"finish":"tool-calls","tokens":tokens})),
+            ),
+            &mut context,
+        )
+        .unwrap();
+    assert_eq!(facts[0].usage.as_ref().unwrap().input_tokens, Some(15));
+}
+#[test]
+fn default_v1_accepts_native_nested_session_identity() {
+    let rows = v1_fixture();
+    let mut context = context();
+    let mut properties = rows[0].line["properties"].clone();
+    properties.as_object_mut().unwrap().remove("sessionID");
+    OpenCodeAdapter
+        .convert(&v1("message.updated", properties), &mut context)
+        .unwrap();
+    let mut properties = rows[1].line["properties"].clone();
+    properties.as_object_mut().unwrap().remove("sessionID");
+    let facts = OpenCodeAdapter
+        .convert(&v1("message.part.updated", properties), &mut context)
+        .unwrap();
+    assert_eq!(facts[0].kind, Kind::User);
 }

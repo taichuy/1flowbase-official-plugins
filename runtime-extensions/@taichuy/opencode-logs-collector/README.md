@@ -1,6 +1,6 @@
 # OpenCode 日志采集器
 
-针对 OpenCode 1.18.4 的原生 `session.next.*` 事件，同步写入每会话私有日志，再由共享 agent-logs SDK 上传。安装不扫描数据库或历史记录，不启动常驻进程。
+OpenCode 默认 V1 运行时通过 `message.updated` 与 `message.part.updated` 发布原生事实。内嵌插件同步记录这些事件，由共享 SDK 私有会话日志上传，同时兼容 V2 的 `session.next.*` 完整事件。安装不启动常驻进程，不读取数据库或历史对话。
 
 ```sh
 opencode-logs-collector configure --endpoint http://localhost:7800/api/public/applications/APP/agent-logs --source /absolute/collector/sessions --config /absolute/collector/config.json --key-stdin
@@ -9,12 +9,14 @@ opencode-logs-collector flush --config /absolute/collector/config.json
 opencode-logs-collector uninstall-hooks --config /absolute/collector/config.json --client-home /absolute/opencode-config
 ```
 
-采集密钥通过 stdin 输入。`--client-home` 是 OpenCode 配置目录，也可对应隔离的 `OPENCODE_CONFIG_DIR`。安装器只管理按本安装配置哈希命名的一个 `plugins/*.js` 文件，保留原有配置及其他插件。各安装使用独立配置目录，避免共享日志和检查点。
+密钥通过 stdin 输入。`--client-home` 是 OpenCode 配置目录，也可对应隔离的 `OPENCODE_CONFIG_DIR`。仅管理一个按配置路径哈希命名的 `plugins/*.js` 文件，保留原有配置和其他插件。各安装使用独立日志与检查点目录。
 
-内嵌插件采用参数数组调用 `spawnSync`，原生事件回调返回前完成持久化。采集提示词、请求步骤、结束的文本/推理、工具调用/结果以及请求 usage；忽略流式 delta 和旧版投影重复事件。idle/dispose 只触发上传，不生成完成或 usage。上传失败保留待处理记录，后续 flush 重试。重放通过 SDK 检查点去重，不读取客户端历史。
+原生回调以参数数组调用 `spawnSync`，返回前完成持久化。idle/dispose 只上传已记录事实，不生成成功终态。上传失败保留待处理记录，后续 flush 重试；忽略流式 delta。
 
-原生提示词 message ID 标识任务。`step.ended` 的 `finish=stop` 提供完成事实，`tool-calls` 表示继续当前任务。其他 finish 和失败保留为事实 context，不伪造终态。原始事件、时间戳、模型、provider 和模型 variant 保留；variant 是客户端标签，真实推理强度另以网关请求验证。
+V1 用户文本采用原生 part 通知时间，缺失时回退到消息创建时间；assistant 文本/推理仅在 `part.time.end` 存在时采集。running 工具状态提供调用及参数；completed/error 状态提供结果，缺少 running 通知时同时补采该状态中的真实调用和参数。完成的 assistant 元数据提供 usage 和 finish；仅 `finish=stop` 将已记录真实文本投影为 final answer。其他 finish 继续任务或保留错误事实。原始事件保留。检查点只保存当前任务归属、已完成事实哈希和最终输出所需文本；新提示词清理已结束任务状态。无法确定消息归属时跳过，不虚构任务。
 
-当前源码可定义 `max` variant 的 request body：Chat 使用 `{"reasoning_effort":"max"}`，Responses 使用 `{"reasoning":{"effort":"max"}}`，Anthropic 使用 `{"output_config":{"effort":"max"}}`。OpenAI 原生 effort schema 排除 max，但 HTTP body overlay 可发送该值。必须选正确 provider/API、使用 `--variant max` 并验证网关协议。旧安装二进制可能采用不同接口，需单独验证。
+当前默认 CLI 使用 V1 配置：provider 包名放在 `npm`，端点/密钥放在 `options.baseURL/apiKey`，模型 `variants` 为对象。Chat 使用 `@ai-sdk/openai-compatible`，Responses 使用 `@ai-sdk/openai`，两者配置 `variants.max.reasoningEffort="max"`；Anthropic 使用 `@ai-sdk/anthropic` 并配置 `variants.max.effort="max"`。调用 `opencode run --format json -m gateway/gpt-6-luna --variant max`，以网关请求验证协议和强度；完整配置示例见 [English README](README.en.md)。
 
-定向测试：`cargo test --manifest-path runtime-extensions/@taichuy/opencode-logs-collector/Cargo.toml`。原生集成还需当前 OpenCode 源码真实运行和上传回执；测试数据均为合成数据。
+`OPENCODE_EXPERIMENTAL_NATIVE_LLM` 只切换模型 transport，不改变 Session/config 版本；默认 AI SDK 路径支持上述控制。variant 标签本身不证明 wire effort。
+
+定向测试：`cargo test --manifest-path runtime-extensions/@taichuy/opencode-logs-collector/Cargo.toml`。集成还需默认客户端真实续聊、工具交互和上传回执。fixtures 为合成数据；旧安装二进制需单独验证兼容性。

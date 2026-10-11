@@ -1,4 +1,4 @@
-//! Canonical durable OpenCode session.next events. Deltas and legacy projections are ignored.
+//! Native OpenCode V1 completed message/part facts and V2 canonical event boundaries.
 pub mod hooks;
 use agent_logs_collector::{
     AgentLogEvent, AgentLogEventKind as Kind, AgentLogUsage, AgentLogUsageBasis, Position,
@@ -6,6 +6,7 @@ use agent_logs_collector::{
 };
 use anyhow::{ensure, Context, Result};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 pub struct OpenCodeAdapter;
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -16,6 +17,12 @@ pub struct OpenCodeContext {
     model: Option<String>,
     provider: Option<String>,
     effort: Option<String>,
+    #[serde(default)]
+    messages: BTreeMap<String, MessageContext>,
+    #[serde(default)]
+    emitted: BTreeMap<String, String>,
+    #[serde(default)]
+    step_text: Option<String>,
 }
 fn string(value: &Value) -> Option<String> {
     value.as_str().map(str::to_owned)
@@ -68,6 +75,9 @@ impl SourceAdapter for OpenCodeAdapter {
             model: None,
             provider: None,
             effort: None,
+            messages: BTreeMap::new(),
+            emitted: BTreeMap::new(),
+            step_text: None,
         })
     }
     fn convert(
@@ -75,6 +85,12 @@ impl SourceAdapter for OpenCodeAdapter {
         record: &Position,
         context: &mut Self::Context,
     ) -> Result<Vec<AgentLogEvent>> {
+        if matches!(
+            record.line["type"].as_str(),
+            Some("message.updated" | "message.part.updated")
+        ) {
+            return self.convert_v1(record, context);
+        }
         let line = &record.line;
         let kind = line["type"].as_str().unwrap_or("");
         let properties = &line["properties"];
@@ -98,6 +114,7 @@ impl SourceAdapter for OpenCodeAdapter {
             context.effort = None;
         }
         if kind == "session.next.step.started" {
+            context.step_text = None;
             context.model = string(&properties["model"]["id"]);
             context.provider = string(&properties["model"]["providerID"]);
             context.effort = string(&properties["model"]["variant"]);
@@ -130,6 +147,7 @@ impl SourceAdapter for OpenCodeAdapter {
             "session.next.text.ended" => {
                 event.kind = Kind::Assistant;
                 event.content = text(&properties["text"]);
+                append_text(&mut context.step_text, event.content.as_deref());
             }
             "session.next.reasoning.ended" => {
                 event.kind = Kind::Assistant;
@@ -158,7 +176,12 @@ impl SourceAdapter for OpenCodeAdapter {
                 event.usage = Some(AgentLogUsage {
                     basis: AgentLogUsageBasis::Delta,
                     response_id: string(&properties["assistantMessageID"]),
-                    input_tokens: count(&tokens["input"]),
+                    // V1 Session.getUsage and V2 publisher store disjoint non-cached input.
+                    input_tokens: inclusive_input(
+                        count(&tokens["input"]),
+                        count(&tokens["cache"]["read"]),
+                        count(&tokens["cache"]["write"]),
+                    ),
                     output_tokens: count(&tokens["output"]),
                     input_cache_hit_tokens: count(&tokens["cache"]["read"]),
                     cache_write_tokens: count(&tokens["cache"]["write"]),
@@ -178,7 +201,19 @@ impl SourceAdapter for OpenCodeAdapter {
                 event.phase = string(&properties["finish"]);
                 if properties["finish"] == "stop" {
                     event.kind = Kind::TaskEnd;
-                    event.phase = Some("completed".into());
+                    event.content = context.step_text.clone();
+                    event.phase = Some(
+                        if event
+                            .content
+                            .as_ref()
+                            .is_some_and(|text| !text.trim().is_empty())
+                        {
+                            "final_answer"
+                        } else {
+                            "completed"
+                        }
+                        .into(),
+                    );
                 }
             }
             "session.next.step.failed" => {
@@ -195,6 +230,291 @@ impl SourceAdapter for OpenCodeAdapter {
         Ok(result)
     }
 }
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MessageContext {
+    role: String,
+    turn: String,
+    model: Option<String>,
+    provider: Option<String>,
+    effort: Option<String>,
+    created: Value,
+    completed: bool,
+    #[serde(default)]
+    text: Option<String>,
+}
+impl OpenCodeAdapter {
+    fn convert_v1(
+        &self,
+        record: &Position,
+        context: &mut OpenCodeContext,
+    ) -> Result<Vec<AgentLogEvent>> {
+        let line = &record.line;
+        let p = &line["properties"];
+        let is_info = line["type"] == "message.updated";
+        let native = if is_info { &p["info"] } else { &p["part"] };
+        ensure!(
+            native["sessionID"].as_str() == Some(&context.session),
+            "Message session differs from journal"
+        );
+        ensure!(
+            p.get("sessionID").unwrap_or(&native["sessionID"]).as_str() == Some(&context.session),
+            "Native event session differs from journal"
+        );
+        let id = string(&native["id"])
+            .filter(|id| !id.is_empty())
+            .context("Message/part lacks ID")?;
+        if is_info {
+            let role = native["role"].as_str().context("Message lacks role")?;
+            let turn = if role == "user" {
+                id.clone()
+            } else {
+                string(&native["parentID"])
+                    .filter(|id| !id.is_empty())
+                    .context("Assistant lacks parent message")?
+            };
+            if role == "user" && context.turn.as_deref() != Some(&id) {
+                // Retain only unsettled assistant attribution across a steering prompt.
+                context
+                    .messages
+                    .retain(|_, message| message.role == "assistant" && !message.completed);
+                let messages = &context.messages;
+                context.emitted.retain(|key, _| {
+                    messages
+                        .keys()
+                        .any(|message| key.starts_with(&format!("{message}:")))
+                });
+                context.turn = Some(id.clone());
+                context.model = None;
+                context.provider = None;
+                context.effort = None;
+            }
+            let message = MessageContext {
+                role: role.into(),
+                turn,
+                model: string(&native["modelID"]).or_else(|| string(&native["model"]["modelID"])),
+                provider: string(&native["providerID"])
+                    .or_else(|| string(&native["model"]["providerID"])),
+                effort: string(&native["variant"]).or_else(|| string(&native["model"]["variant"])),
+                created: native["time"]["created"].clone(),
+                completed: native["time"]["completed"].is_number(),
+                text: context
+                    .messages
+                    .get(&id)
+                    .and_then(|previous| previous.text.clone()),
+            };
+            timestamp(&message.created)?;
+            context.messages.insert(id.clone(), message.clone());
+            let at = if message.completed {
+                &native["time"]["completed"]
+            } else {
+                &message.created
+            };
+            let mut event = v1_event(line, context, &message, timestamp(at)?);
+            if !message.completed {
+                let key = format!("{id}:metadata");
+                let signature =
+                    agent_logs_collector::hash(serde_json::to_string(native)?.as_bytes());
+                if context.emitted.get(&key) == Some(&signature) {
+                    return Ok(vec![]);
+                }
+                context.emitted.insert(key, signature);
+                return Ok(vec![event]);
+            }
+            let key = format!("{id}:completed");
+            if !claim(context, key, native)? {
+                return Ok(vec![]);
+            }
+            let tokens = &native["tokens"];
+            let mut result = Vec::new();
+            if let Some(usage) = native_usage(tokens, Some(id)) {
+                event.kind = Kind::Usage;
+                event.usage = Some(usage);
+                result.push(event.clone());
+                event.usage = None;
+            }
+            event.kind = if native["finish"] == "stop" && native["error"].is_null() {
+                Kind::TaskEnd
+            } else {
+                Kind::Context
+            };
+            event.phase = if !native["error"].is_null() {
+                Some("error".into())
+            } else {
+                string(&native["finish"])
+            };
+            event.content = text(&native["error"]["message"]);
+            if event.kind == Kind::TaskEnd
+                && message
+                    .text
+                    .as_ref()
+                    .is_some_and(|text| !text.trim().is_empty())
+            {
+                event.content = message.text.clone();
+                event.phase = Some("final_answer".into());
+            }
+            result.push(event);
+            return Ok(result);
+        }
+        let message_id = native["messageID"]
+            .as_str()
+            .context("Part lacks message ID")?;
+        let Some(message) = context.messages.get(message_id).cloned() else {
+            // Do not invent attribution when joining an already-running historical session.
+            return Ok(vec![]);
+        };
+        let part_type = native["type"].as_str().unwrap_or("");
+        let mut result = Vec::new();
+        match part_type {
+            "text" | "reasoning" => {
+                if native["ignored"] == true {
+                    return Ok(vec![]);
+                }
+                let at = if message.role == "user" {
+                    if p["time"].is_number() {
+                        &p["time"]
+                    } else {
+                        &message.created
+                    }
+                } else {
+                    if !native["time"]["end"].is_number() {
+                        return Ok(vec![]);
+                    }
+                    &native["time"]["end"]
+                };
+                let key = format!("{message_id}:part:{id}:text");
+                if !claim(context, key, native)? {
+                    return Ok(vec![]);
+                }
+                let mut event = v1_event(line, context, &message, timestamp(at)?);
+                event.kind = if message.role == "user" {
+                    Kind::User
+                } else {
+                    Kind::Assistant
+                };
+                event.content = text(&native["text"]);
+                if part_type == "reasoning" {
+                    event.phase = Some("reasoning".into());
+                }
+                if native["synthetic"] == true {
+                    event.phase = Some("synthetic".into());
+                }
+                if message.role == "assistant" && part_type == "text" {
+                    if let Some(stored) = context.messages.get_mut(message_id) {
+                        append_text(&mut stored.text, event.content.as_deref());
+                    }
+                }
+                result.push(event);
+            }
+            "tool" => {
+                let state = &native["state"];
+                let status = state["status"].as_str().unwrap_or("");
+                if !matches!(status, "running" | "completed" | "error") {
+                    return Ok(vec![]);
+                }
+                let mut event =
+                    v1_event(line, context, &message, timestamp(&state["time"]["start"])?);
+                event.kind = Kind::ToolCall;
+                event.name = string(&native["tool"]);
+                event.call_id = string(&native["callID"]);
+                event.content = state.get("input").map(Value::to_string);
+                let call = serde_json::json!({"callID":native["callID"],"tool":native["tool"],"input":state["input"]});
+                if claim(context, format!("{message_id}:part:{id}:call"), &call)? {
+                    result.push(event.clone());
+                }
+                if matches!(status, "completed" | "error") {
+                    event.occurred_at = timestamp(&state["time"]["end"])?;
+                    event.kind = Kind::ToolResult;
+                    event.content = text(&state["output"]).or_else(|| text(&state["error"]));
+                    if status == "error" {
+                        event.phase = Some("error".into());
+                    }
+                    if claim(context, format!("{message_id}:part:{id}:result"), state)? {
+                        result.push(event);
+                    }
+                }
+            }
+            _ => (),
+        }
+        Ok(result)
+    }
+}
+fn v1_event(
+    raw: &Value,
+    context: &OpenCodeContext,
+    message: &MessageContext,
+    occurred_at: String,
+) -> AgentLogEvent {
+    AgentLogEvent {
+        event_id: String::new(),
+        source_session_id: context.session.clone(),
+        source_task_id: message.turn.clone(),
+        parent_source_task_id: None,
+        sequence: 0,
+        occurred_at,
+        kind: Kind::Context,
+        content: None,
+        phase: None,
+        name: None,
+        call_id: None,
+        model_id: message.model.clone(),
+        reasoning_effort: message.effort.clone(),
+        provider_code: message.provider.clone(),
+        usage: None,
+        inherited: false,
+        raw: raw.clone(),
+    }
+}
+fn claim(context: &mut OpenCodeContext, key: String, fact: &Value) -> Result<bool> {
+    let digest = agent_logs_collector::hash(serde_json::to_string(fact)?.as_bytes());
+    if let Some(previous) = context.emitted.get(&key) {
+        ensure!(previous == &digest, "Conflicting completed native fact");
+        return Ok(false);
+    }
+    context.emitted.insert(key, digest);
+    Ok(true)
+}
+fn native_usage(tokens: &Value, response_id: Option<String>) -> Option<AgentLogUsage> {
+    let usage = AgentLogUsage {
+        basis: AgentLogUsageBasis::Delta,
+        response_id,
+        // V1 Session.getUsage and V2 publisher store disjoint non-cached input.
+        input_tokens: inclusive_input(
+            count(&tokens["input"]),
+            count(&tokens["cache"]["read"]),
+            count(&tokens["cache"]["write"]),
+        ),
+        output_tokens: count(&tokens["output"]),
+        input_cache_hit_tokens: count(&tokens["cache"]["read"]),
+        cache_write_tokens: count(&tokens["cache"]["write"]),
+        total_tokens: count(&tokens["total"]),
+    };
+    (usage.input_tokens.is_some()
+        || usage.output_tokens.is_some()
+        || usage.input_cache_hit_tokens.is_some()
+        || usage.cache_write_tokens.is_some()
+        || usage.total_tokens.is_some())
+    .then_some(usage)
+}
+
 #[cfg(test)]
 #[path = "_tests/adapter.rs"]
 mod tests;
+
+fn append_text(target: &mut Option<String>, value: Option<&str>) {
+    if let Some(value) = value {
+        if let Some(existing) = target {
+            existing.push_str(value);
+        } else {
+            *target = Some(value.to_owned());
+        }
+    }
+}
+
+fn inclusive_input(uncached: Option<i64>, read: Option<i64>, write: Option<i64>) -> Option<i64> {
+    uncached?
+        .checked_add(read?)?
+        .checked_add(write?)
+        .filter(|value| (0..=9_007_199_254_740_991).contains(value))
+}

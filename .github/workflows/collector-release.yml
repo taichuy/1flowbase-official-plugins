@@ -48,7 +48,7 @@ jobs:
           for manifest in runtime-extensions/@taichuy/*-logs-collector/Cargo.toml; do
             cargo build --locked --manifest-path "$manifest"
           done
-          node --test runtime-extensions/@taichuy/deepseek-harness-logs-collector/native/plugin.test.mjs
+          node --test runtime-extensions/@taichuy/deepseek-harness-logs-collector/native/plugin.test.mjs runtime-extensions/@taichuy/opencode-logs-collector/src/_tests/plugin.test.mjs
           node --test scripts/collectors/_tests/*.test.mjs scripts/_tests/extension-catalog.test.mjs
           bash -n installers/client-collectors/install.sh
       - id: matrix

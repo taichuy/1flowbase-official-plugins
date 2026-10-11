@@ -1,6 +1,6 @@
 # OpenCode logs collector
 
-OpenCode 1.18.4 native `session.next.*` events are recorded synchronously into a private per-session journal and delivered using the shared agent-logs collector SDK. No daemon, database scan, or historical import runs during installation.
+OpenCode's default V1 runtime emits native `message.updated` and `message.part.updated` events. The embedded plugin synchronously records these facts into the shared SDK's private per-session journal. V2 `session.next.*` canonical events are also supported. Installation starts no daemon and reads no database or historical conversations.
 
 ```sh
 opencode-logs-collector configure --endpoint http://localhost:7800/api/public/applications/APP/agent-logs --source /absolute/collector/sessions --config /absolute/collector/config.json --key-stdin
@@ -9,12 +9,34 @@ opencode-logs-collector flush --config /absolute/collector/config.json
 opencode-logs-collector uninstall-hooks --config /absolute/collector/config.json --client-home /absolute/opencode-config
 ```
 
-Supply the ingestion key on stdin. `--client-home` is the OpenCode configuration directory, including a task-isolated `OPENCODE_CONFIG_DIR`. The installer owns only one hash-named `plugins/*.js` file; existing config and plugins stay intact. Each installation must use a separate config directory for its journal/checkpoint.
+Supply the ingestion key on stdin. `--client-home` is the OpenCode configuration directory, including task-isolated `OPENCODE_CONFIG_DIR`. Only one hash-named `plugins/*.js` file is owned; existing config and other plugins are preserved. Each installation uses its own journal/checkpoint directory.
 
-The embedded plugin uses `spawnSync` with argument arrays to record committed events before the unawaited native callback returns. It records prompted messages, request steps, ended text/reasoning, tool calls/results and request usage. Live deltas and legacy projected duplicate events are ignored. Idle/dispose only flush the journal; they never manufacture completion or usage. Delivery failures remain pending for the next flush. Journal replay uses SDK checkpoints; it does not re-read client history.
+The native callback uses `spawnSync` argument arrays to finish durable recording before returning. Idle/dispose only flush facts already recorded, never manufacture a successful result. Failed delivery remains queued for the next flush. Live deltas are ignored.
 
-A native prompt message ID identifies the imported task. `step.ended` with finish `stop` supplies task completion; `tool-calls` continues that task. Other finishes and failures remain factual context until a source completion exists. Native timestamps, raw events, model/provider and model variant are preserved. The variant is a client label, so verify actual wire reasoning separately.
+V1 user text uses the native part-notification timestamp, falling back to its message creation time when absent. Assistant text/reasoning is accepted only with native `part.time.end`. Running tools supply call/input; completed/error tools supply result and also the call/input if its running notification was missed. Completed assistant metadata supplies source usage and finish; `finish=stop` marks the retained actual text as the final answer. Other finishes continue the task or preserve error context. Raw source facts are retained. Checkpoints hold only current-turn message attribution, finalized-fact hashes, and text needed for final projection; the next prompt prunes settled state. Unknown message attribution is skipped rather than invented.
 
-For current OpenCode source, define a model variant `max` with request-body overrides: Chat `{"reasoning_effort":"max"}`, Responses `{"reasoning":{"effort":"max"}}`, Anthropic `{"output_config":{"effort":"max"}}`. Native OpenAI effort schema excludes max; the configured HTTP body overlay sends these values without changing client source. Select the correct native/provider API and `--variant max`; assert gateway wire evidence. Old installed binaries may use a different API and are unsupported until separately verified.
+The default CLI uses V1 provider config, even in current source. Example model:
+```json
+{
+  "provider": {
+    "gateway": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:7800/v1",
+        "apiKey": "{env:QA_GATEWAY_KEY}"
+      },
+      "models": {
+        "gpt-6-luna": {
+          "reasoning": true,
+          "limit": { "context": 262144, "output": 8192 },
+          "variants": { "max": { "reasoningEffort": "max" } }
+        }
+      }
+    }
+  }
+}
+```
 
-Focused verification: `cargo test --manifest-path runtime-extensions/@taichuy/opencode-logs-collector/Cargo.toml`. Native plugin/source integration requires a real current-source OpenCode run and ingestion receipts. Fixtures contain only synthetic data.
+For Chat use `@ai-sdk/openai-compatible`; Responses use `@ai-sdk/openai`, both with `variants.max.reasoningEffort="max"`. Anthropic uses `@ai-sdk/anthropic` and `variants.max.effort="max"`. Run `opencode run --format json -m gateway/gpt-6-luna --variant max`. Verify protocol and effort on the gateway. `OPENCODE_EXPERIMENTAL_NATIVE_LLM` changes only model transport, not Session/config version; the default AI SDK path supports these controls. A variant label alone does not prove wire effort.
+
+Focused verification: `cargo test --manifest-path runtime-extensions/@taichuy/opencode-logs-collector/Cargo.toml`. Integration additionally requires real default-client continuation, tool interaction and ingestion receipts. Fixtures are synthetic; old installed binaries require separate compatibility verification.

@@ -38,6 +38,7 @@ fn every_native_block_and_usage_share_the_real_prompt_turn() {
     assert_eq!(facts[3].call_id.as_deref(), Some("call-b"));
     assert_eq!(facts[4].phase.as_deref(), Some("redacted_reasoning"));
     let usage = facts[5].usage.as_ref().unwrap();
+    assert_eq!(usage.input_tokens, Some(140));
     assert_eq!(usage.basis, AgentLogUsageBasis::Cumulative);
     assert_eq!(usage.response_id.as_deref(), Some("response"));
     assert_eq!(usage.input_cache_hit_tokens, Some(30));
@@ -115,4 +116,33 @@ fn custom_file_and_native_home_roots_remain_targeted() {
         a.roots(Path::new("/fixture/current.jsonl")),
         vec![PathBuf::from("/fixture/current.jsonl")]
     );
+}
+
+#[test]
+fn inclusive_input_preserves_unknown_and_rejects_overflow() {
+    assert_eq!(inclusive_input(Some(3), Some(5), Some(7)), Some(15));
+    assert_eq!(inclusive_input(None, Some(5), Some(7)), None);
+    assert_eq!(inclusive_input(Some(3), None, Some(7)), None);
+    assert_eq!(inclusive_input(Some(3), Some(5), None), None);
+    assert_eq!(inclusive_input(Some(i64::MAX), Some(1), Some(0)), None);
+    assert_eq!(
+        inclusive_input(Some(9_007_199_254_740_991), Some(1), Some(0)),
+        None
+    );
+}
+
+#[test]
+fn anthropic_usage_input_includes_read_and_creation_cache() {
+    let adapter = adapter();
+    let first = user("prompt-usage", json!("usage"));
+    let mut context = adapter.create_context(&first).unwrap();
+    adapter.convert(&record(first), &mut context).unwrap();
+    let row = json!({"type":"assistant","sessionId":"session","uuid":"assistant-usage","timestamp":TS,
+        "message":{"id":"response-usage","role":"assistant","content":[{"type":"text","text":"answer"}],
+        "usage":{"input_tokens":3,"output_tokens":2,"cache_read_input_tokens":5,"cache_creation_input_tokens":7}}});
+    let facts = adapter.convert(&record(row), &mut context).unwrap();
+    let usage = facts.iter().find_map(|fact| fact.usage.as_ref()).unwrap();
+    assert_eq!(usage.input_tokens, Some(15));
+    assert_eq!(usage.input_cache_hit_tokens, Some(5));
+    assert_eq!(usage.cache_write_tokens, Some(7));
 }

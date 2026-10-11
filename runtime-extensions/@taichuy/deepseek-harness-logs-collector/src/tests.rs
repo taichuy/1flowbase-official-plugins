@@ -57,7 +57,7 @@ fn fixture_preserves_message_blocks_usage_and_tools() {
     );
     assert_eq!(facts.iter().filter(|f| f.kind == Kind::ToolCall).count(), 1);
     let u = facts.iter().find_map(|f| f.usage.as_ref()).unwrap();
-    assert_eq!(u.input_tokens, Some(3));
+    assert_eq!(u.input_tokens, Some(8));
     assert_eq!(u.input_cache_hit_tokens, Some(5));
     assert!(facts
         .iter()
@@ -137,4 +137,47 @@ fn change_driven_request_config_remains_active_across_turns() {
     let facts = convert(&mut ctx, "turn/start", json!({"turn":2}));
     assert_eq!(facts[0].reasoning_effort.as_deref(), Some("max"));
     assert_eq!(facts[0].source_task_id, "2");
+}
+
+#[test]
+fn inclusive_input_preserves_unknown_and_rejects_overflow() {
+    assert_eq!(inclusive_input(Some(3), Some(5), Some(7)), Some(15));
+    assert_eq!(inclusive_input(None, Some(5), Some(7)), None);
+    assert_eq!(inclusive_input(Some(3), None, Some(7)), None);
+    assert_eq!(inclusive_input(Some(3), Some(5), None), None);
+    assert_eq!(inclusive_input(Some(i64::MAX), Some(1), Some(0)), None);
+    assert_eq!(
+        inclusive_input(Some(9_007_199_254_740_991), Some(1), Some(0)),
+        None
+    );
+}
+
+#[test]
+fn disjoint_usage_adds_cache_and_honors_native_omission_zero() {
+    let present = usage(
+        &serde_json::json!({"inputTokens":3,"outputTokens":2,"cacheReadTokens":5,"cacheWriteTokens":7}),
+    );
+    assert_eq!(present.input_tokens, Some(15));
+    assert_eq!(present.input_cache_hit_tokens, Some(5));
+    assert_eq!(present.cache_write_tokens, Some(7));
+    let omitted = usage(&serde_json::json!({"inputTokens":3,"outputTokens":2}));
+    assert_eq!(omitted.input_tokens, Some(3));
+    assert_eq!(omitted.input_cache_hit_tokens, Some(0));
+    assert_eq!(omitted.cache_write_tokens, Some(0));
+    assert_eq!(usage(&serde_json::json!({})).input_tokens, None);
+    assert_eq!(usage(&serde_json::json!({})).input_cache_hit_tokens, None);
+    assert_eq!(usage(&serde_json::json!({})).cache_write_tokens, None);
+    assert_eq!(
+        usage(&serde_json::json!({"inputTokens":3,"cacheReadTokens":null})).input_tokens,
+        None
+    );
+    assert_eq!(
+        usage(&serde_json::json!({"inputTokens":3,"cacheWriteTokens":-1})).cache_write_tokens,
+        None
+    );
+    assert_eq!(
+        usage(&serde_json::json!({"inputTokens":9_007_199_254_740_991_i64,"cacheReadTokens":1}))
+            .input_tokens,
+        None
+    );
 }
