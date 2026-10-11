@@ -48,10 +48,10 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes 27 unique standard configurations and all four fallback prices', () => {
+test('publishes 29 unique standard configurations and all four fallback prices', () => {
   const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
-  assert.equal(rules.length, 27);
-  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 27);
+  assert.equal(rules.length, 29);
+  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 29);
   const zero = rules.find(r => r.provider_code === 'zero');
   for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
   const astra = rules.find(r => r.upstream_model_id === 'gpt-6-astra');
@@ -61,6 +61,7 @@ test('publishes 27 unique standard configurations and all four fallback prices',
   assert.deepEqual(astra.rules, [{when:{input_tokens:{operator:'gt',value:272000}},overrides:{input_token_unit_price:'20',output_token_unit_price:'75',cache_hit_token_unit_price:'2',cache_write_token_unit_price:'25'}}]);
   for (const [model, base, large] of [
     ['gpt-6-sol', ['2', '10', '0.2', '2.5'], ['4', '15', '0.4', '5']],
+    ['gpt-6.1-sol', ['2', '10', '0.1', '2.5'], ['4', '15', '0.2', '5']],
     ['gpt-6-luna', ['0.1', '0.5', '0.01', '0.125'], ['0.2', '0.75', '0.02', '0.25']],
   ]) {
     const rule = rules.find(r => r.upstream_model_id === model);
@@ -76,7 +77,7 @@ test('publishes 27 unique standard configurations and all four fallback prices',
   assert.deepEqual(fable.rules, [{when:{cache_write_ttl_seconds:3600},overrides:{cache_write_token_unit_price:'20'}}]);
   for (const [model, base, hourWrite] of [
     ['claude-opus-5-5', ['4', '20', '0.2', '5'], '8'],
-    ['claude-sonnet-5-5', ['2', '10', '0.2', '2.5'], '4'],
+    ['claude-sonnet-5-5', ['2', '10', '0.1', '2.5'], '4'],
   ]) {
     const rule = rules.find(r => r.provider_code === 'anthropic' && r.upstream_model_id === model);
     assert.ok(rule, `${model} pricing exists`);
@@ -228,4 +229,41 @@ test('rejects old policies, malformed conditions, overrides and duplicate models
   fs.writeFileSync(path.join(duplicatePath,'pricing.json'),JSON.stringify({...base,id:'20000000-0000-4000-8000-000000000003'}));
   assert.throws(() => discoverModelPricingRules(repoRoot), /provider\/model configurations must be unique/);
   fs.rmSync(repoRoot,{recursive:true,force:true});
+});
+
+
+test('Sol and Haiku price whole requests at exact input boundaries and compose Haiku TTL rules', () => {
+  const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
+  const meters = ['input', 'output', 'cache_hit', 'cache_write'];
+  const rates = (model, input, ttl) => {
+    const source = rules.find(r => r.upstream_model_id === model);
+    assert.ok(source);
+    const prices = { ...source };
+    for (const rule of source.rules) {
+      const threshold = rule.when.input_tokens;
+      if (threshold && !(threshold.operator === 'gt' ? input > threshold.value : input >= threshold.value)) continue;
+      if (rule.when.cache_write_ttl_seconds !== undefined && rule.when.cache_write_ttl_seconds !== ttl) continue;
+      Object.assign(prices, rule.overrides);
+    }
+    return meters.map(m => prices[m + '_token_unit_price']);
+  };
+  for (const [input, expected] of [
+    [272000, ['2', '10', '0.1', '2.5']],
+    [272001, ['4', '15', '0.2', '5']],
+  ]) assert.deepEqual(rates('gpt-6.1-sol', input), expected);
+  for (const [input, ttl, expected] of [
+    [100000, undefined, ['0.1', '0.5', '0.01', '0.125']],
+    [100000, 300, ['0.1', '0.5', '0.01', '0.125']],
+    [100000, 3600, ['0.1', '0.5', '0.01', '0.2']],
+    [100001, undefined, ['0.5', '2.5', '0.05', '0.625']],
+    [100001, 300, ['0.5', '2.5', '0.05', '0.625']],
+    [100001, 3600, ['0.5', '2.5', '0.05', '1']],
+  ]) assert.deepEqual(rates('claude-haiku-5-5', input, ttl), expected);
+  for (const [model, expected] of [
+    ['gpt-6.1-sol', 0.30], ['claude-opus-5-5', 0.60],
+    ['claude-sonnet-5-5', 0.30], ['claude-haiku-5-5', 0.015],
+  ]) {
+    const [inputPrice, outputPrice] = rates(model, 100000, 300).map(Number);
+    assert.ok(Math.abs((100000 * inputPrice + 10000 * outputPrice) / 1000000 - expected) < 1e-12);
+  }
 });
