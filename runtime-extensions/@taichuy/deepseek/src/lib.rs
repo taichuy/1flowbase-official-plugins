@@ -13,6 +13,7 @@ use serde_json::{json, Map, Value};
 
 mod count_tokens;
 mod dsml;
+mod tool_choice;
 
 #[cfg(test)]
 mod _tests;
@@ -37,9 +38,8 @@ const PASSTHROUGH_CHAT_COMPLETION_PARAMETERS: &[&str] = &[
     "logprobs",
     "top_logprobs",
     "reasoning_effort",
-    "tool_choice",
 ];
-const JSON_CHAT_COMPLETION_PARAMETERS: &[&str] = &["stop", "tool_choice", "tools"];
+const JSON_CHAT_COMPLETION_PARAMETERS: &[&str] = &["stop", "tools"];
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(from = "protocol_observation::StdioRequestWire")]
@@ -940,6 +940,9 @@ fn build_chat_completion_body(input: &ProviderInvocationInput) -> Result<Value> 
         if let Some(value) = parameter_value(input, key) {
             body.insert((*key).to_string(), value);
         }
+    }
+    if let Some(value) = input.model_parameters.get("tool_choice") {
+        body.insert("tool_choice".to_string(), tool_choice::to_chat_wire(value)?);
     }
 
     Ok(Value::Object(body))
