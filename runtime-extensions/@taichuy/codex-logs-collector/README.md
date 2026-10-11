@@ -84,3 +84,7 @@ codex-logs-collector watch --config /path/to/config.json
 采集器只使用 Codex 的真实 turn/task 标识，不将 Responses API 的 passthrough metadata 标识作为新轮次。`turn_context` 的 `model` 和 `effort` 映射到标准协议的 `model_id` 和 `reasoning_effort`，由 1flowbase 底座投影到日志列表。原始事件完整保留在客户端轨迹。没有明确 Codex 归属的记录继续保留为待归属，采集器不会猜测轮次。
 
 0.2.0 的断点仍可读取；新增推理强度为可选上下文字段。新版本只影响后续采集，不能自动改写已经确认上传的旧投影。修复已有历史时，须先通过 1flowbase 的应用日志删除接口删除相应记录，再由受控重导重置对应断点；仅升级或重跑导入命令不会重新上传已确认的历史。保留配置、source identity、原始文件与旧断点备份。
+
+### 输入归纳（0.4.1）
+
+使用 Codex 原生 `content_item_kinds` 按内容位置区分用户输入与注入的指令、环境上下文；没有分类元数据的旧转录保持原角色。原生 `user_message` 是用户输入，代理间 `agent_message` 保持上下文并保留发送者及原始载荷。含加密片段的代理消息不伪造完整明文。上下文仍可在客户端轨迹中查看，不计为人类输入。归纳不会根据提示词正文猜测角色；用量仍按原生响应增量计算。

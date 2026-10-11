@@ -39,6 +39,62 @@ fn text(value: &Value) -> Option<String> {
         _ => Some(value.to_string()),
     }
 }
+// Codex context-fragments::to_annotated_content defines positional classifications;
+// missing entries are unknown. Legacy rollouts without classifications keep their role.
+fn user_message_events(payload: &Value, mut event: AgentLogEvent) -> Vec<AgentLogEvent> {
+    let Some(kinds) =
+        payload["internal_chat_message_metadata_passthrough"]["content_item_kinds"].as_array()
+    else {
+        event.kind = Kind::User;
+        return vec![event];
+    };
+    let Some(parts) = payload["content"].as_array() else {
+        return vec![event];
+    };
+    let mut user = Vec::new();
+    let mut context = Vec::new();
+    for (index, part) in parts.iter().enumerate() {
+        let target = if matches!(
+            kinds.get(index).and_then(Value::as_str),
+            Some("user.text" | "user.image" | "user.audio" | "user.answered_question")
+        ) {
+            &mut user
+        } else {
+            &mut context
+        };
+        target.push(part.clone());
+    }
+    let mut events = Vec::new();
+    if !context.is_empty() {
+        let mut injected = event.clone();
+        injected.content = text(&Value::Array(context));
+        events.push(injected);
+    }
+    if !user.is_empty() {
+        event.kind = Kind::User;
+        event.content = text(&Value::Array(user));
+        events.push(event);
+    } else if events.is_empty() {
+        events.push(event);
+    }
+    events
+}
+
+// Match Codex protocol::plaintext_agent_message_content: a mixed encrypted message
+// is not a complete readable request. Preserve its entire original payload in raw.
+fn agent_message_text(payload: &Value) -> Option<String> {
+    let parts = payload["content"].as_array()?;
+    let mut texts = Vec::new();
+    for part in parts {
+        if part["type"] != "input_text" {
+            return None;
+        }
+        texts.push(part["text"].as_str()?);
+    }
+    let content = texts.join("\n");
+    (!content.trim().is_empty()).then_some(content)
+}
+
 fn usage(value: &Value, basis: AgentLogUsageBasis, response_id: Option<String>) -> AgentLogUsage {
     let count = |key: &str| {
         value[key]
@@ -203,13 +259,20 @@ impl SourceAdapter for CodexAdapter {
             "response_item" => match payload_type {
                 "message" => {
                     event.kind = match p["role"].as_str().unwrap_or("") {
-                        "user" => Kind::User,
+                        "user" => Kind::Context,
                         "assistant" => Kind::Assistant,
                         "system" | "developer" => Kind::System,
                         _ => Kind::Context,
                     };
                     event.content = text(&p["content"]);
                     event.phase = string(&p["phase"]);
+                    if p["role"] == "user" {
+                        return Ok(user_message_events(p, event));
+                    }
+                }
+                "agent_message" => {
+                    event.content = agent_message_text(p);
+                    event.name = string(&p["author"]);
                 }
                 "function_call"
                 | "custom_tool_call"
@@ -251,7 +314,11 @@ impl SourceAdapter for CodexAdapter {
                         None,
                     ));
                 }
-                "user_message" | "agent_message" => {
+                "user_message" => {
+                    event.kind = Kind::User;
+                    event.content = text(&p["message"]);
+                }
+                "agent_message" => {
                     event.content = text(&p["message"]);
                     event.phase = string(&p["phase"]);
                 }
@@ -280,3 +347,7 @@ impl SourceAdapter for CodexAdapter {
 #[cfg(test)]
 #[path = "_tests/adapter.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "_tests/message_classification.rs"]
+mod message_classification_tests;
