@@ -27,11 +27,11 @@ impl SourceAdapter for Generic {
         &self,
         record: &Position,
         turn: &mut Self::Context,
-    ) -> anyhow::Result<Option<AgentLogEvent>> {
+    ) -> anyhow::Result<Vec<AgentLogEvent>> {
         if let Some(value) = record.line["turn"].as_str() {
             *turn = Some(value.to_owned());
         }
-        Ok(Some(AgentLogEvent {
+        Ok(vec![AgentLogEvent {
             event_id: String::new(),
             source_session_id: "fixture-session".into(),
             source_task_id: turn.clone().unwrap_or_default(),
@@ -49,7 +49,7 @@ impl SourceAdapter for Generic {
             usage: None,
             inherited: false,
             raw: record.line.clone(),
-        }))
+        }])
     }
 }
 struct Fixture {
@@ -494,7 +494,7 @@ impl SourceAdapter for Stateful {
         &self,
         record: &Position,
         context: &mut Self::Context,
-    ) -> anyhow::Result<Option<AgentLogEvent>> {
+    ) -> anyhow::Result<Vec<AgentLogEvent>> {
         self.converted.lock().unwrap().push(record.start);
         if let Some(value) = record.line["model"].as_str() {
             context.model = Some(value.into());
@@ -503,9 +503,9 @@ impl SourceAdapter for Stateful {
             context.provider = Some(value.into());
         }
         if record.line["skip"] == true {
-            return Ok(None);
+            return Ok(Vec::new());
         }
-        let mut event = Generic.convert(record, &mut context.task)?.unwrap();
+        let mut event = Generic.convert(record, &mut context.task)?.remove(0);
         event.model_id = context.model.clone();
         event.provider_code = context.provider.clone();
         event.inherited = record.line["inherited"] == true;
@@ -513,7 +513,7 @@ impl SourceAdapter for Stateful {
             event.kind = AgentLogEventKind::TaskEnd;
             context.task = None;
         }
-        Ok(Some(event))
+        Ok(vec![event])
     }
 }
 #[tokio::test]
@@ -1006,4 +1006,133 @@ async fn unsupported_snapshot_version_fails_without_converting_history() {
         .contains("context version"));
     assert!(adapter.converted.lock().unwrap().is_empty());
     assert_eq!(f.state(), state);
+}
+
+struct Blocks;
+impl SourceAdapter for Blocks {
+    type Context = Option<String>;
+    fn source_client(&self) -> &'static str {
+        "blocks"
+    }
+    fn create_context(&self, _: &Value) -> anyhow::Result<Self::Context> {
+        Ok(None)
+    }
+    fn convert(
+        &self,
+        position: &Position,
+        context: &mut Self::Context,
+    ) -> anyhow::Result<Vec<AgentLogEvent>> {
+        if position.line["type"] == "collector_session" {
+            return Ok(Vec::new());
+        }
+        let base = Generic.convert(position, context)?.remove(0);
+        let Some(blocks) = position.line["blocks"].as_array() else {
+            return Ok(vec![base]);
+        };
+        Ok(blocks
+            .iter()
+            .map(|block| {
+                let mut event = base.clone();
+                event.content = block.as_str().map(str::to_owned);
+                event
+            })
+            .collect())
+    }
+}
+#[tokio::test]
+async fn expanded_record_is_atomic_over_soft_target_and_retries_identical_ids() {
+    let f = Fixture::new();
+    let rows = [
+        json!({"turn":"a","blocks":["thinking","tool","answer"]}),
+        json!({"turn":"b","blocks":["next"]}),
+    ];
+    f.write(&rows);
+    let options = CollectOptions {
+        batch_target_bytes: 1,
+    };
+    *f.response.lock().unwrap() = (503, None);
+    assert!(collect_with_options(&f.config, &Blocks, options)
+        .await
+        .is_err());
+    let failed = f.events();
+    assert_eq!(failed.len(), 3);
+    assert_eq!(
+        failed
+            .iter()
+            .map(|e| e["content"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["thinking", "tool", "answer"]
+    );
+    assert!(f.state()["files"]
+        .as_object()
+        .unwrap()
+        .values()
+        .all(|cp| cp["offset"] == 0));
+    *f.response.lock().unwrap() = (200, None);
+    assert_eq!(
+        collect_with_options(&f.config, &Blocks, options)
+            .await
+            .unwrap()
+            .uploaded,
+        4
+    );
+    let events = f.events();
+    assert_eq!(&events[3..6], failed.as_slice());
+    assert!(events[3..]
+        .windows(2)
+        .all(|w| w[0]["sequence"].as_i64() < w[1]["sequence"].as_i64()));
+    let ids = events[3..]
+        .iter()
+        .map(|e| e["event_id"].as_str().unwrap())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(ids.len(), 4);
+    assert_eq!(collect(&f.config, &Blocks).await.unwrap().uploaded, 0);
+}
+#[tokio::test]
+async fn native_journal_only_uploads_queued_sources_and_retains_failure() {
+    let f = Fixture::new();
+    f.write(&[json!({"turn":"private-history","content":"must stay local"})]);
+    let path = append_record(
+        &f.config,
+        &Blocks,
+        "native-a",
+        &json!({"turn":"a","blocks":["one","two"]}),
+    )
+    .unwrap();
+    assert!(path.starts_with(&f.config.source_path));
+    *f.response.lock().unwrap() = (503, None);
+    assert_eq!(
+        collect_pending(&f.config, &Blocks, CollectOptions::default())
+            .await
+            .unwrap()
+            .pending_sources,
+        1
+    );
+    append_record(
+        &f.config,
+        &Blocks,
+        "native-a",
+        &json!({"turn":"a","blocks":["three"]}),
+    )
+    .unwrap();
+    *f.response.lock().unwrap() = (200, None);
+    let report = collect_pending(&f.config, &Blocks, CollectOptions::default())
+        .await
+        .unwrap();
+    assert_eq!((report.uploaded, report.pending_sources), (3, 0));
+    assert!(f
+        .events()
+        .iter()
+        .all(|e| e["source_task_id"] != "private-history"));
+    assert_eq!(
+        collect_pending(&f.config, &Blocks, CollectOptions::default())
+            .await
+            .unwrap()
+            .uploaded,
+        0
+    );
+    // A corrupt/externally truncated journal must never be silently repaired.
+    fs::write(&path, b"{").unwrap();
+    assert!(append_record(&f.config, &Blocks, "native-a", &json!({"turn":"a"})).is_err());
+    assert_eq!(fs::read(path).unwrap(), b"{");
 }

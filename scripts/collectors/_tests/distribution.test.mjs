@@ -11,7 +11,7 @@ import { buildDistribution, verifyDistributionSignature } from '../distribution.
 import { discoverCatalogEntries } from '../../extension-catalog.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
-const collector = listCollectors(repoRoot)[0];
+const collector = listCollectors(repoRoot).find(item => item.collector_code === 'codex-logs-collector');
 function fixture(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'collector-distribution-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -154,4 +154,22 @@ test('installer refuses redirected member downloads without requesting the redir
   const downloads = powershell.split('\n').filter(line => line.includes('Invoke-WebRequest'));
   assert.equal(downloads.length, 2);
   assert.ok(downloads.every(line => line.includes('-MaximumRedirection 0')));
+});
+
+test('each signed distribution pins its own native collector installer defaults', t => {
+  for (const selected of listCollectors(repoRoot)) {
+    const f = fixture(t);
+    for (const platform of PLATFORM_TARGETS) {
+      fs.writeFileSync(path.join(f.options.nativeDirectory, archiveName(selected, platform)), Buffer.from('native-fixture'));
+    }
+    const result = buildDistribution({ ...f.options, collector: selected });
+    const members = path.join(f.options.outputDirectory, 'members');
+    const shell = fs.readFileSync(path.join(members, 'install.sh'), 'utf8');
+    const ps = fs.readFileSync(path.join(members, 'install.ps1'), 'utf8');
+    assert.ok(shell.includes('collector_code=' + selected.collector_code));
+    assert.ok(shell.includes('version=' + selected.version));
+    assert.ok(ps.includes("$Collector = '" + selected.collector_code + "'"));
+    assert.ok(ps.includes("$Version = '" + selected.version + "'"));
+    assert.equal(result.entry.version, selected.version);
+  }
 });

@@ -9,10 +9,13 @@ import { listProviderPackageTargets } from '../../list-provider-package-targets.
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 test('client collectors do not enter existing host runtime packaging', () => {
   const collectors = listCollectors(repoRoot);
-  assert.equal(collectors.length, 1);
+  assert.deepEqual(collectors.map(item => item.collector_code), [
+    "claude-code-logs-collector", "codex-logs-collector",
+    "deepseek-harness-logs-collector", "opencode-logs-collector",
+  ]);
   assert.equal(collectors[0].execution_target, 'client');
   assert.equal(collectors[0].protocol_version, '1flowbase.agent-logs/v1');
-  assert.ok(!listProviderPackageTargets(repoRoot).some(item => item.provider_code === 'codex-logs-collector'));
+  assert.ok(!listProviderPackageTargets(repoRoot).some(item => collectors.some(c => c.collector_code === item.provider_code)));
   assert.deepEqual(new Set(PLATFORM_TARGETS.map(item => `${item.os}/${item.arch}`)), new Set([
     'linux/amd64', 'linux/arm64', 'darwin/amd64', 'darwin/arm64', 'windows/amd64', 'windows/arm64',
   ]));

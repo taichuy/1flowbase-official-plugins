@@ -6,7 +6,7 @@ on:
     paths:
       - 'sdk/agent-logs-collector/**'
       - 'runtime-extensions/@taichuy/*/collector-manifest.json'
-      - 'runtime-extensions/@taichuy/codex-logs-collector/**'
+      - 'runtime-extensions/@taichuy/*-logs-collector/**'
       - 'installers/client-collectors/**'
       - 'scripts/collectors/**'
       - 'scripts/extension-catalog.mjs'
@@ -25,6 +25,8 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target/collectors
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
     steps:
@@ -35,13 +37,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Test native protocol and recovery behavior
         run: |
-          cargo test --locked --manifest-path runtime-extensions/@taichuy/codex-logs-collector/Cargo.toml
+          for manifest in runtime-extensions/@taichuy/*-logs-collector/Cargo.toml; do
+            cargo test --locked --manifest-path "$manifest"
+          done
           cargo test --locked --manifest-path sdk/agent-logs-collector/Cargo.toml
       - name: Verify client/host isolation and installer behavior
         env:
-          FLOWBASE_COLLECTOR_TEST_BINARY: ${{ github.workspace }}/runtime-extensions/@taichuy/codex-logs-collector/target/debug/codex-logs-collector
+          FLOWBASE_COLLECTOR_TEST_BINARY: ${{ github.workspace }}/target/collectors/debug/codex-logs-collector
         run: |
-          cargo build --locked --manifest-path runtime-extensions/@taichuy/codex-logs-collector/Cargo.toml
+          for manifest in runtime-extensions/@taichuy/*-logs-collector/Cargo.toml; do
+            cargo build --locked --manifest-path "$manifest"
+          done
+          node --test runtime-extensions/@taichuy/deepseek-harness-logs-collector/native/plugin.test.mjs
           node --test scripts/collectors/_tests/*.test.mjs scripts/_tests/extension-catalog.test.mjs
           bash -n installers/client-collectors/install.sh
       - id: matrix

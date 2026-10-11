@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Public installer. Application credentials are read locally, never from a URL.
 set -euo pipefail
-version=0.3.0
+version=0.4.0
+collector_code=codex-logs-collector
 endpoint=''
-source_path="${CODEX_HOME:-$HOME/.codex}"
-codex_home="${CODEX_HOME:-$HOME/.codex}"
+source_path=''
+client_home=''
 installation_id=default
 install_dir=''
 config_path=''
@@ -13,12 +14,14 @@ start_service=1
 uninstall=0
 usage() {
   cat <<'EOF'
-Codex native logs collector installer
+Native client logs collector installer
   --endpoint URL             Exact 1flowbase /api/logs/v1/events endpoint
   --installation-id ID       Application-specific installation (default: default)
-  --source PATH              Codex home, selected directory or rollout file
-  --version VERSION          Immutable collector release (default: 0.3.0)
-  --codex-home PATH          Codex configuration directory for hooks
+  --source PATH              Transcript directory/file, or native plugin journal directory
+  --version VERSION          Immutable collector release (default: selected release)
+  --collector CODE           Selected native client collector
+  --client-home PATH         Client configuration directory
+  --codex-home PATH          Backward-compatible Codex configuration directory
   --install-dir PATH         Override the user installation directory
   --config PATH              Override the private configuration path
   --release-base URL         Required 1flowbase version-pinned asset base URL
@@ -33,14 +36,15 @@ while (($#)); do
     --help|-h) usage; exit 0 ;;
     --no-start) start_service=0; shift ;;
     --uninstall) uninstall=1; shift ;;
-    --endpoint|--source|--installation-id|--version|--install-dir|--config|--release-base|--codex-home)
+    --endpoint|--source|--installation-id|--version|--install-dir|--config|--release-base|--codex-home|--client-home|--collector)
       (($# >= 2)) || { printf 'Missing option value\n' >&2; exit 2; }
       case "$1" in
         --endpoint) endpoint=$2 ;; --source) source_path=$2 ;;
         --installation-id) installation_id=$2 ;; --version) version=$2 ;;
         --install-dir) install_dir=$2 ;; --config) config_path=$2 ;;
         --release-base) release_base=$2 ;;
-        --codex-home) codex_home=$2 ;;
+        --codex-home|--client-home) client_home=$2 ;;
+        --collector) collector_code=$2 ;;
       esac
       shift 2 ;;
     *) printf 'Unknown installer option; use --help\n' >&2; exit 2 ;;
@@ -48,21 +52,39 @@ while (($#)); do
 done
 [[ "$installation_id" =~ ^[a-zA-Z0-9._-]+$ ]] || { printf 'Invalid installation ID\n' >&2; exit 2; }
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf 'Invalid release version\n' >&2; exit 2; }
-install_dir=${install_dir:-"${XDG_DATA_HOME:-$HOME/.local/share}/1flowbase/collectors/codex/$installation_id"}
+case "$collector_code" in
+  codex-logs-collector)
+    client=codex; home_option=--codex-home
+    client_home=${client_home:-"${CODEX_HOME:-$HOME/.codex}"} ;;
+  claude-code-logs-collector)
+    client=claude-code; home_option=--client-home
+    client_home=${client_home:-"${CLAUDE_CONFIG_DIR:-$HOME/.claude}"} ;;
+  deepseek-harness-logs-collector)
+    client=deepseek-harness; home_option=--client-home
+    client_home=${client_home:-"${DSH_HOME:-$HOME/.dsh}"} ;;
+  opencode-logs-collector)
+    client=opencode; home_option=--client-home
+    client_home=${client_home:-"${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"} ;;
+  *) printf 'Unknown collector\n' >&2; exit 2 ;;
+esac
+install_dir=${install_dir:-"${XDG_DATA_HOME:-$HOME/.local/share}/1flowbase/collectors/$client/$installation_id"}
 config_path=${config_path:-"$install_dir/config.json"}
-service_name="1flowbase-codex-logs-$installation_id"
-binary_path="$install_dir/bin/codex-logs-collector"
+if [[ -z "$source_path" ]]; then
+  case "$client" in codex|claude-code) source_path=$client_home ;; *) source_path="$install_dir/source" ;; esac
+fi
+service_name="1flowbase-$client-logs-$installation_id"
+binary_path="$install_dir/bin/$collector_code"
 os=$(uname -s)
 case "$os" in Linux) os=linux ;; Darwin) os=darwin ;; *) printf 'Unsupported OS; use the Windows PowerShell installer\n' >&2; exit 2 ;; esac
 case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) printf 'Unsupported architecture\n' >&2; exit 2 ;; esac
-for value in "$install_dir" "$config_path" "$source_path" "$codex_home"; do
+for value in "$install_dir" "$config_path" "$source_path" "$client_home"; do
   [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || { printf 'Paths must not contain line breaks\n' >&2; exit 2; }
 done
 unit_path="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$service_name.service"
 launch_path="$HOME/Library/LaunchAgents/$service_name.plist"
 if ((uninstall)); then
   if [[ -x "$binary_path" && "$("$binary_path" --help)" == *install-hooks* ]]; then
-    "$binary_path" uninstall-hooks --config "$config_path" --codex-home "$codex_home"
+    "$binary_path" uninstall-hooks --config "$config_path" "$home_option" "$client_home"
   fi
   if [[ "$os" == linux ]]; then
     if [[ -f "$unit_path" ]]; then
@@ -94,7 +116,7 @@ cleanup() {
   rm -rf "$staging"
 }
 trap cleanup EXIT
-archive="codex-logs-collector-$version-$os-$arch.tar.gz"
+archive="$collector_code-$version-$os-$arch.tar.gz"
 download_asset() {
   local status
   status=$(curl --fail --silent --show-error --proto '=http,https' --write-out '%{http_code}' "$release_base/$1" -o "$staging/$1")
@@ -111,9 +133,9 @@ else
 fi
 [[ "$actual" == "$expected" ]] || { printf 'Release checksum mismatch; existing installation retained\n' >&2; exit 1; }
 # Extract only the executable selected by this installer.
-tar -xzf "$staging/$archive" -C "$staging" ./codex-logs-collector
-chmod 700 "$staging/codex-logs-collector"
-if [[ "$("$staging/codex-logs-collector" --version)" != "codex-logs-collector $version" ]]; then
+tar -xzf "$staging/$archive" -C "$staging" "./$collector_code"
+chmod 700 "$staging/$collector_code"
+if [[ "$("$staging/$collector_code" --version)" != "$collector_code $version" ]]; then
   printf 'Executable version differs from selected release\n' >&2; exit 1
 fi
 mkdir -p "$install_dir/bin" "$(dirname "$config_path")"
@@ -136,20 +158,20 @@ if [[ "$os" == linux && -f "$unit_path" ]] && systemctl --user is-active --quiet
 elif [[ "$os" == darwin && -f "$launch_path" ]]; then
   if launchctl bootout "gui/$(id -u)" "$launch_path" 2>/dev/null; then restore_service=1; fi
 fi
-printf '%s\n' "$collector_key" | "$staging/codex-logs-collector" configure --endpoint "$endpoint" --source "$source_path" --config "$config_path" --key-stdin
+printf '%s\n' "$collector_key" | "$staging/$collector_code" configure --endpoint "$endpoint" --source "$source_path" --config "$config_path" --key-stdin
 unset collector_key
-cp "$staging/codex-logs-collector" "$install_dir/bin/.codex-logs-collector.new"
-chmod 700 "$install_dir/bin/.codex-logs-collector.new"
-mv -f "$install_dir/bin/.codex-logs-collector.new" "$binary_path"
+cp "$staging/$collector_code" "$install_dir/bin/.$collector_code.new"
+chmod 700 "$install_dir/bin/.$collector_code.new"
+mv -f "$install_dir/bin/.$collector_code.new" "$binary_path"
 if ((!start_service)); then
-  "$binary_path" uninstall-hooks --config "$config_path" --codex-home "$codex_home"
+  "$binary_path" uninstall-hooks --config "$config_path" "$home_option" "$client_home"
   restore_service=0
   if [[ "$os" == linux && -f "$unit_path" ]]; then systemctl --user disable "$service_name.service"; fi
   if [[ "$os" == darwin ]]; then rm -f "$launch_path"; fi
   printf 'Collector configured. Hook registration was explicitly disabled.\n'
   exit 0
 fi
-"$binary_path" install-hooks --config "$config_path" --codex-home "$codex_home"
+"$binary_path" install-hooks --config "$config_path" "$home_option" "$client_home"
 # Retire only this installation's legacy supervisor after hook registration succeeds.
 if [[ "$os" == linux && -f "$unit_path" ]]; then
   systemctl --user disable "$service_name.service"
@@ -159,4 +181,4 @@ elif [[ "$os" == darwin ]]; then
   rm -f "$launch_path"
 fi
 restore_service=0
-printf 'Collector installed for Codex hooks. Review /hooks in Codex; no resident collector was started. Source logs are read only.\n'
+printf 'Native collector installed. Restart the client to load its hook/plugin; no resident collector was started.\n'

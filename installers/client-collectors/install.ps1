@@ -3,9 +3,10 @@
 param(
     [string]$Endpoint,
     [string]$InstallationId = 'default',
-    [string]$Source = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }),
-    [string]$Version = '0.3.0',
-    [string]$CodexHome = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }),
+    [string]$Source,
+    [string]$Collector = 'codex-logs-collector',
+    [string]$Version = '0.4.0',
+    [Alias('CodexHome')][string]$ClientHome,
     [string]$InstallDir,
     [string]$Config,
     [string]$ReleaseBase,
@@ -15,16 +16,25 @@ param(
 $ErrorActionPreference = 'Stop'
 if ($InstallationId -notmatch '^[a-zA-Z0-9._-]+$') { throw 'Invalid installation ID' }
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version' }
-if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA "1flowbase\collectors\codex\$InstallationId" }
+switch ($Collector) {
+    'codex-logs-collector' { $Client = 'codex'; $HomeOption = '--codex-home'; $DefaultHome = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }) }
+    'claude-code-logs-collector' { $Client = 'claude-code'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }) }
+    'deepseek-harness-logs-collector' { $Client = 'deepseek-harness'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }) }
+    'opencode-logs-collector' { $Client = 'opencode'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:OPENCODE_CONFIG_DIR) { $env:OPENCODE_CONFIG_DIR } else { Join-Path $(if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $env:USERPROFILE '.config' }) 'opencode' }) }
+    default { throw 'Unknown collector' }
+}
+if (-not $ClientHome) { $ClientHome = $DefaultHome }
+if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA "1flowbase\collectors\$Client\$InstallationId" }
 if (-not $Config) { $Config = Join-Path $InstallDir 'config.json' }
-$BinaryPath = Join-Path $InstallDir 'bin\codex-logs-collector.exe'
-$TaskName = "1flowbase-codex-logs-$InstallationId"
+if (-not $Source) { $Source = $(if ($Client -in @('codex', 'claude-code')) { $ClientHome } else { Join-Path $InstallDir 'source' }) }
+$BinaryPath = Join-Path $InstallDir "bin\$Collector.exe"
+$TaskName = "1flowbase-$Client-logs-$InstallationId"
 $User = [System.Security.Principal.WindowsIdentity]::GetCurrent()
 # Include the current user's SID so independent user installations do not share a task.
 $TaskName = "$TaskName-$($User.User.Value)"
 if ($Uninstall) {
     if ((Test-Path -LiteralPath $BinaryPath) -and ((& $BinaryPath --help) -join "`n") -match 'install-hooks') {
-        & $BinaryPath uninstall-hooks --config $Config --codex-home $CodexHome
+        & $BinaryPath uninstall-hooks --config $Config $HomeOption $ClientHome
         if ($LASTEXITCODE -ne 0) { throw 'Could not remove collector hooks; executable retained' }
     }
     $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -45,7 +55,7 @@ if ($ReleaseUri.Scheme -notin @('https', 'http') -or $ReleaseUri.UserInfo -or $R
 }
 $MachineArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 switch ($MachineArch) { 'X64' { $Arch = 'amd64' } 'Arm64' { $Arch = 'arm64' } default { throw 'Unsupported architecture' } }
-$ArchiveName = "codex-logs-collector-$Version-windows-$Arch.zip"
+$ArchiveName = "$Collector-$Version-windows-$Arch.zip"
 $Staging = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $Staging | Out-Null
 $RestoreTask = $null
@@ -64,13 +74,13 @@ try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $Zip = [IO.Compression.ZipFile]::OpenRead($Archive)
     try {
-        $Entry = $Zip.GetEntry('codex-logs-collector.exe')
+        $Entry = $Zip.GetEntry("$Collector.exe")
         if (-not $Entry) { throw 'Collector executable missing from release' }
-        [IO.Compression.ZipFileExtensions]::ExtractToFile($Entry, (Join-Path $Staging 'codex-logs-collector.exe'))
+        [IO.Compression.ZipFileExtensions]::ExtractToFile($Entry, (Join-Path $Staging "$Collector.exe"))
     } finally { $Zip.Dispose() }
-    $NewBinary = Join-Path $Staging 'codex-logs-collector.exe'
+    $NewBinary = Join-Path $Staging "$Collector.exe"
     $BinaryVersion = & $NewBinary --version
-    if ($LASTEXITCODE -ne 0 -or $BinaryVersion -ne "codex-logs-collector $Version") { throw 'Executable version differs from release' }
+    if ($LASTEXITCODE -ne 0 -or $BinaryVersion -ne "$Collector $Version") { throw 'Executable version differs from release' }
     New-Item -ItemType Directory -Path (Join-Path $InstallDir 'bin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Split-Path -Parent $Config) -Force | Out-Null
     & icacls.exe $InstallDir /inheritance:r /grant:r "*$($User.User.Value):(OI)(CI)F" | Out-Null
@@ -97,18 +107,18 @@ try {
     $CollectorKey = $null
     Copy-Item -LiteralPath $NewBinary -Destination $BinaryPath -Force
     if ($NoStart) {
-        & $BinaryPath uninstall-hooks --config $Config --codex-home $CodexHome
+        & $BinaryPath uninstall-hooks --config $Config $HomeOption $ClientHome
         if ($LASTEXITCODE -ne 0) { throw 'Could not disable collector hooks' }
         $RestoreTask = $null
         if ($Task) { Disable-ScheduledTask -InputObject $Task | Out-Null }
         Write-Host 'Collector configured. Hook registration was explicitly disabled.'
         return
     }
-    & $BinaryPath install-hooks --config $Config --codex-home $CodexHome
+    & $BinaryPath install-hooks --config $Config $HomeOption $ClientHome
     if ($LASTEXITCODE -ne 0) { throw 'Collector hook registration failed' }
     if ($Task) { Unregister-ScheduledTask -InputObject $Task -Confirm:$false }
     $RestoreTask = $null
-    Write-Host 'Collector installed for Codex hooks. Review /hooks in Codex; no resident collector was started. Source logs are read only.'
+    Write-Host 'Native collector installed. Restart the client to load its hook/plugin; no resident collector was started.'
 } finally {
     if ($RestoreTask) { Start-ScheduledTask -InputObject $RestoreTask }
     $CollectorKey = $null

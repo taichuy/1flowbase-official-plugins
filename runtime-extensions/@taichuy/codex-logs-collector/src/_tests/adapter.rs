@@ -27,6 +27,8 @@ fn convert(adapter: &CodexAdapter, context: &mut CodexContext, value: Value) -> 
             context,
         )
         .unwrap()
+        .into_iter()
+        .next()
         .unwrap()
 }
 #[test]

@@ -27,11 +27,8 @@ pub trait SourceAdapter {
         vec![source.to_owned()]
     }
     fn create_context(&self, first: &Value) -> Result<Self::Context>;
-    fn convert(
-        &self,
-        record: &Position,
-        context: &mut Self::Context,
-    ) -> Result<Option<AgentLogEvent>>;
+    fn convert(&self, record: &Position, context: &mut Self::Context)
+        -> Result<Vec<AgentLogEvent>>;
 }
 /// Soft size target for the exact canonical JSON envelope. Single oversized facts are intact.
 pub const DEFAULT_BATCH_TARGET_BYTES: usize = 1024 * 1024;
@@ -369,15 +366,27 @@ async fn visit<A: SourceAdapter>(
         runner.checkpoint.offset = position.end;
         runner.checkpoint.prefix_hash = Some(prefix(&runner.digest));
         runner.checkpoint.context = Some(snapshot(adapter, &runner.context)?);
-        if let Some(mut event) = converted {
-            if let Some(claim) = &before.claim {
-                if event.source_task_id.is_empty() && position.end <= claim.end {
-                    event.source_task_id = claim.task.clone();
-                    event.parent_source_task_id = claim.parent.clone();
+        if !converted.is_empty() {
+            let mut events = converted;
+            for event in &mut events {
+                if let Some(claim) = &before.claim {
+                    if event.source_task_id.is_empty() && position.end <= claim.end {
+                        event.source_task_id = claim.task.clone();
+                        event.parent_source_task_id = claim.parent.clone();
+                    }
                 }
             }
-            if event.source_task_id.is_empty() {
-                // Flush owned facts before starting an unowned interval.
+            // One source record is the durability unit: attribution and ACK cannot split it.
+            let task = events[0].source_task_id.clone();
+            let parent = events[0].parent_source_task_id.clone();
+            ensure!(
+                events
+                    .iter()
+                    .all(|event| event.source_task_id == task
+                        && event.parent_source_task_id == parent),
+                "A source record has inconsistent task attribution"
+            );
+            if task.is_empty() {
                 if !batch.is_empty() {
                     runner.checkpoint = before;
                     runner.context = before_context;
@@ -393,13 +402,11 @@ async fn visit<A: SourceAdapter>(
                     });
                 }
             } else if let Some(pending) = runner.checkpoint.pending.take() {
-                // Persist the explicit claim before replay. Crucially restore ORIGINAL context,
-                // not the context of this future claiming record.
                 runner.checkpoint.claim = Some(Claim {
                     end: position.end,
                     prefix_hash: prefix(&runner.digest),
-                    task: event.source_task_id,
-                    parent: event.parent_source_task_id,
+                    task,
+                    parent,
                 });
                 runner.checkpoint.offset = pending.start;
                 runner.checkpoint.prefix_hash = pending.prefix_hash;
@@ -420,13 +427,28 @@ async fn visit<A: SourceAdapter>(
                 lines = Lines::at(&runner.path, pending.start)?;
                 continue;
             } else {
-                event.event_id = hash(format!("{}:{}", runner.identity, position.start));
-                event.sequence = i64::try_from(position.start)
-                    .ok()
-                    .and_then(|n| n.checked_add(1))
-                    .context("Source byte position exceeds canonical sequence")?;
-                let event_bytes = serde_json::to_vec(&event)?.len();
-                let candidate_bytes = encoded_bytes + event_bytes + usize::from(!batch.is_empty());
+                // Byte positions leave room for block ordinals without changing Codex IDs.
+                // An adapter cannot expand more source facts than bytes representing them.
+                ensure!(
+                    events.len() as u64 <= position.end - position.start,
+                    "Source fact expansion exceeds the record sequence interval"
+                );
+                let mut candidate_bytes = encoded_bytes;
+                for (index, event) in events.iter_mut().enumerate() {
+                    event.event_id = if index == 0 {
+                        hash(format!("{}:{}", runner.identity, position.start))
+                    } else {
+                        hash(format!("{}:{}:{}", runner.identity, position.start, index))
+                    };
+                    event.sequence = position
+                        .start
+                        .checked_add(index as u64)
+                        .and_then(|n| n.checked_add(1))
+                        .and_then(|n| i64::try_from(n).ok())
+                        .context("Source byte position exceeds canonical sequence")?;
+                    candidate_bytes += serde_json::to_vec(&event)?.len()
+                        + usize::from(!batch.is_empty() || index > 0);
+                }
                 if !batch.is_empty() && candidate_bytes > options.batch_target_bytes {
                     runner.checkpoint = before;
                     runner.context = before_context;
@@ -435,7 +457,7 @@ async fn visit<A: SourceAdapter>(
                     break;
                 }
                 encoded_bytes = candidate_bytes;
-                batch.push(event);
+                batch.extend(events);
                 if encoded_bytes >= options.batch_target_bytes {
                     if runner
                         .checkpoint

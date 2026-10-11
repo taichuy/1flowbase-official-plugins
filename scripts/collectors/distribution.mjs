@@ -29,7 +29,16 @@ export function buildDistribution({ repoRoot, collector, nativeDirectory, output
     write(name, bytes);
     return { os, arch, rust_target, name, sha256: digest(bytes), size: bytes.length };
   });
-  for (const name of ['install.sh', 'install.ps1']) write(name, regularBytes(path.join(repoRoot, 'installers/client-collectors', name)));
+  for (const name of ['install.sh', 'install.ps1']) {
+    const source = regularBytes(path.join(repoRoot, 'installers/client-collectors', name)).toString('utf8');
+    // Pin defaults inside each signed distribution, so the host needs no client-specific branches.
+    const pinned = name === 'install.sh'
+      ? source.replace(/^collector_code=codex-logs-collector$/m, `collector_code=${collector.collector_code}`)
+          .replace(/^version=\d+\.\d+\.\d+$/m, `version=${collector.version}`)
+      : source.replace("$Collector = 'codex-logs-collector'", `$Collector = '${collector.collector_code}'`)
+          .replace(/\$Version = '\d+\.\d+\.\d+'/m, `$Version = '${collector.version}'`);
+    write(name, Buffer.from(pinned));
+  }
   for (const name of ['README.md', 'README.en.md']) write(name, regularBytes(path.join(repoRoot, collector.plugin_dir, name)));
   const checksums = Buffer.from(artifacts.map(item => `${item.sha256}  ${item.name}`).join('\n') + '\n');
   write('checksums.txt', checksums);

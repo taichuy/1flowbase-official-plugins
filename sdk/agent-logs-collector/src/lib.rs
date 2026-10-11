@@ -1,6 +1,9 @@
 //! Standalone source scheduling, identity, durable checkpoints and canonical HTTP delivery.
+pub mod cli;
 mod collector;
 mod config;
+mod journal;
+pub use journal::append_record;
 mod pending;
 mod source;
 pub use collector::{

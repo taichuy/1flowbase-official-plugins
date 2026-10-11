@@ -122,7 +122,7 @@ impl SourceAdapter for CodexAdapter {
         &self,
         record: &Position,
         context: &mut Self::Context,
-    ) -> Result<Option<AgentLogEvent>> {
+    ) -> Result<Vec<AgentLogEvent>> {
         let line = &record.line;
         let p = &line["payload"];
         let inherited = truthy(&line["metadata"]["inherited_user_message"])
@@ -274,7 +274,7 @@ impl SourceAdapter for CodexAdapter {
             context.turn = None;
             context.parent = None;
         }
-        Ok(Some(event))
+        Ok(vec![event])
     }
 }
 #[cfg(test)]

@@ -1,0 +1,198 @@
+[
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "turn/start",
+      "seq": 0,
+      "time": 1791676800123,
+      "data": {
+        "turn": 7,
+        "parent_turn_id": "parent-turn"
+      }
+    }
+  },
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "request/header",
+      "seq": 1,
+      "time": 1791676800123,
+      "data": {
+        "header": {
+          "config": {
+            "provider": "fixture-provider",
+            "model": "fixture-model",
+            "reasoningEffort": "max"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "user/message",
+      "seq": 2,
+      "time": 1791676800123,
+      "data": {
+        "id": "user1",
+        "role": "user",
+        "source": {
+          "kind": "user"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "use tool"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "assistant/message",
+      "seq": 3,
+      "time": 1791676800123,
+      "data": {
+        "turn": 7,
+        "step": 1,
+        "message": {
+          "id": "a1",
+          "role": "assistant",
+          "source": {
+            "kind": "model",
+            "provider": "fixture-provider",
+            "model": "fixture-model"
+          },
+          "content": [
+            {
+              "type": "reasoning",
+              "text": "thinking"
+            },
+            {
+              "type": "text",
+              "text": "first"
+            },
+            {
+              "type": "text",
+              "text": "second"
+            },
+            {
+              "type": "tool-call",
+              "id": "call1",
+              "name": "read",
+              "arguments": "{\"path\":\"fixture\"}"
+            }
+          ]
+        },
+        "stream": [
+          {
+            "type": "text-chunks",
+            "time0": 1791676800123,
+            "index": 1,
+            "dt": [
+              0,
+              1
+            ],
+            "texts": [
+              "fir",
+              "st"
+            ]
+          }
+        ],
+        "usage": {
+          "inputTokens": 3,
+          "outputTokens": 2,
+          "cacheReadTokens": 5,
+          "totalTokens": 10
+        }
+      }
+    }
+  },
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "tool/call",
+      "seq": 4,
+      "time": 1791676800123,
+      "data": {
+        "turn": 7,
+        "step": 1,
+        "callId": "call1",
+        "name": "read",
+        "arguments": "{\"path\":\"fixture\"}"
+      }
+    }
+  },
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "tool/result",
+      "seq": 5,
+      "time": 1791676800123,
+      "data": {
+        "turn": 7,
+        "step": 1,
+        "message": {
+          "id": "result1",
+          "role": "tool",
+          "source": {
+            "kind": "tool",
+            "callId": "call1"
+          },
+          "toolCallId": "call1",
+          "content": [
+            {
+              "type": "text",
+              "text": "fixture"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "type": "dsh_event",
+    "session": {
+      "id": "s",
+      "parentSession": "parent-session"
+    },
+    "event": {
+      "type": "turn/end",
+      "seq": 6,
+      "time": 1791676800123,
+      "data": {
+        "turn": 7,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    }
+  }
+]
