@@ -181,3 +181,138 @@ fn disjoint_usage_adds_cache_and_honors_native_omission_zero() {
         None
     );
 }
+
+#[test]
+fn completed_terminal_confirms_only_last_complete_assistant_text() {
+    let mut ctx = context();
+    convert(&mut ctx, "turn/start", json!({"turn":1}));
+    convert(
+        &mut ctx,
+        "assistant/message",
+        json!({"turn":1,"step":1,"message":{"content":[
+        {"type":"text","text":"intermediate"}, {"type":"tool-call","id":"call1","name":"read","arguments":"{}"}
+    ]},"stream":[]}),
+    );
+    convert(
+        &mut ctx,
+        "tool/call",
+        json!({"turn":1,"step":1,"callId":"call1","name":"read","arguments":"{}"}),
+    );
+    convert(
+        &mut ctx,
+        "tool/result",
+        json!({"turn":1,"step":1,"message":{"toolCallId":"call1","content":[{"type":"text","text":"result"}]}}),
+    );
+    convert(
+        &mut ctx,
+        "assistant/message",
+        json!({"turn":1,"step":2,"message":{"content":[
+        {"type":"reasoning","text":"private"},{"type":"text","text":"FIRST"},{"type":"text","text":"_OK"}
+    ]},"stream":[]}),
+    );
+    // Durable adapter snapshots retain the pending candidate until the terminal
+    // record, even when a collect batch stops between these source records.
+    let mut ctx: SessionContext =
+        serde_json::from_value(serde_json::to_value(ctx).unwrap()).unwrap();
+    let facts = convert(
+        &mut ctx,
+        "turn/end",
+        json!({"turn":1,"reason":{"kind":"completed"}}),
+    );
+    assert_eq!(facts[0].kind, Kind::TaskEnd);
+    assert_eq!(facts[0].phase.as_deref(), Some("final_answer"));
+    assert_eq!(facts[0].content.as_deref(), Some("FIRST_OK"));
+    assert_eq!(facts[0].raw["event"]["data"]["reason"]["kind"], "completed");
+    assert!(ctx.final_text.is_none());
+}
+
+#[test]
+fn non_completed_terminal_never_declares_final_answer() {
+    for reason in [
+        "error",
+        "aborted",
+        "max-tokens",
+        "blocked",
+        "interrupted",
+        "forked",
+    ] {
+        let mut ctx = context();
+        convert(&mut ctx, "turn/start", json!({"turn":1}));
+        convert(
+            &mut ctx,
+            "assistant/message",
+            json!({"turn":1,"step":1,"message":{"content":[{"type":"text","text":"visible prefix"}]},"stream":[]}),
+        );
+        let facts = convert(
+            &mut ctx,
+            "turn/end",
+            json!({"turn":1,"reason":{"kind":reason}}),
+        );
+        assert!(facts
+            .iter()
+            .all(|f| f.phase.as_deref() != Some("final_answer") && f.content.is_none()));
+        assert_eq!(
+            facts[0].phase.as_deref(),
+            Some(if reason == "aborted" {
+                "cancelled"
+            } else {
+                reason
+            })
+        );
+        assert_eq!(facts[0].raw["event"]["data"]["reason"]["kind"], reason);
+        assert!(ctx.final_text.is_none());
+    }
+}
+
+#[test]
+fn incomplete_or_tool_output_and_previous_turn_never_supply_final() {
+    for invalidator in [
+        "tool/call",
+        "assistant/attempt",
+        "interrupted_message",
+        "tool_message",
+        "new_turn",
+    ] {
+        let mut ctx = context();
+        convert(&mut ctx, "turn/start", json!({"turn":1}));
+        convert(
+            &mut ctx,
+            "assistant/message",
+            json!({"turn":1,"step":1,"message":{"content":[{"type":"text","text":"old candidate"}]},"stream":[]}),
+        );
+        match invalidator {
+            "interrupted_message" => {
+                convert(
+                    &mut ctx,
+                    "assistant/message",
+                    json!({"turn":1,"step":2,"interrupted":true,"message":{"content":[{"type":"text","text":"prefix"}]},"stream":[]}),
+                );
+            }
+            "tool_message" => {
+                convert(
+                    &mut ctx,
+                    "assistant/message",
+                    json!({"turn":1,"step":2,"message":{"content":[{"type":"text","text":"tool preface"},{"type":"tool-call","id":"c","name":"read","arguments":"{}"}]},"stream":[]}),
+                );
+            }
+            "new_turn" => {
+                convert(&mut ctx, "turn/start", json!({"turn":2}));
+            }
+            _ => {
+                convert(
+                    &mut ctx,
+                    invalidator,
+                    json!({"turn":1,"step":2,"stream":[]}),
+                );
+            }
+        }
+        let turn = if invalidator == "new_turn" { 2 } else { 1 };
+        let facts = convert(
+            &mut ctx,
+            "turn/end",
+            json!({"turn":turn,"reason":{"kind":"completed"}}),
+        );
+        assert_eq!(facts[0].phase.as_deref(), Some("completed"));
+        assert!(facts[0].content.is_none());
+    }
+}

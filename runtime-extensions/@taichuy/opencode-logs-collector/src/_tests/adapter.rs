@@ -121,8 +121,13 @@ fn tool_and_failure_preserve_facts_without_fabricated_success() {
             &mut context,
         )
         .unwrap();
-    assert_eq!(failed[0].kind, Kind::Context);
+    assert_eq!(failed[0].kind, Kind::TaskEnd);
     assert_eq!(failed[0].phase.as_deref(), Some("error"));
+    assert_eq!(failed[0].content.as_deref(), Some("provider failed"));
+    assert_eq!(
+        failed[0].raw["properties"]["error"]["message"],
+        "provider failed"
+    );
 }
 #[test]
 fn rejects_foreign_session_missing_timestamp_and_header() {
@@ -540,4 +545,67 @@ fn default_v1_accepts_native_nested_session_identity() {
         .convert(&v1("message.part.updated", properties), &mut context)
         .unwrap();
     assert_eq!(facts[0].kind, Kind::User);
+}
+
+#[test]
+fn default_v1_terminal_error_requires_completed_assistant_and_preserves_error_envelope() {
+    let rows = v1_fixture();
+    for (name, phase) in [("APIError", "error"), ("MessageAbortedError", "cancelled")] {
+        let mut context = context();
+        OpenCodeAdapter.convert(&rows[0], &mut context).unwrap();
+        OpenCodeAdapter.convert(&rows[2], &mut context).unwrap();
+        // Already streamed text must not turn a failed task into a final answer.
+        let part = v1(
+            "message.part.updated",
+            json!({"part":{
+                "id":"part_partial","sessionID":"ses_fixture","messageID":"msg_assistant",
+                "type":"text","text":"unfinished answer","time":{"start":1780000000001_i64,"end":1780000000002_i64}
+            }}),
+        );
+        let assistant_id = rows[2].line["properties"]["info"]["id"].as_str().unwrap();
+        let mut part = part;
+        part.line["properties"]["part"]["messageID"] = json!(assistant_id);
+        OpenCodeAdapter.convert(&part, &mut context).unwrap();
+        let mut native = rows[2].line["properties"]["info"].clone();
+        native["error"] = json!({"name":name,"data":{"message":"terminal failure","statusCode":400,"isRetryable":false}});
+        let pending = v1("message.updated", json!({"info":native.clone()}));
+        let pending_facts = OpenCodeAdapter.convert(&pending, &mut context).unwrap();
+        assert!(pending_facts.iter().all(|fact| fact.kind != Kind::TaskEnd));
+        native["time"]["completed"] = json!(1780000000003_i64);
+        let completed = v1("message.updated", json!({"info":native}));
+        let facts = OpenCodeAdapter.convert(&completed, &mut context).unwrap();
+        let terminal = facts.last().unwrap();
+        assert_eq!(terminal.kind, Kind::TaskEnd);
+        assert_eq!(terminal.phase.as_deref(), Some(phase));
+        assert_eq!(terminal.content.as_deref(), Some("terminal failure"));
+        assert_eq!(terminal.raw, completed.line);
+        assert_eq!(terminal.source_task_id, "msg_user");
+        assert!(OpenCodeAdapter
+            .convert(&completed, &mut context)
+            .unwrap()
+            .is_empty());
+    }
+}
+
+#[test]
+fn default_v1_recoverable_completion_and_idle_do_not_end_task() {
+    let rows = v1_fixture();
+    let mut context = context();
+    OpenCodeAdapter.convert(&rows[0], &mut context).unwrap();
+    let mut native = rows[2].line["properties"]["info"].clone();
+    native["time"]["completed"] = json!(1780000000003_i64);
+    // Recoverable overflow causes cleanup without an assistant error or stop finish.
+    native.as_object_mut().unwrap().remove("error");
+    native.as_object_mut().unwrap().remove("finish");
+    let facts = OpenCodeAdapter
+        .convert(&v1("message.updated", json!({"info":native})), &mut context)
+        .unwrap();
+    assert!(facts.iter().all(|fact| fact.kind != Kind::TaskEnd));
+    assert!(OpenCodeAdapter
+        .convert(
+            &v1("session.idle", json!({"sessionID":"ses_fixture"})),
+            &mut context
+        )
+        .unwrap()
+        .is_empty());
 }

@@ -18,6 +18,8 @@ pub struct SessionContext {
     model: Option<String>,
     provider: Option<String>,
     effort: Option<String>,
+    #[serde(default)]
+    final_text: Option<String>,
 }
 fn string(v: &Value) -> Option<String> {
     v.as_str().filter(|s| !s.is_empty()).map(str::to_owned)
@@ -74,6 +76,7 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
             model: None,
             provider: None,
             effort: None,
+            final_text: None,
         })
     }
     fn convert(&self, row: &Position, ctx: &mut SessionContext) -> Result<Vec<AgentLogEvent>> {
@@ -95,6 +98,7 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing native event type"))?;
         if ty == "turn/start" {
+            ctx.final_text = None;
             ctx.turn = identity(&d["turn_id"]).or_else(|| identity(&d["turn"]));
             ctx.parent = identity(&d["parent_turn_id"]).or_else(|| identity(&d["parentTaskId"]));
             // Request headers are change-driven and remain active across turns.
@@ -117,7 +121,27 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
         } else {
             &d["message"]
         };
+        if matches!(
+            ty,
+            "tool/call" | "tool/ptc-dispatch-start" | "assistant/attempt"
+        ) {
+            ctx.final_text = None;
+        }
         if ty == "assistant/message" {
+            // A candidate belongs only to the latest complete assistant message
+            // in this turn. Tool-bearing messages and interrupted prefixes are
+            // intermediate output, not a completed final answer.
+            ctx.final_text = message["content"].as_array().and_then(|blocks| {
+                if d["interrupted"] == true || blocks.iter().any(|b| b["type"] == "tool-call") {
+                    return None;
+                }
+                let text = blocks
+                    .iter()
+                    .filter(|b| b["type"] == "text")
+                    .filter_map(|b| b["text"].as_str())
+                    .collect::<String>();
+                (!text.trim().is_empty()).then_some(text)
+            });
             ctx.model = string(&message["source"]["model"]).or_else(|| ctx.model.clone());
             ctx.provider = string(&message["source"]["provider"]).or_else(|| ctx.provider.clone());
         }
@@ -158,7 +182,19 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
             "turn/end" => {
                 let mut f = base.clone();
                 f.kind = Kind::TaskEnd;
-                f.phase = string(&d["reason"]["kind"]);
+                let reason = d["reason"]["kind"].as_str();
+                f.phase = match reason {
+                    Some("aborted") => Some("cancelled".into()),
+                    Some("completed") => {
+                        if let Some(text) = ctx.final_text.take() {
+                            f.content = Some(text);
+                            Some("final_answer".into())
+                        } else {
+                            Some("completed".into())
+                        }
+                    }
+                    _ => string(&d["reason"]["kind"]),
+                };
                 facts.push(f);
             }
             "tool/call" | "tool/ptc-dispatch-start" => {
@@ -297,6 +333,7 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
             facts.push(base);
         }
         if ty == "turn/end" {
+            ctx.final_text = None;
             ctx.turn = None;
             ctx.parent = None;
         }

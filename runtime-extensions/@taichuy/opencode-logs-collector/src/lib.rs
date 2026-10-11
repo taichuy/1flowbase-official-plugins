@@ -217,6 +217,8 @@ impl SourceAdapter for OpenCodeAdapter {
                 }
             }
             "session.next.step.failed" => {
+                // Native runner publishes this after transport retries and overflow recovery.
+                event.kind = Kind::TaskEnd;
                 event.phase = Some("error".into());
                 event.content = text(&properties["error"]["message"]);
             }
@@ -334,18 +336,30 @@ impl OpenCodeAdapter {
                 result.push(event.clone());
                 event.usage = None;
             }
-            event.kind = if native["finish"] == "stop" && native["error"].is_null() {
+            let failed = !native["error"].is_null();
+            // V1 retries before halt; cleanup marks the assistant completed afterward.
+            // Recoverable context overflow leaves error unset and continues via compaction.
+            event.kind = if failed || native["finish"] == "stop" {
                 Kind::TaskEnd
             } else {
                 Kind::Context
             };
-            event.phase = if !native["error"].is_null() {
-                Some("error".into())
+            event.phase = if failed {
+                Some(
+                    if native["error"]["name"] == "MessageAbortedError" {
+                        "cancelled"
+                    } else {
+                        "error"
+                    }
+                    .into(),
+                )
             } else {
                 string(&native["finish"])
             };
-            event.content = text(&native["error"]["message"]);
+            event.content = text(&native["error"]["data"]["message"])
+                .or_else(|| text(&native["error"]["message"]));
             if event.kind == Kind::TaskEnd
+                && !failed
                 && message
                     .text
                     .as_ref()
