@@ -153,8 +153,8 @@ fn native_meta_compact_and_api_error_do_not_become_user_or_success() {
         serde_json::from_str(include_str!("fixtures/source-classification.json")).unwrap();
     let a = adapter();
     let mut c = a.create_context(&rows[0]).unwrap();
-    let user = convert(&a, &mut c, rows[0].clone());
-    assert_eq!(user[0].kind, Kind::User);
+    let user_facts = convert(&a, &mut c, rows[0].clone());
+    assert_eq!(user_facts[0].kind, Kind::User);
     c.model = Some("real-model".into());
     let meta = convert(&a, &mut c, rows[1].clone());
     assert_eq!(meta[0].kind, Kind::Context);

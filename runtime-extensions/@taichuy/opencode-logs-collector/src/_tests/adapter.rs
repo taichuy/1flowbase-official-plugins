@@ -802,3 +802,38 @@ fn late_old_user_part_does_not_steal_active_steering_turn() {
         assert_eq!(ctx.turn.as_deref(), Some("new"));
     }
 }
+
+#[test]
+fn metadata_only_new_parent_retains_exact_native_identity_without_inventing_user() {
+    let mut ctx = context();
+    let mut all = Vec::new();
+    for (index, line) in include_str!("fixtures/metadata-only-parent.jsonl")
+        .lines()
+        .enumerate()
+    {
+        let raw: Value = serde_json::from_str(line).unwrap();
+        let record = Position {
+            line: raw.clone(),
+            start: 0,
+            end: line.len() as u64,
+            bytes: line.as_bytes().to_vec(),
+        };
+        let facts = OpenCodeAdapter.convert(&record, &mut ctx).unwrap();
+        assert!(facts.iter().all(|fact| fact.raw == raw));
+        if index == 2 {
+            assert!(ctx.messages["B"].turn.is_empty());
+        }
+        if index >= 3 {
+            assert!(facts.iter().all(|fact| fact.source_task_id == "B"));
+            assert!(!facts.iter().any(|fact| fact.kind == Kind::User));
+        }
+        all.extend(facts);
+    }
+    assert_eq!(ctx.turn.as_deref(), Some("A"));
+    assert_eq!(all.iter().filter(|fact| fact.kind == Kind::User).count(), 1);
+    let terminal = all.last().unwrap();
+    assert_eq!(terminal.kind, Kind::TaskEnd);
+    assert_eq!(terminal.source_task_id, "B");
+    assert_eq!(terminal.content.as_deref(), Some("observed B answer"));
+    assert_eq!(terminal.phase.as_deref(), Some("final_answer"));
+}

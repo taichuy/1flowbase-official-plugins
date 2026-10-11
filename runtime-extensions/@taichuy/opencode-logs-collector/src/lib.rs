@@ -44,17 +44,19 @@ fn text(value: &Value) -> Option<String> {
             .join("\n")
     })
 }
-fn timestamp(value: &Value) -> Result<String> {
-    let time = if let Some(ms) = value.as_i64() {
+fn source_time(value: &Value) -> Result<time::OffsetDateTime> {
+    if let Some(ms) = value.as_i64() {
         time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
-            .context("Invalid source timestamp")?
+            .context("Invalid source timestamp")
     } else if let Some(value) = value.as_str() {
         time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
-            .context("Invalid source timestamp")?
+            .context("Invalid source timestamp")
     } else {
         anyhow::bail!("Native event lacks timestamp");
-    };
-    Ok(time.format(&time::format_description::well_known::Rfc3339)?)
+    }
+}
+fn timestamp(value: &Value) -> Result<String> {
+    Ok(source_time(value)?.format(&time::format_description::well_known::Rfc3339)?)
 }
 impl SourceAdapter for OpenCodeAdapter {
     type Context = OpenCodeContext;
@@ -310,7 +312,7 @@ impl OpenCodeAdapter {
             let turn = if role == "user" {
                 previous
                     .map(|message| message.turn.clone())
-                    .unwrap_or_else(|| context.turn.clone().unwrap_or_default())
+                    .unwrap_or_default()
             } else {
                 let parent = native["parentID"]
                     .as_str()
@@ -322,6 +324,7 @@ impl OpenCodeAdapter {
                     .messages
                     .get(parent)
                     .map(|message| message.turn.clone())
+                    .filter(|turn| !turn.is_empty())
                     .unwrap_or_else(|| parent.to_owned())
             };
             let message = MessageContext {
@@ -414,6 +417,16 @@ impl OpenCodeAdapter {
         };
         let part_type = native["type"].as_str().unwrap_or("");
         if message.role == "user" {
+            // Metadata alone proves no origin. Only an observed synthetic part
+            // may alias this unknown user message to the active real prompt.
+            if native["synthetic"] == true && !message.real_prompt && message.turn.is_empty() {
+                message.turn = context.turn.clone().unwrap_or_default();
+                for child in context.messages.values_mut() {
+                    if child.parent.as_deref() == Some(message_id) {
+                        child.turn = message.turn.clone();
+                    }
+                }
+            }
             if matches!(part_type, "text" | "file" | "agent" | "subtask")
                 && native["synthetic"] != true
                 && native["ignored"] != true
@@ -426,13 +439,13 @@ impl OpenCodeAdapter {
                         child.turn = message.turn.clone();
                     }
                 }
-                let created = timestamp(&message.created)?;
+                let created = source_time(&message.created)?;
                 // A late old part retains its own identity without stealing the active prompt.
                 let newer = context
                     .turn
                     .as_ref()
                     .and_then(|id| context.messages.get(id))
-                    .map(|current| timestamp(&current.created))
+                    .map(|current| source_time(&current.created))
                     .transpose()?
                     .is_some_and(|current| current > created);
                 if !newer {
