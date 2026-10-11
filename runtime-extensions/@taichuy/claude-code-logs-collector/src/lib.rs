@@ -18,6 +18,8 @@ pub struct ClaudeContext {
     turn: Option<String>,
     model: Option<String>,
     effort: Option<String>,
+    #[serde(default)]
+    terminal_failure: bool,
 }
 fn string(v: &Value) -> Option<String> {
     v.as_str().filter(|s| !s.is_empty()).map(str::to_owned)
@@ -123,6 +125,7 @@ impl SourceAdapter for ClaudeAdapter {
             turn: None,
             model: None,
             effort: None,
+            terminal_failure: false,
         })
     }
     fn convert(
@@ -131,6 +134,10 @@ impl SourceAdapter for ClaudeAdapter {
         context: &mut ClaudeContext,
     ) -> Result<Vec<AgentLogEvent>> {
         let row = &position.line;
+        // Old checkpoints may have retained a synthetic error's model label.
+        if context.model.as_deref() == Some("<synthetic>") {
+            context.model = None;
+        }
         let kind = row["type"].as_str().unwrap_or("");
         if let Some(session) = string(&row["sessionId"]) {
             ensure!(
@@ -143,6 +150,7 @@ impl SourceAdapter for ClaudeAdapter {
             if context.turn.as_ref() != Some(&turn) {
                 context.model = None;
                 context.effort = None;
+                context.terminal_failure = false;
             }
             context.turn = Some(turn);
         }
@@ -151,7 +159,9 @@ impl SourceAdapter for ClaudeAdapter {
         {
             context.effort = Some(effort);
         }
-        if let Some(model) = string(&row["message"]["model"]) {
+        if let Some(model) = string(&row["message"]["model"])
+            .filter(|model| model != "<synthetic>" && row["isApiErrorMessage"] != true)
+        {
             context.model = Some(model);
         }
         // Unknown metadata without a source timestamp is not fabricated into an event.
@@ -167,7 +177,15 @@ impl SourceAdapter for ClaudeAdapter {
         let mut facts = Vec::new();
         if matches!(kind, "user" | "assistant") {
             let message = &row["message"];
-            let role = if kind == "user" {
+            let api_error = row["isApiErrorMessage"] == true;
+            if kind == "assistant" {
+                context.terminal_failure = api_error;
+            }
+            let role = if api_error
+                || (kind == "user" && (row["isMeta"] == true || row["isCompactSummary"] == true))
+            {
+                Kind::Context
+            } else if kind == "user" {
                 Kind::User
             } else {
                 Kind::Assistant
@@ -187,6 +205,7 @@ impl SourceAdapter for ClaudeAdapter {
                                 fact.kind = role;
                                 fact.content = text(&block["text"]);
                                 if kind == "assistant"
+                                    && !api_error
                                     && matches!(
                                         message["stop_reason"].as_str(),
                                         Some("end_turn" | "stop_sequence")
@@ -227,6 +246,23 @@ impl SourceAdapter for ClaudeAdapter {
                 }
                 _ => {}
             }
+            if api_error {
+                // Claude's synthetic API error is diagnostic output, never a model answer.
+                for fact in &mut facts {
+                    fact.kind = Kind::Context;
+                    fact.phase = Some("api_error".into());
+                }
+                let mut terminal = event;
+                terminal.kind = Kind::TaskEnd;
+                terminal.phase = Some("error".into());
+                terminal.content = facts
+                    .iter()
+                    .filter_map(|fact| fact.content.as_deref())
+                    .next()
+                    .map(str::to_owned);
+                facts.push(terminal);
+                return Ok(facts);
+            }
             if message["usage"].is_object() {
                 let usage = &message["usage"];
                 let mut fact = event.clone();
@@ -262,7 +298,14 @@ impl SourceAdapter for ClaudeAdapter {
             let mut fact = event;
             if kind == "system" && row["subtype"] == "turn_duration" {
                 fact.kind = Kind::TaskEnd;
-                fact.phase = Some("turn_duration".into());
+                fact.phase = Some(
+                    if context.terminal_failure {
+                        "error"
+                    } else {
+                        "turn_duration"
+                    }
+                    .into(),
+                );
             }
             fact.name = string(&row["subtype"]).or_else(|| Some(kind.into()));
             fact.content = text(&row["content"]);

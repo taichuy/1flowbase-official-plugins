@@ -42,3 +42,22 @@ test("V2 canonical event also reaches record without asynchronous delivery gap",
   assert.equal(calls.length,1);
   assert.equal(calls[0].args.at(-1),"ses_fixture");
 });
+
+test("official native system hook records a snapshot without changing the array", async () => {
+  const { hooks, calls } = await plugin();
+  const output = { system: ["provider instructions", "project instructions"] };
+  const before = JSON.stringify(output);
+  await hooks["experimental.chat.system.transform"]({
+    sessionID: "ses_fixture", model: { id: "native-model", providerID: "gateway" },
+  }, output);
+  assert.equal(JSON.stringify(output), before);
+  const event = JSON.parse(calls[0].options.input);
+  assert.equal(event.type, "collector.system.transform");
+  assert.deepEqual(event.properties.system, output.system);
+  assert.equal(event.properties.sessionID, "ses_fixture");
+  assert.equal(event.properties.model.id, "native-model");
+  assert.equal(typeof event.properties.timestamp, "number");
+  assert.equal(calls[0].args.at(-1), "ses_fixture");
+  await hooks["experimental.chat.system.transform"]({ model: {} }, output);
+  assert.equal(calls.length, 1, "non-session small-model requests have no source session");
+});

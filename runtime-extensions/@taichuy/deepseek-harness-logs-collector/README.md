@@ -1,4 +1,4 @@
-# DeepSeek Harness 日志采集器 0.1.0
+# DeepSeek Harness 日志采集器 0.1.1
 
 原生 Cordis 插件，参考 DeepSeek Harness 0.2.1-alpha.2 / d743267388 的实际接口。插件源码嵌入采集器二进制，无常驻进程。配置和安装不会导入历史，不修改原客户端持久化或压缩设置。
 
@@ -22,3 +22,5 @@ session/event 回调是 fire-and-forget，因此同步 spawnSync 调用 record�
 原生接口依据、fixture 覆盖范围和执行说明见 [English README](README.en.md)。构建、验收及真实协议验证由本轮统一 QA 执行。
 
 通过 Anthropic 协议连接网关时，DSH provider 的 baseURL 使用服务根地址（不带 /v1）。自定义 gpt-6-luna 模型设置 reasoningEfforts: {max: max} 和 compat: {forceAdaptiveThinking: true}，才能发送 adaptive thinking 与 output_config.effort=max。Chat/Responses 的 baseURL 使用 /v1。
+
+原生来源分类：只有 user/message 的 data.source.kind=user 计入真实用户输入。agent-instructions、runtime-context、skill-catalog、提醒以及未知生产者均作为 Context 保留 source kind/form 与 raw；不按模型面向角色猜测真人来源。原生 system/message 与 developer/message 仍作为 System。

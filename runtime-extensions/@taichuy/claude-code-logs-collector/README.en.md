@@ -1,6 +1,6 @@
 # Claude Code logs collector
 
-Version 0.1.0 uses Claude Code command hooks and the shared agent-logs SDK. Each invocation exits after durable source enqueue and delivery; no resident process or automatic history import is installed.
+Version 0.1.1 uses Claude Code command hooks and the shared agent-logs SDK. Each invocation exits after durable source enqueue and delivery; no resident process or automatic history import is installed.
 
 ```sh
 claude-code-logs-collector configure --endpoint https://HOST/api/logs/v1/events --config /PRIVATE/claude-logs/config.json --source /HOME/.claude --key-stdin
@@ -19,3 +19,5 @@ The adapter accepts native `sessionId`, user `uuid`, assistant `message.content`
 Only native assistant `stop_reason=end_turn|stop_sequence` or system `subtype=turn_duration` produces `task_end`. A Stop hook is an attempted stop that another hook can block, and never proves completion. If the current Claude version emits no terminal or effort transcript field, those facts remain absent; the actual wire request must independently prove effort in protocol validation. This collector does not infer a final-answer declaration from an arbitrary last assistant block.
 
 Schema reference: [official Claude Code hooks](https://code.claude.com/docs/en/hooks). The documentation explicitly states transcript writes are asynchronous and documents `agent_transcript_path` and preservation-compatible `statusMessage` command handlers. Development used installed Claude Code 2.1.289. Private user histories are not fixtures; tests contain only synthetic native records. Central integration QA owns actual client/protocol runs.
+
+Native source classification: isMeta and isCompactSummary text remain context rather than real user input; compact facts retain inherited attribution. isApiErrorMessage remains diagnostic context with an error terminal, contributes no synthetic usage, and is never a final answer. <synthetic> cannot replace a real model. A following turn_duration retains error semantics. System prompt text remains unknown when absent from native facts; attachments or injected text are not treated as proof.

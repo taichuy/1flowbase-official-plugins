@@ -1,6 +1,6 @@
 # Claude Code 日志采集器
 
-0.1.0 通过 Claude Code 原生 command hook 运行，传输、增量检查点、ACK 和重试由共享 agent-logs SDK 负责。每次回调完成即退出，不安装驻留进程，不自动导入历史。
+0.1.1 通过 Claude Code 原生 command hook 运行，传输、增量检查点、ACK 和重试由共享 agent-logs SDK 负责。每次回调完成即退出，不安装驻留进程，不自动导入历史。
 
 ```sh
 claude-code-logs-collector configure --endpoint https://HOST/api/logs/v1/events --config /PRIVATE/claude-logs/config.json --source /HOME/.claude --key-stdin
@@ -19,3 +19,5 @@ SessionStart、UserPromptSubmit、PostToolUse、PostToolUseFailure、Stop、Stop
 仅 assistant stop_reason=end_turn|stop_sequence 或 system subtype=turn_duration 才表示 task_end。Stop 是可被其他 hook 阻止的停止尝试，不能证明任务结束。客户端转录未提供终止或力度字段时保持缺失，协议验证另行核实实际请求中的 max，不凭最后一块文本推断 final_answer。
 
 参考 [Claude 官方 hooks 文档](https://code.claude.com/docs/en/hooks)，其明确说明转录异步写入及 SubagentStop 的 agent_transcript_path。实现依据已安装 Claude Code 2.1.289；测试仅使用合成记录，真实协议与客户端回归由统一 QA 执行。
+
+原生来源分类：isMeta 与 isCompactSummary 文本作为上下文保留，不计入真实用户输入；compact 保留 inherited 标记。isApiErrorMessage 作为诊断与 error 终结保留，synthetic usage 不计费、不生成最终回答；<synthetic> 不覆盖真实模型。API 错误后的 turn_duration 保持 error 语义。没有原生系统提示词正文时保持未知，不从 attachment 或注入内容猜测。

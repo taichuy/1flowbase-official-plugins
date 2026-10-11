@@ -244,11 +244,17 @@ impl SourceAdapter for DeepSeekHarnessAdapter {
                             // The dedicated tool/call event owns tool lifecycle, avoiding duplicate calls.
                             "tool-call" => continue,
                             _ => match ty {
-                                "user/message" => Kind::User,
+                                "user/message" if d["source"]["kind"] == "user" => Kind::User,
+                                "user/message" => Kind::Context,
                                 "assistant/message" => Kind::Assistant,
                                 _ => Kind::System,
                             },
                         };
+                        if ty == "user/message" && d["source"]["kind"] != "user" {
+                            f.kind = Kind::Context;
+                            f.name = string(&d["source"]["kind"]);
+                            f.phase = string(&d["source"]["form"]);
+                        }
                         f.content = string(&block["text"]);
                         if d["interrupted"] == true {
                             f.phase = Some(

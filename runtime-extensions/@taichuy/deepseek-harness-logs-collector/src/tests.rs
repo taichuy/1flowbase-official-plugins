@@ -316,3 +316,31 @@ fn incomplete_or_tool_output_and_previous_turn_never_supply_final() {
         assert!(facts[0].content.is_none());
     }
 }
+
+#[test]
+fn native_source_distinguishes_real_user_from_every_context_producer() {
+    let messages: Vec<Value> =
+        serde_json::from_str(include_str!("../fixtures/source-classification.json")).unwrap();
+    let mut ctx = context();
+    convert(&mut ctx, "turn/start", json!({"turn":7}));
+    let mut facts = Vec::new();
+    for message in &messages {
+        let converted = convert(&mut ctx, "user/message", message.clone());
+        assert_eq!(converted[0].raw["event"]["data"], *message);
+        assert_eq!(converted[0].source_task_id, "7");
+        facts.extend(converted);
+    }
+    assert_eq!(
+        facts.iter().filter(|fact| fact.kind == Kind::User).count(),
+        1
+    );
+    assert_eq!(
+        facts
+            .iter()
+            .filter(|fact| fact.kind == Kind::Context)
+            .count(),
+        6
+    );
+    assert_eq!(facts[1].name.as_deref(), Some("agent-instructions"));
+    assert_eq!(facts[2].phase.as_deref(), Some("snapshot"));
+}

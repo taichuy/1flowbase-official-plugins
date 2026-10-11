@@ -94,6 +94,39 @@ impl SourceAdapter for OpenCodeAdapter {
         let line = &record.line;
         let kind = line["type"].as_str().unwrap_or("");
         let properties = &line["properties"];
+        if kind == "collector.system.transform" {
+            ensure!(
+                properties["sessionID"].as_str() == Some(&context.session),
+                "System hook session differs from journal"
+            );
+            let occurred_at = timestamp(&properties["timestamp"])?;
+            let content = properties["system"]
+                .as_array()
+                .context("System hook lacks native array")?
+                .iter()
+                .map(|entry| entry.as_str().context("Invalid native system text"))
+                .collect::<Result<Vec<_>>>()?
+                .join("\n");
+            return Ok(vec![AgentLogEvent {
+                event_id: String::new(),
+                source_session_id: context.session.clone(),
+                source_task_id: context.turn.clone().unwrap_or_default(),
+                parent_source_task_id: None,
+                sequence: 0,
+                occurred_at,
+                kind: Kind::System,
+                content: Some(content),
+                phase: Some("request_system_snapshot".into()),
+                name: None,
+                call_id: None,
+                model_id: string(&properties["model"]["id"]),
+                provider_code: string(&properties["model"]["providerID"]),
+                reasoning_effort: None,
+                usage: None,
+                inherited: false,
+                raw: line.clone(),
+            }]);
+        }
         if !kind.starts_with("session.next.") || kind.ends_with(".delta") {
             return Ok(vec![]);
         }
@@ -245,6 +278,10 @@ struct MessageContext {
     completed: bool,
     #[serde(default)]
     text: Option<String>,
+    #[serde(default)]
+    real_prompt: bool,
+    #[serde(default)]
+    parent: Option<String>,
 }
 impl OpenCodeAdapter {
     fn convert_v1(
@@ -269,32 +306,29 @@ impl OpenCodeAdapter {
             .context("Message/part lacks ID")?;
         if is_info {
             let role = native["role"].as_str().context("Message lacks role")?;
+            let previous = context.messages.get(&id);
             let turn = if role == "user" {
-                id.clone()
+                previous
+                    .map(|message| message.turn.clone())
+                    .unwrap_or_else(|| context.turn.clone().unwrap_or_default())
             } else {
-                string(&native["parentID"])
+                let parent = native["parentID"]
+                    .as_str()
                     .filter(|id| !id.is_empty())
-                    .context("Assistant lacks parent message")?
-            };
-            if role == "user" && context.turn.as_deref() != Some(&id) {
-                // Retain only unsettled assistant attribution across a steering prompt.
+                    .context("Assistant lacks parent message")?;
+                // The native parent ID remains an exact source identity when joining
+                // mid-session. It does not establish a real user prompt.
                 context
                     .messages
-                    .retain(|_, message| message.role == "assistant" && !message.completed);
-                let messages = &context.messages;
-                context.emitted.retain(|key, _| {
-                    messages
-                        .keys()
-                        .any(|message| key.starts_with(&format!("{message}:")))
-                });
-                context.turn = Some(id.clone());
-                context.model = None;
-                context.provider = None;
-                context.effort = None;
-            }
+                    .get(parent)
+                    .map(|message| message.turn.clone())
+                    .unwrap_or_else(|| parent.to_owned())
+            };
             let message = MessageContext {
                 role: role.into(),
                 turn,
+                real_prompt: previous.is_some_and(|message| message.real_prompt),
+                parent: string(&native["parentID"]),
                 model: string(&native["modelID"]).or_else(|| string(&native["model"]["modelID"])),
                 provider: string(&native["providerID"])
                     .or_else(|| string(&native["model"]["providerID"])),
@@ -374,11 +408,53 @@ impl OpenCodeAdapter {
         let message_id = native["messageID"]
             .as_str()
             .context("Part lacks message ID")?;
-        let Some(message) = context.messages.get(message_id).cloned() else {
+        let Some(mut message) = context.messages.get(message_id).cloned() else {
             // Do not invent attribution when joining an already-running historical session.
             return Ok(vec![]);
         };
         let part_type = native["type"].as_str().unwrap_or("");
+        if message.role == "user" {
+            if matches!(part_type, "text" | "file" | "agent" | "subtask")
+                && native["synthetic"] != true
+                && native["ignored"] != true
+                && !message.real_prompt
+            {
+                message.real_prompt = true;
+                message.turn = message_id.to_owned();
+                for child in context.messages.values_mut() {
+                    if child.parent.as_deref() == Some(message_id) {
+                        child.turn = message.turn.clone();
+                    }
+                }
+                let created = timestamp(&message.created)?;
+                // A late old part retains its own identity without stealing the active prompt.
+                let newer = context
+                    .turn
+                    .as_ref()
+                    .and_then(|id| context.messages.get(id))
+                    .map(|current| timestamp(&current.created))
+                    .transpose()?
+                    .is_some_and(|current| current > created);
+                if !newer {
+                    // Keep user aliases and unsettled assistants for exact parentID joins.
+                    // Settled assistant bodies are no longer needed by a newer prompt.
+                    context
+                        .messages
+                        .retain(|_, stored| stored.role == "user" || !stored.completed);
+                    let messages = &context.messages;
+                    context.emitted.retain(|key, _| {
+                        messages.keys().any(|id| key.starts_with(&format!("{id}:")))
+                    });
+                    context.turn = Some(message_id.to_owned());
+                    context.model = None;
+                    context.provider = None;
+                    context.effort = None;
+                }
+            }
+            context
+                .messages
+                .insert(message_id.to_owned(), message.clone());
+        }
         let mut result = Vec::new();
         match part_type {
             "text" | "reasoning" => {
@@ -412,9 +488,11 @@ impl OpenCodeAdapter {
                     event.phase = Some("reasoning".into());
                 }
                 if native["synthetic"] == true {
+                    event.kind = Kind::Context;
                     event.phase = Some("synthetic".into());
                 }
-                if message.role == "assistant" && part_type == "text" {
+                if message.role == "assistant" && part_type == "text" && native["synthetic"] != true
+                {
                     if let Some(stored) = context.messages.get_mut(message_id) {
                         append_text(&mut stored.text, event.content.as_deref());
                     }

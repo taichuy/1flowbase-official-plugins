@@ -146,3 +146,58 @@ fn anthropic_usage_input_includes_read_and_creation_cache() {
     assert_eq!(usage.input_cache_hit_tokens, Some(5));
     assert_eq!(usage.cache_write_tokens, Some(7));
 }
+
+#[test]
+fn native_meta_compact_and_api_error_do_not_become_user_or_success() {
+    let rows: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/source-classification.json")).unwrap();
+    let a = adapter();
+    let mut c = a.create_context(&rows[0]).unwrap();
+    let user = convert(&a, &mut c, rows[0].clone());
+    assert_eq!(user[0].kind, Kind::User);
+    c.model = Some("real-model".into());
+    let meta = convert(&a, &mut c, rows[1].clone());
+    assert_eq!(meta[0].kind, Kind::Context);
+    assert_eq!(meta[0].source_task_id, "real");
+    let compact = convert(&a, &mut c, rows[2].clone());
+    assert_eq!(compact[0].kind, Kind::Context);
+    assert!(compact[0].inherited);
+    let error = convert(&a, &mut c, rows[3].clone());
+    assert_eq!(c.model.as_deref(), Some("real-model"));
+    assert!(error
+        .iter()
+        .all(|fact| fact.raw == rows[3] && fact.model_id.as_deref() == Some("real-model")));
+    assert_eq!(error[0].kind, Kind::Context);
+    assert_eq!(error[0].phase.as_deref(), Some("api_error"));
+    let terminal = error.last().unwrap();
+    assert_eq!(terminal.kind, Kind::TaskEnd);
+    assert_eq!(terminal.phase.as_deref(), Some("error"));
+    assert!(!error
+        .iter()
+        .any(|fact| fact.phase.as_deref() == Some("final_answer") || fact.kind == Kind::Usage));
+    let duration = convert(
+        &a,
+        &mut c,
+        json!({"type":"system","subtype":"turn_duration",
+        "sessionId":"session","timestamp":TS,"durationMs":1}),
+    );
+    assert_eq!(duration[0].phase.as_deref(), Some("error"));
+    convert(&a, &mut c, user("next", json!("next input")));
+    assert!(!c.terminal_failure);
+}
+
+#[test]
+fn synthetic_model_without_native_api_error_cannot_replace_real_model() {
+    let a = adapter();
+    let prompt = user("real", json!("prompt"));
+    let mut c = a.create_context(&prompt).unwrap();
+    convert(&a, &mut c, prompt);
+    c.model = Some("real-model".into());
+    convert(
+        &a,
+        &mut c,
+        json!({"type":"assistant","sessionId":"session","timestamp":TS,
+        "message":{"model":"<synthetic>","content":[{"type":"text","text":"diagnostic"}]}}),
+    );
+    assert_eq!(c.model.as_deref(), Some("real-model"));
+}

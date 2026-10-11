@@ -1,4 +1,4 @@
-# DeepSeek Harness logs collector 0.1.0
+# DeepSeek Harness logs collector 0.1.1
 
 Native Cordis plugin, verified against DeepSeek Harness 0.2.1-alpha.2 source d743267388. The executable embeds its plugin; no daemon or package manager installation is needed. Configure and install never import prior sessions and never change persistence compression.
 
@@ -22,3 +22,5 @@ Source task identity uses explicit turn_id, otherwise native numeric turn; expli
 References: packages/core/session/src/types.ts and index.ts, packages/llm/llm/src/{types,message,assistant-stream}.ts, packages/boot/app-boot/src/{profile,profile-context,index}.ts in the referenced Harness. Fixture and Rust tests cover atomic multi-block facts, tool identity, usage absence/cache counts, attempt aggregation, terminal error facts and preservation of native patch expressions. Builds and acceptance are centralized in the multi-client test batch.
 
 For Anthropic gateway connections, the DSH provider baseURL is the service root without /v1. Set the custom gpt-6-luna model to reasoningEfforts: {max: max} and compat: {forceAdaptiveThinking: true} to send adaptive thinking with output_config.effort=max. Chat/Responses use a baseURL ending in /v1.
+
+Native source classification: only user/message with data.source.kind=user is real user input. Instructions, runtime context, skill catalogs, reminders, and unknown producers remain Context with source kind/form and raw evidence. Model-facing role does not establish human origin. Native system/message and developer/message remain System.

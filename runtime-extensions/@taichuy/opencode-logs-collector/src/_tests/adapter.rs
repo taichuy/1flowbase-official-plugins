@@ -365,7 +365,8 @@ fn default_v1_preserves_final_text_and_tool_continuation_after_checkpoint_restor
     assert_eq!(final_fact.kind, Kind::TaskEnd);
     assert_eq!(final_fact.phase.as_deref(), Some("final_answer"));
     assert_eq!(final_fact.content.as_deref(), Some("fixture contents"));
-    assert!(all.iter().all(|fact| fact.source_task_id == "msg_user"));
+    assert!(all.iter().all(|fact| fact.source_task_id == "msg_user"
+        || (fact.kind == Kind::Context && fact.source_task_id.is_empty())));
     assert!(!all
         .iter()
         .any(|fact| fact.content.as_deref() == Some("partial")));
@@ -409,7 +410,7 @@ fn default_v1_rejects_foreign_parts_and_conflicting_completed_text() {
         .is_err());
 }
 #[test]
-fn next_user_prunes_settled_current_turn_checkpoint_state() {
+fn next_real_user_retains_user_aliases_and_prunes_settled_assistants() {
     let rows = v1_fixture();
     let mut context = context();
     for record in rows {
@@ -422,9 +423,24 @@ fn next_user_prunes_settled_current_turn_checkpoint_state() {
         }}),
     );
     OpenCodeAdapter.convert(&fresh, &mut context).unwrap();
-    assert_eq!(context.messages.len(), 1);
-    assert_eq!(context.emitted.len(), 1);
+    assert_eq!(
+        context.turn.as_deref(),
+        Some("msg_user"),
+        "metadata alone is not a human prompt"
+    );
+    let part = v1(
+        "message.part.updated",
+        json!({"part":{
+            "sessionID":"ses_fixture","id":"prt_next","messageID":"msg_next","type":"text","text":"next"
+        }}),
+    );
+    OpenCodeAdapter.convert(&part, &mut context).unwrap();
     assert_eq!(context.turn.as_deref(), Some("msg_next"));
+    assert!(context.messages.contains_key("msg_user"));
+    assert!(context
+        .messages
+        .values()
+        .all(|message| message.role == "user" || !message.completed));
 }
 
 #[test]
@@ -608,4 +624,181 @@ fn default_v1_recoverable_completion_and_idle_do_not_end_task() {
         )
         .unwrap()
         .is_empty());
+}
+
+#[test]
+fn synthetic_and_mixed_native_parts_preserve_real_turn_parent_and_checkpoint() {
+    let mut ctx = context();
+    let mut facts = Vec::new();
+    for (index, line) in include_str!("fixtures/source-classification.jsonl")
+        .lines()
+        .enumerate()
+    {
+        let raw: Value = serde_json::from_str(line).unwrap();
+        let record = Position {
+            line: raw.clone(),
+            start: 0,
+            end: line.len() as u64,
+            bytes: line.as_bytes().to_vec(),
+        };
+        let converted = OpenCodeAdapter.convert(&record, &mut ctx).unwrap();
+        assert!(converted.iter().all(|fact| fact.raw == raw));
+        if let Some(first) = converted.first() {
+            assert!(
+                converted
+                    .iter()
+                    .all(|fact| fact.source_task_id == first.source_task_id),
+                "SDK requires one source record to have one attribution"
+            );
+        }
+        facts.extend(converted);
+        if index == 9 {
+            assert_eq!(
+                ctx.turn.as_deref(),
+                Some("real"),
+                "synthetic alone cannot start a real turn"
+            );
+            ctx = serde_json::from_slice(&serde_json::to_vec(&ctx).unwrap()).unwrap();
+        }
+    }
+    let users: Vec<_> = facts
+        .iter()
+        .filter(|fact| fact.kind == Kind::User)
+        .collect();
+    assert_eq!(users.len(), 2);
+    assert_eq!(users[0].source_task_id, "real");
+    assert_eq!(users[1].source_task_id, "mixed");
+    assert_eq!(
+        facts
+            .iter()
+            .filter(|fact| fact.phase.as_deref() == Some("synthetic") && fact.kind == Kind::Context)
+            .count(),
+        2
+    );
+    assert!(!facts.iter().any(|fact| fact.source_task_id == "synthetic"));
+    assert!(!facts
+        .iter()
+        .any(|fact| fact.content.as_deref() == Some("unfinished prefix")));
+    let finals: Vec<_> = facts
+        .iter()
+        .filter(|fact| fact.kind == Kind::TaskEnd)
+        .collect();
+    assert_eq!(finals.len(), 2);
+    assert_eq!(finals[0].source_task_id, "mixed");
+    assert_eq!(finals[0].content.as_deref(), Some("second answer"));
+    assert_eq!(finals[1].source_task_id, "real");
+    assert_eq!(finals[1].content.as_deref(), Some("original answer"));
+    assert_eq!(ctx.turn.as_deref(), Some("mixed"));
+}
+
+#[test]
+fn unseen_native_parent_keeps_supported_assistant_facts_without_inventing_user() {
+    let mut ctx = context();
+    let info = v1(
+        "message.updated",
+        json!({"info":{
+            "sessionID":"ses_fixture","id":"assistant-mid-session","role":"assistant",
+            "parentID":"native-unseen-parent","time":{"created":1780000000000_i64}
+        }}),
+    );
+    let meta = OpenCodeAdapter.convert(&info, &mut ctx).unwrap();
+    assert_eq!(meta[0].source_task_id, "native-unseen-parent");
+    assert!(ctx.turn.is_none());
+    let text = v1(
+        "message.part.updated",
+        json!({"part":{
+            "sessionID":"ses_fixture","id":"part-mid-session","messageID":"assistant-mid-session",
+            "type":"text","text":"observed answer","time":{"end":1780000000001_i64}
+        }}),
+    );
+    let facts = OpenCodeAdapter.convert(&text, &mut ctx).unwrap();
+    assert_eq!(facts[0].kind, Kind::Assistant);
+    assert_eq!(facts[0].source_task_id, "native-unseen-parent");
+    assert!(!facts.iter().any(|fact| fact.kind == Kind::User));
+}
+
+#[test]
+fn official_system_hook_snapshot_is_system_and_preserves_native_array() {
+    let mut ctx = context();
+    OpenCodeAdapter
+        .convert(
+            &record(
+                "prompted",
+                props(json!({
+        "messageID":"real","prompt":{"text":"input"}})),
+            ),
+            &mut ctx,
+        )
+        .unwrap();
+    let raw = json!({"id":"native-hook","type":"collector.system.transform","properties":{
+        "sessionID":"ses_fixture","timestamp":1780000000000_i64,
+        "system":["native provider instructions","native project instructions"],
+        "model":{"id":"native-model","providerID":"gateway"}
+    }});
+    let position = Position {
+        line: raw.clone(),
+        start: 0,
+        end: 1000,
+        bytes: vec![],
+    };
+    let facts = OpenCodeAdapter.convert(&position, &mut ctx).unwrap();
+    assert_eq!(facts[0].kind, Kind::System);
+    assert_eq!(facts[0].source_task_id, "real");
+    assert_eq!(
+        facts[0].content.as_deref(),
+        Some("native provider instructions\nnative project instructions")
+    );
+    assert_eq!(facts[0].phase.as_deref(), Some("request_system_snapshot"));
+    assert_eq!(facts[0].raw, raw);
+}
+
+#[test]
+fn entirely_synthetic_initial_message_cannot_establish_human_turn() {
+    let mut ctx = context();
+    let info = v1(
+        "message.updated",
+        json!({"info":{
+            "sessionID":"ses_fixture","id":"synthetic-only","role":"user",
+            "time":{"created":1780000000000_i64}
+        }}),
+    );
+    let meta = OpenCodeAdapter.convert(&info, &mut ctx).unwrap();
+    assert!(meta[0].source_task_id.is_empty());
+    let part = v1(
+        "message.part.updated",
+        json!({"part":{
+            "sessionID":"ses_fixture","id":"synthetic-only-part","messageID":"synthetic-only",
+            "type":"text","text":"runtime prompt","synthetic":true
+        }}),
+    );
+    let facts = OpenCodeAdapter.convert(&part, &mut ctx).unwrap();
+    assert_eq!(facts[0].kind, Kind::Context);
+    assert!(facts[0].source_task_id.is_empty());
+    assert!(ctx.turn.is_none());
+}
+
+#[test]
+fn late_old_user_part_does_not_steal_active_steering_turn() {
+    let mut ctx = context();
+    for (id, at) in [("old", 1780000000000_i64), ("new", 1780000000100_i64)] {
+        let info = v1(
+            "message.updated",
+            json!({"info":{
+                "sessionID":"ses_fixture","id":id,"role":"user","time":{"created":at}
+            }}),
+        );
+        OpenCodeAdapter.convert(&info, &mut ctx).unwrap();
+    }
+    for id in ["new", "old"] {
+        let part = v1(
+            "message.part.updated",
+            json!({"part":{
+                "sessionID":"ses_fixture","id":format!("part-{id}"),"messageID":id,
+                "type":"text","text":id
+            }}),
+        );
+        let facts = OpenCodeAdapter.convert(&part, &mut ctx).unwrap();
+        assert_eq!(facts[0].source_task_id, id);
+        assert_eq!(ctx.turn.as_deref(), Some("new"));
+    }
 }
