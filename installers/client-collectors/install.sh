@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Public installer. Application credentials are read locally, never from a URL.
 set -euo pipefail
-version=0.2.0
+version=0.3.0
 endpoint=''
 source_path="${CODEX_HOME:-$HOME/.codex}"
+codex_home="${CODEX_HOME:-$HOME/.codex}"
 installation_id=default
 install_dir=''
 config_path=''
@@ -16,11 +17,12 @@ Codex native logs collector installer
   --endpoint URL             Exact 1flowbase /api/logs/v1/events endpoint
   --installation-id ID       Application-specific installation (default: default)
   --source PATH              Codex home, selected directory or rollout file
-  --version VERSION          Immutable collector release (default: 0.2.0)
+  --version VERSION          Immutable collector release (default: 0.3.0)
+  --codex-home PATH          Codex configuration directory for hooks
   --install-dir PATH         Override the user installation directory
   --config PATH              Override the private configuration path
   --release-base URL         Required 1flowbase version-pinned asset base URL
-  --no-start                 Configure without registering a background service
+  --no-start                 Configure without registering Codex hooks
   --uninstall                Stop/remove collector; retain config and checkpoint
 Credentials: local terminal prompt, or FLOWBASE_AGENT_LOGS_API_KEY environment.
 No sudo, Node.js or Rust toolchain is required.
@@ -31,13 +33,14 @@ while (($#)); do
     --help|-h) usage; exit 0 ;;
     --no-start) start_service=0; shift ;;
     --uninstall) uninstall=1; shift ;;
-    --endpoint|--source|--installation-id|--version|--install-dir|--config|--release-base)
+    --endpoint|--source|--installation-id|--version|--install-dir|--config|--release-base|--codex-home)
       (($# >= 2)) || { printf 'Missing option value\n' >&2; exit 2; }
       case "$1" in
         --endpoint) endpoint=$2 ;; --source) source_path=$2 ;;
         --installation-id) installation_id=$2 ;; --version) version=$2 ;;
         --install-dir) install_dir=$2 ;; --config) config_path=$2 ;;
         --release-base) release_base=$2 ;;
+        --codex-home) codex_home=$2 ;;
       esac
       shift 2 ;;
     *) printf 'Unknown installer option; use --help\n' >&2; exit 2 ;;
@@ -52,12 +55,15 @@ binary_path="$install_dir/bin/codex-logs-collector"
 os=$(uname -s)
 case "$os" in Linux) os=linux ;; Darwin) os=darwin ;; *) printf 'Unsupported OS; use the Windows PowerShell installer\n' >&2; exit 2 ;; esac
 case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) printf 'Unsupported architecture\n' >&2; exit 2 ;; esac
-for value in "$install_dir" "$config_path" "$source_path"; do
+for value in "$install_dir" "$config_path" "$source_path" "$codex_home"; do
   [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || { printf 'Paths must not contain line breaks\n' >&2; exit 2; }
 done
 unit_path="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$service_name.service"
 launch_path="$HOME/Library/LaunchAgents/$service_name.plist"
 if ((uninstall)); then
+  if [[ -x "$binary_path" && "$("$binary_path" --help)" == *install-hooks* ]]; then
+    "$binary_path" uninstall-hooks --config "$config_path" --codex-home "$codex_home"
+  fi
   if [[ "$os" == linux ]]; then
     if [[ -f "$unit_path" ]]; then
       systemctl --user disable --now "$service_name.service"
@@ -136,49 +142,21 @@ cp "$staging/codex-logs-collector" "$install_dir/bin/.codex-logs-collector.new"
 chmod 700 "$install_dir/bin/.codex-logs-collector.new"
 mv -f "$install_dir/bin/.codex-logs-collector.new" "$binary_path"
 if ((!start_service)); then
+  "$binary_path" uninstall-hooks --config "$config_path" --codex-home "$codex_home"
   restore_service=0
   if [[ "$os" == linux && -f "$unit_path" ]]; then systemctl --user disable "$service_name.service"; fi
   if [[ "$os" == darwin ]]; then rm -f "$launch_path"; fi
-  printf 'Collector configured. Background startup was explicitly disabled.\n'
+  printf 'Collector configured. Hook registration was explicitly disabled.\n'
   exit 0
 fi
-if [[ "$os" == linux ]]; then
-  command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1 || {
-    printf 'Installed, but no user systemd session is available. Start the native collector with watch --config, or rerun in a supported user session.\n' >&2; exit 1;
-  }
-  escape_systemd() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g; s/\$/$$/g'; }
-  mkdir -p "$(dirname "$unit_path")"
-  cat >"$unit_path" <<EOF
-[Unit]
-Description=1flowbase Codex logs collector ($installation_id)
-[Service]
-ExecStart="$(escape_systemd "$binary_path")" watch --config "$(escape_systemd "$config_path")"
-Restart=on-failure
-RestartSec=5
-[Install]
-WantedBy=default.target
-EOF
+"$binary_path" install-hooks --config "$config_path" --codex-home "$codex_home"
+# Retire only this installation's legacy supervisor after hook registration succeeds.
+if [[ "$os" == linux && -f "$unit_path" ]]; then
+  systemctl --user disable "$service_name.service"
+  rm -f "$unit_path"
   systemctl --user daemon-reload
-  systemctl --user enable "$service_name.service"
-  systemctl --user restart "$service_name.service"
-  systemctl --user is-active --quiet "$service_name.service"
-else
-  escape_xml() { printf '%s' "$1" | sed 's/\&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
-  mkdir -p "$(dirname "$launch_path")"
-  cat >"$launch_path" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>Label</key><string>$(escape_xml "$service_name")</string>
-<key>ProgramArguments</key><array><string>$(escape_xml "$binary_path")</string><string>watch</string><string>--config</string><string>$(escape_xml "$config_path")</string></array>
-<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-<key>StandardOutPath</key><string>$(escape_xml "$install_dir/collector.log")</string>
-<key>StandardErrorPath</key><string>$(escape_xml "$install_dir/collector-error.log")</string>
-</dict></plist>
-EOF
-  launchctl bootout "gui/$(id -u)" "$launch_path" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$launch_path"
-  launchctl kickstart "gui/$(id -u)/$service_name"
+elif [[ "$os" == darwin ]]; then
+  rm -f "$launch_path"
 fi
 restore_service=0
-printf 'Collector installed and started. It resumes after this user logs in. Source logs are read only.\n'
+printf 'Collector installed for Codex hooks. Review /hooks in Codex; no resident collector was started. Source logs are read only.\n'

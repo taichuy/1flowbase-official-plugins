@@ -2,10 +2,13 @@ use agent_logs_collector::{collect_with_options, configure, CollectOptions, Conf
 use anyhow::{ensure, Result};
 use codex_logs_collector::CodexAdapter;
 use std::{collections::BTreeMap, io::Read, path::PathBuf, time::Duration};
+mod hooks;
 const HELP: &str = concat!(
     "codex-logs-collector ", env!("CARGO_PKG_VERSION"),
     "\n\nconfigure --endpoint URL --source PATH --config PATH [--key-stdin]\n",
-    "import --config PATH [--batch-bytes BYTES]\nwatch --config PATH [--batch-bytes BYTES]\n",
+    "import --config PATH [--batch-bytes BYTES]\nwatch --config PATH [--batch-bytes BYTES] (manual fallback)\n",
+    "hook --config PATH (Codex JSON on stdin)\nflush --config PATH\n",
+    "install-hooks|uninstall-hooks --config PATH [--codex-home PATH]\n",
     "--help | --version\n\nKey: --key-stdin or FLOWBASE_AGENT_LOGS_API_KEY. Default source: CODEX_HOME or ~/.codex.\n",
     "Batch bytes: positive serialized request target (default 1048576); oversized events are sent intact.\n",
     "Config credentials are private; source/state identity is preserved on upgrades.\n"
@@ -51,7 +54,9 @@ fn options(args: &[String], command: &str) -> Result<(BTreeMap<String, String>, 
         }
         let allowed = option == "--config"
             || (command == "configure" && matches!(option.as_str(), "--endpoint" | "--source"))
-            || (matches!(command, "import" | "watch") && option == "--batch-bytes");
+            || (matches!(command, "import" | "watch" | "hook" | "flush")
+                && option == "--batch-bytes")
+            || (matches!(command, "install-hooks" | "uninstall-hooks") && option == "--codex-home");
         ensure!(allowed, "Unknown option; use --help");
         let value = args
             .get(index + 1)
@@ -91,7 +96,16 @@ async fn run() -> Result<()> {
     }
     let command = args[0].as_str();
     ensure!(
-        matches!(command, "configure" | "import" | "watch"),
+        matches!(
+            command,
+            "configure"
+                | "import"
+                | "watch"
+                | "hook"
+                | "flush"
+                | "install-hooks"
+                | "uninstall-hooks"
+        ),
         "Unknown command; use --help"
     );
     let (values, key_stdin) = options(&args[1..], command)?;
@@ -99,6 +113,14 @@ async fn run() -> Result<()> {
         .get("--config")
         .ok_or_else(|| anyhow::anyhow!("--config is required"))?;
     let home = codex_home()?;
+    if matches!(command, "install-hooks" | "uninstall-hooks") {
+        let hook_home = values
+            .get("--codex-home")
+            .map(PathBuf::from)
+            .unwrap_or(home);
+        hooks::register(&PathBuf::from(path), &hook_home, command == "install-hooks")?;
+        return Ok(());
+    }
     if command == "configure" {
         let endpoint = values
             .get("--endpoint")
@@ -134,6 +156,25 @@ async fn run() -> Result<()> {
         );
     }
     let adapter = CodexAdapter { codex_home: home };
+    if command == "hook" {
+        hooks::run(&config, &adapter, collect_options).await?;
+        // All lifecycle events accept an empty object; never steer or continue a turn.
+        println!("{{}}");
+        return Ok(());
+    }
+    if command == "flush" {
+        let report =
+            agent_logs_collector::collect_pending(&config, &adapter, collect_options).await?;
+        println!(
+            "Uploaded {} events; {} sources remain pending",
+            report.uploaded, report.pending_sources
+        );
+        ensure!(
+            report.pending_sources == 0,
+            "Some sources remain queued for retry"
+        );
+        return Ok(());
+    }
     if command == "import" {
         let report = tokio::select! { result = collect_with_options(&config, &adapter, collect_options) => result?, _ = shutdown() => { return Ok(()); } };
         println!(

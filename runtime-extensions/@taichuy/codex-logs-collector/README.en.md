@@ -14,18 +14,26 @@ The Linux/macOS command has this structure; replace the endpoint and application
 
 ```bash
 installer="$(mktemp)"
-curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets/install.sh' -o "$installer"
-bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.2.1' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets'
+curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.3.0/assets/install.sh' -o "$installer"
+bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.3.0' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.3.0/assets'
 rm -f "$installer"
 ```
 
-On Windows, copy the PowerShell command from the application page. Its parameters are `-Endpoint`, `-InstallationId`, `-Version` and required `-ReleaseBase`. Windows uses a task for the current user; Linux uses user systemd and macOS uses a LaunchAgent. Collection starts immediately and resumes when this user logs in after a reboot.
+On Windows, copy the PowerShell command from the application page. Its parameters are `-Endpoint`, `-InstallationId`, `-Version` and required `-ReleaseBase`. All platforms merge this installation's handlers into Codex `hooks.json`, without registering a resident process, systemd unit, LaunchAgent or scheduled task. Existing hooks and `notify` are retained; the original hook file is backed up before changes. Use `--codex-home PATH` (`-CodexHome` on Windows) to select the hook configuration directory.
 
-If Linux has no user systemd session, installation reports background startup failure explicitly. Rerun it in a supported user session, or configure with `--no-start` and run native `watch` under your own process supervisor. No sudo is required. Installation never modifies Codex configuration or source logs.
+Review and trust the new handlers in Codex `/hooks`. Untrusted handlers, disabled hooks or clients without hook support do not collect automatically. The installer never bypasses hook trust. `--no-start` configures the collector and unregisters this installation's hooks; manual `import` and `flush` remain available. No sudo is required and source logs are unchanged. A successful upgrade retires only this installation's legacy service while retaining configuration, source identity and checkpoints.
+
+## 0.3.0: Event-driven hooks
+
+`SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Stop`, `SubagentStop`, `Interrupt` and `SessionEnd` invoke a short-lived collector. It reads `transcript_path` from stdin, or `agent_transcript_path` for a subagent. It reads only the triggered transcript and previously deferred sources, without polling the whole history directory. A null transcript only retries pending work; paths outside the configured scope are skipped.
+
+Most handlers run asynchronously and return `{}`, without injecting context or requesting continuation. Codex Stop/Interrupt precede the terminal rollout event, so a handler waits up to two seconds for the committed terminal record. If it is still missing, the source remains pending for another hook; hook text never fabricates completion. SessionEnd runs synchronously with Codex's three-second limit; interrupted delivery recovers on a later hook or `flush`. No watcher remains after a handler exits.
+
+Source notifications are persisted before acquiring the checkpoint lock. Concurrent handlers serialize delivery, and notifications are removed only after full acknowledgement. Offline retries are event-driven, not scheduled: the next hook or `codex-logs-collector flush --config PATH` retries pending sources. They remain on disk if Codex is not used again. The first trigger for a transcript backfills that transcript's unacknowledged history; full-directory backfill requires an explicit `import`. Installation itself does not upload all history.
 
 ## Scope and recovery
 
-The default source is the install-time `CODEX_HOME`, or `~/.codex` if unset (the `.codex` directory in the Windows user profile). Only `sessions` and `archived_sessions` are collected, including existing history and subsequent records. `--source PATH` selects a Codex home directory, a specific rollout directory or a rollout file.
+The allowed source defaults to the install-time `CODEX_HOME`, or `~/.codex` if unset (the `.codex` directory in the Windows user profile). Only its `sessions` and `archived_sessions` are allowed. `--source PATH` selects a Codex home directory, a specific rollout directory or a rollout file. Hooks cannot expand this scope; manual `import` scans the entire configured scope.
 
 Only newline-committed JSONL records are uploaded. Network errors, HTTP failures and incomplete acknowledgments retain the checkpoint. Recovery replays the same event identities. Moving a rollout into archives does not count it twice. Changed or truncated acknowledged content rejects that collection attempt and retains its checkpoint. Records without an explicit source turn wait for source attribution; the collector does not invent tasks.
 
@@ -44,7 +52,7 @@ codex-logs-collector import --config /path/to/config.json --batch-bytes 262144
 codex-logs-collector watch --config /path/to/config.json --batch-bytes 262144
 ```
 
-`--batch-bytes` must be a positive integer. It does not change configuration, source identity or event identities. Background services use the default target unless explicitly configured otherwise. Facts awaiting an explicit source turn are replayed from source byte ranges and minimal context, rather than accumulating complete events in memory. Their scan cursor is stored separately and does not advance the server-acknowledged cursor. Attribution requires a source-declared turn; tools, models, providers and raw facts retain the context of their original records. Replay depends on source logs remaining readable; the collector does not delete them.
+`--batch-bytes` must be a positive integer. It does not change configuration, source identity or event identities. Hook handlers use the default target unless explicitly configured otherwise. Facts awaiting an explicit source turn are replayed from source byte ranges and minimal context, rather than accumulating complete events in memory. Their scan cursor is stored separately and does not advance the server-acknowledged cursor. Attribution requires a source-declared turn; tools, models, providers and raw facts retain the context of their original records. Replay depends on source logs remaining readable; the collector does not delete them.
 
 To upgrade from 0.1.0, install the 0.2.0 distribution in 1flowbase, then run that version's local installation command. Keep the installation ID, configuration and `state.json`. On first reading a legacy file checkpoint, the collector validates history using its original digest algorithm, reconstructs the parsing context and migrates it while preserving `source_id`, acknowledged offsets and stable event IDs. Unavailable legacy files retain their checkpoints and migrate when they return, without blocking collection of other files. Older executables cannot read the new checkpoints; do not mix executable versions or delete checkpoints to downgrade. The existing 0.1.0 release remains immutable, and previously retained packages remain available at their original version.
 
@@ -59,9 +67,9 @@ codex-logs-collector import --config /path/to/config.json
 codex-logs-collector watch --config /path/to/config.json
 ```
 
-A running background collector exclusively owns its checkpoint. Stop that service before running manual import/watch. The operating system releases the lock after a process crash; deleting checkpoints is unnecessary.
+`import` backfills history once; `flush` retries pending sources. `watch` remains an explicit manual fallback and is never started by the installer. Hooks share source/event identity and checkpoints with manual collection. Manual import/watch rejects concurrent checkpoint ownership; hooks wait for the lock. Process death releases the OS lock without deleting checkpoints.
 
-To uninstall, rerun the same installer using `--uninstall --installation-id APPLICATION_ID` on Linux/macOS, or `-Uninstall -InstallationId APPLICATION_ID` on Windows. It removes the application's service and executable while retaining configuration, checkpoints and Codex logs. If you overrode install/config paths, supply those same paths when uninstalling.
+To uninstall, rerun the same installer using `--uninstall --installation-id APPLICATION_ID` on Linux/macOS, or `-Uninstall -InstallationId APPLICATION_ID` on Windows. It removes only this installation's hooks, legacy service and executable, retaining other hooks, configuration, checkpoints, pending work and source logs. Supply the original custom install/config/codex-home paths when uninstalling.
 
 ## Releases and development
 

@@ -478,11 +478,23 @@ pub async fn collect_with_options<A: SourceAdapter>(
     options: CollectOptions,
 ) -> Result<CollectReport> {
     config.validate()?;
+    let _lock = CheckpointLock::acquire(&config.state_path)?;
+    collect_locked(config, adapter, options, None).await
+}
+
+/// A targeted collection retains the installation's source identity and checkpoint.
+/// The caller owns the checkpoint lock for the entire read/upload/ACK transaction.
+pub(crate) async fn collect_locked<A: SourceAdapter>(
+    config: &Config,
+    adapter: &A,
+    options: CollectOptions,
+    selected_path: Option<&Path>,
+) -> Result<CollectReport> {
+    config.validate()?;
     ensure!(
         options.batch_target_bytes > 0,
         "Batch byte target must be positive"
     );
-    let _lock = CheckpointLock::acquire(&config.state_path)?;
     let mut state = match fs::read(&config.state_path) {
         Ok(bytes) => serde_json::from_slice::<State>(&bytes)
             .map_err(|_| anyhow::anyhow!("Invalid checkpoint"))?,
@@ -520,7 +532,11 @@ pub async fn collect_with_options<A: SourceAdapter>(
         .build()
         .context("Cannot initialize collector transport")?;
     let mut selected = Vec::new();
-    for root in adapter.roots(&config.source_path) {
+    let roots = selected_path.map_or_else(
+        || adapter.roots(&config.source_path),
+        |path| vec![path.to_owned()],
+    );
+    for root in roots {
         reject_symlink_path(&root)?;
         files(&root, &mut selected)?;
     }

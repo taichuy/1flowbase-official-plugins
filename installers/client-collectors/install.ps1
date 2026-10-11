@@ -4,7 +4,8 @@ param(
     [string]$Endpoint,
     [string]$InstallationId = 'default',
     [string]$Source = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }),
-    [string]$Version = '0.2.0',
+    [string]$Version = '0.3.0',
+    [string]$CodexHome = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }),
     [string]$InstallDir,
     [string]$Config,
     [string]$ReleaseBase,
@@ -22,6 +23,10 @@ $User = [System.Security.Principal.WindowsIdentity]::GetCurrent()
 # Include the current user's SID so independent user installations do not share a task.
 $TaskName = "$TaskName-$($User.User.Value)"
 if ($Uninstall) {
+    if ((Test-Path -LiteralPath $BinaryPath) -and ((& $BinaryPath --help) -join "`n") -match 'install-hooks') {
+        & $BinaryPath uninstall-hooks --config $Config --codex-home $CodexHome
+        if ($LASTEXITCODE -ne 0) { throw 'Could not remove collector hooks; executable retained' }
+    }
     $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($Task) {
         Stop-ScheduledTask -InputObject $Task
@@ -92,19 +97,18 @@ try {
     $CollectorKey = $null
     Copy-Item -LiteralPath $NewBinary -Destination $BinaryPath -Force
     if ($NoStart) {
+        & $BinaryPath uninstall-hooks --config $Config --codex-home $CodexHome
+        if ($LASTEXITCODE -ne 0) { throw 'Could not disable collector hooks' }
         $RestoreTask = $null
         if ($Task) { Disable-ScheduledTask -InputObject $Task | Out-Null }
-        Write-Host 'Collector configured. Background startup was explicitly disabled.'
+        Write-Host 'Collector configured. Hook registration was explicitly disabled.'
         return
     }
-    $Action = New-ScheduledTaskAction -Execute $BinaryPath -Argument ('watch --config "' + $Config + '"')
-    $Trigger = New-ScheduledTaskTrigger -AtLogOn -User $User.Name
-    $Principal = New-ScheduledTaskPrincipal -UserId $User.Name -LogonType Interactive -RunLevel Limited
-    $Settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
-    Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
-    Start-ScheduledTask -TaskName $TaskName
+    & $BinaryPath install-hooks --config $Config --codex-home $CodexHome
+    if ($LASTEXITCODE -ne 0) { throw 'Collector hook registration failed' }
+    if ($Task) { Unregister-ScheduledTask -InputObject $Task -Confirm:$false }
     $RestoreTask = $null
-    Write-Host 'Collector installed and started. It resumes after this user logs in. Source logs are read only.'
+    Write-Host 'Collector installed for Codex hooks. Review /hooks in Codex; no resident collector was started. Source logs are read only.'
 } finally {
     if ($RestoreTask) { Start-ScheduledTask -InputObject $RestoreTask }
     $CollectorKey = $null

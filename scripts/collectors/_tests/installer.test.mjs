@@ -42,11 +42,12 @@ async function fixture(t) {
   execFileSync('tar', ['-czf', archivePath, '-C', staging, './codex-logs-collector']);
   const bytes = await fs.readFile(archivePath);
   const sha = crypto.createHash('sha256').update(bytes).digest('hex');
-  const received = [], events = new Map(); let corrupt = false;
+  const received = [], events = new Map(); let corrupt = false, rejectUploads = false;
   const server = http.createServer(async (request, response) => {
     if (request.url === `/download/${archiveName}`) { response.end(corrupt ? Buffer.from('bad archive') : bytes); return; }
     if (request.url === '/download/checksums.txt') { response.end(`${sha}  ${archiveName}\n`); return; }
     if (request.url !== '/api/logs/v1/events') { response.writeHead(404).end(); return; }
+    if (rejectUploads) { request.resume(); response.writeHead(503).end(); return; }
     let body = ''; for await (const chunk of request) body += chunk;
     const batch = JSON.parse(body); received.push({ batch, authorization: request.headers.authorization });
     let fresh = 0, duplicates = 0;
@@ -62,14 +63,15 @@ async function fixture(t) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const id = `qa-${process.pid}-${crypto.randomUUID()}`;
-  const installDir = path.join(directory, 'installed'); const config = path.join(installDir, 'config.json');
+  const installDir = path.join(directory, "installed with 'quotes'"); const config = path.join(installDir, 'config.json');
+  const hookHome = path.join(directory, 'codex-config');
   const args = ['--endpoint', `${base}/api/logs/v1/events`, '--installation-id', id, '--source', source,
-    '--install-dir', installDir, '--release-base', `${base}/download`, '--version', collectorVersion];
+    '--install-dir', installDir, '--release-base', `${base}/download`, '--version', collectorVersion, '--codex-home', hookHome];
   t.after(async () => {
-    if (process.env.FLOWBASE_COLLECTOR_SYSTEMD_TEST === '1') await run('bash', [installer, '--uninstall', '--installation-id', id, '--install-dir', installDir]);
     await new Promise(resolve => server.close(resolve)); await fs.rm(directory, { recursive: true, force: true });
   });
-  return { directory, source, args, config, installDir, received, events, corrupt: () => { corrupt = true; } };
+  return { directory, source, args, config, installDir, hookHome, received, events,
+    corrupt: () => { corrupt = true; }, rejectUploads: value => { rejectUploads = value; } };
 }
 
 test('real native download/config/import/reinstall retains identity, checkpoint and source', async t => {
@@ -88,7 +90,7 @@ test('real native download/config/import/reinstall retains identity, checkpoint 
   assert.equal((await run(binary, ['import', '--config', f.config])).code, 0);
   assert.equal(f.events.size, 4); assert.equal(f.received.length, 1);
   assert.ok(f.received.every(item => item.authorization === `Bearer ${key}`));
-  const removed = await run('bash', [installer, '--uninstall', '--installation-id', f.args[3], '--install-dir', f.installDir]);
+  const removed = await run('bash', [installer, '--uninstall', '--installation-id', f.args[3], '--install-dir', f.installDir, '--codex-home', f.hookHome]);
   assert.equal(removed.code, 0, removed.output);
   assert.equal(await fs.readFile(config.state_path, 'utf8'), stateBefore);
   assert.ok((await fs.readFile(path.join(f.source, 'sessions/rollout.jsonl'), 'utf8')).includes('fixture question'));
@@ -129,20 +131,108 @@ test('native CLI validates byte targets and retains oversized singleton events',
   assert.equal(f.received.length, 4);
 });
 
-if (process.env.FLOWBASE_COLLECTOR_SYSTEMD_TEST === '1') {
-  test('real user systemd starts, reinstalls and removes only its proof-owned collector', async t => {
-    const f = await fixture(t); const key = 'fixture-systemd-key';
-    const env = { FLOWBASE_AGENT_LOGS_API_KEY: key };
-    const first = await run('bash', [installer, ...f.args], env);
-    assert.equal(first.code, 0, first.output);
-    const deadline = Date.now() + 15000;
-    while (f.events.size < 4 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
-    assert.equal(f.events.size, 4, 'native background collector must upload source facts');
-    const config = JSON.parse(await fs.readFile(f.config, 'utf8'));
-    const before = JSON.parse(await fs.readFile(config.state_path, 'utf8'));
-    const reinstalled = await run('bash', [installer, ...f.args], env);
-    assert.equal(reinstalled.code, 0, reinstalled.output);
-    const after = JSON.parse(await fs.readFile(config.state_path, 'utf8'));
-    assert.equal(after.source_id, before.source_id); assert.deepEqual(after.files, before.files);
-  });
+async function installHooks(f) {
+  const result = await run('bash', [installer, ...f.args], { FLOWBASE_AGENT_LOGS_API_KEY: 'fixture-hook-key' });
+  assert.equal(result.code, 0, result.output);
+  return path.join(f.installDir, 'bin/codex-logs-collector');
 }
+const input = (f, event = 'Stop', extras = {}) => JSON.stringify({
+  hook_event_name: event, session_id: 'fixture-session', turn_id: 'fixture-turn',
+  transcript_path: path.join(f.source, 'sessions/rollout.jsonl'), ...extras,
+});
+
+test('installer merges idempotent hooks, executes the quoted command and uninstalls only its handlers', async t => {
+  const f = await fixture(t);
+  await fs.mkdir(f.hookHome, { recursive: true });
+  const other = { type: 'command', command: 'printf "{}"', statusMessage: 'existing user hook' };
+  const hookPath = path.join(f.hookHome, 'hooks.json');
+  await fs.writeFile(hookPath, JSON.stringify({ description: 'keep me', hooks: { Stop: [{ hooks: [other] }] } }));
+  await fs.writeFile(path.join(f.hookHome, 'config.toml'), 'notify = ["keep-existing-notify"]\n');
+  await installHooks(f);
+  assert.equal(f.received.length, 0, 'installation must not start background collection or import all history');
+  const hooks = JSON.parse(await fs.readFile(hookPath));
+  assert.equal(hooks.description, 'keep me'); assert.deepEqual(hooks.hooks.Stop[0].hooks[0], other);
+  assert.equal(hooks.hooks.Stop.length, 2);
+  const command = hooks.hooks.Stop[1].hooks[0].command;
+  // An unrelated malformed rollout proves this handler does not scan all history.
+  await fs.writeFile(path.join(f.source, 'sessions/unrelated.jsonl'), 'not a valid rollout\n');
+  const captured = await run('bash', ['-c', command], {}, input(f));
+  assert.equal(captured.code, 0, captured.output); assert.equal(captured.output.trim(), '{}');
+  assert.equal(f.events.size, 4);
+  const before = await fs.readFile(hookPath);
+  await installHooks(f); assert.deepEqual(await fs.readFile(hookPath), before);
+  assert.equal(await fs.readFile(path.join(f.hookHome, 'config.toml'), 'utf8'), 'notify = ["keep-existing-notify"]\n');
+  const removed = await run('bash', [installer, '--uninstall', '--installation-id', f.args[3], '--install-dir', f.installDir, '--codex-home', f.hookHome]);
+  assert.equal(removed.code, 0, removed.output);
+  const retained = JSON.parse(await fs.readFile(hookPath));
+  assert.deepEqual(retained.hooks.Stop, [{ hooks: [other] }]);
+  assert.equal(retained.description, 'keep me');
+});
+
+test('Stop waits for the committed terminal record and does not upload a partial JSONL line', async t => {
+  const f = await fixture(t); const binary = await installHooks(f);
+  const file = path.join(f.source, 'sessions/rollout.jsonl');
+  const lines = (await fs.readFile(file, 'utf8')).trimEnd().split('\n');
+  await fs.writeFile(file, lines.slice(0, -1).join('\n') + '\n');
+  const pending = run(binary, ['hook', '--config', f.config], {}, input(f));
+  await new Promise(resolve => setTimeout(resolve, 250));
+  await fs.appendFile(file, lines.at(-1));
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.equal(f.events.size, 0, 'uncommitted terminal line must not be accepted');
+  await fs.appendFile(file, '\n');
+  const captured = await pending; assert.equal(captured.code, 0, captured.output);
+  assert.equal(f.events.size, 4);
+  assert.ok([...f.events.values()].some(event => event.kind === 'task_end' && event.content === 'fixture final'));
+});
+
+test('failed delivery persists across processes and a later hook retries the original source', async t => {
+  const f = await fixture(t); const binary = await installHooks(f);
+  f.rejectUploads(true);
+  const failed = await run(binary, ['hook', '--config', f.config], {}, input(f));
+  assert.equal(failed.code, 0, failed.output); assert.equal(f.events.size, 0);
+  const config = JSON.parse(await fs.readFile(f.config));
+  assert.ok((await fs.readdir(config.state_path + '.pending')).length > 0);
+  f.rejectUploads(false);
+  // A null transcript still drains pending work from an earlier event/session.
+  const recovered = await run(binary, ['hook', '--config', f.config], {}, input(f, 'SessionStart', { transcript_path: null }));
+  assert.equal(recovered.code, 0, recovered.output); assert.equal(f.events.size, 4);
+  assert.deepEqual(await fs.readdir(config.state_path + '.pending'), []);
+  assert.equal((await run(binary, ['hook', '--config', f.config], {}, input(f))).code, 0);
+  assert.equal(f.received.length, 1, 'acknowledged events are not uploaded again');
+});
+
+test('concurrent hooks preserve distinct sources, source identity and one durable checkpoint', async t => {
+  const f = await fixture(t); const binary = await installHooks(f);
+  const second = path.join(f.source, 'sessions/second.jsonl');
+  const original = await fs.readFile(path.join(f.source, 'sessions/rollout.jsonl'), 'utf8');
+  await fs.writeFile(second, original.replaceAll('fixture-session', 'second-session').replaceAll('fixture-turn', 'second-turn'));
+  const results = await Promise.all(Array.from({ length: 8 }, (_, index) => run(binary, ['hook', '--config', f.config], {},
+    input(f, 'PostToolUse', index % 2 ? { transcript_path: second, turn_id: 'second-turn' } : {}))));
+  for (const result of results) assert.equal(result.code, 0, result.output);
+  assert.equal(f.events.size, 8); assert.equal(new Set(f.received.map(item => item.batch.source_id)).size, 1);
+  const config = JSON.parse(await fs.readFile(f.config));
+  assert.equal(Object.keys(JSON.parse(await fs.readFile(config.state_path)).files).length, 2);
+  assert.deepEqual(await fs.readdir(config.state_path + '.pending'), []);
+});
+
+test('SubagentStop selects the child transcript and rejects out-of-source hook paths', async t => {
+  const f = await fixture(t); const binary = await installHooks(f);
+  const child = path.join(f.source, 'sessions/child.jsonl');
+  const original = await fs.readFile(path.join(f.source, 'sessions/rollout.jsonl'), 'utf8');
+  await fs.writeFile(child, original.replaceAll('fixture-session', 'child-session'));
+  const captured = await run(binary, ['hook', '--config', f.config], {}, input(f, 'SubagentStop', { agent_transcript_path: child }));
+  assert.equal(captured.code, 0, captured.output); assert.equal(f.events.size, 4);
+  assert.ok([...f.events.values()].every(event => event.source_session_id === 'child-session'));
+  const outside = path.join(f.directory, 'outside.jsonl'); await fs.writeFile(outside, original);
+  const rejected = await run(binary, ['hook', '--config', f.config], {}, input(f, 'Stop', { transcript_path: outside }));
+  assert.equal(rejected.code, 0, rejected.output); assert.equal(f.received.length, 1);
+});
+
+test('invalid existing hooks are retained byte for byte', async t => {
+  const f = await fixture(t);
+  await fs.mkdir(f.hookHome, { recursive: true });
+  const hookPath = path.join(f.hookHome, 'hooks.json');
+  await fs.writeFile(hookPath, 'malformed existing config');
+  const result = await run('bash', [installer, ...f.args], { FLOWBASE_AGENT_LOGS_API_KEY: 'fixture-hook-key' });
+  assert.notEqual(result.code, 0); assert.equal(await fs.readFile(hookPath, 'utf8'), 'malformed existing config');
+});

@@ -95,6 +95,13 @@ pub struct CheckpointLock {
 }
 impl CheckpointLock {
     pub fn acquire(state: &Path) -> Result<Self> {
+        Self::open(state, false)
+    }
+    /// Short-lived event handlers serialize instead of losing a concurrent trigger.
+    pub fn wait(state: &Path) -> Result<Self> {
+        Self::open(state, true)
+    }
+    fn open(state: &Path, wait: bool) -> Result<Self> {
         reject_symlink_path(state)?;
         let parent = state.parent().context("State requires parent directory")?;
         fs::create_dir_all(parent).context("Cannot create state directory")?;
@@ -110,8 +117,12 @@ impl CheckpointLock {
             options.mode(0o600);
         }
         let file = options.open(path).context("Cannot open checkpoint lock")?;
-        file.try_lock()
-            .map_err(|_| anyhow::anyhow!("Checkpoint is locked by another collector"))?;
+        if wait {
+            file.lock().context("Cannot lock collector checkpoint")?;
+        } else {
+            file.try_lock()
+                .map_err(|_| anyhow::anyhow!("Checkpoint is locked by another collector"))?;
+        }
         Ok(Self { _file: file })
     }
 }

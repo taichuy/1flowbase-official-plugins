@@ -14,18 +14,26 @@ Linux/macOS 命令结构如下，替换 endpoint 和应用 ID：
 
 ```bash
 installer="$(mktemp)"
-curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets/install.sh' -o "$installer"
-bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.2.1' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.2.1/assets'
+curl -fsSL 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.3.0/assets/install.sh' -o "$installer"
+bash "$installer" --endpoint 'https://YOUR_HOST/api/logs/v1/events' --installation-id 'YOUR_APPLICATION_ID' --version '0.3.0' --release-base 'https://YOUR_HOST/api/public/client-collectors/taichuy/codex-logs-collector/0.3.0/assets'
 rm -f "$installer"
 ```
 
-Windows 请复制页面的 PowerShell 命令。脚本参数名是 `-Endpoint`、`-InstallationId`、`-Version` 和必填 `-ReleaseBase`；使用当前用户的计划任务启动采集器。Linux 使用用户级 systemd，macOS 使用 LaunchAgent；安装后立即启动，并在此用户重启登录后恢复。
+Windows 请复制页面的 PowerShell 命令。脚本参数名是 `-Endpoint`、`-InstallationId`、`-Version` 和必填 `-ReleaseBase`。三种平台均将本应用的采集命令合并到 Codex `hooks.json`，不注册常驻进程、systemd、LaunchAgent 或计划任务。安装器保留其他 Hook 和 `notify`，配置更改前备份原 Hook 文件。`--codex-home PATH`（Windows 为 `-CodexHome`）可以指定 Hook 配置目录。
 
-Linux 没有用户级 systemd 会话时，安装器会明确报告后台启动失败。可以在有用户会话的环境重新执行，或使用 `--no-start` 配置后，在自己的进程管理器中运行原生 `watch` 命令。无需 sudo，不修改 Codex 配置或源日志。
+安装后在 Codex `/hooks` 中检查并信任新增采集命令；新命令未被信任、Hook 被关闭或客户端不支持 Hook 时不会自动采集。安装器不会绕过 Hook 信任。`--no-start` 只配置采集器并取消本安装的 Hook 注册；仍可手动 `import` 或 `flush`。无需 sudo，不修改源日志。升级成功后移除本应用原有的后台服务，保留配置、source identity 和断点。
+
+## 0.3.0：Hook 驱动采集
+
+`SessionStart`、`UserPromptSubmit`、`PostToolUse`、`Stop`、`SubagentStop`、`Interrupt` 和 `SessionEnd` 触发一次短生命周期采集。采集器从标准输入取得 `transcript_path`；子 Agent 使用 `agent_transcript_path`。每次只读取被触发的会话和之前失败的待处理会话，不轮询整个历史目录。Hook 无有效 transcript 时只重试待处理队列；配置范围外的 transcript 不采集。
+
+大部分 Hook 异步运行，输出固定为 `{}`，不向模型注入上下文或请求继续。Codex 的 Stop/Interrupt 早于轮次结束事件，短任务最多等待两秒读取已提交终态；仍未落盘时保留来源等待后续 Hook，绝不根据 Hook 文本伪造完成事件。SessionEnd 按 Codex 要求同步执行，最长三秒；超时或退出可由后续 Hook / `flush` 恢复。进程结束后不保留监听器。
+
+先持久化待处理路径，再获取断点锁；并发 Hook 串行提交，同一通知只在完整确认后移除。断网后没有定时后台重试，下次 Hook 或 `codex-logs-collector flush --config PATH` 补传。未继续使用 Codex 时，待处理记录保留在本机。首次触发某个会话会补采该会话未上传的内容；全目录历史需显式运行 `import`，安装本身不自动上传全部历史。
 
 ## 采集范围与恢复
 
-默认读取安装时的 `CODEX_HOME`，未设置时为 `~/.codex`（Windows 为用户目录中的 `.codex`），仅采集其 `sessions` 和 `archived_sessions`，包括已有历史及后续增量。可用 `--source PATH` 选择 Codex 根目录、单独的日志目录或 rollout 文件。
+来源范围默认是安装时的 `CODEX_HOME`，未设置时为 `~/.codex`（Windows 为用户目录中的 `.codex`），只允许其 `sessions` 和 `archived_sessions`。可用 `--source PATH` 选择 Codex 根目录、单独的日志目录或 rollout 文件；Hook 不能超出此范围，手动 `import` 扫描完整配置范围。
 
 采集器只上传已换行提交的 JSONL 记录。断网、HTTP 错误或不完整 ACK 不推进游标；恢复后使用相同事件 ID 重传。移动到归档目录不重新计量；修改或截断已确认源内容会拒绝继续该次采集，保留游标供诊断。没有明确轮次归属的记录等待源事实，不制造任务。
 
@@ -44,7 +52,7 @@ codex-logs-collector import --config /path/to/config.json --batch-bytes 262144
 codex-logs-collector watch --config /path/to/config.json --batch-bytes 262144
 ```
 
-`--batch-bytes` 必须为正整数，不改变配置、来源身份或事件身份；后台服务未指定时使用默认目标。等待明确轮次归属的事实通过来源字节区间与最小上下文重放，不在内存中长期积累完整事件；其扫描游标单独保存，不推进服务端已确认游标。只有来源明确提供的轮次能声明归属；工具、模型、供应商和原始事实仍取自各自记录当时的上下文。重放依赖原始日志保持可读，采集器不会删除它们。
+`--batch-bytes` 必须为正整数，不改变配置、来源身份或事件身份；Hook 未指定时使用默认目标。等待明确轮次归属的事实通过来源字节区间与最小上下文重放，不在内存中长期积累完整事件；其扫描游标单独保存，不推进服务端已确认游标。只有来源明确提供的轮次能声明归属；工具、模型、供应商和原始事实仍取自各自记录当时的上下文。重放依赖原始日志保持可读，采集器不会删除它们。
 
 从 0.1.0 升级时，在平台安装 0.2.0 分发包，再执行该版本的本地安装命令。保留原来的安装 ID、配置和 `state.json`；首次读取旧文件断点时先按旧摘要规则验证历史，再恢复解析上下文并迁移，保留 `source_id`、已确认位置和稳定事件 ID。暂时缺失的旧文件保留断点，返回后再验证迁移，不阻塞其他文件采集。旧版可执行程序不能读取新版断点；不要混用版本或删除断点来降级。既有 0.1.0 发行保持不可变，平台已保留的旧包仍按其原版本分发。
 
@@ -61,9 +69,9 @@ codex-logs-collector import --config /path/to/config.json
 codex-logs-collector watch --config /path/to/config.json
 ```
 
-已有后台采集器占用 checkpoint 时，手动 import/watch 会拒绝并发占用。先停止所属服务后再运行；进程异常退出会由操作系统释放文件锁，无需删除 checkpoint。
+`import` 一次性补采历史；`flush` 重试待处理会话；`watch` 仅作为显式手动兼容入口，安装器不会启动它。Hook 与手动采集共享断点和事件身份；手动 import/watch 遇到正在使用的断点会拒绝并发占用，Hook 会等待锁。进程异常退出由操作系统释放锁，无需删除 checkpoint。
 
-卸载时重新执行同一安装脚本，Linux/macOS 使用 `--uninstall --installation-id 应用ID`，Windows 使用 `-Uninstall -InstallationId 应用ID`。卸载停止并移除本应用采集服务及 binary，保留配置、游标和 Codex 源日志。自定义过 `--install-dir/--config` 的安装需传入相同路径。
+卸载时重新执行同一安装脚本，Linux/macOS 使用 `--uninstall --installation-id 应用ID`，Windows 使用 `-Uninstall -InstallationId 应用ID`。卸载仅移除本应用 Hook、旧采集服务及 binary，保留其他 Hook、配置、游标、待处理队列和 Codex 源日志。自定义过 `--install-dir/--config/--codex-home` 的安装需传入相同路径。
 
 ## 发布与开发
 
