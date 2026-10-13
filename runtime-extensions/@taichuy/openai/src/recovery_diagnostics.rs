@@ -36,6 +36,9 @@ pub(crate) fn close_error(frame: Option<CloseFrame>) -> anyhow::Error {
     transport_error("websocket_close", close_category(frame.as_ref()), code)
 }
 
+// A physical close (including 1008) does not establish a semantic/protocol
+// refusal. Only the known local continuation reason has a stronger meaning;
+// upstream error frames and protocol failures keep their own terminal paths.
 pub(crate) fn close_category(frame: Option<&CloseFrame>) -> &'static str {
     let code = frame.map(|frame| u16::from(frame.code));
     let reason = frame
@@ -45,8 +48,6 @@ pub(crate) fn close_category(frame: Option<&CloseFrame>) -> &'static str {
         .to_ascii_lowercase();
     if code == Some(1008) && reason.contains("upstream continuation connection is unavailable") {
         "continuation_unavailable"
-    } else if code == Some(1008) {
-        "policy_rejected"
     } else if reason.contains("upstream websocket proxy failed") {
         "proxy_failed"
     } else {

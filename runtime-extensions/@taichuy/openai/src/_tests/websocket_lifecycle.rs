@@ -1491,3 +1491,6 @@ fn native_history_total_budget_evicts_oldest_and_preserves_latest_complete_chain
         .websocket_chain_scopes_by_response_id
         .contains_key("latest"));
 }
+
+#[path = "websocket_policy_close.rs"]
+mod websocket_policy_close;

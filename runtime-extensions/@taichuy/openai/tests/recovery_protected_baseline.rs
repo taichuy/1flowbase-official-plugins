@@ -1,6 +1,6 @@
 //! Source inventory for the current recovery matrix; behavior lives in `stdio_worker.rs`.
-//! Unknown1008 now requires policy no-replay. The former full-context expectation was
-//! superseded by this contract; genuine PreviousResponseUnavailable remains covered by the FSM.
+//! Physical 1008 without a semantic refusal delegates recovery when its owner is
+//! unavailable; genuine PreviousResponseUnavailable remains covered by the FSM.
 
 const STDIO_WORKER: &str = include_str!("stdio_worker.rs");
 
@@ -14,7 +14,7 @@ fn cycle2_protected_recovery_matrix_remains_present_and_unweakened() {
         "websocket_previous_response_reconnects_instead_of_http_fallback",
         "websocket_transport_falls_back_to_sse_before_response_events",
         "websocket_transport_falls_back_to_sse_after_lifecycle_frame_without_output",
-        "websocket_unknown_1008_policy_no_replay",
+        "websocket_unknown_1008_transport_close_delegates_logical_retry",
         "websocket_proxy_failure_after_cursor_retries_without_stale_turn_state",
     ];
 
@@ -31,7 +31,7 @@ fn cycle2_protected_recovery_matrix_remains_present_and_unweakened() {
         "continuation reconnect should keep sticky turn state",
         "websocket cursor stream close should reconnect",
         "continuation should not fall back to HTTP SSE",
-        "unknown policy close must terminate without replay",
+        "unknown policy close must delegate without local replay",
         "proxy failure should reconnect without stale state",
         "provider_metadata\"][\"transport\"]",
     ] {

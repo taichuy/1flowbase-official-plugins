@@ -10,7 +10,7 @@ fn close_classification_preserves_only_safe_fixed_reason() {
         ),
         (
             "policy says https://private/?token=private",
-            "policy_rejected",
+            "transport_disconnected",
         ),
     ] {
         let error = close_error(Some(CloseFrame {
@@ -20,10 +20,10 @@ fn close_classification_preserves_only_safe_fixed_reason() {
         let diagnostic = failure(&error, Some(7), Some(3));
         assert_eq!(diagnostic["close_code"], 1008);
         assert_eq!(diagnostic["reason_category"], category);
-        if category == "policy_rejected" {
+        if category == "transport_disconnected" {
             assert_eq!(
                 diagnostic["reason"],
-                "upstream websocket closed with policy status 1008; reason redacted"
+                "websocket disconnected before response.completed"
             );
         }
         assert_eq!(diagnostic["socket_incarnation"], 7);

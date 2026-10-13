@@ -1363,7 +1363,7 @@ fn websocket_proxy_failure_after_cursor_retries_without_stale_turn_state() {
 }
 
 #[test]
-fn websocket_unknown_1008_policy_no_replay() {
+fn websocket_unknown_1008_transport_close_delegates_logical_retry() {
     let (base_url, server) = start_websocket_unknown_policy_close_server();
     let mut child = Command::new(env!("CARGO_BIN_EXE_openai-provider"))
         .stdin(Stdio::piped())
@@ -1406,7 +1406,7 @@ fn websocket_unknown_1008_policy_no_replay() {
         let line = next_json_line(&mut stdout);
         match line["type"].as_str() {
             Some("text_delta") => {
-                panic!("unknown policy close must not replay tool output: {line}")
+                panic!("physical close must not replay tool output inside this invocation: {line}")
             }
             Some("error") => {
                 observed_error = Some(line);
@@ -1415,20 +1415,20 @@ fn websocket_unknown_1008_policy_no_replay() {
             _ => {}
         }
     }
-    let error = observed_error.expect("unknown policy close must terminate without replay");
+    let error = observed_error.expect("unknown policy close must delegate without local replay");
     assert_eq!(error["error"]["kind"], "provider_transport_unavailable");
     let details = &error["error"]["provider_details"];
     let receipt = &details["1flowbase_provider_recovery"];
     assert_eq!(receipt["attempt"], 0);
-    assert_eq!(receipt["disposition"], "terminal_interruption");
-    assert_eq!(receipt["commit_level"], "terminal");
-    assert_eq!(receipt["reason"], "protocol_error");
+    assert_eq!(receipt["disposition"], "logical_invocation_retry");
+    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["reason"], "transport_disconnected");
     let diagnostics = &details["1flowbase_provider_recovery_diagnostics"];
     assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 1);
     assert_eq!(diagnostics["first_failure"], diagnostics["last_failure"]);
     assert_eq!(
         diagnostics["last_failure"]["reason_category"],
-        "policy_rejected"
+        "transport_disconnected"
     );
     assert_eq!(diagnostics["last_failure"]["kind"], "websocket_close");
     assert_eq!(diagnostics["last_failure"]["close_code"], 1008);
@@ -1438,7 +1438,7 @@ fn websocket_unknown_1008_policy_no_replay() {
     let listener = server.join().expect("server thread should finish");
     assert!(
         matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
-        "unknown1008 must not connect for full-context rebuild or fallback"
+        "unavailable connection owner must delegate without a local rebuild or fallback"
     );
     let _ = child.kill();
     let _ = child.wait();
