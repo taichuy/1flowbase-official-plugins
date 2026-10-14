@@ -5,6 +5,10 @@ Runtime extensions are executed by the host but implement provider-specific beha
 Current subtrees:
 
 - `@taichuy/<provider_code>/` for official model provider runtime extensions
+- `@taichuy/wechat-notification/` for the managed WeChat notification type.
+  The Host owns notification instance authorization, encrypted credentials and send
+  logs; the plugin owns Tencent iLink QR login and text delivery. See its bilingual
+  README for setup and the upstream conversation-window limitations.
 - `@taichuy/codex-logs-collector/` for the native **client** logs collector.
   Client collectors use `collector-manifest.json` and a dedicated `collector-release`
   pipeline. They are downloaded and executed on the user's computer, not installed
