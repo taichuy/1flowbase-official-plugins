@@ -1,0 +1,356 @@
+[
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "id": "22000000-0000-4000-8000-000000000105",
+    "provider_code": "anthropic",
+    "upstream_model_id": "claude-fable-5-1",
+    "currency_code": "USD",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "10",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "50",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.25",
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "12.5",
+    "effective_from": "2026-09-09T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "rules": [
+      {
+        "when": {
+          "cache_write_ttl_seconds": 3600
+        },
+        "overrides": {
+          "cache_write_token_unit_price": "20"
+        }
+      }
+    ],
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published"
+    }
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "id": "22000000-0000-4000-8000-000000000109",
+    "provider_code": "anthropic",
+    "upstream_model_id": "claude-haiku-5-5",
+    "currency_code": "USD",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "0.1",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "0.5",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.01",
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "0.125",
+    "effective_from": "2026-10-11T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "rules": [
+      {
+        "when": {
+          "cache_write_ttl_seconds": 3600
+        },
+        "overrides": {
+          "cache_write_token_unit_price": "0.2"
+        }
+      },
+      {
+        "when": {
+          "input_tokens": {
+            "operator": "gt",
+            "value": 100000
+          }
+        },
+        "overrides": {
+          "input_token_unit_price": "0.5",
+          "output_token_unit_price": "2.5",
+          "cache_hit_token_unit_price": "0.05",
+          "cache_write_token_unit_price": "0.625"
+        }
+      },
+      {
+        "when": {
+          "input_tokens": {
+            "operator": "gt",
+            "value": 100000
+          },
+          "cache_write_ttl_seconds": 3600
+        },
+        "overrides": {
+          "cache_write_token_unit_price": "1"
+        }
+      }
+    ],
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published",
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verified_on": "2026-10-11"
+    }
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "id": "22000000-0000-4000-8000-000000000106",
+    "provider_code": "anthropic",
+    "upstream_model_id": "claude-opus-5-5",
+    "currency_code": "USD",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "4",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "20",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.2",
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "5",
+    "effective_from": "2026-10-02T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "rules": [
+      {
+        "when": {
+          "cache_write_ttl_seconds": 3600
+        },
+        "overrides": {
+          "cache_write_token_unit_price": "8"
+        }
+      }
+    ],
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published",
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verified_on": "2026-10-02"
+    }
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "id": "22000000-0000-4000-8000-000000000108",
+    "provider_code": "anthropic",
+    "upstream_model_id": "claude-sonnet-5-5",
+    "currency_code": "USD",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "2",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "10",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.1",
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "2.5",
+    "effective_from": "2026-10-11T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "rules": [
+      {
+        "when": {
+          "cache_write_ttl_seconds": 3600
+        },
+        "overrides": {
+          "cache_write_token_unit_price": "4"
+        }
+      }
+    ],
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published",
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verified_on": "2026-10-11"
+    }
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "provider_code": "openai",
+    "upstream_model_id": "gpt-6-astra",
+    "currency_code": "USD",
+    "id": "21000000-0000-4000-8000-000000000104",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "10",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "50",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "1",
+    "effective_from": "2026-09-09T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published"
+    },
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "12.5",
+    "rules": [
+      {
+        "when": {
+          "input_tokens": {
+            "operator": "gt",
+            "value": 272000
+          }
+        },
+        "overrides": {
+          "input_token_unit_price": "20",
+          "output_token_unit_price": "75",
+          "cache_hit_token_unit_price": "2",
+          "cache_write_token_unit_price": "25"
+        }
+      }
+    ]
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "provider_code": "openai",
+    "upstream_model_id": "gpt-6-luna",
+    "currency_code": "USD",
+    "id": "21000000-0000-4000-8000-000000000106",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "0.1",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "0.5",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.01",
+    "effective_from": "2026-09-23T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published"
+    },
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "0.125",
+    "rules": [
+      {
+        "when": {
+          "input_tokens": {
+            "operator": "gt",
+            "value": 272000
+          }
+        },
+        "overrides": {
+          "input_token_unit_price": "0.2",
+          "output_token_unit_price": "0.75",
+          "cache_hit_token_unit_price": "0.02",
+          "cache_write_token_unit_price": "0.25"
+        }
+      }
+    ]
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "provider_code": "openai",
+    "upstream_model_id": "gpt-6-sol",
+    "currency_code": "USD",
+    "id": "21000000-0000-4000-8000-000000000105",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "2",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "10",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.2",
+    "effective_from": "2026-09-23T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published"
+    },
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "2.5",
+    "rules": [
+      {
+        "when": {
+          "input_tokens": {
+            "operator": "gt",
+            "value": 272000
+          }
+        },
+        "overrides": {
+          "input_token_unit_price": "4",
+          "output_token_unit_price": "15",
+          "cache_hit_token_unit_price": "0.4",
+          "cache_write_token_unit_price": "5"
+        }
+      }
+    ]
+  },
+  {
+    "schema_version": "1flowbase.model-pricing-source/v2",
+    "provider_code": "openai",
+    "upstream_model_id": "gpt-6.1-sol",
+    "currency_code": "USD",
+    "id": "21000000-0000-4000-8000-000000000107",
+    "input_token_unit_size": 1000000,
+    "input_token_unit_price": "2",
+    "output_token_unit_size": 1000000,
+    "output_token_unit_price": "10",
+    "cache_hit_token_unit_size": 1000000,
+    "cache_hit_token_unit_price": "0.1",
+    "effective_from": "2026-10-11T00:00:00Z",
+    "effective_to": null,
+    "timezone": "UTC",
+    "weekday_mask": 127,
+    "local_time_start": null,
+    "local_time_end": null,
+    "priority": 0,
+    "enabled": true,
+    "extensions": {
+      "price_type": "standard_api",
+      "source": "vendor_published",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "verified_on": "2026-10-11"
+    },
+    "cache_write_token_unit_size": 1000000,
+    "cache_write_token_unit_price": "2.5",
+    "rules": [
+      {
+        "when": {
+          "input_tokens": {
+            "operator": "gt",
+            "value": 272000
+          }
+        },
+        "overrides": {
+          "input_token_unit_price": "4",
+          "output_token_unit_price": "15",
+          "cache_hit_token_unit_price": "0.2",
+          "cache_write_token_unit_price": "5"
+        }
+      }
+    ]
+  }
+]

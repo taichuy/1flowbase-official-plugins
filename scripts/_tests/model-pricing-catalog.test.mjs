@@ -48,12 +48,20 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
   );
 });
 
-test('publishes 29 unique standard configurations and all four fallback prices', () => {
+test('publishes unique standard configurations and the explicit zero fallback', () => {
   const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
   assert.equal(rules.length, 29);
   assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 29);
   const zero = rules.find(r => r.provider_code === 'zero');
   for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
+});
+
+function historicalRules() {
+  return JSON.parse(fs.readFileSync(new URL('./fixtures/model-pricing/historical-2026-10-11.json', import.meta.url)));
+}
+
+test('preserves the historical standard, context and TTL price contracts', () => {
+  const rules = historicalRules();
   const astra = rules.find(r => r.upstream_model_id === 'gpt-6-astra');
   assert.equal(astra.id, '21000000-0000-4000-8000-000000000104');
   assert.equal(astra.priority, 0);
@@ -233,7 +241,7 @@ test('rejects old policies, malformed conditions, overrides and duplicate models
 
 
 test('Sol and Haiku price whole requests at exact input boundaries and compose Haiku TTL rules', () => {
-  const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
+  const rules = historicalRules();
   const meters = ['input', 'output', 'cache_hit', 'cache_write'];
   const rates = (model, input, ttl) => {
     const source = rules.find(r => r.upstream_model_id === model);

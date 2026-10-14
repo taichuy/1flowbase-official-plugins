@@ -1,0 +1,42 @@
+name: model-pricing-sync
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: model-pricing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Synchronize existing model prices
+        run: node scripts/model-pricing/sync.mjs
+      - name: Verify source conversion and catalog contracts
+        run: node --test scripts/model-pricing/_tests/*.test.mjs scripts/_tests/model-pricing-catalog.test.mjs scripts/_tests/convert-model-pricing-v2.test.mjs
+      - name: Verify generated catalog
+        run: node scripts/model-pricing-catalog.mjs --check
+      - name: Commit changed pricing sources and catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- model-pricing
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: sync model pricing from community catalogs"
+          git push origin HEAD:main

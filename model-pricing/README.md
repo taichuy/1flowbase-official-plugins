@@ -1,7 +1,9 @@
 # Model pricing catalog
 
+[中文说明](README.zh-CN.md)
+
 This directory is the sole upstream source for official USD model-pricing templates.
-Human-maintained sources live at `@<provider_code>/<model-key>/pricing.json`.
+Pricing sources live at `@<provider_code>/<model-key>/pricing.json`.
 The directory provider must match `provider_code`; `upstream_model_id` is authoritative.
 There is exactly one current standard configuration for each provider/model pair.
 Installed user pricing is independently owned: consumers must not overwrite manual edits.
@@ -53,3 +55,61 @@ Run `node scripts/model-pricing-catalog.mjs --check` before review. Tests:
 Signed releases use tags `model-pricing-v<catalog_version>`; the release workflow signs
 canonical aggregate `rules` bytes with Ed25519. Coding plans, credits, subscriptions,
 and unpublished prices are outside this catalog.
+
+## Hourly community price sync
+
+The `model-pricing-sync` GitHub Action runs on `main` every hour at minute 17 (UTC),
+and supports manual dispatch. It reads [Models.dev](https://models.dev/api.json) first,
+then supplements missing or invalid individual fields from the matching native provider
+in [LiteLLM](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json).
+No SDK or gateway dependency is installed; the converter uses Node.js built-ins.
+Upstream MIT notices are retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Only existing provider/model sources are updated. All four valid nonnegative rates
+must be available; otherwise the whole model is skipped without deletion or partial updates.
+An explicit zero is valid, while a missing field is never assumed to be zero or the input rate.
+Prices are converted to decimal strings in USD per 1,000,000 tokens. LiteLLM's per-token
+rates are scaled with decimal arithmetic. Provider identity is checked to avoid borrowing
+relay prices. `kimi` maps to international `moonshotai` / `moonshot`, not `moonshotai-cn`;
+`google` maps to `google` / `gemini`, and `zai` to `zai` / `z_ai`.
+Unmapped providers (including `zero/any`), disabled or non-current configurations, and
+sources with `extensions.price_sync: false` are skipped.
+
+The sync changes only the four default rates. Existing context, time-window and cache-TTL
+rules, ordering and other configuration remain intact; it neither imports nor recalculates
+conditional rules. Those rules continue to require separate review when defaults change.
+Changed configurations receive a new UUID and use the sync observation time as
+`effective_from`; this is not a claimed vendor price-change date. Their `extensions.source`
+becomes `community_pricing`, and `extensions.price_sync` records the observation time and
+source URL/provider/model/field for each meter. Previous vendor verification metadata is
+removed from changed configurations. Numerically unchanged prices retain their ID,
+timestamps, provenance and bytes, so idle runs do not create commits.
+
+On change, `catalog_version` advances and all catalog, search, seed and maintenance
+artifacts are regenerated and checked before the workflow commits to `main`. Historical
+IDs remain in maintenance state. Both upstream snapshots must download successfully;
+network/JSON/invalid-catalog errors fail the job before syncing, and transient requests
+retry at most three times with a 60-second timeout per attempt. Logs and the Action summary
+identify updated, unchanged and skipped models. Signed tagged releases remain a separate
+existing release operation; hourly sync does not create tags or signed release assets.
+
+Preview live data without writing:
+
+```bash
+node scripts/model-pricing/sync.mjs --dry-run
+```
+
+Replay previously downloaded snapshots (both files are required):
+
+```bash
+node scripts/model-pricing/sync.mjs --dry-run \
+  --models-dev-file /tmp/models-dev.json --litellm-file /tmp/litellm.json
+```
+
+Run the synchronization and catalog tests:
+
+```bash
+node --test scripts/model-pricing/_tests/*.test.mjs \
+  scripts/_tests/model-pricing-catalog.test.mjs scripts/_tests/convert-model-pricing-v2.test.mjs
+node scripts/model-pricing-catalog.mjs --check
+```
