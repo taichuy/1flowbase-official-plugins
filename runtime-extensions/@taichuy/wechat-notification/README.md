@@ -3,6 +3,8 @@
 通过腾讯 iLink Bot API 扫码授权，将文本通知发送给**扫码并确认授权的微信用户**。这是 `1flowbase.notification.send` 的正式 Rust RuntimeExtension；不需要部署其他微信服务、监听器或数据库。
 
 [English](README.en.md)
+需要提供 `notifications.instances.authorization` 接口的 Host；版本号门槛不能代替这项能力。
+
 
 ## 使用
 
