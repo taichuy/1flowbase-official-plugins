@@ -7,6 +7,9 @@ const OFFICIAL_PLUGIN_RAW_BASE_URL =
   'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main';
 
 function readField(content, fieldName, fallback = '') {
+  if (content.trimStart().startsWith('{')) {
+    return String(JSON.parse(content)[fieldName] ?? fallback);
+  }
   const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = content.match(new RegExp(`^${escapedField}:\\s*(.+)$`, 'm'));
   return match ? match[1].trim() : fallback;
@@ -18,6 +21,9 @@ function nullableField(content, fieldName) {
 }
 
 function readListField(content, fieldName) {
+  if (content.trimStart().startsWith('{')) {
+    return normalizeList(JSON.parse(content)[fieldName] ?? []);
+  }
   const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const lines = content.split(/\r?\n/);
   const fieldPattern = new RegExp(`^${escapedField}:\\s*(.*)$`);
@@ -40,6 +46,9 @@ function readListField(content, fieldName) {
 }
 
 function readRuntimeField(content, fieldName, fallback = '') {
+  if (content.trimStart().startsWith('{')) {
+    return String(JSON.parse(content).runtime?.[fieldName] ?? fallback);
+  }
   const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const lines = content.split(/\r?\n/);
   const runtimeIndex = lines.findIndex((line) => /^runtime:\s*$/.test(line));
@@ -53,6 +62,13 @@ function readRuntimeField(content, fieldName, fallback = '') {
 }
 
 function pluginTypeForSlots(slotCodes, manifest) {
+  const object = manifest.trimStart().startsWith('{') ? JSON.parse(manifest) : null;
+  if (slotCodes.length === 0 && object?.manifest_version === 2
+      && object.consumption_kind === 'runtime_extension'
+      && Array.isArray(object.notification_types) && object.notification_types.length > 0
+      && object.managed && typeof object.managed === 'object') {
+    return 'runtime_extension';
+  }
   if (slotCodes.length === 0
       && /^manifest_version:\s*2\s*$/m.test(manifest)
       && /^consumption_kind:\s*runtime_extension\s*$/m.test(manifest)
@@ -90,6 +106,10 @@ function compareText(left, right) {
 }
 
 function parseManifestMetadata(content) {
+  if (content.trimStart().startsWith('{')) {
+    const metadata = JSON.parse(content).metadata;
+    return { label: metadata?.label ?? {}, description: metadata?.description ?? {} };
+  }
   const lines = content.split(/\r?\n/);
   const metadata = {
     label: {},

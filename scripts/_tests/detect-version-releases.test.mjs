@@ -52,6 +52,19 @@ test('empty managed notification declaration does not become a publishable provi
   assert.deepEqual(releases, []);
 });
 
+test('managed notification JSON manifest uses its real version and empty slots', () => {
+  const manifest = JSON.stringify({
+    manifest_version: 2, version: '1.0.0', consumption_kind: 'runtime_extension',
+    slot_codes: [], notification_types: [{ type_code: '1flowbase/wechat-notification/private' }],
+    managed: { module: {} },
+  });
+  const change = { path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml', afterContent: manifest };
+  assert.equal(detectVersionReleases([change])[0].version, '1.0.0');
+  assert.throws(() => detectVersionReleases([{ ...change, beforeContent: manifest }]), /version_bump_required/);
+  const empty = JSON.stringify({ ...JSON.parse(manifest), notification_types: [] });
+  assert.deepEqual(detectVersionReleases([{ ...change, afterContent: empty }]), []);
+});
+
 test('publisher cutover releases keep an explicit publisher namespace', () => {
   const providerCodes = [
     'aliyun_bailian',

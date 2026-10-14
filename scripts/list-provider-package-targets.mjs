@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(import.meta.dirname, '..');
 
 function readManifestField(content, fieldName, fallback = '') {
+  if (content.trimStart().startsWith('{')) {
+    return String(JSON.parse(content)[fieldName] ?? fallback);
+  }
   const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = content.match(new RegExp(`^${escapedField}:\\s*(.+)$`, 'm'));
   return match ? match[1].trim() : fallback;
@@ -29,6 +32,9 @@ function readRuntimeLines(content) {
 }
 
 function readRuntimeEntry(content) {
+  if (content.trimStart().startsWith('{')) {
+    return JSON.parse(content).runtime?.entry ?? '';
+  }
   for (const line of readRuntimeLines(content)) {
     const match = line.match(/^  entry:\s*(.+)\s*$/);
     if (match) {
@@ -40,6 +46,9 @@ function readRuntimeEntry(content) {
 }
 
 function readRuntimeExecutablePath(content) {
+  if (content.trimStart().startsWith('{')) {
+    return JSON.parse(content).runtime?.executable?.path ?? '';
+  }
   let insideExecutable = false;
 
   for (const line of readRuntimeLines(content)) {

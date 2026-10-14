@@ -17,12 +17,18 @@ export function parseManifestVersion(content) {
   if (!content) {
     return '';
   }
+  if (content.trimStart().startsWith('{')) {
+    return JSON.parse(content).version || '';
+  }
 
   const match = content.match(/^version:\s*(.+)$/m);
   return match ? match[1].trim() : '';
 }
 
 function parseManifestSlotCodes(content) {
+  if (content.trimStart().startsWith('{')) {
+    return JSON.parse(content).slot_codes ?? null;
+  }
   const lines = content.split(/\r?\n/);
   const fieldIndex = lines.findIndex((line) => /^slot_codes:\s*/.test(line));
   if (fieldIndex < 0) return null;
@@ -49,6 +55,13 @@ function isPublishableRuntimeManifest(content) {
   // Managed notification contributors are runtime extensions without a provider slot.
   // Their existing managed binding, rather than a synthetic model-provider slot,
   // supplies the execution contract.
+  const manifest = content.trimStart().startsWith('{') ? JSON.parse(content) : null;
+  if (manifest?.manifest_version === 2
+      && manifest.consumption_kind === 'runtime_extension'
+      && Array.isArray(manifest.notification_types) && manifest.notification_types.length > 0
+      && manifest.managed && typeof manifest.managed === 'object') {
+    return true;
+  }
   if (/^manifest_version:\s*2\s*$/m.test(content)
       && /^consumption_kind:\s*runtime_extension\s*$/m.test(content)
       && /^notification_types:\s*\n\s+-\s/m.test(content)

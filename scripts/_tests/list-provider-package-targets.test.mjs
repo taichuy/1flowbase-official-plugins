@@ -78,6 +78,27 @@ function writeManifestV2(root, providerCode, executablePath) {
   return pluginDir;
 }
 
+test('JSON managed notification packages preserve manifest runtime binary and release identity', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'notification-package-target-'));
+  const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', 'wechat-notification');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginDir, 'manifest.yaml'), JSON.stringify({
+    manifest_version: 2, plugin_id: 'wechat-notification', version: '1.0.0',
+    vendor: '1flowbase', slot_codes: [], consumption_kind: 'runtime_extension',
+    notification_types: [{ type_code: '1flowbase/wechat-notification/private' }],
+    runtime: { protocol: 'stdio_json_multiplex_v1', entry: 'bin/wechat-notification' },
+  }));
+  assert.deepEqual(readProviderPackageTarget(pluginDir, root, { rustTargetTriple: 'x86_64-pc-windows-msvc' }), {
+    provider_code: 'wechat-notification', plugin_dir: 'runtime-extensions/@taichuy/wechat-notification',
+    binary_name: 'wechat-notification', runtime_binary_name: 'wechat-notification.exe',
+  });
+  assert.deepEqual(listProviderReleaseTargets(root), [{
+    asset_plugin_code: 'wechat-notification', asset_vendor: '1flowbase',
+    plugin_dir: 'runtime-extensions/@taichuy/wechat-notification', provider_code: 'wechat-notification',
+    release_tag: 'wechat-notification-v1.0.0', version: '1.0.0',
+  }]);
+});
+
 test('listProviderPackageTargets supports manifest v1 stable plugin_id and basename fallback', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-targets-'));
   writeManifestV1(root, 'alpha_provider', {
