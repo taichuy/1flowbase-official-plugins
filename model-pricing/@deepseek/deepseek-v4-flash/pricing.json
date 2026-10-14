@@ -3,14 +3,14 @@
   "provider_code": "deepseek",
   "upstream_model_id": "deepseek-v4-flash",
   "currency_code": "USD",
-  "id": "24000000-0000-4000-8000-000000000001",
+  "id": "40a6052e-11da-4993-b080-c8997ab3b57f",
   "input_token_unit_size": 1000000,
   "input_token_unit_price": "0.15",
   "output_token_unit_size": 1000000,
   "output_token_unit_price": "0.6",
   "cache_hit_token_unit_size": 1000000,
   "cache_hit_token_unit_price": "0.003",
-  "effective_from": "2026-09-10T04:00:00Z",
+  "effective_from": "2026-10-14T04:54:44.855Z",
   "effective_to": null,
   "timezone": "UTC",
   "weekday_mask": 127,
@@ -20,10 +20,43 @@
   "enabled": true,
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-14T04:54:44.855Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      }
+    }
   },
   "cache_write_token_unit_size": 1000000,
-  "cache_write_token_unit_price": "0.15",
+  "cache_write_token_unit_price": "0",
   "rules": [
     {
       "when": {

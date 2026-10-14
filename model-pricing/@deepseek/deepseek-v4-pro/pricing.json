@@ -3,14 +3,14 @@
   "provider_code": "deepseek",
   "upstream_model_id": "deepseek-v4-pro",
   "currency_code": "USD",
-  "id": "24000000-0000-4000-8000-000000000006",
+  "id": "8987964e-b290-4303-adc3-aad44c92aa26",
   "input_token_unit_size": 1000000,
   "input_token_unit_price": "0.66",
   "output_token_unit_size": 1000000,
   "output_token_unit_price": "1.98",
   "cache_hit_token_unit_size": 1000000,
   "cache_hit_token_unit_price": "0.022",
-  "effective_from": "2026-08-16T16:00:00Z",
+  "effective_from": "2026-10-14T04:54:44.855Z",
   "effective_to": null,
   "timezone": "UTC",
   "weekday_mask": 127,
@@ -20,10 +20,43 @@
   "enabled": true,
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-14T04:54:44.855Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "deepseek",
+          "model": "deepseek-v4-pro",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "deepseek",
+          "model": "deepseek-v4-pro",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "deepseek",
+          "model": "deepseek-v4-pro",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "deepseek",
+          "model": "deepseek-v4-pro",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      }
+    }
   },
   "cache_write_token_unit_size": 1000000,
-  "cache_write_token_unit_price": "0.66",
+  "cache_write_token_unit_price": "0",
   "rules": [
     {
       "when": {
