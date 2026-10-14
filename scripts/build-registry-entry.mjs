@@ -52,7 +52,14 @@ function readRuntimeField(content, fieldName, fallback = '') {
   return fallback;
 }
 
-function pluginTypeForSlots(slotCodes) {
+function pluginTypeForSlots(slotCodes, manifest) {
+  if (slotCodes.length === 0
+      && /^manifest_version:\s*2\s*$/m.test(manifest)
+      && /^consumption_kind:\s*runtime_extension\s*$/m.test(manifest)
+      && /^notification_types:\s*\n\s+-\s/m.test(manifest)
+      && /^managed:\s*$/m.test(manifest)) {
+    return 'runtime_extension';
+  }
   if (slotCodes.length === 0) {
     return 'model_provider';
   }
@@ -276,12 +283,12 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     throw new Error('manifest publisher_namespace must be a non-empty string');
   }
   const slotCodes = readListField(manifest, 'slot_codes');
-  const pluginType = pluginTypeForSlots(slotCodes);
+  const pluginType = pluginTypeForSlots(slotCodes, manifest);
   const manifestMetadata = parseManifestMetadata(manifest);
   const icon = resolveRegistryIcon(pluginDir, readField(manifest, 'icon', ''));
   const providerPath = path.join(pluginDir, 'provider', `${providerCode}.yaml`);
   const providerYaml = fs.existsSync(providerPath) ? fs.readFileSync(providerPath, 'utf8') : '';
-  if (pluginType !== 'provider_distribution_rule' && !providerYaml) {
+  if (!['provider_distribution_rule', 'runtime_extension'].includes(pluginType) && !providerYaml) {
     throw new Error(`${pluginType} registry metadata requires provider/${providerCode}.yaml`);
   }
   const i18nSummary = applyManifestMetadataToI18nSummary(
@@ -311,7 +318,7 @@ export function buildRegistryEntry({ pluginDir, providerCode, version, artifacts
     model_discovery_mode: readField(
       providerYaml,
       'model_discovery',
-      pluginType === 'provider_distribution_rule' ? 'not_applicable' : 'hybrid'
+      ['provider_distribution_rule', 'runtime_extension'].includes(pluginType) ? 'not_applicable' : 'hybrid'
     ),
     i18n_summary: i18nSummary,
     artifacts: [...(Array.isArray(artifacts) ? artifacts : [])]

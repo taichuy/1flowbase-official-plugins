@@ -7,6 +7,51 @@ import { detectVersionReleases } from '../detect-version-releases.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 
+const notificationManifest = (version) => `manifest_version: 2
+plugin_id: wechat-notification
+version: ${version}
+consumption_kind: runtime_extension
+slot_codes: []
+notification_types:
+  - type_code: 1flowbase/wechat-notification/private
+managed:
+  module: {}
+`;
+
+test('managed notification runtime releases without a model provider slot', () => {
+  const releases = detectVersionReleases([{
+    path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml',
+    beforeContent: '',
+    afterContent: notificationManifest('1.0.0'),
+  }]);
+  assert.deepEqual(releases, [{
+    plugin_dir: 'runtime-extensions/@taichuy/wechat-notification',
+    provider_code: 'wechat-notification',
+    release_tag: 'wechat-notification-v1.0.0',
+    version: '1.0.0',
+  }]);
+});
+
+test('managed notification implementation changes require a version bump', () => {
+  assert.throws(() => detectVersionReleases([
+    { path: 'runtime-extensions/@taichuy/wechat-notification/src/lib.rs' },
+    {
+      path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml',
+      beforeContent: notificationManifest('1.0.0'),
+      afterContent: notificationManifest('1.0.0'),
+    },
+  ]), /provider_version_bump_required/);
+});
+
+test('empty managed notification declaration does not become a publishable provider', () => {
+  const releases = detectVersionReleases([{
+    path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml',
+    beforeContent: '',
+    afterContent: notificationManifest('1.0.0').replace(/notification_types:\n  - .+/, 'notification_types: []'),
+  }]);
+  assert.deepEqual(releases, []);
+});
+
 test('publisher cutover releases keep an explicit publisher namespace', () => {
   const providerCodes = [
     'aliyun_bailian',

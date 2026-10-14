@@ -46,6 +46,15 @@ function parseManifestSlotCodes(content) {
 }
 
 function isPublishableRuntimeManifest(content) {
+  // Managed notification contributors are runtime extensions without a provider slot.
+  // Their existing managed binding, rather than a synthetic model-provider slot,
+  // supplies the execution contract.
+  if (/^manifest_version:\s*2\s*$/m.test(content)
+      && /^consumption_kind:\s*runtime_extension\s*$/m.test(content)
+      && /^notification_types:\s*\n\s+-\s/m.test(content)
+      && /^managed:\s*$/m.test(content)) {
+    return true;
+  }
   const slotCodes = parseManifestSlotCodes(content);
   return slotCodes === null || slotCodes.some((slotCode) =>
     ['model_provider', 'network_egress_provider', 'provider_distribution_rule'].includes(slotCode)

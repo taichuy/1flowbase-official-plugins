@@ -8,6 +8,35 @@ import { buildRegistryEntry } from '../build-registry-entry.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 
+test('managed notifications retain runtime identity without model metadata', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'notification-registry-entry-'));
+  writeFileSync(path.join(root, 'manifest.yaml'), `manifest_version: 2
+plugin_id: wechat-notification
+publisher_namespace: 1flowbase
+version: 1.0.0
+display_name: WeChat notifications
+consumption_kind: runtime_extension
+slot_codes: []
+contract_version: 1flowbase.extension-bus/v1
+notification_types:
+  - type_code: 1flowbase/wechat-notification/private
+managed:
+  module: {}
+runtime:
+  protocol: stdio_json
+  entry: bin/wechat-notification
+`);
+  const entry = buildRegistryEntry({
+    pluginDir: root, providerCode: 'wechat-notification', version: '1.0.0',
+    repositoryRoot: root, artifacts: [],
+  });
+  assert.equal(entry.plugin_type, 'runtime_extension');
+  assert.equal(entry.plugin_id, '1flowbase.wechat-notification');
+  assert.equal(entry.protocol, 'stdio_json');
+  assert.equal(entry.model_discovery_mode, 'not_applicable');
+  assert.deepEqual(entry.slot_codes, []);
+});
+
 test('buildRegistryEntry emits plugin_type, minimum_host_version and i18n_summary', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'official-registry-entry-'));
   mkdirSync(path.join(root, 'provider'), { recursive: true });
