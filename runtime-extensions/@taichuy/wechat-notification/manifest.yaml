@@ -1,0 +1,153 @@
+{
+  "manifest_version": 2,
+  "schema_version": "1flowbase.plugin.manifest/v2",
+  "plugin_id": "wechat-notification",
+  "version": "1.0.0",
+  "publisher_namespace": "1flowbase",
+  "vendor": "1flowbase",
+  "display_name": "WeChat private notifications",
+  "description": "Send text to the WeChat user who authorized this instance with a Tencent iLink QR code",
+  "source_kind": "official_registry",
+  "trust_level": "verified_official",
+  "consumption_kind": "runtime_extension",
+  "execution_mode": "process_per_call",
+  "slot_codes": [],
+  "binding_targets": [
+    "workspace"
+  ],
+  "selection_mode": "assignment_then_select",
+  "minimum_host_version": "0.4.1",
+  "contract_version": "1flowbase.extension-bus/v1",
+  "permissions": {
+    "network": "outbound_only",
+    "secrets": "host_managed",
+    "storage": "none",
+    "mcp": "none",
+    "subprocess": "deny"
+  },
+  "runtime": {
+    "protocol": "stdio_json_multiplex_v1",
+    "entry": "bin/wechat-notification"
+  },
+  "notification_types": [
+    {
+      "type_code": "1flowbase/wechat-notification/private",
+      "display_name": "WeChat private text",
+      "description": "Provider-accepted private text to the authorizing WeChat user",
+      "contribution_id": "1flowbase.wechat-notification.send",
+      "config_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "config_form": {
+        "schema_version": "1.0.0",
+        "fields": []
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "input_form": {
+        "schema_version": "1.0.0",
+        "fields": [
+          {
+            "key": "text",
+            "label": "Text",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          },
+          "delivery_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "accepted",
+          "delivery_id"
+        ],
+        "additionalProperties": false
+      },
+      "authorization": {
+        "actions": [
+          {
+            "code": "qr",
+            "label": "Scan with WeChat",
+            "kind": "qr_code"
+          }
+        ],
+        "managed_secret_keys": [
+          "qr_credential",
+          "qr_code_url",
+          "qr_base_url",
+          "bot_token",
+          "bot_id",
+          "base_url",
+          "bound_user_id",
+          "cursor",
+          "context_token",
+          "authorization_invalid"
+        ]
+      }
+    }
+  ],
+  "managed": {
+    "module": {
+      "bus_version": "v1",
+      "module_id": "wechat-notification",
+      "module_version": "1.0.0",
+      "module_kind": "runtime",
+      "contributions": [
+        {
+          "contribution_id": "1flowbase.wechat-notification.send",
+          "contributor_module_id": "wechat-notification",
+          "point_id": "1flowbase.notification.send",
+          "contract_version": "1flowbase.notification/v1",
+          "required_permissions": [
+            "notification.send"
+          ],
+          "mode": "append"
+        }
+      ]
+    },
+    "execution_bindings": [
+      {
+        "contribution_id": "1flowbase.wechat-notification.send",
+        "execution_mode": "process_per_call",
+        "runtime": {
+          "protocol": "stdio_json_multiplex_v1",
+          "entry": "bin/wechat-notification"
+        },
+        "handler": "send",
+        "payload": {
+          "kind": "notification_type",
+          "type_code": "1flowbase/wechat-notification/private"
+        }
+      }
+    ]
+  },
+  "keywords": [
+    "wechat",
+    "weixin",
+    "notification",
+    "ilink"
+  ]
+}
