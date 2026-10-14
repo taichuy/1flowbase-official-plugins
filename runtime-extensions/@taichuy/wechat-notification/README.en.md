@@ -4,6 +4,8 @@ Authorize with a Tencent iLink QR code and send text notifications to **the WeCh
 
 [简体中文](README.md)
 
+The Host must provide `notifications.instances.authorization`; the version floor does not replace this capability requirement.
+
 ## Use
 
 1. Install `1flowbase/wechat-notification` from the official runtime catalog, assign it to the workspace, and grant the contribution `notification.send`.
