@@ -500,7 +500,7 @@ async fn run(
 }
 pub fn descriptor() -> NotificationTypeDescriptor {
     let manifest: Value =
-        serde_json::from_str(include_str!("../manifest.yaml")).expect("compiled manifest");
+        serde_yaml::from_str(include_str!("../manifest.yaml")).expect("compiled manifest");
     serde_json::from_value(manifest["notification_types"][0].clone()).expect("compiled descriptor")
 }
 pub async fn dispatch(client: &HttpClient, request: Value) -> Value {
