@@ -67,10 +67,15 @@ impl CloseLedger {
 
     pub fn prune(&mut self, now: Instant) {
         self.entries.retain(|_, entry| {
-            entry.active || now.saturating_duration_since(entry.released_at) < RETENTION
+            // Resource release is not lifecycle completion. HTTP-only and
+            // autonomously released generations still owe the Host a receipt;
+            // retain them until complete_with_reason hands that receipt back.
+            // Only completed receipts use the duplicate-control retention TTL.
+            entry.completed.is_none()
+                || now.saturating_duration_since(entry.released_at) < RETENTION
         });
     }
-    /// Reserve evidence capacity before attempting a handshake. No active evidence is evicted.
+    /// Reserve evidence before dispatch. Unhanded evidence is never evicted.
     pub fn reserve(&mut self, identity: CloseIdentity, now: Instant) -> Result<()> {
         self.prune(now);
         if let Some(entry) = self.entries.get_mut(&identity) {

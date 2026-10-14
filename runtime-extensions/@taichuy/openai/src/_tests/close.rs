@@ -18,6 +18,145 @@ fn command(identity: &CloseIdentity) -> TransportSessionCommand {
 }
 
 #[test]
+fn unhanded_release_evidence_survives_idle_until_host_handoff() {
+    for had_socket in [false, true] {
+        let now = Instant::now();
+        let id = identity("idle-handoff", 1);
+        let mut ledger = CloseLedger::default();
+        ledger.reserve(id.clone(), now).unwrap();
+        if had_socket {
+            ledger.activated(&id);
+            ledger.released(&id, Some(NoAckReason::Timeout), Duration::from_secs(2), now);
+        }
+        // A released socket and an HTTP-only generation both still owe the Host
+        // a receipt. Its idle lease is longer than duplicate-receipt retention.
+        let close_at = now + Duration::from_secs(91);
+        ledger.prune(close_at);
+        let receipt = ledger
+            .complete(&id, &command(&id), close_at)
+            .expect("unhanded evidence must survive until Host close");
+        assert!(receipt.closure_evidence.as_ref().unwrap().local_released);
+        assert_eq!(receipt.close_acknowledged, had_socket.then_some(false));
+        assert_eq!(
+            ledger.complete(&id, &command(&id), close_at),
+            Some(receipt.clone())
+        );
+        // Retention starts at handoff, not at resource release/reservation.
+        ledger.prune(close_at + RETENTION - Duration::from_millis(1));
+        assert_eq!(ledger.completed(&id), Some(receipt));
+        ledger.prune(close_at + RETENTION);
+        assert!(ledger.completed(&id).is_none());
+    }
+}
+
+#[derive(Debug)]
+struct HandoffClock(Instant);
+
+impl WebsocketClock for HandoffClock {
+    fn now(&self) -> Instant {
+        self.0
+    }
+}
+
+#[tokio::test]
+async fn successful_http_sse_idle_handoff_allows_next_generation() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let upstream = tokio::spawn(async move {
+        for generation in 1..=2 {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            loop {
+                let len = stream.read(&mut chunk).await.unwrap();
+                assert!(len > 0);
+                request.extend_from_slice(&chunk[..len]);
+                if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                    let headers = String::from_utf8_lossy(&request[..end]);
+                    let length: usize = headers
+                        .lines()
+                        .find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse().unwrap())
+                        })
+                        .unwrap();
+                    if request.len() >= end + 4 + length {
+                        break;
+                    }
+                }
+            }
+            let body = format!(
+                "data: {}\n\n",
+                json!({"type":"response.completed","response":{
+                    "id":format!("response-{generation}"),"status":"completed","output":[]
+                }})
+            );
+            stream.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+        }
+    });
+    let now = Instant::now();
+    let mut runtime = OpenAiProviderRuntime::default();
+    runtime.websocket_clock = Arc::new(HandoffClock(now));
+    for generation in 1..=2 {
+        let id = identity("http-idle", generation);
+        let input = ProviderInvocationInput {
+            provider_instance_id: "fixture".into(),
+            provider_code: "openai".into(),
+            protocol: "openai_responses".into(),
+            model: "fixture-model".into(),
+            provider_config: json!({"base_url":base,"api_key":"fixture","transport_mode":"http_sse"}),
+            messages: vec![ProviderMessage {
+                role: ProviderMessageRole::User,
+                content: "hello".into(),
+                content_blocks: None,
+                name: None,
+                tool_call_id: None,
+                is_error: None,
+                tool_calls: None,
+            }],
+            run_context: BTreeMap::from([(
+                TRANSPORT_SESSION_CONTEXT_KEY.into(),
+                json!({
+                    "logical_session_id":id.logical_session_id,"generation":generation,
+                    "worker_incarnation":id.worker_incarnation,"task_id":"fixture-task",
+                    "state":"active","physical_deadline_unix_ms":close::unix_time_ms()+3_600_000
+                }),
+            )]),
+            ..Default::default()
+        };
+        let result = runtime.invoke_response(input).await.unwrap();
+        assert_eq!(
+            result.result.response_id.as_deref(),
+            Some(format!("response-{generation}").as_str())
+        );
+        assert!(runtime.websocket_sessions.is_empty());
+        runtime.websocket_clock =
+            Arc::new(HandoffClock(now + Duration::from_secs(91 * generation)));
+        let receipt = runtime
+            .control_transport_session(command(&id))
+            .await
+            .unwrap();
+        assert_eq!(receipt.physical_state, PhysicalTransportState::Closed);
+        assert!(receipt.closure_evidence.as_ref().unwrap().local_released);
+        assert_eq!(
+            receipt.close_acknowledged, None,
+            "HTTP must not invent a WebSocket ACK"
+        );
+        assert_eq!(
+            runtime
+                .control_transport_session(command(&id))
+                .await
+                .unwrap(),
+            receipt
+        );
+    }
+    upstream.await.unwrap();
+}
+
+#[test]
 fn closure_retention_pins_active_records_and_refuses_capacity_without_eviction() {
     let now = Instant::now();
     let mut ledger = CloseLedger::default();
