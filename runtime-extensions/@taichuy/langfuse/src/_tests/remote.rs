@@ -16,7 +16,7 @@ pub(crate) fn queue_ack() -> Value {
             }
         },
         "opts":{"attempts":3,"backoff":{"type":"exponential","delay":5000},"removeOnComplete":true},
-        "progress":0, "returnvalue":null, "stacktrace":[], "priority":0,
+        "progress":0, "returnvalue":null, "stacktrace":null, "priority":0,
         "attemptsStarted":0, "attemptsMade":0, "stalledCounter":0,
         "timestamp":1792058400125u64, "queueQualifiedName":"bull:otel-ingestion-queue"
     })
@@ -24,7 +24,11 @@ pub(crate) fn queue_ack() -> Value {
 
 #[test]
 fn nonempty_queue_acceptance_requires_complete_positive_vendor_receipt() {
+    // Actual saved nonempty HTTP200 response has stacktrace:null, not [].
     assert!(validate_ack(&queue_ack()).is_ok());
+    let mut empty_trace = queue_ack();
+    empty_trace["stacktrace"] = json!([]);
+    assert!(validate_ack(&empty_trace).is_ok());
     let mut shard = queue_ack();
     shard["queueQualifiedName"] = json!("bull:otel-ingestion-queue-2");
     assert!(validate_ack(&shard).is_ok());
@@ -52,6 +56,7 @@ fn nonempty_queue_acceptance_requires_complete_positive_vendor_receipt() {
         ("/progress", json!("partial")),
         ("/returnvalue", json!({"error":"failed"})),
         ("/stacktrace", json!(["private error body"])),
+        ("/stacktrace", json!("invalid diagnostic")),
         ("/attemptsMade", json!(1)),
     ] {
         let mut ack = queue_ack();

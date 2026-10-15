@@ -374,7 +374,10 @@ fn validate_queue_ack(ack: &Value) -> Result<()> {
         || !ack["timestamp"].as_u64().is_some_and(|time| time > 0)
         || ack["progress"] != 0
         || ack.get("returnvalue") != Some(&Value::Null)
-        || !ack["stacktrace"].as_array().is_some_and(Vec::is_empty)
+        || !ack.get("stacktrace").is_some_and(|trace| {
+            // A freshly queued Bull job serializes this diagnostic as null.
+            trace.is_null() || trace.as_array().is_some_and(Vec::is_empty)
+        })
         || ["attemptsMade", "attemptsStarted", "stalledCounter"]
             .iter()
             .any(|key| ack[*key] != 0)
