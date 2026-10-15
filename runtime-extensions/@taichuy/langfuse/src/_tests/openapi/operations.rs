@@ -120,7 +120,7 @@ async fn json_body_including_null_and_all_upstream_statuses_headers_and_raw_byte
         json!({"name":"Queue 世界","nested":[1,true,null]}),
         Value::Null,
     ] {
-        for status in [200, 404, 500] {
+        for status in [200, 403, 404, 429, 500] {
             let upstream = json!({"error":{"code":"upstream_error","extension":{"raw":true}}});
             let mut fixture = Fixture {
                 upstream: json_response(status, upstream.clone()),
