@@ -40,7 +40,7 @@ Production starts at `https://ilinkai.weixin.qq.com`. Provider base URLs and QR 
 
 ## Build and verification entry points
 
-The Host SDK is pinned to revision `073c3e293dd7b8e9fb0e009d4e7464db68ea61e6`. `execute_authorizable_notification` validates the typed input/result; `serve` owns the shared dispatcher. The extension implements no independent stdio protocol. The manifest binary path is `bin/wechat-notification`.
+The Host SDK is pinned to revision `dc2aa7cad430fe211746ac5506e83dfd6a40cb68`. `execute_authorizable_notification` validates the typed input/result; `serve` owns the shared dispatcher. The extension implements no independent stdio protocol. The manifest binary path is `bin/wechat-notification`.
 
 ```bash
 cargo test --manifest-path runtime-extensions/@taichuy/wechat-notification/Cargo.toml
