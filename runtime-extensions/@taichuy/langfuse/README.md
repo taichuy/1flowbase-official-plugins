@@ -1,6 +1,6 @@
 # Langfuse 受管连接器
 
-公开 Apache-2.0 运行时插件，版本 **0.1.1**，发布者 `1flowbase`。
+公开 Apache-2.0 运行时插件，版本 **0.1.2**，发布者 `1flowbase`。
 插件拥有 Langfuse API、Basic 认证、分页、metadata 映射和设置页；不包含私有商业插件源码或资产。
 [English documentation](README.en.md)
 

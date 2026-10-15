@@ -1,6 +1,6 @@
 # Langfuse managed connector
 
-Public Apache-2.0-licensed runtime extension, version **0.1.1**, publisher `1flowbase`.
+Public Apache-2.0-licensed runtime extension, version **0.1.2**, publisher `1flowbase`.
 This package owns Langfuse's API, Basic authentication, pagination, metadata and
 settings page. It contains no private commercial plugin source or assets.
 
