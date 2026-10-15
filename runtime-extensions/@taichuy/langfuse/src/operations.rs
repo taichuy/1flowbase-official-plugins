@@ -15,6 +15,7 @@ struct Query {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Export {
+    instance_id: Option<String>,
     application_id: String,
     record_ids: Option<Vec<String>>,
     log_conversation_ids: Option<Vec<String>>,
@@ -24,6 +25,7 @@ struct Export {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Import {
+    instance_id: Option<String>,
     application_id: String,
     trace_ids: Option<Vec<String>>,
     started_at_from: Option<String>,
@@ -76,11 +78,34 @@ fn partial<T: Serialize>(mut error: Failure, receipt: &T) -> Failure {
     error.details = Some(json!({"progress":receipt,"cause_details":error.details}));
     error
 }
-pub(crate) async fn execute(host: &Host, handler: &str, body: Value) -> Result<Value> {
+pub(crate) async fn execute(host: &Host, handler: &str, payload: Value) -> Result<Value> {
+    let body = payload.get("body").cloned().unwrap_or_else(|| json!({}));
+    let id = || {
+        payload
+            .pointer("/path/instance_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| fail("langfuse_instance_id"))
+    };
     match handler {
+        "instances_list" => {
+            config::list(
+                host,
+                payload.get("query").cloned().unwrap_or_else(|| json!({})),
+            )
+            .await
+        }
+        "instances_create" => config::create(host, body).await,
+        "instances_update" => config::update(host, id()?, body).await,
+        "instances_delete" => config::delete(host, id()?).await,
+        "instances_test" => remote::Remote::new(host, id()?).await?.test().await,
         "config_get" => config::read(host).await,
         "config_put" => config::save(host, body).await,
-        "test" => remote::Remote::new(host).await?.test().await,
+        "test" => {
+            remote::Remote::new(host, config::DEFAULT)
+                .await?
+                .test()
+                .await
+        }
         "applications" => match host
             .logs(ApplicationLogsRequest::ListApplications {
                 application_types: vec!["agent_flow".into(), "agent_logs".into()],
@@ -171,7 +196,11 @@ async fn export(host: &Host, request: Export) -> Result<Value> {
         }
         _ => return Err(fail("langfuse_selector")),
     }
-    let remote = remote::Remote::new(host).await?;
+    let remote = remote::Remote::new(
+        host,
+        request.instance_id.as_deref().unwrap_or(config::DEFAULT),
+    )
+    .await?;
     let mut receipt = ExportReceipt::default();
     let mut exported_records = BTreeSet::new();
     for (record_ids, log_conversation_ids) in selectors {
@@ -225,7 +254,11 @@ async fn import(host: &Host, request: Import) -> Result<Value> {
         }
         _ => return Err(fail("langfuse_target_agent_logs_required")),
     }
-    let remote = remote::Remote::new(host).await?;
+    let remote = remote::Remote::new(
+        host,
+        request.instance_id.as_deref().unwrap_or(config::DEFAULT),
+    )
+    .await?;
     let traces = match (
         request.trace_ids,
         request.started_at_from,

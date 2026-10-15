@@ -70,8 +70,7 @@ pub async fn dispatch(request: Value, emitter: MultiplexEmitter) -> Value {
         let request: Invocation =
             serde_json::from_value(request).map_err(|_| fail("invalid_invocation"))?;
         let payload = request.input.input_payload;
-        let body = payload.get("body").cloned().unwrap_or_else(|| json!({}));
-        operations::execute(&Host { emitter }, &request.input.handler, body).await
+        operations::execute(&Host { emitter }, &request.input.handler, payload).await
     }
     .await;
     let output = match result {
@@ -89,3 +88,7 @@ mod remote_tests;
 #[cfg(test)]
 #[path = "_tests/workflow.rs"]
 mod workflow_tests;
+
+#[cfg(test)]
+#[path = "_tests/instances.rs"]
+mod instances_tests;

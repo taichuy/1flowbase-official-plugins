@@ -6,7 +6,13 @@ use runtime_extension_sdk::{
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-async fn invoke<F>(handler: &str, body: Value, mut callback: F) -> Value
+pub(crate) async fn invoke<F>(handler: &str, body: Value, callback: F) -> Value
+where
+    F: FnMut(MultiplexHostService, Value) -> Value,
+{
+    invoke_payload(handler, json!({"path":{},"query":{},"body":body}), callback).await
+}
+pub(crate) async fn invoke_payload<F>(handler: &str, payload: Value, mut callback: F) -> Value
 where
     F: FnMut(MultiplexHostService, Value) -> Value,
 {
@@ -16,7 +22,7 @@ where
         let runner=tokio::task::spawn_local(serve_io(worker_read,worker_write,dispatch));
         let (host_read,mut host_write)=tokio::io::split(host);
         let mut reader=BufReader::new(host_read);
-        let message=MultiplexEnvelope::new(MultiplexHostMessage::Call {call_id:"1".into(),request:json!({"method":"execute","input":{"handler":handler,"input_payload":{"path":{},"query":{},"body":body}}})});
+        let message=MultiplexEnvelope::new(MultiplexHostMessage::Call {call_id:"1".into(),request:json!({"method":"execute","input":{"handler":handler,"input_payload":payload}})});
         host_write.write_all(format!("{}\n",serde_json::to_string(&message).unwrap()).as_bytes()).await.unwrap();
         let result=loop {
             let mut line=String::new();
@@ -38,10 +44,21 @@ where
         result["result"].clone()
     }).await
 }
-fn configuration(service: &MultiplexHostService) -> Option<Value> {
+fn configuration(service: &MultiplexHostService, request: &Value) -> Option<Value> {
     match service {
+        MultiplexHostService::PluginDataV1
+            if request["operations"][0]["filters"]
+                .as_array()
+                .is_some_and(|filters| {
+                    filters.iter().any(|filter| filter["operator"] == "is_null")
+                }) =>
+        {
+            Some(
+                json!({"result":{"results":[{"result":"optional_row","row":null}],"replayed":false}}),
+            )
+        }
         MultiplexHostService::PluginDataV1 => Some(
-            json!({"result":{"results":[{"result":"optional_row","row":{"values":{"base_url":{"type":"string","value":"https://langfuse.example/prefix/"}}}}],"replayed":false}}),
+            json!({"result":{"results":[{"result":"optional_row","row":{"values":{"instance_id":{"type":"string","value":"default"},"name":{"type":"string","value":"default"},"base_url":{"type":"string","value":"https://langfuse.example/prefix/"}}}}],"replayed":false}}),
         ),
         MultiplexHostService::PluginCredentialV1 => Some(
             json!({"result":{"value":{"public_key":"fixture-public","secret_key":"fixture-secret"}}}),
@@ -55,7 +72,7 @@ fn http(value: Value) -> Value {
 fn http_status(status: u16, value: Value) -> Value {
     json!({"result":{"status":status,"headers":{"content-type":"application/json"},"body_base64":STANDARD.encode(serde_json::to_vec(&value).unwrap())}})
 }
-fn nonempty_otlp() -> Value {
+pub(crate) fn nonempty_otlp() -> Value {
     json!({"resourceSpans":[{"scopeSpans":[{"spans":[
         {"traceId":"0123456789abcdef0123456789abcdef","spanId":"0000000000000001","name":"fixture","startTimeUnixNano":"1792022400000000000","attributes":[]},
         {"traceId":"0123456789abcdef0123456789abcdef","spanId":"0000000000000002","name":"fixture child","startTimeUnixNano":"1792022400000000001","attributes":[]},
@@ -64,8 +81,8 @@ fn nonempty_otlp() -> Value {
 }
 #[tokio::test]
 async fn config_never_echoes_either_project_key() {
-    let result = invoke("config_get", json!({}), |service, _| {
-        configuration(&service).unwrap()
+    let result = invoke("config_get", json!({}), |service, request| {
+        configuration(&service, &request).unwrap()
     })
     .await;
     assert_eq!(result["credential_configured"], true);
@@ -78,7 +95,7 @@ async fn date_export_drains_all_host_pages_and_reports_only_acknowledged_progres
     let mut page = 0;
     let mut sends = 0;
     let result=invoke("export",json!({"application_id":"source","started_at_from":"2026-10-01T00:00:00Z","started_at_to":"2026-11-01T00:00:00Z"}),|service,request| {
-        if let Some(config)=configuration(&service) {return config;}
+        if let Some(config)=configuration(&service, &request) {return config;}
         match service {
             MultiplexHostService::ApplicationLogsV1 => match request["operation"].as_str().unwrap() {
                 "list_records" => {page+=1;assert_eq!(request["cursor"],if page==1 {Value::Null} else {json!("page-2")});json!({"result":{"operation":"records","items":[{"record_id":format!("record-{page}"),"log_conversation_id":"c","title":"full source","started_at":"2026-10-15T00:00:00Z","source_kind":"native"}],"next_cursor":if page==1 {json!("page-2")} else {Value::Null}}})},
@@ -115,7 +132,7 @@ async fn complete_import_drains_remote_cursor_and_preserves_host_dedup_and_parti
     let mut pages = 0;
     let mut imports = 0;
     let result=invoke("import",json!({"application_id":"target","trace_ids":["trace-a","trace-b"]}),|service,request| {
-        if let Some(config)=configuration(&service) {return config;}
+        if let Some(config)=configuration(&service, &request) {return config;}
         match service {
             MultiplexHostService::ApplicationLogsV1 => match request["operation"].as_str().unwrap() {
                 "list_applications"=>json!({"result":{"operation":"applications","items":[{"application_id":"target","name":"Target","application_type":"agent_logs"}]}}),
@@ -175,14 +192,14 @@ async fn save_writes_only_url_to_owned_data_and_keys_to_credential_service() {
                 assert_eq!(request["value"],json!({"public_key":"fixture-public","secret_key":"fixture-secret"}));
                 json!({"result":{"value":null}})
             }
-            MultiplexHostService::PluginDataV1 if request["operations"][0]["operation"] == "upsert" => {
+            MultiplexHostService::PluginDataV1 if request["operations"][0]["operation"] == "update" => {
                 data_writes += 1;
                 assert!(!request.to_string().contains("fixture-secret"));
                 assert!(!request.to_string().contains("fixture-public"));
                 assert_eq!(request["operations"][0]["values"]["base_url"]["value"],"https://langfuse.example/prefix/");
                 json!({"result":{"results":[{"result":"mutation","affected":1}],"replayed":false}})
             }
-            _ => configuration(&service).unwrap(),
+            _ => configuration(&service, &request).unwrap(),
         }
     }).await;
     assert_eq!(credential_puts, 1);
@@ -197,7 +214,7 @@ async fn date_import_drains_trace_pages_then_fetches_whole_selected_traces() {
     let mut observations = 0;
     let mut imports = 0;
     let result = invoke("import",json!({"application_id":"target","started_at_from":"2026-10-01T00:00:00Z","started_at_to":"2026-11-01T00:00:00Z"}),|service,request| {
-        if let Some(config) = configuration(&service) { return config; }
+        if let Some(config) = configuration(&service, &request) { return config; }
         match service {
             MultiplexHostService::ApplicationLogsV1 if request["operation"] == "list_applications" => json!({"result":{"operation":"applications","items":[{"application_id":"target","name":"Target","application_type":"agent_logs"}]}}),
             MultiplexHostService::ApplicationLogsV1 => {
@@ -249,7 +266,7 @@ async fn events_only_date_import_preserves_trace_start_boundaries_and_complete_t
     let mut complete_pages = std::collections::BTreeMap::<String, usize>::new();
     let mut imported = Vec::new();
     let result = invoke("import",date_import(),|service,request| {
-        if let Some(config)=configuration(&service) {return config;}
+        if let Some(config)=configuration(&service, &request) {return config;}
         match service {
             MultiplexHostService::ApplicationLogsV1 if request["operation"]=="list_applications" => target_application(),
             MultiplexHostService::ApplicationLogsV1 => {
@@ -337,7 +354,7 @@ async fn events_only_cursor_loops_fail_before_any_host_import() {
     for loop_in_whole_trace in [false, true] {
         let mut pages = 0;
         let result=invoke("import",date_import(),|service,request| {
-            if let Some(config)=configuration(&service) {return config;}
+            if let Some(config)=configuration(&service, &request) {return config;}
             match service {
                 MultiplexHostService::ApplicationLogsV1 => {
                     assert_eq!(request["operation"],"list_applications");
@@ -375,7 +392,7 @@ async fn date_import_never_falls_back_on_generic_404_auth_or_server_errors() {
     ] {
         let mut network = 0;
         let result = invoke("import", date_import(), |service, request| {
-            if let Some(config) = configuration(&service) {
+            if let Some(config) = configuration(&service, &request) {
                 return config;
             }
             match service {
@@ -405,7 +422,7 @@ async fn date_import_never_falls_back_on_generic_404_auth_or_server_errors() {
 async fn observation_content_conflict_stops_import_after_complete_pagination() {
     let mut pages = 0;
     let result=invoke("import",json!({"application_id":"target","trace_ids":["trace"]}),|service,request| {
-        if let Some(config)=configuration(&service) {return config;}
+        if let Some(config)=configuration(&service, &request) {return config;}
         match service {
             MultiplexHostService::ApplicationLogsV1=>{
                 assert_eq!(request["operation"],"list_applications");target_application()
@@ -443,7 +460,7 @@ async fn export_accepts_standard_and_queue_acknowledgements_without_exposing_rem
 
 async fn export_with_ack(response: Value) -> Value {
     invoke("export",json!({"application_id":"source","record_ids":["record"]}),|service,request| {
-        if let Some(config)=configuration(&service) {return config;}
+        if let Some(config)=configuration(&service, &request) {return config;}
         match service {
             MultiplexHostService::ApplicationLogsV1=>{
                 assert_eq!(request["operation"],"export_otlp");

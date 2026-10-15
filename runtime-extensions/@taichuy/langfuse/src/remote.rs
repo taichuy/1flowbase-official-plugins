@@ -9,10 +9,10 @@ pub(crate) struct Remote {
     connection: config::Connection,
 }
 impl Remote {
-    pub(crate) async fn new(host: &Host) -> Result<Self> {
+    pub(crate) async fn new(host: &Host, instance_id: &str) -> Result<Self> {
         Ok(Self {
             client: HttpEgressClient::new(host.emitter.clone()),
-            connection: config::connection(host).await?,
+            connection: config::connection(host, instance_id).await?,
         })
     }
     fn url(&self, path: &str) -> Result<Url> {
