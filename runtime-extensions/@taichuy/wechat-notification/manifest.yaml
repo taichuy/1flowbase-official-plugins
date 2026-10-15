@@ -1,7 +1,7 @@
 manifest_version: 2
 schema_version: 1flowbase.plugin.manifest/v2
 plugin_id: wechat-notification
-version: 1.1.0
+version: 1.1.1
 publisher_namespace: 1flowbase
 vendor: 1flowbase
 display_name: WeChat private notifications
@@ -31,6 +31,29 @@ notification_types:
     display_name: WeChat private text
     description: Provider-accepted private text to the authorizing WeChat user
     contribution_id: 1flowbase.wechat-notification.send
+    i18n:
+      zh_Hans:
+        display_name: 微信私信通知
+        description: 向为此实例扫码授权的微信用户发送文本通知
+        input_form:
+          fields:
+            text:
+              label: 消息正文
+        authorization:
+          actions:
+            qr:
+              label: 微信扫码授权
+      en_US:
+        display_name: WeChat private text
+        description: Provider-accepted private text to the authorizing WeChat user
+        input_form:
+          fields:
+            text:
+              label: Text
+        authorization:
+          actions:
+            qr:
+              label: Scan with WeChat
     config_schema:
       type: object
       properties: {}
@@ -88,7 +111,7 @@ managed:
   module:
     bus_version: v1
     module_id: wechat-notification
-    module_version: 1.1.0
+    module_version: 1.1.1
     module_kind: runtime
     contributions:
       - contribution_id: 1flowbase.wechat-notification.send

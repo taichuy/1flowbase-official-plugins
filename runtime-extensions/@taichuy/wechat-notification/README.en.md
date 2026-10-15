@@ -40,7 +40,7 @@ Production starts at `https://ilinkai.weixin.qq.com`. Provider base URLs and QR 
 
 ## Build and verification entry points
 
-The Host SDK is pinned to revision `dc2aa7cad430fe211746ac5506e83dfd6a40cb68`. `execute_authorizable_notification` validates the typed input/result; `serve` owns the shared dispatcher. The extension implements no independent stdio protocol. The manifest binary path is `bin/wechat-notification`.
+The Host SDK is pinned to revision `75338d4c3481273fc01f909e577be636933b6fef`. `execute_authorizable_notification` validates the typed input/result; `serve` owns the shared dispatcher. The extension implements no independent stdio protocol. The manifest binary path is `bin/wechat-notification`.
 
 ```bash
 cargo test --manifest-path runtime-extensions/@taichuy/wechat-notification/Cargo.toml
@@ -52,3 +52,7 @@ Injected iLink mocks in `src/_tests/behavior.rs` cover QR states, Host secret re
 ## Protocol references
 
 First-party [Tencent/openclaw-weixin](https://github.com/Tencent/openclaw-weixin) API types, headers, and optional-context sends; the local Hermes Weixin adapter (MIT) was used to cross-check QR states and failure classification. This implementation is independently written and does not reproduce substantial upstream code.
+
+## UI languages
+
+Version 1.1.1 ships notification names, descriptions, input labels and QR action labels in the manifest’s `notification_types[].i18n` dictionaries for `zh_Hans` and `en_US`. Upgrade the Host to support this optional typed field before installing. The UI uses its current locale, falling back per field to English and then the canonical declaration. User-entered channel names, message content, configuration values and field/action identifiers stay unchanged. The Host frontend owns built-in system notification text. Upgrading preserves existing account authorization and delivery-window evidence.

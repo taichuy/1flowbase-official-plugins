@@ -40,7 +40,7 @@
 
 ## 构建与验证入口
 
-依赖 Host SDK 固定提交 `dc2aa7cad430fe211746ac5506e83dfd6a40cb68`。SDK 的 `execute_authorizable_notification` 校验输入/结果，`serve` 提供共享 dispatcher；没有另写 stdio 协议。manifest 的可执行文件路径为 `bin/wechat-notification`。
+依赖 Host SDK 固定提交 `75338d4c3481273fc01f909e577be636933b6fef`。SDK 的 `execute_authorizable_notification` 校验输入/结果，`serve` 提供共享 dispatcher；没有另写 stdio 协议。manifest 的可执行文件路径为 `bin/wechat-notification`。
 
 ```bash
 cargo test --manifest-path runtime-extensions/@taichuy/wechat-notification/Cargo.toml
@@ -52,3 +52,7 @@ cargo build --release --manifest-path runtime-extensions/@taichuy/wechat-notific
 ## 协议参考
 
 第一方 [Tencent/openclaw-weixin](https://github.com/Tencent/openclaw-weixin) 的 API 类型、请求头及可选 context 发送协议；本地 Hermes Weixin 适配器（MIT）用于交叉核对 QR 状态和错误分类。实现独立编写，不包含大段上游源码。
+
+## 界面多语言
+
+1.1.1 的通知类型名称、说明、输入标签与扫码动作词典随本插件 manifest 的 `notification_types[].i18n` 发布，提供 `zh_Hans` / `en_US`。Host需先支持该可选typed字段，前端按当前语言显示；词典缺项依次回退英文词典和原始声明。用户填写的渠道名称、消息正文、配置值与字段/action代码不翻译。内置系统通知由底座前端维护，不包含在本插件词典。升级不会清除原账号授权或订阅窗口。

@@ -116,6 +116,31 @@ fn manifest_has_empty_config_and_private_secret_contract() {
         .is_err());
 }
 
+#[test]
+fn notification_presentation_dictionaries_belong_to_the_plugin_and_preserve_wire_keys() {
+    let descriptor = descriptor();
+    descriptor.validate().unwrap();
+    let zh = &descriptor.i18n["zh_Hans"];
+    let en = &descriptor.i18n["en_US"];
+    assert_eq!(zh.display_name.as_deref(), Some("微信私信通知"));
+    assert_eq!(en.display_name.as_deref(), Some("WeChat private text"));
+    assert_eq!(
+        zh.input_form.as_ref().unwrap().fields["text"]
+            .label
+            .as_deref(),
+        Some("消息正文")
+    );
+    assert_eq!(
+        zh.authorization.as_ref().unwrap().actions["qr"].label,
+        "微信扫码授权"
+    );
+    assert_eq!(descriptor.input_form.fields[0].key, "text");
+    assert_eq!(
+        descriptor.authorization.as_ref().unwrap().actions[0].code,
+        "qr"
+    );
+}
+
 #[tokio::test]
 async fn qr_flow_recovers_host_secrets_redirects_then_binds_scanner() {
     let mock = Mock::new(vec![
