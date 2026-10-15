@@ -11,9 +11,11 @@
 1. 从正式运行时扩展目录安装 `1flowbase/wechat-notification`，分配给工作区并授权 `notification.send` 贡献。
 2. 创建类型为 `1flowbase/wechat-notification/private` 的通知实例，无需填写用户配置。
 3. 执行授权操作 `begin`，action 为 `qr`，使用微信扫描返回的二维码并在微信中确认。Host 调用 `poll` 直到 `authorized`；二维码过期后重新开始。
-4. 发送输入 `{"text":"通知内容"}`。只有扫码用户能成为该实例的接收者；其他用户的入站消息不能改变收件人或 context。
+4. 绑定用户向机器人发送任意消息，开启24小时通知窗口；每条新的用户消息按腾讯消息创建时间滚动续期。然后发送输入 `{"text":"通知内容"}`。只有扫码用户能成为该实例的接收者；其他用户或机器人消息不能改变窗口、收件人或 context。
 
-启用/禁用是 Host 的独立管理设置，和授权状态分开。取消待扫码挑战使用 `cancel`；`maintain` 在单次调用内刷新当前授权账号的游标和 context，不启动后台服务。该扩展只发送私聊文本，不处理群聊、媒体或交互会话。
+启用/禁用、扫码授权、通知窗口是独立状态。窗口过期保留扫码授权，向机器人重新发消息即可续期，无需重新扫码。取消待扫码挑战使用 `cancel`；`maintain` 和每次发送会同步当前账号的入站消息，不启动后台服务。未打开页面或没有发送任务时不声称持续接收；延迟同步仍从真实消息时间计算，不延长有效期。该扩展只发送私聊文本，不处理群聊、媒体或交互会话。
+
+需要支持 `NotificationAuthorizationView.delivery_window`、Host注入 `NotificationRuntimeInput.delivery_window` 及订阅失败码的 Host；先升级 Host，再安装 1.1.0。旧实例没有消息时间证据时显示“待确认”，不会假定已订阅或伪造首次消息时间。
 
 ## 结果与状态
 
@@ -21,10 +23,14 @@
 
 - 没有授权：`authorization_required`；token/session `-14`：`authorization_invalid`，清除账户凭证，需要重新扫码。
 - 明确的 `-2` / prepare failed：`recipient_not_ready`，保持 `authorized`。可向账号发一条微信消息后再发起新通知。
+- 已授权但尚未收到可验证用户消息：`subscription_required`；通知窗口过期：`subscription_expired`。两者在外部发送前阻断，返回安全原因，由Host完成失败日志。向机器人发送任意消息后刷新或重新触发通知。
+- 入站同步失败、消息时间缺失/无效或旧实例无可验证时间：`subscription_unavailable`，不能将它误称为用户从未发过消息。已知有效窗口仍可在其原到期前发送，但失败同步不会续期。
 - 其他明确供应商错误：`provider_rejected`。
 - 发送超时、连接中断或无法证明接受的响应：`unknown / provider_result_unknown`。扩展不会自动重试发送；重新触发通知前需考虑重复发送风险。
 
-每次发送前尝试一次 `getupdates`，仅取绑定扫码用户的最新 context。这个准备请求的客户端超时为 1 秒（遵循第一方客户端可取消长轮询的语义，没有虚构服务端短轮询字段）；超时/暂时读取失败仍使用已有 context 或不带 context 直接尝试发送。没有入站 context 不会在本地拒绝已经授权的发送，收件人是否可用由 iLink 决定。
+每次发送前尝试一次 `getupdates`，只接纳绑定用户的 `message_type=1` 消息，按有效 `create_time_ms`（毫秒）取最大值，滚动到该时间+24小时；所有消息item类型都可续期，不要求文本或 context。重复/乱序消息不会回拨窗口，未来、缺失和非法时间不会以拉取时间替代。合法getupdates允许省略默认零状态字段，不会因此丢弃消息。
+
+这个准备请求沿用 1 秒客户端取消长轮询语义，没有虚构服务端短轮询字段；超时表示无法取得证据，不代表空消息批次。只有仍有效的已知窗口允许沿用已有 context 或无 context 发送。窗口状态和时间通过独立 typed `delivery_window` 交Host持久化，绝不混入 managed secrets，也不将24小时判断交给前端。
 
 ## 凭证与网络边界
 
@@ -34,7 +40,7 @@
 
 ## 构建与验证入口
 
-依赖 Host SDK 固定提交 `948f41cad5b2f951c748a0a0104464588b95d88d`。SDK 的 `execute_authorizable_notification` 校验输入/结果，`serve` 提供共享 dispatcher；没有另写 stdio 协议。manifest 的可执行文件路径为 `bin/wechat-notification`。
+依赖 Host SDK 固定提交 `dc2aa7cad430fe211746ac5506e83dfd6a40cb68`。SDK 的 `execute_authorizable_notification` 校验输入/结果，`serve` 提供共享 dispatcher；没有另写 stdio 协议。manifest 的可执行文件路径为 `bin/wechat-notification`。
 
 ```bash
 cargo test --manifest-path runtime-extensions/@taichuy/wechat-notification/Cargo.toml
