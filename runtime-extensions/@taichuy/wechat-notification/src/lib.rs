@@ -3,12 +3,20 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use runtime_extension_sdk::{
     execute_authorizable_notification, CapabilityStdioRequest, NotificationAuthorizationActionKind,
     NotificationAuthorizationOperation, NotificationAuthorizationStatus,
-    NotificationAuthorizationUserAction, NotificationAuthorizationView, NotificationFailureCode,
+    NotificationAuthorizationUserAction, NotificationAuthorizationView,
+    NotificationDeliveryWindowStatus, NotificationDeliveryWindowView, NotificationFailureCode,
     NotificationOperation, NotificationRuntimeInput, NotificationRuntimeResult,
     NotificationSendOutcome, NotificationTypeDescriptor,
 };
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, future::Future, pin::Pin, time::Duration};
+use std::{
+    collections::BTreeMap,
+    future::Future,
+    pin::Pin,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
+
+mod subscription;
 
 const DEFAULT_BASE: &str = "https://ilinkai.weixin.qq.com";
 const SECRET_KEYS: &[&str] = &[
@@ -172,6 +180,7 @@ fn plain_view(status: NotificationAuthorizationStatus) -> NotificationAuthorizat
     NotificationAuthorizationView {
         status,
         user_action: None,
+        delivery_window: None,
     }
 }
 fn pending(secrets: &Secrets) -> Result<NotificationAuthorizationView, ProviderError> {
@@ -186,6 +195,7 @@ fn pending(secrets: &Secrets) -> Result<NotificationAuthorizationView, ProviderE
     }
     Ok(NotificationAuthorizationView {
         status: NotificationAuthorizationStatus::Pending,
+        delivery_window: None,
         user_action: Some(NotificationAuthorizationUserAction {
             kind: NotificationAuthorizationActionKind::QrCode,
             qr_code_url: raw.to_string(),
@@ -224,6 +234,21 @@ fn failed(
         state,
         patch,
     )
+}
+fn with_window(
+    mut result: NotificationRuntimeResult,
+    window: NotificationDeliveryWindowView,
+) -> NotificationRuntimeResult {
+    let view = match &mut result {
+        NotificationRuntimeResult::Authorization { authorization, .. } => Some(authorization),
+        NotificationRuntimeResult::Send { authorization, .. } => authorization.as_mut(),
+    };
+    if let Some(view) =
+        view.filter(|view| view.status == NotificationAuthorizationStatus::Authorized)
+    {
+        view.delivery_window = Some(window);
+    }
+    result
 }
 #[derive(PartialEq, Eq)]
 enum ProviderCode {
@@ -290,48 +315,12 @@ fn request(
         timeout,
     })
 }
-// One bounded preparation poll; other peers cannot rebind or replace the scanner's context.
-async fn refresh(client: &impl ILink, secrets: &Secrets) -> Result<Secrets, ProviderError> {
-    let req = request(
-        secrets,
-        "ilink/bot/getupdates",
-        json!({"get_updates_buf":secret(secrets,"cursor").unwrap_or("")}),
-        Duration::from_secs(1),
-    )?;
-    let response = match client.request(req).await {
-        Err(ProviderError::Timeout) => return Ok(Secrets::new()),
-        result => result?,
-    };
-    match provider_code(&response) {
-        ProviderCode::Failure(NotificationFailureCode::AuthorizationInvalid) => {
-            return Ok(invalid_patch())
-        }
-        ProviderCode::Success => {}
-        _ => return Err(ProviderError::Malformed),
-    }
-    let mut patch = Secrets::new();
-    if let Some(cursor) = response["get_updates_buf"].as_str() {
-        patch.insert("cursor".into(), json!(cursor));
-    }
-    if let Some(messages) = response["msgs"].as_array() {
-        for message in messages {
-            if message["from_user_id"].as_str() == secret(secrets, "bound_user_id") {
-                if let Some(context) = message["context_token"]
-                    .as_str()
-                    .filter(|value| !value.is_empty())
-                {
-                    patch.insert("context_token".into(), json!(context));
-                }
-            }
-        }
-    }
-    Ok(patch)
-}
-
 async fn authorize(
     client: &impl ILink,
     operation: NotificationAuthorizationOperation,
     secrets: Secrets,
+    delivery_window: Option<NotificationDeliveryWindowView>,
+    clock: &impl Fn() -> u64,
 ) -> Result<NotificationRuntimeResult, ProviderError> {
     match operation {
         NotificationAuthorizationOperation::Begin { .. } => {
@@ -404,9 +393,12 @@ async fn authorize(
                     let base = response["baseurl"].as_str().unwrap_or(DEFAULT_BASE);
                     trusted_base(base)?;
                     patch.insert("base_url".into(), json!(base));
-                    Ok(authorization(
-                        plain_view(NotificationAuthorizationStatus::Authorized),
-                        patch,
+                    Ok(with_window(
+                        authorization(
+                            plain_view(NotificationAuthorizationStatus::Authorized),
+                            patch,
+                        ),
+                        subscription::waiting(),
                     ))
                 }
                 _ => Err(ProviderError::Malformed),
@@ -422,13 +414,16 @@ async fn authorize(
             if !has_account(&secrets) {
                 return Ok(authorization(plain_view(status(&secrets)), Secrets::new()));
             }
-            let patch = refresh(client, &secrets).await?;
-            let state = if patch.contains_key("authorization_invalid") {
+            let prepared = subscription::prepare(client, &secrets, delivery_window, clock).await;
+            let state = if prepared.patch.contains_key("authorization_invalid") {
                 NotificationAuthorizationStatus::Invalid
             } else {
                 NotificationAuthorizationStatus::Authorized
             };
-            Ok(authorization(plain_view(state), patch))
+            Ok(with_window(
+                authorization(plain_view(state), prepared.patch),
+                prepared.window,
+            ))
         }
     }
 }
@@ -436,6 +431,8 @@ async fn send_notification(
     client: &impl ILink,
     secrets: Secrets,
     input: Value,
+    delivery_window: Option<NotificationDeliveryWindowView>,
+    clock: &impl Fn() -> u64,
 ) -> Result<NotificationRuntimeResult, ProviderError> {
     if !has_account(&secrets) {
         let state = status(&secrets);
@@ -446,9 +443,8 @@ async fn send_notification(
         };
         return Ok(failed(code, state, Secrets::new()));
     }
-    // This is preparation only: loss here does not imply an ambiguous external send.
-    // Keep saved context and still attempt sending after any unavailable preparation response.
-    let mut patch = refresh(client, &secrets).await.unwrap_or_default();
+    let prepared = subscription::prepare(client, &secrets, delivery_window, clock).await;
+    let mut patch = prepared.patch;
     if patch.contains_key("authorization_invalid") {
         return Ok(failed(
             NotificationFailureCode::AuthorizationInvalid,
@@ -456,13 +452,28 @@ async fn send_notification(
             patch,
         ));
     }
+    let mut window = prepared.window;
+    if window.status == NotificationDeliveryWindowStatus::Active
+        && window.expires_at_ms.is_some_and(|expiry| clock() >= expiry)
+    {
+        window.status = NotificationDeliveryWindowStatus::Expired;
+    }
+    if let Some(code) = subscription::failure(&window) {
+        return Ok(with_window(
+            failed(code, NotificationAuthorizationStatus::Authorized, patch),
+            window,
+        ));
+    }
     let client_id = format!("1flowbase-{}", uuid::Uuid::new_v4());
     let mut message = json!({"from_user_id":"", "to_user_id":secret(&secrets,"bound_user_id"),
         "client_id":client_id, "message_type":2, "message_state":2,
         "item_list":[{"type":1,"text_item":{"text":input["text"]}}]});
-    if let Some(context) =
-        secret(&patch, "context_token").or_else(|| secret(&secrets, "context_token"))
-    {
+    let context = if patch.contains_key("context_token") {
+        secret(&patch, "context_token")
+    } else {
+        secret(&secrets, "context_token")
+    };
+    if let Some(context) = context {
         message["context_token"] = json!(context);
     }
     let req = request(
@@ -501,20 +512,48 @@ async fn send_notification(
             patch,
         ),
     };
-    Ok(result)
+    Ok(with_window(result, window))
+}
+async fn run_with_clock(
+    client: &impl ILink,
+    input: NotificationRuntimeInput,
+    clock: &impl Fn() -> u64,
+) -> Result<NotificationRuntimeResult, ProviderError> {
+    match input.operation {
+        NotificationOperation::Authorize { operation } => {
+            authorize(
+                client,
+                operation,
+                input.managed_secrets,
+                input.delivery_window,
+                clock,
+            )
+            .await
+        }
+        NotificationOperation::Send { input_payload } => {
+            send_notification(
+                client,
+                input.managed_secrets,
+                input_payload,
+                input.delivery_window,
+                clock,
+            )
+            .await
+        }
+    }
+}
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| u64::try_from(duration.as_millis()).ok())
+        .unwrap_or(0)
 }
 async fn run(
     client: &impl ILink,
     input: NotificationRuntimeInput,
 ) -> Result<NotificationRuntimeResult, ProviderError> {
-    match input.operation {
-        NotificationOperation::Authorize { operation } => {
-            authorize(client, operation, input.managed_secrets).await
-        }
-        NotificationOperation::Send { input_payload } => {
-            send_notification(client, input.managed_secrets, input_payload).await
-        }
-    }
+    run_with_clock(client, input, &now_ms).await
 }
 pub fn descriptor() -> NotificationTypeDescriptor {
     let manifest: Value =
