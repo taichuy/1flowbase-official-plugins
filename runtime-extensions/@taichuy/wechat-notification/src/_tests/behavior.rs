@@ -83,6 +83,11 @@ fn failure(result: &NotificationRuntimeResult, expected: NotificationFailureCode
 
 #[test]
 fn manifest_has_empty_config_and_private_secret_contract() {
+    let manifest: Value = serde_yaml::from_str(include_str!("../../manifest.yaml")).unwrap();
+    assert_eq!(
+        manifest["version"],
+        manifest["managed"]["module"]["module_version"]
+    );
     let descriptor = descriptor();
     descriptor
         .validate_plugin_namespace("1flowbase", "wechat-notification")
@@ -172,6 +177,62 @@ async fn direct_send_without_context_is_attempted_and_only_explicit_success_succ
         assert!(msg.get("context_token").is_none());
         assert!(!msg["client_id"].as_str().unwrap().is_empty());
         assert_eq!(msg["item_list"][0]["text_item"]["text"], "你好");
+    }
+}
+
+#[tokio::test]
+async fn message_id_acknowledges_send_without_default_status_fields() {
+    // Real iLink sendmessage returned HTTP 200 with only message_id on 2026-10-15;
+    // the scanner independently confirmed receipt. Default zero status fields may be absent.
+    for response in [
+        json!({"message_id":"provider-message-123"}),
+        json!({"message_id":123}),
+    ] {
+        let mock = Mock::new(vec![Ok(json!({"ret":0,"msgs":[]})), Ok(response)]);
+        let result = run(&mock, send(secrets())).await.unwrap();
+        assert!(matches!(
+            result,
+            NotificationRuntimeResult::Send {
+                outcome: NotificationSendOutcome::Succeeded { .. },
+                ..
+            }
+        ));
+        assert_eq!(mock.requests.borrow().len(), 2);
+    }
+}
+
+#[tokio::test]
+async fn message_id_cannot_override_provider_errors_or_malformed_status() {
+    for response in [
+        json!({"message_id":"ack","ret":-2}),
+        json!({"message_id":"ack","errcode":-14}),
+    ] {
+        let expected = if response.get("ret").is_some() {
+            NotificationFailureCode::RecipientNotReady
+        } else {
+            NotificationFailureCode::AuthorizationInvalid
+        };
+        let mock = Mock::new(vec![Ok(json!({"ret":0,"msgs":[]})), Ok(response)]);
+        failure(&run(&mock, send(secrets())).await.unwrap(), expected);
+    }
+    for response in [
+        json!({"message_id":"ack","ret":"0"}),
+        json!({"message_id":"ack","errcode":null}),
+        json!({"message_id":""}),
+        json!({"message_id":null}),
+        json!({"message_id":0}),
+        json!({"message_id":true}),
+        json!({}),
+    ] {
+        let mock = Mock::new(vec![Ok(json!({"ret":0,"msgs":[]})), Ok(response)]);
+        assert!(matches!(
+            run(&mock, send(secrets())).await.unwrap(),
+            NotificationRuntimeResult::Send {
+                outcome: NotificationSendOutcome::Unknown { .. },
+                ..
+            }
+        ));
+        assert_eq!(mock.requests.borrow().len(), 2);
     }
 }
 

@@ -17,7 +17,7 @@ The Host's enabled/disabled setting is independent of authorization. `cancel` re
 
 ## Outcomes
 
-An explicit successful iLink response produces `succeeded` with `{"accepted":true,"delivery_id":"..."}`. Acceptance means **the provider accepted the request**, not user receipt or a read acknowledgement. `delivery_id` is the iLink `client_id` used for the request.
+An explicit successful iLink response produces `succeeded` with `{"accepted":true,"delivery_id":"..."}`. Success can be acknowledged by `ret: 0` or an HTTP-success response containing only a nonempty `message_id`, with default status fields omitted. A message ID never overrides an explicit error or a malformed status field. Acceptance means **the provider accepted the request**, not user receipt or a read acknowledgement. `delivery_id` is the iLink `client_id` used for the request.
 
 - No authorization: `authorization_required`. Token/session `-14`: `authorization_invalid`, clearing account credentials and requiring another scan.
 - Definite `-2` / prepare failed: `recipient_not_ready`, preserving `authorized`. The user can message the account before a new notification is initiated.

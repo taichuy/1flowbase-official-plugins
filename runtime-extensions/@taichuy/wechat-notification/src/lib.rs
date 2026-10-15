@@ -253,6 +253,24 @@ fn provider_code(value: &Value) -> ProviderCode {
         ProviderCode::Unknown
     }
 }
+fn send_code(value: &Value) -> ProviderCode {
+    let code = provider_code(value);
+    // iLink's successful send response can contain only message_id, omitting the
+    // default zero status fields. This is a send acknowledgement, not a generic
+    // success rule for getupdates or arbitrary/malformed JSON responses.
+    if code == ProviderCode::Unknown
+        && value.get("ret").is_none()
+        && value.get("errcode").is_none()
+        && value.get("message_id").is_some_and(|id| {
+            id.as_str().is_some_and(|id| !id.trim().is_empty())
+                || id.as_u64().is_some_and(|id| id > 0)
+        })
+    {
+        ProviderCode::Success
+    } else {
+        code
+    }
+}
 fn request(
     secrets: &Secrets,
     endpoint: &'static str,
@@ -455,7 +473,7 @@ async fn send_notification(
     )?;
     // Never retry an ambiguous send. A supplier-confirmed rejection is not an acceptance.
     let code = match client.request(req).await {
-        Ok(response) => provider_code(&response),
+        Ok(response) => send_code(&response),
         Err(_) => ProviderCode::Unknown,
     };
     let result = match code {

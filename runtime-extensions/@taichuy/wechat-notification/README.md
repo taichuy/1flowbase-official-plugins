@@ -17,7 +17,7 @@
 
 ## 结果与状态
 
-明确的 iLink 成功响应返回 `succeeded`，结果为 `{"accepted":true,"delivery_id":"..."}`。`accepted` 表示腾讯供应商接受请求，**不表示用户已收到或已读**。`delivery_id` 是该请求使用的 iLink `client_id`。
+明确的 iLink 成功响应返回 `succeeded`，结果为 `{"accepted":true,"delivery_id":"..."}`。成功状态可由 `ret: 0` 确认，也支持 HTTP 成功回包只有非空 `message_id`、省略默认状态字段的形式；显式错误或格式错误的状态字段不会被 `message_id` 覆盖。`accepted` 表示腾讯供应商接受请求，**不表示用户已收到或已读**。`delivery_id` 是该请求使用的 iLink `client_id`。
 
 - 没有授权：`authorization_required`；token/session `-14`：`authorization_invalid`，清除账户凭证，需要重新扫码。
 - 明确的 `-2` / prepare failed：`recipient_not_ready`，保持 `authorized`。可向账号发一条微信消息后再发起新通知。
