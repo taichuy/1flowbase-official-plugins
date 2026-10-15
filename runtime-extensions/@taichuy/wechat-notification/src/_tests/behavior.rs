@@ -32,6 +32,7 @@ fn input(operation: NotificationOperation, managed_secrets: Secrets) -> Notifica
     NotificationRuntimeInput {
         operation,
         managed_secrets,
+        delivery_window: None,
     }
 }
 fn auth(
@@ -41,13 +42,26 @@ fn auth(
     input(NotificationOperation::Authorize { operation }, secrets)
 }
 fn send(secrets: Secrets) -> NotificationRuntimeInput {
-    input(
+    let mut input = input(
         NotificationOperation::Send {
             input_payload: json!({"text":"你好"}),
         },
         secrets,
-    )
+    );
+    let last = now_ms() - 1000;
+    input.delivery_window = Some(subscription::cached(
+        Some(NotificationDeliveryWindowView {
+            status: NotificationDeliveryWindowStatus::Active,
+            last_received_at_ms: Some(last),
+            expires_at_ms: Some(last + subscription::WINDOW_MS),
+        }),
+        now_ms(),
+    ));
+    input
 }
+
+#[path = "subscription.rs"]
+mod window_tests;
 fn apply(secrets: &mut Secrets, result: &NotificationRuntimeResult) {
     let patch = match result {
         NotificationRuntimeResult::Authorization {
@@ -240,7 +254,7 @@ async fn message_id_cannot_override_provider_errors_or_malformed_status() {
 async fn inbound_context_matches_only_bound_scanner_and_never_rebinds() {
     let mock = Mock::new(vec![
         Ok(json!({"ret":0,"get_updates_buf":"cursor2","msgs":[
-            {"from_user_id":"scanner","context_token":"correct"},
+            {"from_user_id":"scanner","message_type":1,"create_time_ms":now_ms(),"context_token":"correct"},
             {"from_user_id":"attacker","context_token":"wrong"}
         ]})),
         Ok(json!({"ret":0})),
@@ -417,7 +431,9 @@ async fn cached_context_is_refreshed_before_each_send() {
     let mut stored = secrets();
     stored.insert("context_token".into(), json!("old"));
     let mock = Mock::new(vec![
-        Ok(json!({"ret":0,"msgs":[{"from_user_id":"scanner","context_token":"new"}]})),
+        Ok(
+            json!({"ret":0,"msgs":[{"from_user_id":"scanner","message_type":1,"create_time_ms":now_ms(),"context_token":"new"}]}),
+        ),
         Ok(json!({"ret":0})),
     ]);
     let result = run(&mock, send(stored.clone())).await.unwrap();

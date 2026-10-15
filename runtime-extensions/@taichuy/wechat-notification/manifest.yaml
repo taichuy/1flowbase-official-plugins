@@ -1,7 +1,7 @@
 manifest_version: 2
 schema_version: 1flowbase.plugin.manifest/v2
 plugin_id: wechat-notification
-version: 1.0.2
+version: 1.1.0
 publisher_namespace: 1flowbase
 vendor: 1flowbase
 display_name: WeChat private notifications
@@ -68,6 +68,7 @@ notification_types:
         - delivery_id
       additionalProperties: false
     authorization:
+      supports_delivery_window: true
       actions:
         - code: qr
           label: Scan with WeChat
@@ -87,7 +88,7 @@ managed:
   module:
     bus_version: v1
     module_id: wechat-notification
-    module_version: 1.0.2
+    module_version: 1.1.0
     module_kind: runtime
     contributions:
       - contribution_id: 1flowbase.wechat-notification.send
