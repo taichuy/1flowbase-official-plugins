@@ -28,6 +28,10 @@ fn nonempty_queue_acceptance_requires_complete_positive_vendor_receipt() {
     let mut shard = queue_ack();
     shard["queueQualifiedName"] = json!("bull:otel-ingestion-queue-2");
     assert!(validate_ack(&shard).is_ok());
+    let mut propagated_headers = queue_ack();
+    propagated_headers["data"]["payload"]["propagatedHeaders"] =
+        json!({"warning":"fixture-request-header","errors":"opaque request metadata"});
+    assert!(validate_ack(&propagated_headers).is_ok());
     for (pointer, replacement) in [
         ("/name", json!("another-job")),
         ("/data/name", json!("another-job")),
@@ -68,9 +72,6 @@ fn nonempty_queue_acceptance_requires_complete_positive_vendor_receipt() {
         let mut ack = queue_ack();
         ack[field] = json!("private rejection");
         assert!(validate_ack(&ack).is_err());
-        let mut nested = queue_ack();
-        nested["data"]["payload"][field] = json!("private rejection");
-        assert!(validate_ack(&nested).is_err());
     }
     assert!(validate_ack(&json!({"name":"otel-ingestion-job","id":"42"})).is_err());
 }

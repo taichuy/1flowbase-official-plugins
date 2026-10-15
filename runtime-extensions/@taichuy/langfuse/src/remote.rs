@@ -379,31 +379,10 @@ fn validate_queue_ack(ack: &Value) -> Result<()> {
             .iter()
             .any(|key| ack[*key] != 0)
         || ack["priority"].as_u64().is_none()
-        || ack_has_failure(ack)
     {
         return Err(fail("langfuse_ack"));
     }
     Ok(())
-}
-fn ack_has_failure(value: &Value) -> bool {
-    match value {
-        Value::Object(object) => object.iter().any(|(key, value)| {
-            matches!(
-                key.as_str(),
-                "partialSuccess"
-                    | "partial_success"
-                    | "error"
-                    | "errors"
-                    | "warning"
-                    | "warnings"
-                    | "errorMessage"
-                    | "error_message"
-                    | "failedReason"
-            ) || ack_has_failure(value)
-        }),
-        Value::Array(values) => values.iter().any(ack_has_failure),
-        _ => false,
-    }
 }
 fn check_status(status: u16) -> Result<()> {
     if (200..300).contains(&status) {

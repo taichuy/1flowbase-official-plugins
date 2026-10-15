@@ -462,7 +462,7 @@ async fn export_with_ack(response: Value) -> Value {
 #[tokio::test]
 async fn export_rejections_never_count_unacknowledged_nonempty_spans_or_leak_private_ack() {
     let mut warning = crate::remote_tests::queue_ack();
-    warning["data"]["payload"]["warnings"] = json!(["private fixture warning"]);
+    warning["warnings"] = json!(["private fixture warning"]);
     for response in [
         http(warning),
         http(json!({"name":"otel-ingestion-job","data":{"private":"private fixture warning"}})),
