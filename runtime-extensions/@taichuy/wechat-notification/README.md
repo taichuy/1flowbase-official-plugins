@@ -40,7 +40,7 @@
 
 ## 构建与验证入口
 
-依赖 Host SDK 固定提交 `073c3e293dd7b8e9fb0e009d4e7464db68ea61e6`。SDK 的 `execute_authorizable_notification` 校验输入/结果，`serve` 提供共享 dispatcher；没有另写 stdio 协议。manifest 的可执行文件路径为 `bin/wechat-notification`。
+依赖 Host SDK 固定提交 `81a7268ab9111082bddd754aaf8e256047581a72`。SDK 的 `execute_authorizable_notification` 校验输入/结果，`serve` 提供共享 dispatcher；没有另写 stdio 协议。manifest 的可执行文件路径为 `bin/wechat-notification`。
 
 ```bash
 cargo test --manifest-path runtime-extensions/@taichuy/wechat-notification/Cargo.toml
