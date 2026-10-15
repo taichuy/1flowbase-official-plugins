@@ -23,6 +23,10 @@ settings page. It contains no private commercial plugin source or assets.
    counts only records/spans fully acknowledged by Langfuse.
 4. For import, choose a visible **AgentLogs** target. Enter multiple trace IDs
    separated by commas/whitespace, or select traces by an RFC3339 date interval.
+   Date selection uses trace start time: inclusive lower and exclusive upper bound.
+   On Langfuse v4 `events_only`, an explicit legacy endpoint capability response
+   switches discovery to all pages of v2 observations. Candidate traces are fetched
+   without date filters; their earliest observation must fall in the interval.
    Every selected trace's observations are fetched completely before importing.
    Accepted events, duplicate events and record IDs come from the host; imports
    create historical facts, never executable AgentFlow runs.
@@ -41,7 +45,11 @@ explicitly. Prefer a narrower date interval when a call exceeds its deadline;
 there is no hidden automatic retry.
 
 An HTTP 2xx OTLP response is insufficient: its acknowledgement must contain no
-rejections or warnings. On failure the page displays the safe error code, confirmed
+rejections or warnings. Standard OTLP JSON/protobuf acknowledgements and the
+Langfuse `otel-ingestion-job` queue receipt are supported. The latter confirms
+blob upload and queue acceptance for asynchronous processing; it does not confirm
+completed persistence. Private queue/auth metadata is never returned or logged.
+On failure the page displays the safe error code, confirmed
 prior progress, and the current step's structured host/remote details. Partial import event counts
 include the failing step's confirmed commits; its record count is shown separately
 when the host cannot return those record IDs. A failed
@@ -58,6 +66,14 @@ ambiguous self metadata fails closed. External Langfuse observations normalize
 input/output into standard GenAI messages, tools, usage and parent spans while
 retaining the full remote observation as raw OTLP data. `endTime` never fabricates
 TaskEnd, final content or successful status.
+
+Repeated observation IDs may differ only in the remote `createdAt`/`updatedAt`
+bookkeeping fields. These versions collapse to one complete original row, choosing
+the latest `updatedAt`, then `createdAt` by RFC3339 instant, with a deterministic
+raw representation tie break. Its actual timestamps and raw data are preserved.
+Any other difference, including content, capsule, usage or observation times,
+fails explicitly. Generic 404, authentication and server errors never trigger
+the `events_only` date-discovery fallback.
 
 ## Managed API
 
@@ -92,7 +108,10 @@ Ant Design and `@1flowbase/plugin-settings`.
 `src/_tests/` covers capsule fidelity, external output normalization, truthful
 unfinished traces, acknowledgement/pagination validation and real SDK callback
 workflows (saved config, all host pages, all remote observation pages, dedup and
-partial receipts, foreign targets). `ui/_tests/` contains the settings browser
+partial receipts, queue acceptance and rejection, v4 date boundaries/whole traces,
+cursor loops, observation versions and conflicts, foreign targets). The three
+forms have separate stable names so repeated DTO field names retain unique label
+targets. `ui/_tests/` contains the settings browser
 consumer fixture; it uses an already authenticated host page and never signs in.
 Run the paired plugin CI/centralized QA; unexecuted fixtures are not passing
 runtime evidence. Publishing uses the existing manifest-scanning provider package

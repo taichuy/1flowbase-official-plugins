@@ -80,7 +80,7 @@ export default function LangfuseSettingsPage() {
     <Typography.Paragraph type="secondary">{t.intro}</Typography.Paragraph>
     <Space direction="vertical" size="middle" style={{width:'100%'}}>
       <Card title={t.connection} size="small">
-        <Form form={configForm} layout="vertical" disabled={busy} onFinish={values => run(async signal => {
+        <Form name="langfuse_config" form={configForm} layout="vertical" disabled={busy} onFinish={values => run(async signal => {
           const body: {base_url:string;public_key?:string;secret_key?:string} = {base_url:values.base_url};
           if (values.public_key || values.secret_key) { body.public_key=values.public_key;body.secret_key=values.secret_key; }
           const saved = await call('config','PUT',body,signal);
@@ -95,13 +95,13 @@ export default function LangfuseSettingsPage() {
         </Form>
       </Card>
       <Card title={t.export} size="small">
-        <Form form={exportForm} layout="vertical" disabled={busy} onFinish={values => run(signal => call('export','POST',{application_id:values.application_id,...range(values)},signal))}>
+        <Form name="langfuse_export" form={exportForm} layout="vertical" disabled={busy} onFinish={values => run(signal => call('export','POST',{application_id:values.application_id,...range(values)},signal))}>
           <Form.Item name="application_id" label={t.source} rules={[{required:true}]}><Select options={applicationOptions} placeholder={t.select} /></Form.Item>
           {dateFields}<Button type="primary" htmlType="submit" disabled={!configured || busy} loading={busy}>{t.exportAction}</Button>
         </Form>
       </Card>
       <Card title={t.import} size="small">
-        <Form form={importForm} layout="vertical" disabled={busy} onFinish={values => run(signal => {
+        <Form name="langfuse_import" form={importForm} layout="vertical" disabled={busy} onFinish={values => run(signal => {
           const selector = byDate ? range(values) : {trace_ids:String(values.trace_ids || '').split(/[\s,]+/).filter(Boolean)};
           if ('trace_ids' in selector && !selector.trace_ids.length) throw new Error(t.selectTrace);
           return call('import','POST',{application_id:values.application_id,...selector},signal);

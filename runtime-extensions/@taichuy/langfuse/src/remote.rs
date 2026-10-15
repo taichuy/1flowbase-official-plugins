@@ -117,7 +117,15 @@ impl Remote {
                 .append_pair("fromTimestamp", from)
                 .append_pair("toTimestamp", to)
                 .append_pair("page", &page_number.to_string());
-            let page = self.get(url).await?;
+            let (status, _, bytes) = self.send("GET", url, None).await?;
+            // This capability response is distinct from a missing trace, generic
+            // route 404, authentication failure or server failure.
+            if status == 404 && page_number == 1 && events_only_404(&bytes) {
+                return self.traces_from_observations(from, to).await;
+            }
+            check_status(status)?;
+            let page: Value =
+                serde_json::from_slice(&bytes).map_err(|_| fail("langfuse_response"))?;
             let items = items(&page)?;
             let more = numbered_more(&page, page_number, items.is_empty())?;
             for trace in items {
@@ -146,6 +154,61 @@ impl Remote {
                 .checked_add(1)
                 .ok_or_else(|| fail("langfuse_page"))?;
         }
+    }
+    async fn traces_from_observations(&self, from: &str, to: &str) -> Result<Vec<String>> {
+        let (from_time, to_time) = super::operations::date_range(Some(from), Some(to))?;
+        let mut cursor: Option<String> = None;
+        let mut seen = BTreeSet::new();
+        let mut candidates = BTreeSet::new();
+        loop {
+            let mut url = self.url("api/public/v2/observations")?;
+            url.query_pairs_mut()
+                .append_pair("fromStartTime", from)
+                .append_pair("toStartTime", to)
+                .append_pair("fields", "basic,time");
+            if let Some(cursor) = &cursor {
+                url.query_pairs_mut().append_pair("cursor", cursor);
+            }
+            let page = self.get(url).await?;
+            let items = items(&page)?;
+            let next = next_cursor(&page)?;
+            if items.is_empty() && next.is_some() {
+                return Err(fail("langfuse_cursor"));
+            }
+            for observation in items {
+                let start = observation_start(observation)?;
+                if start >= from_time && start < to_time {
+                    let trace = observation
+                        .get("traceId")
+                        .and_then(Value::as_str)
+                        .filter(|s| !s.is_empty())
+                        .ok_or_else(|| fail("langfuse_trace_id"))?;
+                    candidates.insert(trace.to_owned());
+                }
+            }
+            let Some(next) = next else { break };
+            if !seen.insert(next.clone()) {
+                return Err(fail("langfuse_cursor"));
+            }
+            cursor = Some(next);
+        }
+        let mut result = Vec::new();
+        for trace in candidates {
+            // An in-window child does not mean the trace started in-window.
+            // Fetch without time filters, including every page and late child.
+            let observations = self.observations(&trace).await?;
+            let start = observations
+                .iter()
+                .map(observation_start)
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .min()
+                .ok_or_else(|| fail("langfuse_trace_empty"))?;
+            if start >= from_time && start < to_time {
+                result.push(trace);
+            }
+        }
+        Ok(result)
     }
     pub(crate) async fn observations(&self, trace: &str) -> Result<Vec<Value>> {
         let mut cursor: Option<String> = None;
@@ -204,6 +267,9 @@ impl Remote {
     }
 }
 pub(crate) fn validate_ack(ack: &Value) -> Result<()> {
+    if ack.get("name").is_some() {
+        return validate_queue_ack(ack);
+    }
     if (ack.get("partialSuccess").is_some() && ack.get("partial_success").is_some())
         || !ack.is_object()
         || ack.as_object().is_some_and(|object| {
@@ -218,6 +284,18 @@ pub(crate) fn validate_ack(ack: &Value) -> Result<()> {
         .get("partialSuccess")
         .or_else(|| ack.get("partial_success"))
     {
+        if !partial.as_object().is_some_and(|object| {
+            object.keys().all(|key| {
+                matches!(
+                    key.as_str(),
+                    "rejectedSpans" | "rejected_spans" | "errorMessage" | "error_message"
+                )
+            })
+        }) || (partial.get("rejectedSpans").is_some() && partial.get("rejected_spans").is_some())
+            || (partial.get("errorMessage").is_some() && partial.get("error_message").is_some())
+        {
+            return Err(fail("langfuse_ack"));
+        }
         let rejected = partial
             .get("rejectedSpans")
             .or_else(|| partial.get("rejected_spans"));
@@ -249,6 +327,83 @@ pub(crate) fn validate_ack(ack: &Value) -> Result<()> {
         }
     }
     Ok(())
+}
+fn validate_queue_ack(ack: &Value) -> Result<()> {
+    // Langfuse awaits blob upload and queue.add before returning this Bull job.
+    // It confirms asynchronous acceptance, not completed observation persistence.
+    // Never include this object (which contains auth metadata) in a receipt/error.
+    let nonempty = |value: &Value| value.as_str().is_some_and(|s| !s.is_empty());
+    let queue = ack["queueQualifiedName"].as_str().unwrap_or("");
+    let queue_ok = queue == "bull:otel-ingestion-queue"
+        || queue
+            .strip_prefix("bull:otel-ingestion-queue-")
+            .is_some_and(|suffix| !suffix.is_empty() && suffix.bytes().all(|c| c.is_ascii_digit()));
+    if !ack.as_object().is_some_and(|object| {
+        object.keys().all(|key| {
+            matches!(
+                key.as_str(),
+                "name"
+                    | "data"
+                    | "opts"
+                    | "id"
+                    | "progress"
+                    | "returnvalue"
+                    | "stacktrace"
+                    | "priority"
+                    | "attemptsStarted"
+                    | "attemptsMade"
+                    | "stalledCounter"
+                    | "timestamp"
+                    | "queueQualifiedName"
+            )
+        })
+    }) || ack["name"] != "otel-ingestion-job"
+        || ack["data"]["name"] != "otel-ingestion-job"
+        || !nonempty(&ack["id"])
+        || !nonempty(&ack["data"]["id"])
+        || !ack["data"]["timestamp"]
+            .as_str()
+            .is_some_and(|s| parse_time(s).is_ok())
+        || !nonempty(&ack["data"]["payload"]["data"]["fileKey"])
+        || !nonempty(&ack["data"]["payload"]["data"]["publicKey"])
+        || ack["data"]["payload"]["authCheck"]["validKey"] != true
+        || ack["data"]["payload"]["authCheck"]["scope"]["accessLevel"] != "project"
+        || !nonempty(&ack["data"]["payload"]["authCheck"]["scope"]["projectId"])
+        || !queue_ok
+        || !ack["opts"].is_object()
+        || !ack["timestamp"].as_u64().is_some_and(|time| time > 0)
+        || ack["progress"] != 0
+        || ack.get("returnvalue") != Some(&Value::Null)
+        || !ack["stacktrace"].as_array().is_some_and(Vec::is_empty)
+        || ["attemptsMade", "attemptsStarted", "stalledCounter"]
+            .iter()
+            .any(|key| ack[*key] != 0)
+        || ack["priority"].as_u64().is_none()
+        || ack_has_failure(ack)
+    {
+        return Err(fail("langfuse_ack"));
+    }
+    Ok(())
+}
+fn ack_has_failure(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => object.iter().any(|(key, value)| {
+            matches!(
+                key.as_str(),
+                "partialSuccess"
+                    | "partial_success"
+                    | "error"
+                    | "errors"
+                    | "warning"
+                    | "warnings"
+                    | "errorMessage"
+                    | "error_message"
+                    | "failedReason"
+            ) || ack_has_failure(value)
+        }),
+        Value::Array(values) => values.iter().any(ack_has_failure),
+        _ => false,
+    }
 }
 fn check_status(status: u16) -> Result<()> {
     if (200..300).contains(&status) {
@@ -316,11 +471,11 @@ pub(crate) fn numbered_more(page: &Value, number: u64, empty: bool) -> Result<bo
     }
     Ok(number < total)
 }
-fn complete(values: Vec<Value>) -> Result<Vec<Value>> {
+pub(crate) fn complete(values: Vec<Value>) -> Result<Vec<Value>> {
     if values.is_empty() {
         return Err(fail("langfuse_trace_empty"));
     }
-    let mut unique = BTreeMap::new();
+    let mut unique: BTreeMap<String, Value> = BTreeMap::new();
     for value in values {
         let id = value
             .get("id")
@@ -328,13 +483,65 @@ fn complete(values: Vec<Value>) -> Result<Vec<Value>> {
             .filter(|s| !s.is_empty())
             .ok_or_else(|| fail("langfuse_observation_id"))?
             .to_owned();
-        if let Some(old) = unique.insert(id, value.clone()) {
-            if old != value {
+        // Only these top-level remote bookkeeping fields are nonsemantic.
+        // Retain one entire original row, never merge or invent timestamps.
+        let rank = observation_version(&value)?;
+        if let Some(old) = unique.get(&id) {
+            let facts = |row: &Value| {
+                let mut row = row.clone();
+                if let Some(object) = row.as_object_mut() {
+                    object.remove("createdAt");
+                    object.remove("updatedAt");
+                }
+                row
+            };
+            if facts(old) != facts(&value) {
                 return Err(fail("langfuse_observation_conflict"));
             }
+            if rank <= observation_version(old)? {
+                continue;
+            }
         }
+        unique.insert(id, value);
     }
     Ok(unique.into_values().collect())
+}
+fn parse_time(value: &str) -> Result<time::OffsetDateTime> {
+    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+        .map_err(|_| fail("langfuse_observation_time"))
+}
+fn observation_start(value: &Value) -> Result<time::OffsetDateTime> {
+    parse_time(
+        value
+            .get("startTime")
+            .and_then(Value::as_str)
+            .ok_or_else(|| fail("langfuse_observation_time"))?,
+    )
+}
+fn observation_version(
+    value: &Value,
+) -> Result<(
+    Option<time::OffsetDateTime>,
+    Option<time::OffsetDateTime>,
+    String,
+)> {
+    let timestamp = |key: &str| match value.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(value)) => parse_time(value).map(Some),
+        _ => Err(fail("langfuse_observation_time")),
+    };
+    Ok((
+        timestamp("updatedAt")?,
+        timestamp("createdAt")?,
+        value.to_string(),
+    ))
+}
+fn events_only_404(body: &[u8]) -> bool {
+    serde_json::from_slice::<Value>(body).ok().is_some_and(|value| {
+        value.get("message").and_then(Value::as_str).is_some_and(|message| {
+            message.starts_with("This endpoint is not available on deployments running in Langfuse v4 events_only mode.")
+        })
+    })
 }
 fn capability_404(mime: &str, body: &[u8]) -> bool {
     let message = serde_json::from_slice::<Value>(body)
