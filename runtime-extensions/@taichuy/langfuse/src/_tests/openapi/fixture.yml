@@ -1,0 +1,95 @@
+# Reduced, portable representation of observed Langfuse OpenAPI 3.0.1 shapes:
+# web/public/generated/api/openapi.yml (trace_list/get and annotationQueues_createQueue).
+openapi: 3.0.1
+info:
+  title: server
+  version: ''
+servers:
+  - url: https://ignored.example/escape
+paths:
+  /api/public/traces:
+    parameters:
+      - name: limit
+        in: query
+        schema: {type: integer}
+    get:
+      operationId: trace_list
+      description: Get traces
+      tags: [Trace]
+      security: &basic
+        - BasicAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Operation level overrides inherited parameter.
+          schema: {type: integer, nullable: true}
+        - name: tags
+          in: query
+          schema: {type: array, items: {type: string, nullable: true}}
+        - name: environment
+          in: query
+          explode: false
+          schema: {type: array, items: {type: string}}
+        - name: name
+          in: query
+          schema: {type: string, nullable: true}
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TraceWithFullDetails'}
+  /api/public/traces/{traceId}:
+    parameters:
+      - $ref: '#/components/parameters/TraceId'
+    get:
+      operationId: trace_get
+      summary: Get trace
+      tags: [Trace]
+      security: *basic
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TraceWithFullDetails'}
+  /api/public/annotation-queues:
+    post:
+      operationId: annotationQueues_createQueue
+      description: Create an annotation queue
+      tags: [AnnotationQueues]
+      security: *basic
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateAnnotationQueueRequest'}
+      responses:
+        '200': {description: ''}
+components:
+  parameters:
+    TraceId:
+      name: traceId
+      in: path
+      required: true
+      schema: {type: string}
+  schemas:
+    TraceWithFullDetails:
+      type: object
+      properties:
+        id: {type: string}
+        child: {$ref: '#/components/schemas/Child'}
+        metadata: {nullable: true}
+    Child:
+      type: object
+      properties:
+        parent: {$ref: '#/components/schemas/TraceWithFullDetails'}
+    CreateAnnotationQueueRequest:
+      type: object
+      properties:
+        name: {type: string}
+    Unrelated:
+      type: integer
+  securitySchemes:
+    BasicAuth: {type: http, scheme: basic}

@@ -1,6 +1,7 @@
 //! Vendor behavior lives here; trusted identity, storage and networking belong to the Host.
 mod config;
 pub mod mapping;
+mod openapi;
 mod operations;
 mod remote;
 
@@ -92,3 +93,7 @@ mod workflow_tests;
 #[cfg(test)]
 #[path = "_tests/instances.rs"]
 mod instances_tests;
+
+#[cfg(test)]
+#[path = "_tests/openapi/mod.rs"]
+mod openapi_tests;

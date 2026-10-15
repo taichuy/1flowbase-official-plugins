@@ -87,6 +87,9 @@ pub(crate) async fn execute(host: &Host, handler: &str, payload: Value) -> Resul
             .ok_or_else(|| fail("langfuse_instance_id"))
     };
     match handler {
+        "openapi_discover" | "openapi_get" | "openapi_execute" => {
+            openapi::execute(host, handler, body).await
+        }
         "instances_list" => {
             config::list(
                 host,

@@ -44,6 +44,24 @@ managed:
     module_version: 0.2.0
     module_kind: runtime
     contributions:
+      - contribution_id: langfuse.openapi_discover
+        contributor_module_id: langfuse
+        point_id: 1flowbase.managed-service.operation
+        contract_version: '1'
+        required_permissions: ["service.execute", "plugin_data.owned.write", "credential.manage", "network.http.request"]
+        mode: append
+      - contribution_id: langfuse.openapi_get
+        contributor_module_id: langfuse
+        point_id: 1flowbase.managed-service.operation
+        contract_version: '1'
+        required_permissions: ["service.execute", "plugin_data.owned.write", "credential.manage", "network.http.request"]
+        mode: append
+      - contribution_id: langfuse.openapi_execute
+        contributor_module_id: langfuse
+        point_id: 1flowbase.managed-service.operation
+        contract_version: '1'
+        required_permissions: ["service.execute", "plugin_data.owned.write", "credential.manage", "network.http.request"]
+        mode: append
       - contribution_id: langfuse.instances_list
         contributor_module_id: langfuse
         point_id: 1flowbase.managed-service.operation
@@ -123,6 +141,24 @@ managed:
         required_permissions: [plugin_data.owned.write]
         mode: append
   execution_bindings:
+    - contribution_id: langfuse.openapi_discover
+      execution_mode: process_per_call
+      runtime:
+        protocol: stdio_json_multiplex_v1
+        entry: bin/langfuse
+      handler: openapi_discover
+    - contribution_id: langfuse.openapi_get
+      execution_mode: process_per_call
+      runtime:
+        protocol: stdio_json_multiplex_v1
+        entry: bin/langfuse
+      handler: openapi_get
+    - contribution_id: langfuse.openapi_execute
+      execution_mode: process_per_call
+      runtime:
+        protocol: stdio_json_multiplex_v1
+        entry: bin/langfuse
+      handler: openapi_execute
     - contribution_id: langfuse.instances_list
       execution_mode: process_per_call
       runtime:
@@ -212,11 +248,47 @@ managed_service:
     route_id: langfuse
     path: /settings/langfuse
   operations:
+    - interface_id: langfuse.openapi_discover
+      contribution_id: langfuse.openapi_discover
+      method: POST
+      path: /api/console/managed-services/langfuse/openapi/discover
+      summary: OpenAPI discover
+      description: List operations from the selected instance OpenAPI document. Use search or tag to narrow discovery; endpoint errors are returned without fallback.
+      mcp:
+        name: openapi.discover
+        description: List operations from the selected instance OpenAPI document. Use search or tag to narrow discovery; endpoint errors are returned without fallback.
+      input_schema: {"type":"object","properties":{"path":{"type":"object","properties":{},"additionalProperties":false},"query":{"type":"object","properties":{},"additionalProperties":false},"body":{"type":"object","properties":{"instance_id":{"type":"string","minLength":1,"description":"Stable saved Langfuse instance ID from instances.list."},"search":{"type":"string","description":"Case insensitive search across operation ID, method, path, summary, description and tags."},"tag":{"type":"string","description":"Exact OpenAPI tag to match."}},"required":["instance_id"],"additionalProperties":false}},"required":["path","query","body"],"additionalProperties":false}
+      output_schema: {"type":"object","properties":{"success":{"type":"boolean"},"error":{"type":"object"},"instance_id":{"type":"string","minLength":1},"operations":{"type":"array","items":{"type":"object","properties":{"operationId":{"type":"string","minLength":1},"method":{"type":"string","minLength":1},"path":{"type":"string","minLength":1},"summary":{"type":"string"},"description":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}}},"required":["operationId","method","path"],"additionalProperties":false}}},"required":["success"],"additionalProperties":false}
+    - interface_id: langfuse.openapi_get
+      contribution_id: langfuse.openapi_get
+      method: POST
+      path: /api/console/managed-services/langfuse/openapi/get
+      summary: OpenAPI get
+      description: Get the complete OpenAPI document or one exact operation with inherited parameters and local component reference dependencies.
+      mcp:
+        name: openapi.get
+        description: Get the complete OpenAPI document or one exact operation with inherited parameters and local component reference dependencies.
+      input_schema: {"type":"object","properties":{"path":{"type":"object","properties":{},"additionalProperties":false},"query":{"type":"object","properties":{},"additionalProperties":false},"body":{"type":"object","properties":{"instance_id":{"type":"string","minLength":1,"description":"Stable saved Langfuse instance ID from instances.list."},"operationId":{"type":"string","minLength":1,"description":"Exact operationId from openapi.discover. Omit for the full document in openapi.get."}},"required":["instance_id"],"additionalProperties":false}},"required":["path","query","body"],"additionalProperties":false}
+      output_schema: {"type":"object","properties":{"success":{"type":"boolean"},"error":{"type":"object"},"instance_id":{"type":"string","minLength":1},"operationId":{"type":"string","minLength":1},"method":{"type":"string","minLength":1},"path":{"type":"string","minLength":1},"operation":{"type":"object"},"parameters":{"type":"array","items":{"type":"object"}},"components":{"type":"object"},"document":{"type":"object"}},"required":["success"],"additionalProperties":false}
+    - interface_id: langfuse.openapi_execute
+      contribution_id: langfuse.openapi_execute
+      method: POST
+      path: /api/console/managed-services/langfuse/openapi/execute
+      summary: OpenAPI execute
+      description: Execute exactly one discovered OpenAPI operation using saved instance credentials. Inspect response.status and raw body_base64 for all upstream statuses; no retries or alternate operations.
+      mcp:
+        name: openapi.execute
+        description: Execute exactly one discovered OpenAPI operation using saved instance credentials. Inspect response.status and raw body_base64 for all upstream statuses; no retries or alternate operations.
+      input_schema: {"type":"object","properties":{"path":{"type":"object","properties":{},"additionalProperties":false},"query":{"type":"object","properties":{},"additionalProperties":false},"body":{"type":"object","properties":{"instance_id":{"type":"string","minLength":1,"description":"Stable saved Langfuse instance ID from instances.list."},"operationId":{"type":"string","minLength":1,"description":"Exact operationId from openapi.discover. Omit for the full document in openapi.get."},"path":{"type":"object","description":"Declared path parameter names and scalar values."},"query":{"type":"object","description":"Declared form query parameters; scalars and arrays."},"body":{"description":"JSON request body, including explicit null."}},"required":["instance_id","operationId"],"additionalProperties":false}},"required":["path","query","body"],"additionalProperties":false}
+      output_schema: {"type":"object","properties":{"success":{"type":"boolean"},"error":{"type":"object"},"instance_id":{"type":"string","minLength":1},"operationId":{"type":"string","minLength":1},"response":{"type":"object","properties":{"status":{"type":"integer"},"headers":{"type":"object","additionalProperties":{"type":"string"}},"body_base64":{"type":"string"},"body":{}},"required":["status","headers","body_base64"],"additionalProperties":false}},"required":["success"],"additionalProperties":false}
     - interface_id: langfuse.instances_list
       contribution_id: langfuse.instances_list
       method: GET
       path: /api/console/managed-services/langfuse/instances
       summary: List instances
+      mcp:
+        name: instances.list
+        description: List saved Langfuse instances with stable instance_id, name, base_url and credential_configured; use an instance_id for OpenAPI operations.
       description: List instances using stable instance identity and isolated host managed credentials.
       input_schema: {"type":"object","properties":{"path":{"type":"object","properties":{},"additionalProperties":false},"query":{"type":"object","properties":{"page":{"anyOf":[{"type":"integer","minimum":1},{"type":"string","pattern":"^[1-9][0-9]*$"}]},"page_size":{"anyOf":[{"type":"integer","minimum":1},{"type":"string","pattern":"^[1-9][0-9]*$"}]}},"additionalProperties":false},"body":{"type":"object","properties":{},"additionalProperties":false}},"required":["path","query","body"],"additionalProperties":false}
       output_schema: {"type":"object","properties":{"success":{"type":"boolean"},"error":{"type":"object"},"items":{"type":"array","items":{"type":"object","properties":{"instance_id":{"type":"string","minLength":1},"name":{"type":"string","minLength":1},"base_url":{"type":"string","minLength":1},"credential_configured":{"type":"boolean"}},"required":["instance_id","name","base_url","credential_configured"],"additionalProperties":false}},"page":{"type":"integer","minimum":1},"page_size":{"type":"integer","minimum":1},"total":{"type":"integer","minimum":0}},"required":["success"],"additionalProperties":false}
