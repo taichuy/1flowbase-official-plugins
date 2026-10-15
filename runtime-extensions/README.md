@@ -5,6 +5,9 @@ Runtime extensions are executed by the host but implement provider-specific beha
 Current subtrees:
 
 - `@taichuy/<provider_code>/` for official model provider runtime extensions
+- `@taichuy/langfuse/` for the public managed Langfuse log connector and
+  `/settings/langfuse` page. The host owns authorization, encrypted credentials,
+  log facts and controlled HTTP; the plugin owns vendor mapping and exchange.
 - `@taichuy/wechat-notification/` for the managed WeChat notification type.
   The Host owns notification instance authorization, encrypted credentials and send
   logs; the plugin owns Tencent iLink QR login and text delivery. See its bilingual
