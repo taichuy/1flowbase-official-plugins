@@ -149,6 +149,15 @@ or npm dependencies are required: the packaged TSX uses host-provided React,
 Ant Design, `@1flowbase/plugin-settings` and the public `@1flowbase/data-table`
 module (layout, desktop/mobile rows, column preferences and pagination).
 
+The OpenAPI integration declares `serde_yaml = "0.9.34"`, locked to
+`0.9.34+deprecated`, to parse the selected instance's `generated/api/openapi.yml`
+into JSON for discover/get/execute. The lock retains the upstream `deprecated`
+version marker. Its resolved dependencies include `ryu 1.0.23` and
+`unsafe-libyaml 0.2.11`; these versions reuse the existing host/cache dependency
+closure. The already indirect `uuid 1.28.0` is now declared directly with `v4`
+for stable generated instance IDs. This change upgrades no existing shared
+external dependencies and adds no npm dependencies.
+
 `src/_tests/` covers capsule fidelity, external output normalization, truthful
 unfinished traces, acknowledgement/pagination validation and real SDK callback
 workflows (saved config, all host pages, all remote observation pages, dedup and
@@ -160,5 +169,8 @@ instance isolation, blank keys, stable rename, row-bound exchange, date selectio
 partial/dedup receipts and host locale changes; it uses an already authenticated
 host page and never signs in. Central QA restores the original user locale preference.
 Run the paired plugin CI/centralized QA; unexecuted fixtures are not passing
-runtime evidence. Publishing uses the existing manifest-scanning provider package
-pipeline; generated catalogs and release history are not source inputs.
+runtime evidence. This acceptance uses a CI-built package uploaded and installed
+with the paired host. Langfuse has not been listed in the official registry.
+The existing automatic release discovery skips this manifest because it has
+`slot_codes: []` and no `notification_types`; it does not publish this connector
+automatically. Generated catalogs and release history are not source inputs.

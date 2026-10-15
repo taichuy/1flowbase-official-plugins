@@ -95,10 +95,20 @@ Execute 的 `response` 保留真实 `status`、`headers`、权威字节 `body_ba
 Cargo SDK 固定公开宿主精确 SHA，装配时更新到配套提交；无提交的本地 path dependency。
 TSX 复用宿主 React、Ant Design、`@1flowbase/plugin-settings` 和公开 `@1flowbase/data-table`
 （布局、桌面/移动行、列偏好、分页），无需 npm 依赖。
+
+OpenAPI 接入直接声明 `serde_yaml = "0.9.34"`，锁定 `0.9.34+deprecated`，
+仅用于将所选实例的 `generated/api/openapi.yml` 解析为 JSON，供 discover/get/execute 使用；
+锁文件明确保留上游版本的 `deprecated` 标记。其解析依赖包含 `ryu 1.0.23` 和
+`unsafe-libyaml 0.2.11`，复用已有宿主/缓存中的依赖版本。
+已有间接依赖 `uuid 1.28.0` 改为直接声明并启用 `v4`，用于生成稳定实例 ID。
+本轮未升级既有共享外部依赖，未新增 npm 依赖。
+
 `src/_tests/` 包含完整性、标准消息、真实 SDK 回调分页/去重/部分提交/目标拒绝、队列回执、
 v4 日期边界与完整 Trace、游标循环、observation 版本与真实冲突 fixture。
 实例、导出和导入抽屉的表单使用不同稳定名称，重复 DTO 字段也能对应唯一 label；
 `ui/_tests/` 覆盖实例隔离、密钥留空、稳定重命名、行绑定交换、日期选择、部分/去重回执和宿主语言切换，
 复用已认证宿主页面，不自行登录；集中 QA 负责恢复用户原始语言偏好。
 所有构建和测试统一交配套 CI/集中 QA，未执行 fixture 不代表验收通过。
-现有 manifest 扫描发布流水线负责打包；不手工维护生成 catalog 或历史。
+本轮使用 CI 构建的包上传安装，并与配套宿主一起验收；Langfuse 尚未上架正式 registry。
+既有自动 release 发现会跳过 `slot_codes: []` 且没有 `notification_types` 的此 manifest，
+不会自动发布此连接器。不手工维护生成 catalog 或历史。
