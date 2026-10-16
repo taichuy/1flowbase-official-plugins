@@ -111,7 +111,13 @@ fn peer(listener: TcpListener, through_proxy: bool, connections: usize) -> threa
                             .unwrap();
                     }
                     Message::Close(_) => {
-                        socket.flush().unwrap();
+                        // A server returns ConnectionClosed after flushing the peer's
+                        // Close acknowledgement; the handshake is complete at that point.
+                        match socket.flush() {
+                            Ok(())
+                            | Err(tokio_tungstenite::tungstenite::Error::ConnectionClosed) => {}
+                            Err(error) => panic!("fixture close acknowledgement failed: {error}"),
+                        }
                         break;
                     }
                     Message::Ping(_) => socket.flush().unwrap(),
