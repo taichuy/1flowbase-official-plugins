@@ -54,6 +54,19 @@ fn warmup_tool_result(close_reason: Option<&'static str>) {
                 reason: reason.into(),
             })))
             .unwrap();
+            if !reason.contains("continuation connection") {
+                drop(ws);
+                let stream = accept_bounded(&listener);
+                let mut retry = tokio_tungstenite::tungstenite::accept_with_config(
+                    stream,
+                    Some(Default::default()),
+                )
+                .unwrap();
+                let rebuilt = create(&mut retry);
+                assert!(rebuilt.get("previous_response_id").is_none());
+                assert_eq!(rebuilt["input"], json!([item, result["input"][0]]));
+                completed(&mut retry, "resp_done", json!([]));
+            }
         } else {
             completed(&mut ws, "resp_done", json!([]));
         }
@@ -88,22 +101,40 @@ fn warmup_tool_result(close_reason: Option<&'static str>) {
         native_managed_input(&base, body.clone(), native_opaque_directive(2)),
     );
     if let Some(reason) = close_reason {
-        let error = result
-            .iter()
-            .find(|v| v["type"] == "error")
-            .expect("1008 terminates");
-        let diagnostic =
-            &error["error"]["provider_details"]["1flowbase_provider_recovery_diagnostics"];
-        let category = if reason.contains("continuation connection") {
-            "continuation_unavailable"
+        let continuation_rejected = reason.contains("continuation connection");
+        let (diagnostic, category) = if continuation_rejected {
+            let error = result
+                .iter()
+                .find(|v| v["type"] == "error")
+                .expect("explicit continuation rejection terminates");
+            assert_eq!(error["error"]["message"], reason);
+            (
+                &error["error"]["provider_details"]["1flowbase_provider_recovery_diagnostics"],
+                "continuation_unavailable",
+            )
         } else {
-            "policy_rejected"
+            assert!(!result.iter().any(|v| v["type"] == "error"), "{result:?}");
+            let recovered = &result.last().unwrap()["result"];
+            assert_eq!(recovered["response_id"], "resp_done");
+            assert_eq!(
+                recovered["provider_metadata"]["1flowbase_provider_recovery"]["attempt"],
+                1
+            );
+            assert_eq!(
+                recovered["provider_metadata"]["1flowbase_provider_recovery"]["disposition"],
+                "one_full_context_rebuild"
+            );
+            (
+                &recovered["provider_metadata"]["1flowbase_provider_recovery_diagnostics"],
+                "transport_disconnected",
+            )
         };
         assert_eq!(diagnostic["last_failure"]["reason_category"], category);
         assert_eq!(diagnostic["last_failure"]["close_code"], 1008);
         assert_eq!(diagnostic["attempts"].as_array().unwrap().len(), 1);
-        assert!(!diagnostic.to_string().contains("secret"));
-        if category == "continuation_unavailable" {
+        assert_eq!(diagnostic["last_failure"]["close_reason"], reason);
+        assert!(!diagnostic.to_string().contains("fixture-credential-secret"));
+        if continuation_rejected {
             // A later invocation cannot resurrect the recorded owner after an explicit rejection.
             let rejected = next_turn(
                 &mut stdin,
@@ -118,7 +149,7 @@ fn warmup_tool_result(close_reason: Option<&'static str>) {
     let listener = server.join().unwrap();
     assert!(
         matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
-        "no replacement connection for a policy close"
+        "no unexpected connection after the bounded continuation outcome"
     );
     drop(stdin);
     let _ = child.kill();
@@ -138,7 +169,7 @@ fn prewarm_first_tool_result_continuation_rejection_invalidates_owner() {
 }
 
 #[test]
-fn unknown_policy_close_is_terminal_and_redacted() {
+fn bare_policy_close_rebuilds_complete_history_and_preserves_reason() {
     warmup_tool_result(Some("unknown policy https://private/?token=secret"));
 }
 

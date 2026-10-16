@@ -63,7 +63,7 @@ fn input(base: &str, body: Value, current: bool) -> Value {
     json!({"method":"invoke","input":{
         "contract_version":"1flowbase.provider/v2","provider_instance_id":"fixture",
         "provider_code":"openai","protocol":"openai_responses","model":"fixture",
-        "provider_config":{"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"},
+        "provider_config":{"base_url":base,"api_key":"fixture-credential-secret","transport_mode":"responses_websocket"},
         "required_capabilities":capabilities,
         "run_context":{"physical_transport_session":{"logical_session_id":"logical-fixture","generation":41,"task_id":"task-fixture","state":"active","physical_deadline_unix_ms":4102444800000_i64}},
         "client_protocol_envelope":{"source_protocol":"openai_responses","headers":{"session-id":["fixture-session"],"thread-id":["fixture-thread"],"openai-beta":["responses_websockets=2026-02-06"],"x-codex-turn-state":["client-turn"]}},
@@ -671,7 +671,11 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
     assert_eq!(diagnostics["last_failure"]["attempt"], 1);
     assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 2);
     assert_eq!(diagnostics["attempts"].as_array().unwrap().len(), 2);
-    assert!(!details.to_string().contains("private-token"));
+    assert_eq!(
+        diagnostics["last_failure"]["close_reason"],
+        "upstream continuation connection is unavailable; private-token=secret"
+    );
+    assert!(!details.to_string().contains("fixture-credential-secret"));
     let original = &details["1flowbase_provider_recovery_original_error"];
     assert!(
         original["message"]
@@ -745,8 +749,8 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             true,
             1008,
             "policy secret-sentinel",
-            false,
-            "policy_rejected",
+            true,
+            "transport_disconnected",
         ),
         (
             true,

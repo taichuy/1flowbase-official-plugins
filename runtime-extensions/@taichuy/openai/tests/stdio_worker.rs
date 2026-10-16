@@ -1457,8 +1457,10 @@ fn websocket_unknown_1008_transport_close_delegates_logical_retry() {
     assert_eq!(diagnostics["last_failure"]["kind"], "websocket_close");
     assert_eq!(diagnostics["last_failure"]["close_code"], 1008);
     assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
-    assert!(!error.to_string().contains("private-policy-secret"));
-    assert!(!error.to_string().contains("resp_previous"));
+    let reason = "previous_response_id resp_previous is no longer available; private-policy-secret";
+    assert_eq!(diagnostics["last_failure"]["close_reason"], reason);
+    assert_eq!(error["error"]["message"], reason);
+    assert!(!error.to_string().contains("test-key"));
     let listener = server.join().expect("server thread should finish");
     assert!(
         matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
