@@ -4511,6 +4511,9 @@ fn credential_fingerprint(api_key: &str) -> String {
 }
 
 fn can_fallback_to_http(error: &anyhow::Error) -> bool {
+    if let Some(category) = recovery_diagnostics::transport_category(error) {
+        return category != "authorization_rejected";
+    }
     let message = error.to_string().to_ascii_lowercase();
     !(message.contains("401")
         || message.contains("403")
@@ -4521,11 +4524,17 @@ fn can_fallback_to_http(error: &anyhow::Error) -> bool {
 }
 
 fn websocket_proxy_failure_requires_fresh_turn_state(error: &anyhow::Error) -> bool {
+    if let Some(category) = recovery_diagnostics::transport_category(error) {
+        return category == "proxy_failed";
+    }
     let message = error.to_string().to_ascii_lowercase();
     message.contains("upstream websocket proxy failed")
 }
 
 fn websocket_previous_response_unavailable(error: &anyhow::Error) -> bool {
+    if let Some(category) = recovery_diagnostics::transport_category(error) {
+        return category == "previous_response_unavailable";
+    }
     let message = error.to_string().to_ascii_lowercase();
     message.contains("previous_response_id")
         && (message.contains("no longer available")

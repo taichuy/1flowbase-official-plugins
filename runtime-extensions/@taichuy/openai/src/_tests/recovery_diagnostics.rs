@@ -2,6 +2,44 @@ use super::*;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
 #[test]
+fn peer_close_text_cannot_override_typed_recovery_classification() {
+    for reason in [
+        "missing first response.create message",
+        "previous_response_id resp_private is no longer available",
+        "401 unauthorized forbidden invalid_api_key",
+    ] {
+        let error = close_error(Some(CloseFrame {
+            code: CloseCode::Policy,
+            reason: reason.into(),
+        }));
+        assert_eq!(safe_error(&error).message, reason);
+        assert!(!crate::websocket_previous_response_unavailable(&error));
+        assert!(!crate::websocket_proxy_failure_requires_fresh_turn_state(
+            &error
+        ));
+        assert!(crate::can_fallback_to_http(&error));
+    }
+    assert!(crate::websocket_previous_response_unavailable(
+        &transport_error("owner_unavailable", "previous_response_unavailable", None,)
+    ));
+    assert!(crate::websocket_proxy_failure_requires_fresh_turn_state(
+        &transport_error("websocket_close", "proxy_failed", Some(1011),)
+    ));
+    assert!(!crate::can_fallback_to_http(&transport_error(
+        "websocket_error",
+        "authorization_rejected",
+        None,
+    )));
+    // Preserve the existing compatibility path for errors without typed transport facts.
+    assert!(crate::websocket_previous_response_unavailable(
+        &anyhow::anyhow!("previous_response_id is no longer available")
+    ));
+    assert!(!crate::can_fallback_to_http(&anyhow::anyhow!(
+        "401 unauthorized"
+    )));
+}
+
+#[test]
 fn close_classification_preserves_original_peer_reason() {
     for (reason, category) in [
         (

@@ -6,6 +6,20 @@ use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 pub(crate) const KEY: &str = "1flowbase_provider_recovery_diagnostics";
 const FAILURE_KEY: &str = "1flowbase_transport_failure";
 
+// Recovery uses classified transport facts, never the preserved peer display text.
+pub(crate) fn transport_category(error: &anyhow::Error) -> Option<&str> {
+    if let Some(physical) = error.downcast_ref::<super::websocket_io::Failure>() {
+        return Some(physical.category);
+    }
+    error
+        .downcast_ref::<ProviderRuntimeError>()?
+        .provider_details
+        .as_ref()?
+        .get(FAILURE_KEY)?
+        .get("reason_category")?
+        .as_str()
+}
+
 fn safe_reason(category: &str) -> &'static str {
     match category {
         "continuation_unavailable" => "upstream continuation connection is unavailable",
