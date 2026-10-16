@@ -229,7 +229,10 @@ async fn connected_session(
     let config = normalize_provider_config(&json!({"api_key":"fixture", "base_url":format!("http://{}",listener.local_addr().unwrap())})).unwrap();
     let peer = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
-        let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+        let mut socket =
+            tokio_tungstenite::accept_async_with_config(stream, Some(Default::default()))
+                .await
+                .unwrap();
         let frame = socket.next().await.unwrap().unwrap();
         assert!(matches!(frame, Message::Close(_)));
         if no_ack {

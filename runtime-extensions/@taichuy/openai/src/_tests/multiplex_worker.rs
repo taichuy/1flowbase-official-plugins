@@ -75,7 +75,7 @@ fn observation_marker_does_not_relax_business_input_schema() {
 #[tokio::test(flavor = "current_thread")]
 async fn routed_observation_reaches_the_real_streaming_handler() {
     use std::{net::TcpListener, thread};
-    use tokio_tungstenite::tungstenite::{accept, Message};
+    use tokio_tungstenite::tungstenite::{accept_with_config, Message};
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base_url = format!("http://{}", listener.local_addr().unwrap());
@@ -84,7 +84,7 @@ async fn routed_observation_reaches_the_real_streaming_handler() {
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        let mut socket = accept(stream).unwrap();
+        let mut socket = accept_with_config(stream, Some(Default::default())).unwrap();
         let sent = socket.read().unwrap().into_text().unwrap();
         assert_eq!(
             serde_json::from_str::<Value>(&sent).unwrap()["type"],

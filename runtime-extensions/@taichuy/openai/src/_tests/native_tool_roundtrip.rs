@@ -65,7 +65,9 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut ws =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         let first: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
         assert_eq!(
             first["input"],
@@ -103,7 +105,11 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
                     let mut peek = [0_u8; 16];
                     let read = stream.peek(&mut peek).unwrap();
                     if peek[..read].starts_with(b"GET ") {
-                        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+                        let mut ws = tokio_tungstenite::tungstenite::accept_with_config(
+                            stream,
+                            Some(Default::default()),
+                        )
+                        .unwrap();
                         let rebuilt: Value =
                             serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
                         assert!(rebuilt.get("previous_response_id").is_none());
@@ -456,8 +462,11 @@ async fn issue_2028_native_tools_roundtrip_on_selected_websocket() {
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
-            let mut ws = tokio_tungstenite::tungstenite::accept(stream)
-                .expect("native must select WS, not HTTP");
+            let mut ws = tokio_tungstenite::tungstenite::accept_with_config(
+                stream,
+                Some(Default::default()),
+            )
+            .expect("native must select WS, not HTTP");
             let first: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             assert_eq!(first["type"], "response.create");
             assert_eq!(first["input"][0]["type"], "additional_tools");
@@ -712,7 +721,11 @@ async fn native_sessions_are_isolated_and_owner_does_not_cross_generation() {
             stream
                 .set_read_timeout(Some(Duration::from_secs(10)))
                 .unwrap();
-            let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+            let mut ws = tokio_tungstenite::tungstenite::accept_with_config(
+                stream,
+                Some(Default::default()),
+            )
+            .unwrap();
             let frame: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             assert_eq!(frame["input"], json!([{"role":"user","content":nonce}]));
             ws.send(Message::Text(json!({"type":"response.completed","response":{"id":format!("resp_{nonce}"),"output":[]}}).to_string().into())).unwrap();
@@ -835,7 +848,11 @@ async fn native_tool_interruption_never_commits_partial_calls() {
                     stream
                         .set_read_timeout(Some(Duration::from_secs(5)))
                         .unwrap();
-                    let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+                    let mut ws = tokio_tungstenite::tungstenite::accept_with_config(
+                        stream,
+                        Some(Default::default()),
+                    )
+                    .unwrap();
                     let request: Value =
                         serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
                     assert_eq!(request["type"], "response.create");

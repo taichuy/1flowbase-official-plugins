@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde_json::{json, Value};
-use tokio_tungstenite::tungstenite::{accept, Message};
+use tokio_tungstenite::tungstenite::{accept_with_config, Message};
 
 fn request(base_url: &str, logical: &str) -> Value {
     json!({"method":"invoke","input":{
@@ -230,7 +230,7 @@ fn semantic_then_native_continuation_reuses_one_physical_websocket() {
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        let mut socket = accept(stream).unwrap();
+        let mut socket = accept_with_config(stream, Some(Default::default())).unwrap();
         let first: Value = serde_json::from_str(socket.read().unwrap().to_text().unwrap()).unwrap();
         assert_eq!(first["type"], "response.create");
         socket.send(Message::Text(json!({"type":"response.completed","response":{

@@ -7,7 +7,7 @@ use std::{
     thread,
     time::Duration,
 };
-use tokio_tungstenite::tungstenite::{accept_hdr, Message};
+use tokio_tungstenite::tungstenite::{accept_hdr_with_config, Message};
 
 struct MultiplexStdin {
     inner: ChildStdin,
@@ -124,13 +124,13 @@ fn paired_worker_preserves_items_and_accepts_both_tool_result_types() {
             stream
                 .set_read_timeout(Some(Duration::from_secs(10)))
                 .unwrap();
-            let mut ws=accept_hdr(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+            let mut ws=accept_hdr_with_config(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
                 assert_eq!(request.headers()["openai-beta"], "responses_websockets=2026-02-06");
                 assert_eq!(request.headers().get_all("openai-beta").iter().count(), 1);
                 assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
                 response.headers_mut().insert("x-codex-turn-state", "provider-turn".parse().unwrap());
                 Ok(response)
-            }).unwrap();
+            }, Some(Default::default())).unwrap();
             let first: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             assert_eq!(first["input"][0]["type"], "additional_tools");
             ws.send(Message::Text(
@@ -242,7 +242,9 @@ fn paired_worker_preserves_native_incomplete_terminal() {
         stream
             .set_read_timeout(Some(Duration::from_secs(10)))
             .unwrap();
-        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut ws =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         ws.read().unwrap();
         for event in ["response.output_item.added", "response.output_item.done"] {
             ws.send(Message::Text(
@@ -473,13 +475,13 @@ fn native_managed_proxy_failure_rebuilds_full_context_on_new_socket() {
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
         let first_stream = accept_bounded(&listener);
-        let mut first = accept_hdr(first_stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+        let mut first = accept_hdr_with_config(first_stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
             assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
             response
                 .headers_mut()
                 .insert("x-codex-turn-state", "provider-turn".parse().unwrap());
             Ok(response)
-        })
+        }, Some(Default::default()))
         .unwrap();
         let initial: Value =
             serde_json::from_str(first.read().unwrap().to_text().unwrap()).unwrap();
@@ -505,7 +507,7 @@ fn native_managed_proxy_failure_rebuilds_full_context_on_new_socket() {
             .unwrap();
 
         let retry_stream = accept_bounded(&listener);
-        let mut retry = accept_hdr(
+        let mut retry = accept_hdr_with_config(
             retry_stream,
             |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
              response: tokio_tungstenite::tungstenite::handshake::server::Response| {
@@ -518,8 +520,7 @@ fn native_managed_proxy_failure_rebuilds_full_context_on_new_socket() {
                     "full-context rebuild uses caller routing metadata, not the previous socket route"
                 );
                 Ok(response)
-            },
-        )
+            }, Some(Default::default()))
         .unwrap();
         let retried = retry.read().unwrap().into_text().unwrap();
         let continuation: Value = serde_json::from_str(&continuation).unwrap();
@@ -583,12 +584,12 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
         let (first_stream, _) = listener.accept().unwrap();
-        let mut first = accept_hdr(first_stream, |_request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+        let mut first = accept_hdr_with_config(first_stream, |_request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
             response
                 .headers_mut()
                 .insert("x-codex-turn-state", "provider-turn".parse().unwrap());
             Ok(response)
-        })
+        }, Some(Default::default()))
         .unwrap();
         let _ = first.read().unwrap();
         first
@@ -609,7 +610,11 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
             .unwrap();
 
         let (retry_stream, _) = listener.accept().unwrap();
-        let mut retry = tokio_tungstenite::tungstenite::accept(retry_stream).unwrap();
+        let mut retry = tokio_tungstenite::tungstenite::accept_with_config(
+            retry_stream,
+            Some(Default::default()),
+        )
+        .unwrap();
         let _ = retry.read().unwrap();
         retry
             .send(Message::Close(Some(
@@ -761,10 +766,10 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
             stream
                 .set_read_timeout(Some(Duration::from_secs(3)))
                 .unwrap();
-            let mut ws = accept_hdr(stream, move |_: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+            let mut ws = accept_hdr_with_config(stream, move |_: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
                 if token { response.headers_mut().insert("x-codex-turn-state", "private-routing-sentinel".parse().unwrap()); }
                 Ok(response)
-            }).unwrap();
+            }, Some(Default::default())).unwrap();
             let initial: Value =
                 serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             ws.send(Message::Text(
@@ -790,10 +795,10 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
                 stream
                     .set_read_timeout(Some(Duration::from_secs(3)))
                     .unwrap();
-                let mut retry = accept_hdr(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                let mut retry = accept_hdr_with_config(stream, |request: &tokio_tungstenite::tungstenite::handshake::server::Request, response: tokio_tungstenite::tungstenite::handshake::server::Response| {
                     assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
                     Ok(response)
-                }).unwrap();
+                }, Some(Default::default())).unwrap();
                 let body: Value =
                     serde_json::from_str(retry.read().unwrap().to_text().unwrap()).unwrap();
                 let mut delta = initial.clone();
@@ -894,13 +899,12 @@ fn native_upstream_terminals_preserve_facts_and_never_open_a_second_socket() {
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
-            let mut socket = accept_hdr(
+            let mut socket = accept_hdr_with_config(
                 stream,
                 |_: &tokio_tungstenite::tungstenite::handshake::server::Request,
                  response: tokio_tungstenite::tungstenite::handshake::server::Response| {
                     Ok(response)
-                },
-            )
+                }, Some(Default::default()))
             .unwrap();
             let request = socket.read().unwrap();
             assert!(request.to_text().unwrap().contains("response.create"));

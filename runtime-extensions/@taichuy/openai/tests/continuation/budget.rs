@@ -8,10 +8,10 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        let mut ws = accept_hdr(stream, |_request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+        let mut ws = accept_hdr_with_config(stream, |_request: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
             response.headers_mut().insert("x-codex-turn-state", "fixture-route".parse().unwrap());
             Ok(response)
-        }).unwrap();
+        }, Some(Default::default())).unwrap();
         let initial = create(&mut ws);
         completed(&mut ws, "resp_owner", rebuild_model_output());
         let expected = create(&mut ws);
@@ -32,7 +32,11 @@ fn bounded_continuation(budget: u16, retry_succeeds: bool, retry_handshake_fails
             if retry_handshake_fails {
                 drop(stream);
             } else {
-                let mut retry = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+                let mut retry = tokio_tungstenite::tungstenite::accept_with_config(
+                    stream,
+                    Some(Default::default()),
+                )
+                .unwrap();
                 let actual = create(&mut retry);
                 assert_full_context_rebuild(&initial, &rebuild_model_output(), &expected, &actual);
                 sends += 1;
@@ -167,7 +171,9 @@ fn proxy_failure_without_route_rebuilds_full_context_without_replaying_cursor() 
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
         // No provider routing token: recovery must rebuild saved history on a new socket.
-        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut ws =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         let initial = create(&mut ws);
         completed(&mut ws, "resp_no_route", rebuild_model_output());
         let delta = create(&mut ws);
@@ -178,13 +184,14 @@ fn proxy_failure_without_route_rebuilds_full_context_without_replaying_cursor() 
         })))
         .unwrap();
         let stream = accept_bounded(&listener);
-        let mut retry = accept_hdr(
+        let mut retry = accept_hdr_with_config(
             stream,
             |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
              response: tokio_tungstenite::tungstenite::handshake::server::Response| {
                 assert_eq!(request.headers()["x-codex-turn-state"], "client-turn");
                 Ok(response)
             },
+            Some(Default::default()),
         )
         .unwrap();
         let actual = create(&mut retry);

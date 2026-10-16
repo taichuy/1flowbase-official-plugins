@@ -5835,7 +5835,7 @@ mod tests {
         time::Duration,
     };
     use tokio_tungstenite::tungstenite::{
-        accept_hdr,
+        accept_hdr_with_config,
         handshake::server::{
             Request as ServerHandshakeRequest, Response as ServerHandshakeResponse,
         },
@@ -6353,7 +6353,7 @@ mod tests {
                 .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                 .expect("CONNECT response should be writable");
 
-            let _websocket = accept_hdr(
+            let _websocket = accept_hdr_with_config(
                 stream,
                 |_request: &ServerHandshakeRequest, mut response: ServerHandshakeResponse| {
                     response
@@ -6361,6 +6361,7 @@ mod tests {
                         .insert("x-codex-turn-state", "proxy-turn".parse().unwrap());
                     Ok(response)
                 },
+                Some(Default::default()),
             )
             .expect("websocket handshake should succeed through proxy");
         });

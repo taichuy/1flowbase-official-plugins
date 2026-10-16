@@ -9,7 +9,7 @@ use std::{
 
 use serde_json::{json, Value};
 use tokio_tungstenite::tungstenite::{
-    accept, accept_hdr,
+    accept_hdr_with_config, accept_with_config,
     handshake::server::{Request, Response},
     protocol::{frame::coding::CloseCode, CloseFrame},
     Message,
@@ -134,7 +134,8 @@ fn start_websocket_created_close_then_sse_server() -> (String, thread::JoinHandl
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (first_stream, _) = listener.accept().expect("websocket request should connect");
-        let mut websocket = accept(first_stream).expect("websocket handshake should succeed");
+        let mut websocket = accept_with_config(first_stream, Some(Default::default()))
+            .expect("websocket handshake should succeed");
         let _ = websocket
             .read()
             .expect("response.create should be readable");
@@ -173,7 +174,8 @@ fn start_websocket_function_call_done_then_close_server() -> (String, thread::Jo
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (stream, _) = listener.accept().expect("websocket request should connect");
-        let mut websocket = accept(stream).expect("websocket handshake should succeed");
+        let mut websocket = accept_with_config(stream, Some(Default::default()))
+            .expect("websocket handshake should succeed");
         let _ = websocket
             .read()
             .expect("first response.create should be readable");
@@ -271,8 +273,8 @@ fn start_websocket_close_then_reconnect_server() -> (String, thread::JoinHandle<
             return;
         }
 
-        let mut websocket =
-            accept(second_stream).expect("continuation websocket handshake should succeed");
+        let mut websocket = accept_with_config(second_stream, Some(Default::default()))
+            .expect("continuation websocket handshake should succeed");
         let request = websocket
             .read()
             .expect("continuation response.create should be readable")
@@ -324,8 +326,8 @@ fn start_websocket_unseen_cursor_close_then_reconnect_server() -> (String, threa
         let (second_stream, _) = listener
             .accept()
             .expect("retry websocket should connect after stream close");
-        let mut websocket =
-            accept(second_stream).expect("retry websocket handshake should succeed");
+        let mut websocket = accept_with_config(second_stream, Some(Default::default()))
+            .expect("retry websocket handshake should succeed");
         let request = websocket
             .read()
             .expect("retry response.create should be readable")
@@ -395,18 +397,22 @@ fn start_websocket_proxy_failure_with_preserved_turn_state_server(
         let (retry_stream, _) = listener
             .accept()
             .expect("retry websocket should connect before fallback");
-        let mut websocket = accept_hdr(retry_stream, |request: &Request, response: Response| {
-            let got = request
-                .headers()
-                .get("x-codex-turn-state")
-                .and_then(|value| value.to_str().ok());
-            assert_eq!(
-                got,
-                Some("sticky-turn-1"),
-                "retry must retain the original peer-accepted routing token"
-            );
-            Ok(response)
-        })
+        let mut websocket = accept_hdr_with_config(
+            retry_stream,
+            |request: &Request, response: Response| {
+                let got = request
+                    .headers()
+                    .get("x-codex-turn-state")
+                    .and_then(|value| value.to_str().ok());
+                assert_eq!(
+                    got,
+                    Some("sticky-turn-1"),
+                    "retry must retain the original peer-accepted routing token"
+                );
+                Ok(response)
+            },
+            Some(Default::default()),
+        )
         .expect("retry websocket handshake should succeed");
         let request = websocket
             .read()
@@ -428,18 +434,22 @@ fn start_websocket_proxy_failure_with_preserved_turn_state_server(
         let (retry_stream, _) = listener
             .accept()
             .expect("second retry websocket should connect");
-        let mut websocket = accept_hdr(retry_stream, |request: &Request, response: Response| {
-            let got = request
-                .headers()
-                .get("x-codex-turn-state")
-                .and_then(|value| value.to_str().ok());
-            assert_eq!(
-                got,
-                Some("sticky-turn-1"),
-                "second retry must retain the same peer-accepted routing token"
-            );
-            Ok(response)
-        })
+        let mut websocket = accept_hdr_with_config(
+            retry_stream,
+            |request: &Request, response: Response| {
+                let got = request
+                    .headers()
+                    .get("x-codex-turn-state")
+                    .and_then(|value| value.to_str().ok());
+                assert_eq!(
+                    got,
+                    Some("sticky-turn-1"),
+                    "second retry must retain the same peer-accepted routing token"
+                );
+                Ok(response)
+            },
+            Some(Default::default()),
+        )
         .expect("second retry websocket handshake should succeed");
         let request = websocket
             .read()
@@ -473,7 +483,8 @@ fn start_websocket_unknown_policy_close_server() -> (String, thread::JoinHandle<
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (stream, _) = listener.accept().expect("websocket should connect");
-        let mut websocket = accept(stream).expect("websocket handshake should succeed");
+        let mut websocket = accept_with_config(stream, Some(Default::default()))
+            .expect("websocket handshake should succeed");
         let request = websocket
             .read()
             .expect("first response.create should be readable")
@@ -541,12 +552,16 @@ fn accept_with_turn_state(
     stream: TcpStream,
     turn_state: &'static str,
 ) -> tokio_tungstenite::tungstenite::WebSocket<TcpStream> {
-    accept_hdr(stream, |_request: &Request, mut response: Response| {
-        response
-            .headers_mut()
-            .insert("x-codex-turn-state", turn_state.parse().unwrap());
-        Ok(response)
-    })
+    accept_hdr_with_config(
+        stream,
+        |_request: &Request, mut response: Response| {
+            response
+                .headers_mut()
+                .insert("x-codex-turn-state", turn_state.parse().unwrap());
+            Ok(response)
+        },
+        Some(Default::default()),
+    )
     .expect("websocket handshake should succeed")
 }
 
@@ -554,18 +569,22 @@ fn accept_expect_turn_state(
     stream: TcpStream,
     expected: &'static str,
 ) -> tokio_tungstenite::tungstenite::WebSocket<TcpStream> {
-    accept_hdr(stream, |request: &Request, response: Response| {
-        let got = request
-            .headers()
-            .get("x-codex-turn-state")
-            .and_then(|value| value.to_str().ok());
-        assert_eq!(
-            got,
-            Some(expected),
-            "continuation reconnect should replay the sticky turn state"
-        );
-        Ok(response)
-    })
+    accept_hdr_with_config(
+        stream,
+        |request: &Request, response: Response| {
+            let got = request
+                .headers()
+                .get("x-codex-turn-state")
+                .and_then(|value| value.to_str().ok());
+            assert_eq!(
+                got,
+                Some(expected),
+                "continuation reconnect should replay the sticky turn state"
+            );
+            Ok(response)
+        },
+        Some(Default::default()),
+    )
     .expect("websocket handshake should succeed")
 }
 
@@ -574,23 +593,27 @@ fn accept_record_turn_state(
     response_turn_state: Option<&'static str>,
     observed: Arc<Mutex<Vec<Option<String>>>>,
 ) -> tokio_tungstenite::tungstenite::WebSocket<TcpStream> {
-    accept_hdr(stream, move |request: &Request, mut response: Response| {
-        let got = request
-            .headers()
-            .get("x-codex-turn-state")
-            .and_then(|value| value.to_str().ok())
-            .map(ToOwned::to_owned);
-        observed
-            .lock()
-            .expect("observed turn states mutex should lock")
-            .push(got);
-        if let Some(turn_state) = response_turn_state {
-            response
-                .headers_mut()
-                .insert("x-codex-turn-state", turn_state.parse().unwrap());
-        }
-        Ok(response)
-    })
+    accept_hdr_with_config(
+        stream,
+        move |request: &Request, mut response: Response| {
+            let got = request
+                .headers()
+                .get("x-codex-turn-state")
+                .and_then(|value| value.to_str().ok())
+                .map(ToOwned::to_owned);
+            observed
+                .lock()
+                .expect("observed turn states mutex should lock")
+                .push(got);
+            if let Some(turn_state) = response_turn_state {
+                response
+                    .headers_mut()
+                    .insert("x-codex-turn-state", turn_state.parse().unwrap());
+            }
+            Ok(response)
+        },
+        Some(Default::default()),
+    )
     .expect("websocket handshake should succeed")
 }
 
@@ -753,7 +776,8 @@ fn start_websocket_same_session_continuation_server() -> (String, thread::JoinHa
     let address = format!("http://{}", listener.local_addr().expect("listener addr"));
     let handle = thread::spawn(move || {
         let (stream, _) = listener.accept().expect("websocket should connect");
-        let mut websocket = accept(stream).expect("websocket handshake should succeed");
+        let mut websocket = accept_with_config(stream, Some(Default::default()))
+            .expect("websocket handshake should succeed");
         let request = websocket
             .read()
             .expect("first response.create should be readable")
@@ -1809,7 +1833,7 @@ fn close_without_peer_ack_and_rejected_control_preserve_other_session_cursor_in_
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        let mut socket = accept(stream).unwrap();
+        let mut socket = accept_with_config(stream, Some(Default::default())).unwrap();
         socket.read().unwrap();
         socket
             .send(Message::Text(

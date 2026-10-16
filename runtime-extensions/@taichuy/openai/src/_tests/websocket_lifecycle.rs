@@ -110,7 +110,9 @@ fn start_closing_websocket(
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     let handle = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
-        let mut websocket = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut websocket =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         websocket.read().unwrap();
         if visible_output {
             websocket
@@ -530,7 +532,9 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
     let (close_tx, close_rx) = mpsc::channel();
     let upstream = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
-        let mut websocket = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut websocket =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         let close = websocket.read().unwrap();
         close_tx.send(matches!(close, Message::Close(_))).unwrap();
         let _ = websocket.flush();
@@ -944,7 +948,11 @@ fn start_visibility_websocket(
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
-            let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+            let mut ws = tokio_tungstenite::tungstenite::accept_with_config(
+                stream,
+                Some(Default::default()),
+            )
+            .unwrap();
             ws.read().unwrap();
             for event in events {
                 ws.send(Message::Text(event.to_string().into())).unwrap();
@@ -1403,7 +1411,11 @@ async fn native_completed_prewarm_rebuilds_after_host_generation_rotation() {
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
-            let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+            let mut ws = tokio_tungstenite::tungstenite::accept_with_config(
+                stream,
+                Some(Default::default()),
+            )
+            .unwrap();
             let body: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
             sent.send(body).unwrap();
             ws.send(Message::Text(json!({"type":"response.completed","response":{"id":id,"status":"completed","output":[]}}).to_string().into())).unwrap();

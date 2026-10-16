@@ -11,7 +11,9 @@ async fn pair() -> (SocketOwner, WebSocketStream<TcpStream>) {
         SocketOwner::new(stream)
     });
     let (stream, _) = listener.accept().await.unwrap();
-    let server = tokio_tungstenite::accept_async(stream).await.unwrap();
+    let server = tokio_tungstenite::accept_async_with_config(stream, Some(Default::default()))
+        .await
+        .unwrap();
     (client.await.unwrap(), server)
 }
 
@@ -58,7 +60,9 @@ async fn active_socket_sends_ping_while_upstream_is_silent() {
         SocketOwner::new_with_keepalive(stream, Duration::from_millis(25))
     });
     let (stream, _) = listener.accept().await.unwrap();
-    let mut peer = tokio_tungstenite::accept_async(stream).await.unwrap();
+    let mut peer = tokio_tungstenite::accept_async_with_config(stream, Some(Default::default()))
+        .await
+        .unwrap();
     let mut owner = client.await.unwrap();
     let activity = owner.activity();
 
@@ -208,7 +212,7 @@ fn byte_budget_covers_cumulative_payload_and_releases_on_consumption() {
 }
 
 #[tokio::test]
-async fn idle_close_keeps_code_without_peer_reason_and_closes_transport() {
+async fn idle_close_preserves_code_and_peer_reason_and_closes_transport() {
     let (owner, mut peer) = pair().await;
     peer.send(Message::Close(Some(
         tokio_tungstenite::tungstenite::protocol::CloseFrame {

@@ -28,7 +28,13 @@ fn close_classification_preserves_original_peer_reason() {
         assert_eq!(diagnostic["close_reason"], reason);
         assert_eq!(diagnostic["socket_incarnation"], 7);
         assert_eq!(diagnostic["owner_socket_incarnation"], 3);
-        assert_eq!(error.to_string(), reason);
+        assert_eq!(
+            error
+                .downcast_ref::<ProviderRuntimeError>()
+                .unwrap()
+                .message,
+            reason
+        );
         assert_eq!(safe_error(&error).message, reason);
     }
 }
@@ -43,7 +49,10 @@ fn empty_close_reason_keeps_usable_message_without_inventing_peer_text() {
     assert_eq!(diagnostic["close_reason"], "");
     assert_eq!(diagnostic["close_code"], 1008);
     assert_eq!(
-        error.to_string(),
+        error
+            .downcast_ref::<ProviderRuntimeError>()
+            .unwrap()
+            .message,
         "websocket disconnected before response.completed"
     );
     assert!(failure(&close_error(None), None, None)["close_reason"].is_null());

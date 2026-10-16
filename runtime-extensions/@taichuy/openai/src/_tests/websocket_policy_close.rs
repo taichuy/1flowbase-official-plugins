@@ -11,7 +11,9 @@ fn start_policy_close(
         stream
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
-        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut ws =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         ws.read().unwrap();
         for event in events {
             ws.send(Message::Text(event.to_string().into())).unwrap();

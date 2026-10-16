@@ -15,7 +15,7 @@ use std::{
 
 use anyhow::{bail, ensure, Context, Result};
 use serde_json::{json, Value};
-use tokio_tungstenite::tungstenite::{accept, Message};
+use tokio_tungstenite::tungstenite::{accept_with_config, Message};
 
 const IO_TIMEOUT: Duration = Duration::from_secs(10);
 // Tokio's default DNS blocking-thread idle timeout is 10 seconds.
@@ -184,7 +184,7 @@ impl Server {
                 stream.set_nonblocking(false)?;
                 stream.set_read_timeout(Some(IO_TIMEOUT))?;
                 stream.set_write_timeout(Some(IO_TIMEOUT))?;
-                let mut socket = accept(stream)?;
+                let mut socket = accept_with_config(stream, Some(Default::default()))?;
                 let request = socket.read()?.into_text()?;
                 ensure!(
                     request.len() >= 900_000,

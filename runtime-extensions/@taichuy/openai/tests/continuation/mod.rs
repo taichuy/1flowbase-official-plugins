@@ -28,7 +28,9 @@ fn warmup_tool_result(close_reason: Option<&'static str>) {
         stream
             .set_read_timeout(Some(std::time::Duration::from_secs(5)))
             .unwrap();
-        let mut ws = tokio_tungstenite::tungstenite::accept(stream).unwrap();
+        let mut ws =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
         assert_eq!(create(&mut ws)["generate"], false);
         completed(&mut ws, "resp_warmup", json!([]));
         assert_eq!(create(&mut ws)["previous_response_id"], "resp_warmup");
