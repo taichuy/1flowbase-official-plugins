@@ -9,6 +9,9 @@ use std::{
 use serde_json::{json, Value};
 use tokio_tungstenite::tungstenite::{accept_with_config, Message};
 
+#[path = "_tests/owner_control.rs"]
+mod owner_control;
+
 fn request(base_url: &str, logical: &str) -> Value {
     json!({"method":"invoke","input":{
         "operation":"generate","contract_version":"1flowbase.provider/v2",

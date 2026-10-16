@@ -175,22 +175,66 @@ fn independent_sessions_and_scoped_response_owners() {
 }
 
 #[test]
-fn control_cannot_choose_between_different_credentials() {
+fn physical_identity_cannot_be_rebound_to_different_credentials() {
     let mut owners = Owners::default();
     let (first, _) = owners
         .route(&request("key-a", Some("same-logical"), None))
         .unwrap();
     owners.owner(&first);
-    let (second, _) = owners
+    assert!(owners
         .route(&request("key-b", Some("same-logical"), None))
-        .unwrap();
-    owners.owner(&second);
+        .is_err());
     let command = ProviderStdioRequest {
         method: "transport_session".into(),
         input: json!({"logical_session_id":"same-logical", "generation":1,
             "worker_incarnation":9,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
     };
-    assert!(owners.route(&command).is_err());
+    assert_eq!(owners.route(&command).unwrap().0, first);
+    assert_eq!(owners.entries.len(), 1);
+}
+
+#[test]
+fn physical_control_keeps_original_owners_across_configurations_and_workers() {
+    let mut owners = Owners::default();
+    let mut expected = Vec::new();
+    for (generation, worker, credential) in [(1, 9, "key-a"), (2, 9, "key-b"), (1, 10, "key-a")] {
+        let mut invocation = request(credential, Some("same-logical"), None);
+        invocation.input["run_context"][TRANSPORT_SESSION_CONTEXT_KEY]["generation"] =
+            json!(generation);
+        invocation.input["run_context"][TRANSPORT_SESSION_CONTEXT_KEY]["worker_incarnation"] =
+            json!(worker);
+        expected.push((generation, worker, owners.route(&invocation).unwrap().0));
+    }
+    assert_ne!(expected[0].2, expected[1].2);
+    assert_ne!(expected[0].2, expected[2].2);
+    for (generation, worker, key) in &expected {
+        let command = ProviderStdioRequest {
+            method: "transport_session".into(),
+            input: json!({"logical_session_id":"same-logical", "generation":generation,
+                "worker_incarnation":worker,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
+        };
+        // Repeated close must still reach the original ledger, not a newer owner.
+        assert_eq!(&owners.route(&command).unwrap().0, key);
+        assert_eq!(&owners.route(&command).unwrap().0, key);
+    }
+    for (generation, worker) in [(99, Some(9)), (1, Some(99)), (1, None)] {
+        let command = ProviderStdioRequest {
+            method: "transport_session".into(),
+            input: json!({"logical_session_id":"same-logical", "generation":generation,
+                "worker_incarnation":worker,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
+        };
+        let missing = owners.route(&command).unwrap().0;
+        assert!(expected.iter().all(|(_, _, key)| key != &missing));
+    }
+}
+
+#[test]
+fn same_configuration_generations_retain_response_history_owner() {
+    let mut owners = Owners::default();
+    let mut invocation = request("key-a", Some("same-logical"), None);
+    let first = owners.route(&invocation).unwrap().0;
+    invocation.input["run_context"][TRANSPORT_SESSION_CONTEXT_KEY]["generation"] = json!(2);
+    assert_eq!(owners.route(&invocation).unwrap().0, first);
 }
 
 #[test]
@@ -229,4 +273,10 @@ fn bound_owner_survives_idle_window_until_physical_deadline() {
         Some(Instant::now() - Duration::from_secs(1));
     owners.prune();
     assert!(!owners.entries.contains_key(&key));
+    let command = ProviderStdioRequest {
+        method: "transport_session".into(),
+        input: json!({"logical_session_id":"bound-logical", "generation":1,
+            "worker_incarnation":9,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
+    };
+    assert_ne!(owners.route(&command).unwrap().0, key);
 }

@@ -1,5 +1,5 @@
 use super::*;
-use runtime_extension_sdk::{serve, MultiplexEmitter};
+use runtime_extension_sdk::{serve, MultiplexEmitter, ResourceOwnerBindings};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use tokio::sync::Mutex;
 
@@ -30,9 +30,9 @@ fn is_streaming_generate(request: &ProviderStdioRequest) -> bool {
 #[derive(Default)]
 struct Owners {
     entries: HashMap<String, Owner>,
-    // The control command has no provider config. An ambiguous logical ID must
-    // never be routed to a different credential or endpoint.
-    logical: HashMap<String, Vec<String>>,
+    // Configuration may change between physical generations. Control must reach
+    // the original owner using the complete Host-sealed identity, never a fresh config lookup.
+    physical: ResourceOwnerBindings<close::CloseIdentity, String>,
     responses: HashMap<(String, String), (Option<String>, Instant)>,
     next_anonymous: u64,
     gc_started: bool,
@@ -48,10 +48,8 @@ impl Owners {
                     |deadline| now < deadline,
                 )
         });
-        self.logical.retain(|_, keys| {
-            keys.retain(|key| self.entries.contains_key(key));
-            !keys.is_empty()
-        });
+        self.physical
+            .retain(|_, key| self.entries.contains_key(key));
         self.responses.retain(|_, (key, observed_at)| {
             now.saturating_duration_since(*observed_at) < OWNER_IDLE_RETENTION
                 && key
@@ -65,12 +63,11 @@ impl Owners {
         if request.method == "transport_session" {
             let command: TransportSessionCommand = serde_json::from_value(request.input.clone())?;
             command.validate()?;
-            let keys = self.logical.get(&command.logical_session_id);
-            return match keys {
-                Some(keys) if keys.len() == 1 => Ok((keys[0].clone(), None)),
-                Some(_) => bail!("transport session identity is ambiguous across configurations"),
-                None => Ok((self.anonymous_key(), None)),
-            };
+            let owner = close::CloseIdentity::command(&command)
+                .and_then(|identity| self.physical.get(&identity).cloned());
+            // An empty runtime returns the existing missing-evidence receipt. It
+            // cannot close a resource merely because its logical ID looks familiar.
+            return Ok((owner.unwrap_or_else(|| self.anonymous_key()), None));
         }
         if request.method != "invoke"
             || request.input.get("operation").and_then(Value::as_str) == Some("count_tokens")
@@ -87,7 +84,15 @@ impl Owners {
         if let Some(directive) = directive {
             // One Host-sealed physical session spans semantic and native turns.
             // History scopes intentionally separate those formats; runtime ownership must not.
-            let key = websocket_session_key(&config, &input, Some(&directive));
+            let mut key = websocket_session_key(&config, &input, Some(&directive));
+            if let Some(identity) = close::CloseIdentity::directive(&directive) {
+                // Same-config generations share response history, while each close
+                // ledger entry retains its exact identity. Worker owners never mix.
+                key = format!("worker:{}\n{key}", identity.worker_incarnation);
+                self.physical.bind(identity, key.clone()).context(
+                    "transport session identity cannot be rebound across configurations",
+                )?;
+            }
             let remaining_ms = directive
                 .physical_deadline_unix_ms
                 .saturating_sub(close::unix_time_ms())
@@ -102,13 +107,6 @@ impl Owners {
                         .retain_until
                         .map_or(retain_until, |old| old.max(retain_until)),
                 );
-            }
-            let keys = self
-                .logical
-                .entry(directive.logical_session_id)
-                .or_default();
-            if !keys.contains(&key) {
-                keys.push(key.clone());
             }
             return Ok((key, Some(scope)));
         }
