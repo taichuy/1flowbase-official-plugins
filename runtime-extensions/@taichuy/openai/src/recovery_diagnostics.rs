@@ -33,7 +33,20 @@ pub(crate) fn transport_error(kind: &str, category: &str, code: Option<u16>) -> 
 
 pub(crate) fn close_error(frame: Option<CloseFrame>) -> anyhow::Error {
     let code = frame.as_ref().map(|frame| u16::from(frame.code));
-    transport_error("websocket_close", close_category(frame.as_ref()), code)
+    let mut error = transport_error("websocket_close", close_category(frame.as_ref()), code)
+        .downcast::<ProviderRuntimeError>()
+        .expect("transport error is typed");
+    if let Some(frame) = frame {
+        // Peer protocol facts remain intact; the closed category still owns recovery.
+        let reason = frame.reason.as_str();
+        let details = &mut error.provider_details.as_mut().unwrap()[FAILURE_KEY];
+        details["close_reason"] = json!(reason);
+        if !reason.is_empty() {
+            error.message = reason.to_owned();
+            details["reason"] = json!(reason);
+        }
+    }
+    anyhow::Error::new(error)
 }
 
 // A physical close (including 1008) does not establish a semantic/protocol
@@ -65,8 +78,10 @@ pub(crate) fn failure(error: &anyhow::Error, socket: Option<u64>, owner: Option<
 
 fn failure_inner(error: &anyhow::Error, socket: Option<u64>, owner: Option<u64>) -> Value {
     if let Some(physical) = error.downcast_ref::<super::websocket_io::Failure>() {
-        let mut diagnostic = failure(
-            &transport_error(
+        let source = if let Some(frame) = &physical.close_frame {
+            close_error(Some(frame.clone()))
+        } else {
+            transport_error(
                 if physical.close_code.is_some() {
                     "websocket_close"
                 } else {
@@ -74,10 +89,9 @@ fn failure_inner(error: &anyhow::Error, socket: Option<u64>, owner: Option<u64>)
                 },
                 physical.category,
                 physical.close_code,
-            ),
-            socket,
-            owner,
-        );
+            )
+        };
+        let mut diagnostic = failure(&source, socket, owner);
         diagnostic["websocket_error_kind"] = json!(physical.kind);
         diagnostic["failure_phase"] = json!(physical.phase);
         diagnostic["idle_duration_ms"] = json!(physical.idle_duration_ms);

@@ -248,7 +248,9 @@ fn assert_safe_terminal_with_disposition<'a>(
     assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 1);
     let serialized = serde_json::to_string(typed).unwrap();
     assert!(!serialized.contains("credential-canary"));
-    if expected_kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable {
+    if expected_kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable
+        && diagnostics["last_failure"]["close_reason"].is_null()
+    {
         assert!(!serialized.contains("private-canary"));
     }
     diagnostics

@@ -10,10 +10,16 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(20);
 
 pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
-    tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
+    let mut config = tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
         .max_message_size(Some(BYTE_LIMIT))
         .max_frame_size(Some(BYTE_LIMIT))
-        .max_write_buffer_size(BYTE_LIMIT + 1024)
+        .max_write_buffer_size(BYTE_LIMIT + 1024);
+    // Compression belongs to each physical connection, including HTTP CONNECT.
+    // The library negotiates RFC 7692 and keeps plain peers interoperable.
+    config.extensions.permessage_deflate = Some(
+        tokio_tungstenite::tungstenite::extensions::compression::deflate::DeflateConfig::default(),
+    );
+    config
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,6 +33,7 @@ enum StreamEnd {
 pub(super) struct Failure {
     pub kind: &'static str,
     pub close_code: Option<u16>,
+    pub close_frame: Option<tokio_tungstenite::tungstenite::protocol::CloseFrame>,
     pub category: &'static str,
     pub io_kind: Option<&'static str>,
     pub phase: &'static str,
@@ -48,6 +55,7 @@ impl Failure {
         Self {
             kind,
             close_code: None,
+            close_frame: None,
             category: "transport_disconnected",
             io_kind: None,
             phase: "idle",
@@ -68,7 +76,7 @@ impl Failure {
     }
     fn stream_end(self) -> Option<Result<Message>> {
         match self.end {
-            StreamEnd::Close => Some(Ok(Message::Close(None))),
+            StreamEnd::Close => Some(Ok(Message::Close(self.close_frame))),
             StreamEnd::Eof => None,
             StreamEnd::Error => Some(Err(self.into())),
         }
@@ -86,7 +94,7 @@ impl Failure {
             WebSocketError::Capacity(_) => "capacity",
             WebSocketError::Protocol(_) => "protocol",
             WebSocketError::WriteBufferFull(_) => "write_buffer_full",
-            WebSocketError::Utf8 => "utf8",
+            WebSocketError::Utf8(_) => "utf8",
             WebSocketError::AttackAttempt => "attack_attempt",
             WebSocketError::Url(_) => "url",
             WebSocketError::Http(_) => "http",
@@ -263,7 +271,7 @@ impl SocketOwner {
                             }
                             Some(Ok(Message::Pong(_))) => {}
                             Some(Ok(Message::Close(frame))) => {
-                                let failure = Failure { end: StreamEnd::Close, category: recovery_diagnostics::close_category(frame.as_ref()), close_code: frame.as_ref().map(|f| u16::from(f.code)), ..Failure::new("connection_closed") };
+                                let failure = Failure { end: StreamEnd::Close, category: recovery_diagnostics::close_category(frame.as_ref()), close_code: frame.as_ref().map(|f| u16::from(f.code)), close_frame: frame, ..Failure::new("connection_closed") };
                                 retain_failure(&first, failure.clone());
                                 if flush(&mut socket).await.is_ok() { acknowledged.store(true, std::sync::atomic::Ordering::Release); }
                                 break failure;
@@ -401,3 +409,7 @@ async fn flush<S: futures_util::Sink<Message, Error = WebSocketError> + Unpin>(
 #[cfg(test)]
 #[path = "_tests/websocket_io.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "_tests/websocket_transport/compression.rs"]
+mod compression_tests;

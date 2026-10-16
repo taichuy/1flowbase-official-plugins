@@ -28,11 +28,8 @@ fn start_policy_close(
 }
 
 #[tokio::test]
-async fn bare_1008_precommit_grants_logical_retry_with_safe_physical_evidence() {
-    for reason in [
-        "",
-        "policy private-canary https://private/?token=credential-canary",
-    ] {
+async fn bare_1008_precommit_grants_logical_retry_with_original_physical_evidence() {
+    for reason in ["", "missing first response.create message"] {
         let (base, server) = start_policy_close(vec![], reason);
         let mut emitted = Vec::new();
         let mut runtime = OpenAiProviderRuntime::default();
@@ -54,6 +51,16 @@ async fn bare_1008_precommit_grants_logical_retry_with_safe_physical_evidence() 
         assert_eq!(failure["kind"], "websocket_close");
         assert_eq!(failure["close_code"], 1008);
         assert_eq!(failure["reason_category"], "transport_disconnected");
+        assert_eq!(failure["close_reason"], reason);
+        if !reason.is_empty() {
+            assert_eq!(
+                error
+                    .downcast_ref::<ProviderRuntimeError>()
+                    .unwrap()
+                    .message,
+                reason
+            );
+        }
         assert_eq!(failure["buffered_scaffold_events"], 0);
         assert_eq!(failure["buffered_scaffold_bytes"], 0);
         assert!(failure["semantic_event_kind"].is_null());
@@ -176,9 +183,11 @@ async fn fixed_continuation_unavailable_1008_remains_terminal() {
     assert_eq!(receipt["reason"], "transport_disconnected");
     assert_eq!(receipt["attempt"], 0);
     let diagnostics = &details[recovery_diagnostics::KEY];
-    assert!(!serde_json::to_string(typed)
-        .unwrap()
-        .contains("private-canary"));
+    assert_eq!(
+        typed.message,
+        "upstream continuation connection is unavailable; private-canary"
+    );
+    assert_eq!(diagnostics["last_failure"]["close_reason"], typed.message);
     assert_eq!(
         diagnostics["last_failure"]["reason_category"],
         "continuation_unavailable"

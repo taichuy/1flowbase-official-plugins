@@ -4735,7 +4735,7 @@ fn map_websocket_error(error: WebSocketError) -> anyhow::Error {
             recovery_diagnostics::transport_error("websocket_error", "authorization_rejected", None)
         }
         WebSocketError::Protocol(_)
-        | WebSocketError::Utf8
+        | WebSocketError::Utf8(_)
         | WebSocketError::HttpFormat(_)
         | WebSocketError::AttackAttempt
         | WebSocketError::Capacity(_) => {

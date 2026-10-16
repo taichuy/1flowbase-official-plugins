@@ -2,7 +2,7 @@ use super::*;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
 #[test]
-fn close_classification_preserves_only_safe_fixed_reason() {
+fn close_classification_preserves_original_peer_reason() {
     for (reason, category) in [
         (
             "upstream continuation connection is unavailable; token=private",
@@ -10,6 +10,10 @@ fn close_classification_preserves_only_safe_fixed_reason() {
         ),
         (
             "policy says https://private/?token=private",
+            "transport_disconnected",
+        ),
+        (
+            "missing first response.create message",
             "transport_disconnected",
         ),
     ] {
@@ -20,17 +24,29 @@ fn close_classification_preserves_only_safe_fixed_reason() {
         let diagnostic = failure(&error, Some(7), Some(3));
         assert_eq!(diagnostic["close_code"], 1008);
         assert_eq!(diagnostic["reason_category"], category);
-        if category == "transport_disconnected" {
-            assert_eq!(
-                diagnostic["reason"],
-                "websocket disconnected before response.completed"
-            );
-        }
+        assert_eq!(diagnostic["reason"], reason);
+        assert_eq!(diagnostic["close_reason"], reason);
         assert_eq!(diagnostic["socket_incarnation"], 7);
         assert_eq!(diagnostic["owner_socket_incarnation"], 3);
-        assert!(!diagnostic.to_string().contains("private"));
-        assert!(!error.to_string().contains("private"));
+        assert_eq!(error.to_string(), reason);
+        assert_eq!(safe_error(&error).message, reason);
     }
+}
+
+#[test]
+fn empty_close_reason_keeps_usable_message_without_inventing_peer_text() {
+    let error = close_error(Some(CloseFrame {
+        code: CloseCode::Policy,
+        reason: "".into(),
+    }));
+    let diagnostic = failure(&error, None, None);
+    assert_eq!(diagnostic["close_reason"], "");
+    assert_eq!(diagnostic["close_code"], 1008);
+    assert_eq!(
+        error.to_string(),
+        "websocket disconnected before response.completed"
+    );
+    assert!(failure(&close_error(None), None, None)["close_reason"].is_null());
 }
 
 #[test]

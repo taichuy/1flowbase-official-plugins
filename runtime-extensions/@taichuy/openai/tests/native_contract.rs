@@ -868,7 +868,8 @@ fn idle_worker_maintains_ping_and_routes_first_close_through_existing_recovery()
                 "terminal"
             }
         );
-        assert!(!diagnostic.to_string().contains("sentinel"));
+        assert_eq!(diagnostic["close_reason"], reason);
+        assert!(!diagnostic.to_string().contains("private-routing-sentinel"));
         stop_tx.send(()).unwrap();
         drop(stdin);
         let _ = child.kill();

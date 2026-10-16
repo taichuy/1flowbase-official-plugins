@@ -470,7 +470,7 @@ async fn queued_completion_cannot_hide_single_oversized_frame() {
 }
 
 #[tokio::test]
-async fn close_follows_tool_frames_and_retains_safe_policy_details() {
+async fn close_follows_tool_frames_and_retains_original_policy_details() {
     let tool = Message::Text(
         r#"{"type":"response.function_call_arguments.done","call_id":"call_1","arguments":"{}"}"#
             .into(),
@@ -486,9 +486,17 @@ async fn close_follows_tool_frames_and_retains_safe_policy_details() {
     ])));
     (&mut owner.task).await.unwrap();
     assert_eq!(owner.next().await.unwrap().unwrap(), tool);
-    assert!(matches!(owner.next().await, Some(Ok(Message::Close(_)))));
+    let Some(Ok(Message::Close(Some(frame)))) = owner.next().await else {
+        panic!("peer close frame was lost");
+    };
+    assert_eq!(
+        frame.reason.as_str(),
+        "upstream continuation connection is unavailable secret-sentinel"
+    );
     let failure = owner.failure().unwrap();
     assert_eq!(failure.close_code, Some(1008));
     assert_eq!(failure.category, "continuation_unavailable");
     assert!(!failure.to_string().contains("sentinel"));
+    let diagnostic = recovery_diagnostics::failure(&failure.into(), None, None);
+    assert_eq!(diagnostic["close_reason"], frame.reason.as_str());
 }
