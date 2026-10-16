@@ -35,7 +35,8 @@ enum NativeFallbackCase {
     Expired,
     ForceWebsocket,
     Semantic,
-    Policy,
+    BarePolicyClose,
+    PolicyError,
     Protocol,
     Authorization,
     MissingCompletedOutput,
@@ -123,15 +124,23 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
                             ws.send(Message::Text("invalid-json".into())).unwrap();
                         } else if case == NativeFallbackCase::Authorization {
                             ws.send(Message::Text(json!({"type":"error","error":{"code":"invalid_api_key","message":"upstream authorization rejected the request"}}).to_string().into())).unwrap();
+                        } else if case == NativeFallbackCase::PolicyError {
+                            ws.send(Message::Text(json!({"type":"error","error":{"code":"content_policy_violation","message":"fixture policy refusal"}}).to_string().into())).unwrap();
                         }
-                        let _ = ws.send(Message::Close(if case == NativeFallbackCase::Policy {
-                            Some(CloseFrame {
-                                code: CloseCode::Policy,
-                                reason: "fixture policy refusal".into(),
-                            })
-                        } else {
-                            None
-                        }));
+                        let _ = ws.send(Message::Close(
+                            if matches!(
+                                case,
+                                NativeFallbackCase::BarePolicyClose
+                                    | NativeFallbackCase::PolicyError
+                            ) {
+                                Some(CloseFrame {
+                                    code: CloseCode::Policy,
+                                    reason: "fixture policy refusal".into(),
+                                })
+                            } else {
+                                None
+                            },
+                        ));
                     } else {
                         assert!(
                             peek[..read].starts_with(b"POST "),
@@ -240,14 +249,18 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
             | NativeFallbackCase::BudgetTwo
             | NativeFallbackCase::ForceWebsocket
             | NativeFallbackCase::Semantic
-            | NativeFallbackCase::Policy
+            | NativeFallbackCase::BarePolicyClose
+            | NativeFallbackCase::PolicyError
             | NativeFallbackCase::Protocol
             | NativeFallbackCase::Authorization
     ));
     assert_eq!(rebuilds.len(), expected_rebuilds, "case={case:?}");
     assert_eq!(
         http_bodies.len(),
-        usize::from(case == NativeFallbackCase::Complete),
+        usize::from(matches!(
+            case,
+            NativeFallbackCase::Complete | NativeFallbackCase::BarePolicyClose
+        )),
         "case={case:?}"
     );
     assert_eq!(
@@ -258,7 +271,10 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
         1,
         "tool is committed exactly once"
     );
-    if case == NativeFallbackCase::Complete {
+    if matches!(
+        case,
+        NativeFallbackCase::Complete | NativeFallbackCase::BarePolicyClose
+    ) {
         let resumed = resumed.expect("scoped complete native context recovers through HTTP");
         assert_eq!(resumed.result.response_id.as_deref(), Some("resp_done"));
         assert_eq!(
@@ -274,6 +290,13 @@ async fn native_full_context_fallback_fixture(case: NativeFallbackCase) {
             json!({"attempt":2,"transport":"provider_http","transport_epoch":17,"commit_level":"lifecycle_only","disposition":"one_full_context_rebuild","reason":"transport_disconnected"})
         );
         let diagnostics = &resumed.result.provider_metadata[recovery_diagnostics::KEY];
+        if case == NativeFallbackCase::BarePolicyClose {
+            assert_eq!(diagnostics["last_failure"]["close_code"], 1008);
+            assert_eq!(
+                diagnostics["last_failure"]["close_reason"],
+                "fixture policy refusal"
+            );
+        }
         assert_eq!(diagnostics["first_failure"]["attempt"], 0);
         assert_eq!(diagnostics["last_failure"]["attempt"], 1);
         assert_eq!(diagnostics["last_failure"]["consumed_attempts"], 2);
@@ -299,6 +322,13 @@ async fn native_string_idle_close_rebuild_then_http_sends_complete_scoped_body()
     native_full_context_fallback_fixture(NativeFallbackCase::Complete).await;
 }
 
+// A bare physical close is recoverable under the existing 1008 classification;
+// an explicit upstream error still fences replay, regardless of the close code.
+#[tokio::test]
+async fn native_full_context_bare_1008_preserves_existing_http_fallback() {
+    native_full_context_fallback_fixture(NativeFallbackCase::BarePolicyClose).await;
+}
+
 #[tokio::test]
 async fn native_full_context_http_refuses_incomplete_foreign_committed_or_fenced_replay() {
     for case in [
@@ -307,7 +337,7 @@ async fn native_full_context_http_refuses_incomplete_foreign_committed_or_fenced
         NativeFallbackCase::Expired,
         NativeFallbackCase::ForceWebsocket,
         NativeFallbackCase::Semantic,
-        NativeFallbackCase::Policy,
+        NativeFallbackCase::PolicyError,
         NativeFallbackCase::Protocol,
         NativeFallbackCase::Authorization,
         NativeFallbackCase::MissingCompletedOutput,
