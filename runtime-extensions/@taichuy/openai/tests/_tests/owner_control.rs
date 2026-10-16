@@ -174,15 +174,15 @@ fn proxy_removal_closes_original_physical_owners_without_cross_session_control()
             "resp-direct"
         };
         assert_eq!(worker.call(invocation.clone())["response_id"], response_id);
-        for command in [
-            close(99, Some(1)),
-            close(generation, Some(99)),
-            close(generation, None),
-        ] {
-            let missing = worker.call(command);
-            assert_eq!(missing["result"]["physical_state"], "faulted");
-            assert!(missing["result"]["closure_evidence"].is_null());
+        for command in [close(99, Some(1)), close(generation, Some(99))] {
+            let rejected = worker.call(command);
+            assert_eq!(rejected["ok"], false);
+            assert_eq!(rejected["error"]["kind"], "provider_transport_unavailable");
+            assert!(rejected["result"].is_null());
         }
+        let missing = worker.call(close(generation, None));
+        assert_eq!(missing["result"]["physical_state"], "faulted");
+        assert!(missing["result"]["closure_evidence"].is_null());
         if generation > 1 {
             assert_closed(&worker.call(close(generation - 1, Some(1))), generation - 1);
         }

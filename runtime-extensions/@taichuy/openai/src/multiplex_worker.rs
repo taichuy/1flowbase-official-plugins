@@ -63,11 +63,19 @@ impl Owners {
         if request.method == "transport_session" {
             let command: TransportSessionCommand = serde_json::from_value(request.input.clone())?;
             command.validate()?;
-            let owner = close::CloseIdentity::command(&command)
-                .and_then(|identity| self.physical.get(&identity).cloned());
-            // An empty runtime returns the existing missing-evidence receipt. It
-            // cannot close a resource merely because its logical ID looks familiar.
-            return Ok((owner.unwrap_or_else(|| self.anonymous_key()), None));
+            let Some(identity) = close::CloseIdentity::command(&command) else {
+                // Preserve the missing-incarnation receipt without selecting a live owner.
+                return Ok((self.anonymous_key(), None));
+            };
+            let owner = self.physical.get(&identity).cloned().ok_or_else(|| {
+                anyhow::Error::new(ProviderRuntimeError {
+                    kind: ProviderRuntimeErrorKind::ProviderTransportUnavailable,
+                    message: "transport session identity has no registered owner".into(),
+                    provider_summary: None,
+                    provider_details: None,
+                })
+            })?;
+            return Ok((owner, None));
         }
         if request.method != "invoke"
             || request.input.get("operation").and_then(Value::as_str) == Some("count_tokens")

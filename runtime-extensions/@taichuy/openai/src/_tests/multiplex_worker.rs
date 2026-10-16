@@ -223,8 +223,12 @@ fn physical_control_keeps_original_owners_across_configurations_and_workers() {
             input: json!({"logical_session_id":"same-logical", "generation":generation,
                 "worker_incarnation":worker,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
         };
-        let missing = owners.route(&command).unwrap().0;
-        assert!(expected.iter().all(|(_, _, key)| key != &missing));
+        if worker.is_some() {
+            assert!(owners.route(&command).is_err());
+        } else {
+            let missing = owners.route(&command).unwrap().0;
+            assert!(expected.iter().all(|(_, _, key)| key != &missing));
+        }
     }
 }
 
@@ -278,5 +282,5 @@ fn bound_owner_survives_idle_window_until_physical_deadline() {
         input: json!({"logical_session_id":"bound-logical", "generation":1,
             "worker_incarnation":9,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
     };
-    assert_ne!(owners.route(&command).unwrap().0, key);
+    assert!(owners.route(&command).is_err());
 }
