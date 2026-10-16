@@ -233,6 +233,24 @@ fn physical_control_keeps_original_owners_across_configurations_and_workers() {
 }
 
 #[test]
+fn control_error_serialization_preserves_identity_rejection() {
+    let command = ProviderStdioRequest {
+        method: "transport_session".into(),
+        input: json!({"logical_session_id":"unknown", "generation":1,
+            "worker_incarnation":9,"action":"close","deadline_unix_ms":4_102_444_800_000_i64}),
+    };
+    let error = Owners::default().route(&command).unwrap_err();
+    let response = error_response(error.context("control dispatch"));
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["kind"], "provider_transport_unavailable");
+    assert!(response["result"].is_null());
+    assert_eq!(
+        error_response(anyhow!("malformed control"))["error"]["kind"],
+        "provider_invalid_response"
+    );
+}
+
+#[test]
 fn same_configuration_generations_retain_response_history_owner() {
     let mut owners = Owners::default();
     let mut invocation = request("key-a", Some("same-logical"), None);

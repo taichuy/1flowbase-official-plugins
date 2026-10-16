@@ -249,16 +249,9 @@ async fn handle(raw: Value, emitter: MultiplexEmitter, owners: Rc<RefCell<Owners
             .runtime
             .handle_request(request)
             .await
-            .unwrap_or_else(|error| {
-                error
-                    .downcast_ref::<ProviderRuntimeError>()
-                    .cloned()
-                    .map(ProviderStdioResponse::runtime_error)
-                    .unwrap_or_else(|| {
-                        ProviderStdioResponse::error("provider_invalid_response", error.to_string())
-                    })
-            });
-        (serde_json::to_value(response).unwrap_or(Value::Null), None)
+            .map(|response| serde_json::to_value(response).unwrap_or(Value::Null))
+            .unwrap_or_else(error_response);
+        (response, None)
     };
     inflight.finished = true;
     drop(inflight);
@@ -269,11 +262,14 @@ async fn handle(raw: Value, emitter: MultiplexEmitter, owners: Rc<RefCell<Owners
 }
 
 fn error_response(error: anyhow::Error) -> Value {
-    serde_json::to_value(ProviderStdioResponse::error(
-        "provider_invalid_response",
-        error.to_string(),
-    ))
-    .unwrap_or(Value::Null)
+    let response = error
+        .downcast_ref::<ProviderRuntimeError>()
+        .cloned()
+        .map(ProviderStdioResponse::runtime_error)
+        .unwrap_or_else(|| {
+            ProviderStdioResponse::error("provider_invalid_response", error.to_string())
+        });
+    serde_json::to_value(response).unwrap_or(Value::Null)
 }
 
 fn streaming_failure(error: anyhow::Error, emitter: &MultiplexEmitter) -> Value {
