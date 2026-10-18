@@ -1,5 +1,5 @@
 use super::*;
-use crate::{ProviderOutputItemPhase, ProviderRuntimeError, ProviderRuntimeErrorKind};
+use crate::ProviderOutputItemPhase;
 
 fn scaffold() -> ProviderStreamEvent {
     ProviderStreamEvent::OutputItem {

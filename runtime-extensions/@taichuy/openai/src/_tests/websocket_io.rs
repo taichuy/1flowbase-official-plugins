@@ -266,9 +266,9 @@ async fn drop_releases_idle_socket() {
 }
 
 #[tokio::test]
-async fn command_count_overflow_invalidates_without_waiting_for_owner() {
-    let (owner, _peer) = pair().await;
-    // No await between filling the mailbox and admission: the owner cannot consume.
+async fn command_count_backpressure_preserves_all_writes() {
+    let (owner, mut peer) = pair().await;
+    // No yielding between filling the mailbox and admission: the owner cannot consume.
     let mut replies = Vec::new();
     for _ in 0..COMMAND_COUNT {
         let (ack, reply) = oneshot::channel();
@@ -276,17 +276,46 @@ async fn command_count_overflow_invalidates_without_waiting_for_owner() {
         owner
             .commands
             .try_send(Command {
-                buffered: buffer(Message::Text("x".into()), &owner.command_bytes).unwrap(),
+                buffered: buffer(Message::Text("x".into()), &owner.command_bytes)
+                    .await
+                    .unwrap(),
                 ack,
             })
             .unwrap();
     }
-    let error = owner
-        .send(Message::Text("overflow".into()))
-        .await
-        .unwrap_err();
-    assert!(error.to_string().contains("queue_count_limit"));
-    assert_eq!(owner.failure().unwrap().kind, "queue_count_limit");
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        owner.send(Message::Text("after-full".into())),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(owner.failure().is_none());
+    for reply in replies {
+        reply.await.unwrap().unwrap();
+    }
+    for _ in 0..COMMAND_COUNT {
+        assert_eq!(
+            peer.next()
+                .await
+                .unwrap()
+                .unwrap()
+                .into_text()
+                .unwrap()
+                .as_str(),
+            "x"
+        );
+    }
+    assert_eq!(
+        peer.next()
+            .await
+            .unwrap()
+            .unwrap()
+            .into_text()
+            .unwrap()
+            .as_str(),
+        "after-full"
+    );
 }
 
 #[tokio::test]
