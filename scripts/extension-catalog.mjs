@@ -215,6 +215,11 @@ function discoverCanonicalEntries(repoRoot, category) {
               Object.entries(normalized.source.client_collector).some(([field, value]) => manifest[field] !== value)))) {
           throw new Error(`${relative(repoRoot, manifestPath)} collector metadata does not match manifest`);
         }
+        // Presentation assets belong to the catalog, not the immutable signed distribution.
+        const iconPath = path.join(path.dirname(manifestPath), '_assets', 'icon.svg');
+        if (fs.existsSync(iconPath)) {
+          normalized.source.icon = `data:image/svg+xml;base64,${fs.readFileSync(iconPath).toString('base64')}`;
+        }
       }
       entries.push(normalized);
     }

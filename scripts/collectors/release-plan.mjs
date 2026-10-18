@@ -10,6 +10,7 @@ import { distributionName } from './distribution.mjs';
 // release orchestration do not change the bytes of an already published version.
 export function collectorPayloadPaths(collector) {
   return [collector.plugin_dir, `:(exclude)${collector.plugin_dir}/catalog-entry.json`,
+    `:(exclude)${collector.plugin_dir}/_assets/icon.svg`,
     'sdk/agent-logs-collector', 'installers/client-collectors',
     'scripts/collectors/catalog.mjs', 'scripts/collectors/package.mjs', 'scripts/collectors/distribution.mjs'];
 }

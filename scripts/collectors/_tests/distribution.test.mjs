@@ -76,6 +76,12 @@ test('catalog framework publishes typed client entry and rejects contract/manife
   assert.equal(read()[0].download_locator.kind, 'release_asset');
   assert.equal(read()[0].source.client_collector.execution_target, 'client');
   assert.deepEqual(read()[0].slot_codes, []);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>';
+  fs.mkdirSync(path.join(dir, '_assets'));
+  fs.writeFileSync(path.join(dir, '_assets/icon.svg'), svg);
+  assert.equal(read()[0].source.icon, `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
+  assert.equal(read()[0].checksum, entry.checksum);
+  assert.deepEqual(read()[0].signature, entry.signature);
   entry.source.client_collector.source_client = 'different'; save(); assert.throws(read, /does not match manifest/);
   entry.source.client_collector.source_client = 'codex'; entry.source.distribution_kind = 'unknown'; save(); assert.throws(read, /unsupported/);
   entry.source.distribution_kind = 'client_collector'; entry.download_locator.kind = 'platform_release_assets'; save(); assert.throws(read, /one signed release asset/);

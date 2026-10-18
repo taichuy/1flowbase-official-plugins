@@ -27,6 +27,12 @@ test('published unchanged collector reuses its signed catalog distribution acros
  const p=f.plan();assert.equal(p.action,'reuse');assert.equal(p.sourceSha,f.published);assert.equal(p.entry.version,'0.4.0');
 });
 test('new version without a release enters native build matrix',t=>{const f=fixture(t);assert.equal(f.plan({lookup:()=>undefined}).action,'build');});
+test('catalog icon updates reuse the immutable signed collector distribution', t => {
+ const f = fixture(t);
+ f.write(f.collector.plugin_dir + '/_assets/icon.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+ f.setHead();
+ assert.equal(f.plan().action, 'reuse');
+});
 for(const changed of ['runtime-extensions/@owner/codex-logs-collector/src/lib.rs','sdk/agent-logs-collector/src/lib.rs','installers/client-collectors/install.sh','scripts/collectors/package.mjs','scripts/collectors/distribution.mjs']){
  test('published version refuses changed payload input '+changed,t=>{const f=fixture(t);f.write(changed,'changed');f.setHead();assert.throws(()=>f.plan(),/bump.*version/i);});
 }

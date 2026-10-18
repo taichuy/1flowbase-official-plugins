@@ -1,5 +1,18 @@
 # 1flowbase Official Plugins
 
+## Collector icons / 采集器图标
+
+采集器的 `_assets/icon.svg` 由目录生成器嵌入 `source.icon`，作为可独立更新的展示资源；不进入已签名的采集器分发包，也不要求升级 CLI 版本。
+
+The catalog generator embeds each collector's `_assets/icon.svg` in `source.icon`. These presentation assets can be updated independently of the signed collector distribution and CLI version.
+
+复用来源 / Reused artwork:
+
+- Claude Code: [CC Switch](https://github.com/farion1231/cc-switch), `src/icons/extracted/claude.svg`.
+- Codex (OpenAI mark): [CC Switch](https://github.com/farion1231/cc-switch), `src/icons/extracted/openai.svg`; explicit dark fill for image rendering.
+- DeepSeek Harness: [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), `website/public/favicon.svg`.
+- OpenCode: [OpenCode](https://github.com/anomalyco/opencode), `packages/console/app/src/asset/brand/opencode-logo-light-square.svg`.
+
 ---
 
 ## 中文
