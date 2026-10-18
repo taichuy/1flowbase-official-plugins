@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 mod protocol_context;
+#[cfg(test)]
+#[path = "_tests/sse_codec.rs"]
 mod sse_codec;
 mod upstream_error;
 
@@ -23,7 +25,6 @@ use protocol_context::{
     attach_matching_protocol_context_receipt, restore_protocol_context_body,
     restore_protocol_context_body_with_receipt,
 };
-use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "anthropic";
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
@@ -2004,13 +2005,11 @@ where
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut message_id = Value::Null;
     let mut saw_message_stop = false;
-    let mut size_guard = SseEventSizeGuard::default();
     let raw_stream = response
         .bytes_stream()
         .inspect(protocol_observation::observe_chunk)
         .map(move |chunk| {
             let chunk = chunk.map_err(anyhow::Error::from)?;
-            size_guard.observe(&chunk)?;
             Ok::<_, anyhow::Error>(chunk)
         });
     let mut stream = raw_stream.eventsource();

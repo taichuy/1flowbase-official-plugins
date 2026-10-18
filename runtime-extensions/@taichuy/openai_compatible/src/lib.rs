@@ -17,9 +17,9 @@ use serde_json::{json, Map, Value};
 
 mod count_tokens;
 
+#[cfg(test)]
+#[path = "_tests/sse_codec.rs"]
 mod sse_codec;
-
-use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "openai_compatible";
 const DEFAULT_VALIDATE_MODEL: bool = true;
@@ -1699,13 +1699,11 @@ where
             .into());
     }
 
-    let mut size_guard = SseEventSizeGuard::default();
     let raw_stream = response
         .bytes_stream()
         .inspect(protocol_observation::observe_chunk)
         .map(move |chunk| {
             let chunk = chunk.map_err(anyhow::Error::from)?;
-            size_guard.observe(&chunk)?;
             Ok::<_, anyhow::Error>(chunk)
         });
     let mut stream = raw_stream.eventsource();

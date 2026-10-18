@@ -11,9 +11,16 @@ async fn pair() -> (SocketOwner, WebSocketStream<TcpStream>) {
         SocketOwner::new(stream)
     });
     let (stream, _) = listener.accept().await.unwrap();
-    let server = tokio_tungstenite::accept_async_with_config(stream, Some(Default::default()))
-        .await
-        .unwrap();
+    let server = tokio_tungstenite::accept_async_with_config(
+        stream,
+        Some(
+            tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
+                .max_message_size(None)
+                .max_frame_size(None),
+        ),
+    )
+    .await
+    .unwrap();
     (client.await.unwrap(), server)
 }
 
@@ -60,9 +67,16 @@ async fn active_socket_sends_ping_while_upstream_is_silent() {
         SocketOwner::new_with_keepalive(stream, Duration::from_millis(25))
     });
     let (stream, _) = listener.accept().await.unwrap();
-    let mut peer = tokio_tungstenite::accept_async_with_config(stream, Some(Default::default()))
-        .await
-        .unwrap();
+    let mut peer = tokio_tungstenite::accept_async_with_config(
+        stream,
+        Some(
+            tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
+                .max_message_size(None)
+                .max_frame_size(None),
+        ),
+    )
+    .await
+    .unwrap();
     let mut owner = client.await.unwrap();
     let activity = owner.activity();
 
@@ -198,17 +212,24 @@ async fn dropping_owner_while_backpressured_stops_pump() {
     .unwrap();
 }
 
-#[test]
-fn byte_budget_covers_cumulative_payload_and_releases_on_consumption() {
-    let bytes = Arc::new(Semaphore::new(BYTE_LIMIT));
-    let buffered = buffer(Message::Binary(vec![0; BYTE_LIMIT].into()), &bytes).unwrap();
-    assert_eq!(
-        buffer(Message::Text("x".into()), &bytes).unwrap_err().kind,
-        "queue_bytes_limit"
-    );
+#[tokio::test]
+async fn byte_window_waits_and_admits_larger_messages_after_consumption() {
+    let bytes = Arc::new(Semaphore::new(BYTE_WINDOW_BYTES));
+    let buffered = buffer(
+        Message::Binary(vec![0; BYTE_WINDOW_BYTES + 1].into()),
+        &bytes,
+    )
+    .await
+    .unwrap();
+    assert_eq!(bytes.available_permits(), 0);
+    assert!(tokio::time::timeout(
+        Duration::from_millis(10),
+        buffer(Message::Text("x".into()), &bytes)
+    )
+    .await
+    .is_err());
     drop(buffered);
-    assert!(buffer(Message::Text("x".into()), &bytes).is_ok());
-    assert!(buffer(Message::Binary(vec![0; BYTE_LIMIT + 1].into()), &bytes).is_err());
+    assert!(buffer(Message::Text("x".into()), &bytes).await.is_ok());
 }
 
 #[tokio::test]
@@ -270,7 +291,7 @@ async fn command_count_overflow_invalidates_without_waiting_for_owner() {
 
 #[tokio::test]
 async fn cumulative_event_bytes_apply_backpressure_and_resume() {
-    let payload = vec![0; BYTE_LIMIT / 2 + 1];
+    let payload = vec![0; BYTE_WINDOW_BYTES / 2 + 1];
     let mut owner = SocketOwner::new(ScriptedSocket(std::collections::VecDeque::from([
         Ok(Message::Binary(payload.clone().into())),
         Ok(Message::Binary(payload.clone().into())),
@@ -457,20 +478,43 @@ async fn received_completion_precedes_later_io_protocol_close_and_eof() {
 }
 
 #[tokio::test]
-async fn queued_completion_cannot_hide_single_oversized_frame() {
+async fn queued_completion_and_large_frame_are_delivered_before_eof() {
     let mut owner = SocketOwner::new(ScriptedSocket(std::collections::VecDeque::from([
         Ok(completed_frame()),
-        Ok(Message::Binary(vec![0; BYTE_LIMIT + 1].into())),
+        Ok(Message::Binary(vec![0; BYTE_WINDOW_BYTES + 1].into())),
     ])));
-    (&mut owner.task).await.unwrap();
-    assert_eq!(owner.failure().unwrap().kind, "queue_bytes_limit");
-    assert!(owner
-        .next()
+    assert_eq!(owner.next().await.unwrap().unwrap(), completed_frame());
+    let frame = owner.next().await.unwrap().unwrap();
+    assert_eq!(frame.len(), BYTE_WINDOW_BYTES + 1);
+    assert!(owner.next().await.is_none());
+}
+
+#[tokio::test]
+async fn upstream_websocket_accepts_a_large_request_and_response_without_reconnect() {
+    let (mut owner, mut peer) = pair().await;
+    let payload = "x".repeat(16 * 1024 * 1024 + 1);
+    let expected = payload.clone();
+    let peer_task = tokio::spawn(async move {
+        let received = peer.next().await.unwrap().unwrap();
+        assert_eq!(received.into_text().unwrap().as_str(), expected.as_str());
+        peer.send(Message::Text(expected.into())).await.unwrap();
+    });
+    owner
+        .send(Message::Text(payload.clone().into()))
         .await
-        .unwrap()
-        .unwrap_err()
-        .to_string()
-        .contains("queue_bytes_limit"));
+        .unwrap();
+    assert_eq!(
+        owner
+            .next()
+            .await
+            .unwrap()
+            .unwrap()
+            .into_text()
+            .unwrap()
+            .as_str(),
+        payload.as_str()
+    );
+    peer_task.await.unwrap();
 }
 
 #[tokio::test]

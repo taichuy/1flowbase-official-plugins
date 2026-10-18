@@ -3,9 +3,6 @@ use super::{ProviderStreamEvent, Result};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-pub(crate) const MAX_EVENTS: usize = 1024;
-pub(crate) const MAX_BYTES: usize = 16 * 1024 * 1024;
-
 #[derive(Debug, Clone)]
 pub(crate) struct Snapshot {
     kind: Option<&'static str>,
@@ -87,19 +84,6 @@ impl Visibility {
         let bytes = events.iter().try_fold(0usize, |total, event| {
             serde_json::to_vec(event).map(|encoded| total.saturating_add(encoded.len()))
         })?;
-        if self.pending.len().saturating_add(events.len()) > MAX_EVENTS
-            || self.bytes.saturating_add(bytes) > MAX_BYTES
-        {
-            // Refuse rather than exposing abandoned slots or retaining unbounded data.
-            let mut error = super::recovery_diagnostics::transport_error(
-                "visibility_buffer_limit",
-                "policy_rejected",
-                None,
-            )
-            .downcast::<super::ProviderRuntimeError>()?;
-            error.kind = super::ProviderRuntimeErrorKind::ProviderInvalidResponse;
-            return Err(error.into());
-        }
         self.bytes += bytes;
         self.pending.append(events);
         Ok(())

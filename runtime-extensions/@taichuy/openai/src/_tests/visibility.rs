@@ -144,35 +144,26 @@ fn successful_empty_response_flushes_once_and_pending_limits_refuse_without_expo
     assert_eq!(emitted, vec![scaffold()]);
 
     let mut visibility = Visibility::default();
-    visibility
-        .publish(
-            &mut vec![scaffold(); MAX_EVENTS],
-            &mut Vec::new(),
-            &mut |_| panic!("uncommitted events must not escape"),
-        )
-        .unwrap();
-    let error = visibility
-        .publish(&mut vec![scaffold()], &mut Vec::new(), &mut |_| {
-            panic!("overflow must not flush")
-        })
-        .unwrap_err();
-    assert_eq!(
-        error.downcast_ref::<ProviderRuntimeError>().unwrap().kind,
-        ProviderRuntimeErrorKind::ProviderInvalidResponse
-    );
-    assert_eq!(visibility.snapshot().count, MAX_EVENTS);
-
-    let mut visibility = Visibility::default();
-    let oversized = ProviderStreamEvent::NativeEvent {
+    let mut pending = vec![scaffold(); 1025];
+    pending.push(ProviderStreamEvent::NativeEvent {
         protocol: "openai_responses".into(),
-        event: json!({"type":"response.created","padding":"x".repeat(MAX_BYTES)}),
-    };
-    assert!(visibility
-        .publish(&mut vec![oversized], &mut Vec::new(), &mut |_| panic!(
-            "oversized pending event must not escape"
-        ))
-        .is_err());
-    assert_eq!(visibility.snapshot().bytes, 0);
+        event: json!({"type":"response.created","padding":"x".repeat(16 * 1024 * 1024 + 1)}),
+    });
+    let expected = pending.clone();
+    visibility
+        .publish(&mut pending, &mut Vec::new(), &mut |_| {
+            panic!("uncommitted events must not escape")
+        })
+        .unwrap();
+    assert_eq!(visibility.snapshot().count, expected.len());
+    let mut delivered = Vec::new();
+    visibility
+        .flush(&mut Vec::new(), &mut |event| {
+            delivered.push(event.clone());
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(delivered, expected);
 }
 
 #[test]

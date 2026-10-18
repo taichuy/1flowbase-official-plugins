@@ -45,6 +45,8 @@ mod count_tokens;
 mod protocol_context;
 mod recovery;
 mod recovery_diagnostics;
+#[cfg(test)]
+#[path = "_tests/sse_codec.rs"]
 mod sse_codec;
 mod upstream_error;
 
@@ -59,7 +61,6 @@ use recovery::{
     RecoveryFacts, RecoveryFsm, RecoveryPolicyKind, RecoverySignal, RecoveryTransition,
     RecoveryTransport,
 };
-use sse_codec::SseEventSizeGuard;
 
 const PROVIDER_CODE: &str = "openai";
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
@@ -4865,7 +4866,6 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut size_guard = SseEventSizeGuard::default();
     let raw_stream = response
         .bytes_stream()
         .inspect(protocol_observation::observe_chunk)
@@ -4873,7 +4873,6 @@ where
             let chunk = chunk.map_err(|_| {
                 recovery_diagnostics::transport_error("http_body", "transport_disconnected", None)
             })?;
-            size_guard.observe(&chunk)?;
             Ok::<_, anyhow::Error>(chunk)
         });
     let mut stream = raw_stream.eventsource();
@@ -5119,7 +5118,6 @@ where
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut response_id = Value::Null;
-    let mut size_guard = SseEventSizeGuard::default();
     let raw_stream = response
         .bytes_stream()
         .inspect(protocol_observation::observe_chunk)
@@ -5127,7 +5125,6 @@ where
             let chunk = chunk.map_err(|_| {
                 recovery_diagnostics::transport_error("http_body", "transport_disconnected", None)
             })?;
-            size_guard.observe(&chunk)?;
             Ok::<_, anyhow::Error>(chunk)
         });
     let mut stream = raw_stream.eventsource();

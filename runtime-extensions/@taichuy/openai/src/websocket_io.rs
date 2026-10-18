@@ -5,15 +5,15 @@ use tokio::sync::{mpsc, oneshot, OwnedSemaphorePermit, Semaphore};
 
 const EVENT_COUNT: usize = 64;
 const COMMAND_COUNT: usize = 8;
-const BYTE_LIMIT: usize = 16 * 1024 * 1024;
+const BYTE_WINDOW_BYTES: usize = 16 * 1024 * 1024;
 const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(20);
 
 pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
     let mut config = tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
-        .max_message_size(Some(BYTE_LIMIT))
-        .max_frame_size(Some(BYTE_LIMIT))
-        .max_write_buffer_size(BYTE_LIMIT + 1024);
+        .max_message_size(None)
+        .max_frame_size(None)
+        .max_write_buffer_size(usize::MAX);
     // Compression belongs to each physical connection, including HTTP CONNECT.
     // The library negotiates RFC 7692 and keeps plain peers interoperable.
     config.extensions.permessage_deflate = Some(
@@ -66,12 +66,7 @@ impl Failure {
     fn invalidates_buffered_events(&self) -> bool {
         matches!(
             self.kind,
-            "queue_count_limit"
-                | "queue_bytes_limit"
-                | "capacity"
-                | "write_buffer_full"
-                | "owner_cancelled"
-                | "owner_stopped"
+            "capacity" | "write_buffer_full" | "owner_cancelled" | "owner_stopped"
         )
     }
     fn stream_end(self) -> Option<Result<Message>> {
@@ -165,15 +160,13 @@ impl Drop for Activity {
         }
     }
 }
-fn buffer(message: Message, bytes: &Arc<Semaphore>) -> Result<Buffered, Failure> {
+async fn buffer(message: Message, bytes: &Arc<Semaphore>) -> Result<Buffered, Failure> {
     let size = message.len();
-    if size > BYTE_LIMIT {
-        return Err(Failure::new("queue_bytes_limit"));
-    }
     let permit = bytes
         .clone()
-        .try_acquire_many_owned(size as u32)
-        .map_err(|_| Failure::new("queue_bytes_limit"))?;
+        .acquire_many_owned(size.min(BYTE_WINDOW_BYTES) as u32)
+        .await
+        .map_err(|_| Failure::new("owner_stopped"))?;
     Ok(Buffered {
         message,
         _bytes: permit,
@@ -211,16 +204,16 @@ impl SocketOwner {
         let first = terminal.clone();
         let peer_ack = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let acknowledged = peer_ack.clone();
-        let event_bytes = Arc::new(Semaphore::new(BYTE_LIMIT));
+        let event_bytes = Arc::new(Semaphore::new(BYTE_WINDOW_BYTES));
         let task = tokio::spawn(async move {
             let mut keepalive = tokio::time::interval_at(
                 tokio::time::Instant::now() + keepalive_interval,
                 keepalive_interval,
             );
             keepalive.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-            // At most 16 MiB queued plus one pending message of at most 16 MiB:
-            // the owner’s queued + pending payload is bounded by 32 MiB (excluding transport
-            // buffers). Stop reading while pending; TCP supplies upstream backpressure.
+            // The byte window schedules delivery; an oversized message owns the
+            // whole window. Stop reading while pending so TCP supplies backpressure,
+            // while the owner can still process cancellation and keepalive.
             let mut pending: Option<Message> = None;
             let failure = loop {
                 tokio::select! {
@@ -244,7 +237,7 @@ impl SocketOwner {
                     admission = async {
                         let slot = tx.reserve().await.map_err(|_| Failure::new("owner_cancelled"))?;
                         let size = pending.as_ref().expect("pending admission").len();
-                        let bytes = event_bytes.clone().acquire_many_owned(size as u32).await
+                        let bytes = event_bytes.clone().acquire_many_owned(size.min(BYTE_WINDOW_BYTES) as u32).await
                             .map_err(|_| Failure::new("owner_stopped"))?;
                         Ok::<_, Failure>((slot, bytes))
                     }, if pending.is_some() => {
@@ -277,9 +270,6 @@ impl SocketOwner {
                                 break failure;
                             }
                             Some(Ok(message)) => {
-                                if message.len() > BYTE_LIMIT {
-                                    break Failure::new("queue_bytes_limit");
-                                }
                                 pending = Some(message);
                             }
                             Some(Err(error)) => break Failure::websocket(error),
@@ -293,7 +283,7 @@ impl SocketOwner {
         Self {
             commands,
             events,
-            command_bytes: Arc::new(Semaphore::new(BYTE_LIMIT)),
+            command_bytes: Arc::new(Semaphore::new(BYTE_WINDOW_BYTES)),
             terminal,
             close: Some(close),
             task,
@@ -320,19 +310,14 @@ impl SocketOwner {
         if let Some(error) = self.failure() {
             return Err(error.into());
         }
-        let buffered = buffer(message, &self.command_bytes).map_err(|e| self.invalidate(e))?;
+        let buffered = buffer(message, &self.command_bytes)
+            .await
+            .map_err(|e| self.invalidate(e))?;
         let (ack, result) = oneshot::channel();
         self.commands
-            .try_send(Command { buffered, ack })
-            .map_err(|e| {
-                self.invalidate(Failure::new(
-                    if matches!(e, mpsc::error::TrySendError::Full(_)) {
-                        "queue_count_limit"
-                    } else {
-                        "owner_stopped"
-                    },
-                ))
-            })?;
+            .send(Command { buffered, ack })
+            .await
+            .map_err(|_| self.invalidate(Failure::new("owner_stopped")))?;
         result
             .await
             .unwrap_or_else(|_| {
