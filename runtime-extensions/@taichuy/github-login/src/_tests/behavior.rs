@@ -34,7 +34,7 @@ where
             let (host_read, mut host_write) = tokio::io::split(host);
             let mut reader = BufReader::new(host_read);
             let frame = MultiplexEnvelope::new(MultiplexHostMessage::Call {
-                call_id: "fixture".into(),
+                call_id: "1".into(),
                 request: json!({"method":"execute","input":{
                 "handler":"authenticate","config_payload":config,"input_payload":operation}}),
             });
@@ -107,7 +107,8 @@ async fn begin_uses_fixed_github_origin_state_callback_pkce_and_minimal_scope() 
     assert_eq!(query["scope"], "user:email");
     assert_eq!(query["code_challenge"], "c".repeat(43));
     assert_eq!(query["code_challenge_method"], "S256");
-    assert_eq!(query.len(), 6);
+    assert_eq!(query["response_type"], "code");
+    assert_eq!(query.len(), 7);
     assert_safe(&response);
 }
 

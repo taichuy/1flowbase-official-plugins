@@ -70,6 +70,7 @@ async fn execute(
             let mut url = Url::parse("https://github.com/login/oauth/authorize")
                 .map_err(|_| Failure("github_request_invalid"))?;
             url.query_pairs_mut()
+                .append_pair("response_type", "code")
                 .append_pair("client_id", &config.client_id)
                 .append_pair("redirect_uri", &callback_url)
                 .append_pair("state", &state)
