@@ -6,6 +6,8 @@ Official managed authentication provider for `1flowbase/github-login`. It uses a
 
 ## Setup
 
+The Host must include managed external authentication support. The first compatible release target is **0.5.8**; the published **v0.5.7 does not include this feature**. For development, use a `dev` build containing these authentication changes. If it still reports version 0.5.7, use Extension Center's existing exact compatibility acknowledgement only after checking its source. An acknowledgement cannot add missing functionality to an older release.
+
 1. Install the plugin and create a GitHub login entry in Authentication Center.
 2. Create an OAuth App under GitHub **Settings → Developer settings → OAuth Apps**. Copy Host's read-only callback URL into **Authorization callback URL** exactly.
 3. Save the OAuth App client ID and client secret in Authentication Center, then enable the entry.
