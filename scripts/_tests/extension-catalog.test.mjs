@@ -399,9 +399,14 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
       continue;
     }
     assert.ok(
-      ['model_provider', 'network_egress_provider', 'provider_distribution_rule'].includes(entry.source.plugin_type),
-      `${entry.id} must expose a supported provider plugin type`
+      ['model_provider', 'network_egress_provider', 'provider_distribution_rule', 'runtime_extension'].includes(entry.source.plugin_type),
+      `${entry.id} must expose a supported runtime plugin type`
     );
+    if (entry.source.plugin_type === 'runtime_extension') {
+      assert.equal(entry.source.contract_version, '1flowbase.extension-bus/v1');
+      assert.equal(entry.source.protocol, 'stdio_json_multiplex_v1');
+      assert.equal(entry.source.model_discovery_mode, 'not_applicable');
+    }
     assert.equal(entry.source.provider_code, entry.artifact);
     assert.equal(typeof entry.source.protocol, 'string');
     assert.ok(entry.source.protocol.length > 0);

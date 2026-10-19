@@ -1,0 +1,61 @@
+{
+  "id": "01a14516-1821-740b-b87a-665d663bfa96",
+  "title": "Default",
+  "rank": "a",
+  "is_default": true,
+  "route_segment": null,
+  "document_root_uid": "frontstage.tab.01a14516-1821-740b-b87a-665d663bfa96.root",
+  "document_payload": {
+    "$file": "pages/01a14516-1821-740b-b87a-665c0657eaed/tabs/01a14516-1821-740b-b87a-665d663bfa96/document.json"
+  },
+  "blocks": [
+    {
+      "block_id": "01a1451b-5119-76f4-b810-d6572d7c4016",
+      "parent_block_id": null,
+      "rank": "85",
+      "presentation": "page",
+      "title": "NXBJ6MEY",
+      "description": null,
+      "code_ref": "frontstage.block.01a1451b-5119-76f4-b810-d6572d7c4016",
+      "schema_version": 1,
+      "input_mapping": {},
+      "output_mapping": {},
+      "runtime_descriptor": {
+        "id": "01a1451b-5119-76f4-b810-d6572d7c4016",
+        "ports": {
+          "inputs": [],
+          "outputs": []
+        },
+        "props": {},
+        "catalog": {
+          "providerCode": "1flowbase",
+          "installationId": "01a0365d-835d-7b91-aa7b-f1ee5cd6c14a"
+        },
+        "codeRef": "frontstage.block.01a1451b-5119-76f4-b810-d6572d7c4016",
+        "runtime": {
+          "hint": "native_react",
+          "kind": "native_react",
+          "entry": "index.js",
+          "code_template_version": "7.0.0",
+          "code_template_language": "tsx"
+        },
+        "x-layout": {
+          "order": 0,
+          "region": "main"
+        },
+        "contribution": {
+          "code": "frontstage.js-ui-block",
+          "pluginId": "1flowbase@2.0.0",
+          "pluginVersion": "2.0.0"
+        },
+        "x-presentation": {
+          "height": null,
+          "heightMode": "auto"
+        },
+        "rendererVersion": "v1",
+        "renderer_version": "v1"
+      },
+      "source_code": "import { useEffect, useState } from 'react';\nimport { Alert, Button, Empty, Select, Spin } from 'antd';\nimport { FileTableView } from '@1flowbase/files';\nimport type { BlockComponentProps } from '@1flowbase/block-sdk';\n\ntype FileTable = { id: string; code: string; title: string };\n\nexport default function FileManagementBlock({ ctx }: BlockComponentProps) {\n  const [tables, setTables] = useState<FileTable[]>([]);\n  const [selectedCode, setSelectedCode] = useState<string>();\n  const [loading, setLoading] = useState(true);\n  const [failed, setFailed] = useState(false);\n  const [reload, setReload] = useState(0);\n\n  useEffect(() => {\n    let active = true;\n    setLoading(true);\n    setFailed(false);\n    ctx.api.get<FileTable[]>('/api/console/settings/files/tables')\n      .then((items) => {\n        if (!active) return;\n        setTables(items);\n        setSelectedCode((current) => items.some((item) => item.code === current) ? current : items[0]?.code);\n      })\n      .catch(() => { if (active) setFailed(true); })\n      .finally(() => { if (active) setLoading(false); });\n    return () => { active = false; };\n  }, [ctx.workspace.id, reload]);\n\n  return (\n    <div style={{ width: '100%', minWidth: 0 }}>\n      {loading ? <Spin /> : failed ? (\n        <Alert type=\"error\" showIcon title=\"文件表加载失败\" action={<Button onClick={() => setReload((value) => value + 1)}>重试</Button>} />\n      ) : !selectedCode ? <Empty description=\"暂无可用文件表\" /> : (\n    <FileTableView\n      key={`${ctx.workspace.id}:${selectedCode}`}\n      fileTableCode={selectedCode}\n      toolbarExtra={\n        <Select\n          aria-label=\"选择文件表\"\n          value={selectedCode}\n          onChange={setSelectedCode}\n          options={tables.map((table) => ({ value: table.code, label: table.title }))}\n          style={{ width: 220, maxWidth: '100%', height: 44 }}\n          showSearch={{ optionFilterProp: 'label' }}\n        />\n      }\n    />\n      )}\n    </div>\n  );\n}\n"
+    }
+  ]
+}

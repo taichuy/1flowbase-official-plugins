@@ -19,3 +19,15 @@ release v4 增加工作流节点工具分组，提供 HTTP、SQL、数据 CRUD�
 ## Workflow node MCP
 
 Release v4 adds configuration examples and node-preview tools for HTTP, SQL, data CRUD, template transforms, code, and variable aggregation. Read the complete `workflow_ops_create_application` description first, create or reuse an application, discover its nodes, save the graph, and preview a target node. Pass the prerequisite description’s current `des_id` at the outer `mcp_call` level. The backend still validates the application, node, and permissions. A preview does not run upstream nodes, and write nodes modify authorized data. The host must support this description-validation contract (exported from 0.5.3). This template excludes acceptance applications and test records.
+
+## 文件管理与 ChatGPT 文件导入
+
+Release v11 加入文件管理页面 `/route/pages/01a14516-1821-740b-b87a-665c0657eaed`，复用宿主 `FileTableView` 查看和管理文件表。MCP 实例 `1flowbase` 在 `/tool/chatgpt` 提供 `chatgpt_import_file`，绑定 `POST /api/console/files/import-remote`。宿主最低版本为 0.5.7。
+
+ChatGPT 调用时把文件引用放在 `mcp_call` 外层 `file`，`arguments` 传 `{}` 即可保存到默认附件表；指定目标时传 `arguments.file_table_id`（文件表 UUID）。文件引用包含 `download_url`、`file_id`，可选 `file_name` 和 `mime_type`。也支持直接传 `arguments.file`；两处同时传入时必须一致。下载地址必须可访问，不能直接传 `sandbox:/` 路径。接口返回 `file_table_id`、`storage_id` 和持久化 `record`；ChatGPT 的临时 `file_id` 不等于保存后的 `record.id`。
+
+## File management and ChatGPT file import
+
+Release v11 adds the file management page at `/route/pages/01a14516-1821-740b-b87a-665c0657eaed`, using the host’s `FileTableView` to browse and manage file tables. The `1flowbase` MCP instance exposes `chatgpt_import_file` under `/tool/chatgpt`, backed by `POST /api/console/files/import-remote`. Host version 0.5.7 or later is required.
+
+Pass the ChatGPT file reference in the outer `mcp_call.file` field and use `arguments: {}` to save to the default attachments table. To choose a table, set `arguments.file_table_id` to its UUID. The reference requires `download_url` and `file_id`; `file_name` and `mime_type` are optional. You can also pass the reference directly as `arguments.file`; if both locations are provided, they must match. The download URL must be accessible; a `sandbox:/` path cannot be used directly. The result contains `file_table_id`, `storage_id`, and the persisted `record`. ChatGPT’s temporary `file_id` is different from the saved `record.id`.

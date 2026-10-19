@@ -1,0 +1,166 @@
+{
+  "tool_id": "chatgpt_import_file",
+  "name": "chatgpt_import_file",
+  "short_description": "将 ChatGPT 对话中生成或选中的文件保存到 1flowbase 文件表，返回持久文件记录。",
+  "full_description": "在 mcp_call 外层的 file 传入 ChatGPT 提供的文件引用，arguments 传 {} 或包含 file_table_id；系统会将 file 注入本工具参数。也可在 arguments.file 直接传入完整引用，两处同时提供时必须一致。download_url 必须是可访问的下载地址，sandbox:/ 路径不能直接作为下载地址；file_id 是 ChatGPT 临时文件标识，不是保存后的 record.id。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "import_remote_file"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "object",
+            "required": [
+              "download_url",
+              "file_id"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "file_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mime_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "download_url": {
+                "type": "string"
+              }
+            },
+            "description": "A temporary MCP file reference is a source locator, not a persisted business file.",
+            "additionalProperties": false
+          },
+          "file_table_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "file_table_id",
+      "storage_id",
+      "record"
+    ],
+    "properties": {
+      "record": {
+        "type": "object"
+      },
+      "storage_id": {
+        "type": "string"
+      },
+      "file_table_id": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "source": {
+          "kind": "mcp_argument",
+          "path": "file"
+        },
+        "required": true,
+        "mcp_param": "file",
+        "description": "ChatGPT 提供的文件引用；包含可访问的 download_url、临时 file_id，以及可选的 file_name、mime_type。",
+        "interface_param": "file"
+      },
+      {
+        "source": {
+          "kind": "mcp_argument",
+          "path": "file_table_id"
+        },
+        "required": false,
+        "mcp_param": "file_table_id",
+        "description": "目标文件表 UUID；省略时保存到默认附件表。",
+        "interface_param": "file_table_id"
+      }
+    ],
+    "openai_file_params": [
+      "file"
+    ],
+    "interface_parameters": [
+      {
+        "name": "file",
+        "schema": {
+          "type": "object",
+          "required": [
+            "download_url",
+            "file_id"
+          ],
+          "properties": {
+            "file_id": {
+              "type": "string"
+            },
+            "file_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mime_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "download_url": {
+              "type": "string"
+            }
+          },
+          "description": "A temporary MCP file reference is a source locator, not a persisted business file.",
+          "additionalProperties": false
+        },
+        "required": true,
+        "field_type": "object",
+        "description": "ChatGPT 文件引用，由外层 mcp_call.file 注入，包含 download_url 和 file_id，可包含 file_name、mime_type。",
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "file_table_id",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
