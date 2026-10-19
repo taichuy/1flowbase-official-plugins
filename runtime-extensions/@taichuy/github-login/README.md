@@ -24,3 +24,15 @@
 运行 `cargo test --manifest-path runtime-extensions/@taichuy/github-login/Cargo.toml` 可执行定向 fixtures，包括 multiplex Host HTTP mock、PKCE、秘密不泄漏、邮箱筛选、稳定 ID 和周年边界。所有 HTTP 通过 runtime-extension-sdk 的 Host egress 发起，插件不构造网络客户端。
 
 现有 `list-provider-package-targets.mjs` 自动发现此目录；`provider-release` 统一生成各平台包、签名和 registry 项。开发变更不主动创建 release。SDK git revision 必须指向包含认证 contract reexport 的 Host 提交；本地联调可使用不提交的 Cargo patch 配置。
+
+## 依赖范围
+
+本插件新建独立 Rust 包，宿主不新增第三方依赖。插件使用现有 `runtime-extension-sdk`（git revision 固定在 `Cargo.toml` / `Cargo.lock`）提供通信和 HTTP 出口；不自行实现 worker 协议或网络客户端。直接第三方依赖的锁定版本和用途如下：
+
+| 包 | 锁定版本 | 用途 |
+| --- | --- | --- |
+| `tokio` | 1.53.3 | SDK worker 的异步运行时与测试 IO |
+| `serde` / `serde_json` | 1.0.229 / 1.0.154 | typed 配置、认证请求和 JSON 响应 |
+| `base64` | 0.22.1 | Host HTTP wire 的请求/响应正文编码 |
+| `url` | 2.5.8 | OAuth URL 和表单编码 |
+| `time` | 0.3.55 | UTC 日期与日历周年检查 |

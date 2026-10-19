@@ -18,3 +18,15 @@ Identity uses GitHub's immutable numeric user ID, independent of username change
 Age checks use UTC calendar anniversaries; a February 29 anniversary falls on February 28 in non-leap years. Missing, invalid or future creation times deny registration even with a zero-year minimum. The worker never creates users.
 
 Run `cargo test --manifest-path runtime-extensions/@taichuy/github-login/Cargo.toml` for directed multiplex Host HTTP fixtures and registration boundary cases. HTTP uses SDK Host egress exclusively. Existing package discovery and the provider release workflow handle packaging, signing and registry publication. Pin the SDK to a Host commit exporting the authentication contract before release; local patch configurations must remain uncommitted.
+
+## Dependency scope
+
+This plugin is a new, independent Rust package and adds no third-party dependencies to the Host. It reuses `runtime-extension-sdk`, pinned by Git revision in `Cargo.toml` and `Cargo.lock`, for worker transport and Host HTTP egress. It does not implement its own worker protocol or network client.
+
+| Direct dependency | Locked version | Purpose |
+| --- | --- | --- |
+| `tokio` | 1.53.3 | Async worker runtime and test IO |
+| `serde` / `serde_json` | 1.0.229 / 1.0.154 | Typed configuration, authentication requests and JSON responses |
+| `base64` | 0.22.1 | Body encoding for the Host HTTP wire contract |
+| `url` | 2.5.8 | OAuth URL and form encoding |
+| `time` | 0.3.55 | UTC dates and calendar-anniversary checks |
