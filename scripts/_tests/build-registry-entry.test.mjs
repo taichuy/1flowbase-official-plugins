@@ -320,3 +320,17 @@ test('buildRegistryEntry strips Windows shell escapes from sha256 checksums', ()
     'sha256:a077092765c25d7da3606c3252054900f3f07f6653486a682479fcd68763dd7c'
   );
 });
+
+test('managed GitHub authentication packages retain runtime identity without model metadata', () => {
+  const pluginDir = path.join(repoRoot, 'runtime-extensions', '@taichuy', 'github-login');
+  const entry = buildRegistryEntry({
+    pluginDir, providerCode: 'github-login', version: '0.1.0',
+    repositoryRoot: repoRoot, artifacts: [],
+  });
+  assert.equal(entry.plugin_id, '1flowbase.github-login');
+  assert.equal(entry.plugin_type, 'runtime_extension');
+  assert.equal(entry.protocol, 'stdio_json_multiplex_v1');
+  assert.equal(entry.model_discovery_mode, 'not_applicable');
+  assert.deepEqual(entry.slot_codes, []);
+  assert.equal(entry.manifest_locator, 'runtime-extensions/@taichuy/github-login/manifest.yaml');
+});

@@ -1,0 +1,26 @@
+# GitHub 一键登录
+
+[English](README.en.md)
+
+官方受管认证插件，贡献 `1flowbase/github-login` 登录方式。使用 GitHub OAuth App、state 和 PKCE S256，仅申请 `user:email`，不申请仓库权限。Host 持有配置密文，负责登录事务、不可变数字 GitHub ID 绑定、首次注册和会话；插件仅验证 GitHub 身份及注册年限。
+
+## 配置
+
+1. 安装插件，在认证中心创建 GitHub 登录入口。
+2. 在 GitHub **Settings → Developer settings → OAuth Apps** 创建应用，将 Host 显示的只读「回调地址」原样填写到 **Authorization callback URL**。
+3. 将 OAuth App 的「客户端ID」和「客户端密钥」填入认证中心并保存，启用登录入口。
+4. 按需打开「允许新用户注册」，设置「GitHub账号最低注册年限」（非负整数，默认 0 不限）。已有绑定用户不受注册开关、年限或邮箱缺失影响。
+
+登录按钮通过 Host 的 `ctx.auth.redirectToExternalLogin()` 跳转到 `/api/public/auth/external/start?login_entry_id=当前入口ID`，无需在 UI Block 填写配置、密钥或绝对地址。`public_variable_keys` 为空；密钥、OAuth code、PKCE verifier 和 access token 不进入公共 UI、身份 profile 或错误信息。
+
+## 身份和注册限制
+
+身份键为 `github_user_id` + GitHub 数字 ID，GitHub 用户名变化不改变绑定。profile 仅保留 `login`、`name`、`avatar_url`、`created_at`、已验证主邮箱（存在时）和 `email_verified`。未验证或非主邮箱不用作注册邮箱；Host 只在首次注册时要求邮箱。
+
+最低年限按 UTC 日历周年检查；2 月 29 日账号在非闰年的周年日固定为 2 月 28 日。无效或未来的 `created_at` 拒绝首次注册，包括年限设置为 0 时。插件不创建用户，也不改变已绑定账号。
+
+## 构建与验证
+
+运行 `cargo test --manifest-path runtime-extensions/@taichuy/github-login/Cargo.toml` 可执行定向 fixtures，包括 multiplex Host HTTP mock、PKCE、秘密不泄漏、邮箱筛选、稳定 ID 和周年边界。所有 HTTP 通过 runtime-extension-sdk 的 Host egress 发起，插件不构造网络客户端。
+
+现有 `list-provider-package-targets.mjs` 自动发现此目录；`provider-release` 统一生成各平台包、签名和 registry 项。开发变更不主动创建 release。SDK git revision 必须指向包含认证 contract reexport 的 Host 提交；本地联调可使用不提交的 Cargo patch 配置。

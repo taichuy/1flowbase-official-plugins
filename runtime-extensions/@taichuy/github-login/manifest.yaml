@@ -1,0 +1,127 @@
+manifest_version: 2
+schema_version: 1flowbase.plugin.manifest/v2
+plugin_id: github-login
+version: 0.1.0
+publisher_namespace: 1flowbase
+vendor: 1flowbase
+display_name: GitHub 一键登录
+description: 使用 GitHub OAuth 验证身份，由 Host 管理账号绑定、注册和会话
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes: []
+binding_targets: [system]
+selection_mode: assignment_then_select
+minimum_host_version: 0.5.6
+contract_version: 1flowbase.extension-bus/v1
+permissions:
+  network: outbound_only
+  secrets: host_managed
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json_multiplex_v1
+  entry: bin/github-login
+  limits:
+    timeout_ms: 30000
+authentication_providers:
+  - auth_type: 1flowbase/github-login
+    display_name: GitHub 一键登录
+    contribution_id: 1flowbase.github-login.authenticate
+    public_variable_keys: []
+    config_schema:
+      - key: client_id
+        label: 客户端ID
+        type: string
+        required: true
+      - key: client_secret
+        label: 客户端密钥
+        type: secret
+        required: true
+      - key: callback_url
+        label: 回调地址
+        type: string
+        description: Host 生成的只读地址，请原样填写到 GitHub OAuth App 回调地址
+        required: true
+      - key: self_registration_enabled
+        label: 允许新用户注册
+        type: boolean
+        default_value: false
+      - key: minimum_account_age_years
+        label: GitHub账号最低注册年限
+        type: number
+        min: 0
+        step: 1
+        precision: 0
+        default_value: 0
+        description: 仅首次注册检查，0 表示不限年限；非闰年 2 月 29 日周年按 2 月 28 日计算
+    default_public_ui_block: |
+      import { GithubOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+      import { useState } from 'react';
+      import { Alert, Button, Space } from 'antd';
+      
+      type AuthContext = {
+        inputs: { authenticator_selection_available?: boolean };
+        auth: { redirectToExternalLogin(): void | Promise<void> };
+        events: { emit(event: string): void };
+      };
+      
+      export default function GitHubLogin({ ctx }: { ctx: AuthContext }) {
+        const [pending, setPending] = useState(false);
+        const [failed, setFailed] = useState(false);
+        const signIn = async () => {
+          setPending(true);
+          setFailed(false);
+          try {
+            await ctx.auth.redirectToExternalLogin();
+          } catch {
+            setFailed(true);
+          } finally {
+            setPending(false);
+          }
+        };
+        return (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {ctx.inputs.authenticator_selection_available ? (
+              <Button aria-label="返回其他登录方式" type="text" disabled={pending}
+                icon={<ArrowLeftOutlined aria-hidden="true" />}
+                onClick={() => ctx.events.emit('authenticator_selector_requested')} />
+            ) : null}
+            {failed ? <Alert type="error" showIcon message="无法开始 GitHub 登录，请重试。" /> : null}
+            <Button block size="large" type="primary" icon={<GithubOutlined aria-hidden="true" />}
+              loading={pending} onClick={signIn}>使用 GitHub 登录</Button>
+          </Space>
+        );
+      }
+managed:
+  module:
+    bus_version: v1
+    module_id: github-login
+    module_version: 0.1.0
+    module_kind: runtime
+    contributions:
+      - contribution_id: 1flowbase.github-login.authenticate
+        contributor_module_id: github-login
+        point_id: 1flowbase.authentication.provider
+        contract_version: '1'
+        required_permissions: [authentication.verify, network.http.request]
+        mode: append
+  execution_bindings:
+    - contribution_id: 1flowbase.github-login.authenticate
+      execution_mode: process_per_call
+      runtime:
+        protocol: stdio_json_multiplex_v1
+        entry: bin/github-login
+        limits:
+          timeout_ms: 30000
+      handler: authenticate
+      payload:
+        kind: authentication_provider
+        auth_type: 1flowbase/github-login
+keywords:
+  - github
+  - authentication
+  - oauth
+  - login
