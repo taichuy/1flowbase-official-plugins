@@ -98,7 +98,7 @@ pub(crate) async fn complete(
         .ok_or(Failure("github_identity_invalid"))?;
     let mut profile = Map::new();
     // User response may contain private fields and token-shaped values. Never clone it wholesale.
-    for key in ["login", "name", "avatar_url", "created_at"] {
+    for key in ["login", "avatar_url", "created_at"] {
         if let Some(Value::String(value)) = user.get(key) {
             profile.insert(key.into(), Value::String(value.clone()));
         }
@@ -110,6 +110,8 @@ pub(crate) async fn complete(
     // Normalize provider-specific profile fields for Host-owned first-signup mapping.
     if let Some(login) = user.get("login").and_then(Value::as_str) {
         profile.insert("account".into(), json!(login));
+        // GitHub owns this first-registration default; Host only persists explicit hints.
+        profile.insert("name".into(), json!(login));
         let nickname = user
             .get("name")
             .and_then(Value::as_str)

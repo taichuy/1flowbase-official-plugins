@@ -15,7 +15,7 @@ The Host must include managed external authentication support. The first compati
 
 The UI calls `ctx.auth.redirectToExternalLogin()`. Host builds `/api/public/auth/external/start?login_entry_id=<current-entry-id>`. No credentials or private configuration are exposed as public variables. Tokens, authorization codes, secrets and verifier values are never returned in profiles or errors.
 
-Identity uses GitHub's immutable numeric user ID, independent of username changes. Profiles contain only login, name, avatar URL, canonical `profile_url` mapped from GitHub `html_url`, creation time, verified primary email when available, and email verification status. Host requires email only during first registration. Missing email does not invalidate an existing binding.
+Identity uses GitHub's immutable numeric user ID, independent of username changes. Profiles contain normalized `account`, `name`, `nickname`, login, avatar URL, canonical `profile_url` mapped from GitHub `html_url`, creation time, verified primary email when available, and email verification status. Host requires email only during first registration. Missing email does not invalidate an existing binding.
 
 Age checks use UTC calendar anniversaries; a February 29 anniversary falls on February 28 in non-leap years. Missing, invalid or future creation times deny registration even with a zero-year minimum. The worker never creates users.
 
@@ -35,7 +35,7 @@ This plugin is a new, independent Rust package and adds no third-party dependenc
 
 The entry declares `entry_action: external_login`. Clicking GitHub in the sign-in chooser starts authorization immediately, without an intermediate block containing a second sign-in button. Entries without an action default to `render_ui` for form-based authentication. Direct links and a single-entry page still require an explicit click; cancellation and failures never trigger an automatic retry.
 
-On first signup, the provider maps the GitHub login to `account`, the public name to `nickname` (falling back to the login), and supplies `avatar_url`. The Host validates these onboarding hints and adds a unique suffix on account collisions. The real-name field stays empty. Binding an existing account and subsequent sign-ins never overwrite local profile edits.
+On first signup, the provider maps the GitHub login to `account`, the public name to `nickname` (falling back to the login), and supplies `avatar_url`. The Host validates these onboarding hints and adds a unique suffix on account collisions. The plugin defaults `name` to the GitHub login as initial profile data; it does not indicate legal-name verification. The Host only validates and stores an explicit provider name and does not derive it from the account. Binding an existing account and subsequent sign-ins never overwrite local profile edits.
 
 ## Account security
 

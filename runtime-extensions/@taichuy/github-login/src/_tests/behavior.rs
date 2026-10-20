@@ -179,12 +179,13 @@ async fn exchange_uses_host_http_and_stable_numeric_identity_with_verified_prima
     assert!(first["result"]["realm"].is_null());
     assert_eq!(
         first["result"]["profile"],
-        json!({"login":"old-name","name":"Fixture User","account":"old-name","nickname":"Fixture User",
+        json!({"login":"old-name","name":"old-name","account":"old-name","nickname":"Fixture User",
         "avatar_url":"https://avatars.githubusercontent.com/u/12345678901234",
         "profile_url":"https://github.com/old-name",
         "created_at":"2020-02-29T23:59:59Z","email":"verified-primary@example.test","email_verified":true})
     );
     assert_eq!(renamed["result"]["profile"]["login"], "new-name");
+    assert_eq!(renamed["result"]["profile"]["name"], "new-name");
     assert_eq!(
         renamed["result"]["profile"]["profile_url"],
         "https://github.com/new-name"
@@ -324,6 +325,7 @@ async fn public_profile_is_normalized_for_first_signup_and_empty_name_falls_back
         assert_eq!(response["ok"], true);
         assert_eq!(response["result"]["profile"]["account"], "readable-login");
         assert_eq!(response["result"]["profile"]["nickname"], "readable-login");
+        assert_eq!(response["result"]["profile"]["name"], "readable-login");
         assert_eq!(response["result"]["subject_value"], "12345678901234");
     }
 }

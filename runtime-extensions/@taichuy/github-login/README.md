@@ -17,7 +17,7 @@ GitHub 官方受管认证插件，贡献 `1flowbase/github-login` 登录方式�
 
 ## 身份和注册限制
 
-身份键为 `github_user_id` + GitHub 数字 ID，GitHub 用户名变化不改变绑定。profile 包含规范化初始化字段 `account`、`nickname`，以及 `login`、`name`、`avatar_url`、从 GitHub `html_url` 映射的 `profile_url`、`created_at`、已验证主邮箱（存在时）和 `email_verified`。未验证或非主邮箱不用作注册邮箱；Host 只在首次注册时要求邮箱。
+身份键为 `github_user_id` + GitHub 数字 ID，GitHub 用户名变化不改变绑定。profile 包含规范化初始化字段 `account`、`name`、`nickname`，以及 `login`、`avatar_url`、从 GitHub `html_url` 映射的 `profile_url`、`created_at`、已验证主邮箱（存在时）和 `email_verified`。未验证或非主邮箱不用作注册邮箱；Host 只在首次注册时要求邮箱。
 
 最低年限按 UTC 日历周年检查；2 月 29 日账号在非闰年的周年日固定为 2 月 28 日。无效或未来的 `created_at` 拒绝首次注册，包括年限设置为 0 时。插件不创建用户，也不改变已绑定账号。
 
@@ -41,7 +41,7 @@ GitHub 官方受管认证插件，贡献 `1flowbase/github-login` 登录方式�
 
 登录入口声明 `entry_action: external_login`：用户在登录方式列表点击 GitHub 后，宿主直接发起授权，不再先打开包含第二个登录按钮的区块。未声明动作的入口默认 `render_ui`，保留表单流程。直接访问入口链接或仅有该入口时仍需用户点击；取消或失败后不自动重试。
 
-首次注册时，插件将 GitHub 用户名映射为 `account`、公开名称映射为 `nickname`（空名称回退用户名），并提供 `avatar_url`。Host 校验这些初始化提示，在账号重名时自动添加唯一后缀；实名 `name` 留空。已有账号显式绑定及后续登录均不覆盖本地资料。
+首次注册时，插件将 GitHub 用户名映射为 `account`、公开名称映射为 `nickname`（空名称回退用户名），并提供 `avatar_url`。Host 校验这些初始化提示，在账号重名时自动添加唯一后缀；插件将姓名 `name` 默认设为 GitHub 用户名；这只作为注册初始资料，不代表实名核验。宿主只校验并保存插件显式提供的姓名，不从账号自动补全。已有账号显式绑定及后续登录均不覆盖本地资料。
 
 ## 账号安全
 
