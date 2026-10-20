@@ -72,14 +72,25 @@ pub(crate) async fn complete(
         ("authorization".into(), format!("Bearer {token}")),
         ("x-github-api-version".into(), "2022-11-28".into()),
     ]);
-    let user = send(
-        &client,
-        "GET",
-        "https://api.github.com/user",
-        headers.clone(),
-        None,
-    )
-    .await?;
+    // Both reads depend only on the exchanged token. Keep both results required,
+    // while avoiding an extra serial GitHub network round trip.
+    let (user, emails) = tokio::join!(
+        send(
+            &client,
+            "GET",
+            "https://api.github.com/user",
+            headers.clone(),
+            None,
+        ),
+        send(
+            &client,
+            "GET",
+            "https://api.github.com/user/emails",
+            headers,
+            None,
+        ),
+    );
+    let user = user?;
     let id = user
         .get("id")
         .and_then(Value::as_u64)
@@ -107,14 +118,7 @@ pub(crate) async fn complete(
             .unwrap_or(login);
         profile.insert("nickname".into(), json!(nickname));
     }
-    let emails = send(
-        &client,
-        "GET",
-        "https://api.github.com/user/emails",
-        headers,
-        None,
-    )
-    .await?;
+    let emails = emails?;
     let emails = emails
         .as_array()
         .ok_or(Failure("github_response_invalid"))?;

@@ -310,7 +310,7 @@ async fn identity_rejects_missing_string_or_nonpositive_numeric_ids() {
             }
         })
         .await;
-        assert_eq!(calls, 2);
+        assert_eq!(calls, 3);
         assert_eq!(response["ok"], false);
         assert_eq!(response["error"]["message"], "github_identity_invalid");
         assert_safe(&response);
@@ -327,3 +327,6 @@ async fn public_profile_is_normalized_for_first_signup_and_empty_name_falls_back
         assert_eq!(response["result"]["subject_value"], "12345678901234");
     }
 }
+
+#[path = "concurrency.rs"]
+mod concurrency;
