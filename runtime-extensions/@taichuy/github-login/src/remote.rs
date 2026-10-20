@@ -92,6 +92,10 @@ pub(crate) async fn complete(
             profile.insert(key.into(), Value::String(value.clone()));
         }
     }
+    // Keep the provider URL canonical for Host-owned account-link display.
+    if let Some(profile_url) = user.get("html_url").and_then(Value::as_str) {
+        profile.insert("profile_url".into(), json!(profile_url));
+    }
     // Normalize provider-specific profile fields for Host-owned first-signup mapping.
     if let Some(login) = user.get("login").and_then(Value::as_str) {
         profile.insert("account".into(), json!(login));

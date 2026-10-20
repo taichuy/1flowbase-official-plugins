@@ -1,8 +1,8 @@
-# GitHub 一键登录
+# GitHub
 
 [English](README.en.md)
 
-官方受管认证插件，贡献 `1flowbase/github-login` 登录方式。使用 GitHub OAuth App、state 和 PKCE S256，仅申请 `user:email`，不申请仓库权限。Host 持有配置密文，负责登录事务、不可变数字 GitHub ID 绑定、首次注册和会话；插件仅验证 GitHub 身份及注册年限。
+GitHub 官方受管认证插件，贡献 `1flowbase/github-login` 登录方式。使用 GitHub OAuth App、state 和 PKCE S256，仅申请 `user:email`，不申请仓库权限。Host 持有配置密文，负责登录事务、不可变数字 GitHub ID 绑定、首次注册和会话；插件仅验证 GitHub 身份及注册年限。
 
 ## 配置
 
@@ -17,7 +17,7 @@
 
 ## 身份和注册限制
 
-身份键为 `github_user_id` + GitHub 数字 ID，GitHub 用户名变化不改变绑定。profile 包含规范化初始化字段 `account`、`nickname`，以及 `login`、`name`、`avatar_url`、`created_at`、已验证主邮箱（存在时）和 `email_verified`。未验证或非主邮箱不用作注册邮箱；Host 只在首次注册时要求邮箱。
+身份键为 `github_user_id` + GitHub 数字 ID，GitHub 用户名变化不改变绑定。profile 包含规范化初始化字段 `account`、`nickname`，以及 `login`、`name`、`avatar_url`、从 GitHub `html_url` 映射的 `profile_url`、`created_at`、已验证主邮箱（存在时）和 `email_verified`。未验证或非主邮箱不用作注册邮箱；Host 只在首次注册时要求邮箱。
 
 最低年限按 UTC 日历周年检查；2 月 29 日账号在非闰年的周年日固定为 2 月 28 日。无效或未来的 `created_at` 拒绝首次注册，包括年限设置为 0 时。插件不创建用户，也不改变已绑定账号。
 
@@ -42,3 +42,9 @@
 登录入口声明 `entry_action: external_login`：用户在登录方式列表点击 GitHub 后，宿主直接发起授权，不再先打开包含第二个登录按钮的区块。未声明动作的入口默认 `render_ui`，保留表单流程。直接访问入口链接或仅有该入口时仍需用户点击；取消或失败后不自动重试。
 
 首次注册时，插件将 GitHub 用户名映射为 `account`、公开名称映射为 `nickname`（空名称回退用户名），并提供 `avatar_url`。Host 校验这些初始化提示，在账号重名时自动添加唯一后缀；实名 `name` 留空。已有账号显式绑定及后续登录均不覆盖本地资料。
+
+## 账号安全
+
+个人资料的安全设置按登录方式展示 GitHub 账号、昵称、头像、个人主页、绑定时间和绑定状态；禁用插件后仍保留已有记录。解绑必须保留另一种实际可用的登录方式。解绑后的身份仍归原本站账号，匿名授权不会重新注册或自动恢复；登录原账号后验证同一 GitHub 身份可恢复绑定。
+
+尚未设置密码的账号先通过已绑定 GitHub 账号完成安全验证，再设置首次密码；成功后需重新登录。身份迁移属于需双方账号验证的独立高级流程，当前不提供自助迁移，也不会合并权限或资源。

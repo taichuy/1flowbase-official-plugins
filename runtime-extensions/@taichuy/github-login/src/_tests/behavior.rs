@@ -141,6 +141,7 @@ async fn identity_with_name(login: &str, name: Value, emails: Value) -> Value {
                 assert_eq!(request["headers"]["authorization"], format!("Bearer {TOKEN}"));
                 http(json!({"id":12345678901234u64,"login":login,"name":name,
                     "avatar_url":"https://avatars.githubusercontent.com/u/12345678901234",
+                    "html_url":format!("https://github.com/{login}"),
                     "created_at":"2020-02-29T23:59:59Z","email":"unverified-user-field@example.test",
                     "access_token":TOKEN,"code":CODE,"client_secret":SECRET,"private_gists":99}))
             }
@@ -180,9 +181,14 @@ async fn exchange_uses_host_http_and_stable_numeric_identity_with_verified_prima
         first["result"]["profile"],
         json!({"login":"old-name","name":"Fixture User","account":"old-name","nickname":"Fixture User",
         "avatar_url":"https://avatars.githubusercontent.com/u/12345678901234",
+        "profile_url":"https://github.com/old-name",
         "created_at":"2020-02-29T23:59:59Z","email":"verified-primary@example.test","email_verified":true})
     );
     assert_eq!(renamed["result"]["profile"]["login"], "new-name");
+    assert_eq!(
+        renamed["result"]["profile"]["profile_url"],
+        "https://github.com/new-name"
+    );
 }
 
 #[tokio::test]

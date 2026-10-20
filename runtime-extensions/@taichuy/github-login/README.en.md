@@ -1,8 +1,8 @@
-# GitHub sign-in
+# GitHub
 
 [中文](README.md)
 
-Official managed authentication provider for `1flowbase/github-login`. It uses a GitHub OAuth App with state and PKCE S256, requesting only `user:email`. Host owns encrypted configuration, stable identity binding, registration transactions and sessions. This worker verifies GitHub identities and first-registration account-age eligibility.
+GitHub managed authentication provider for `1flowbase/github-login`. It uses a GitHub OAuth App with state and PKCE S256, requesting only `user:email`. Host owns encrypted configuration, stable identity binding, registration transactions and sessions. This worker verifies GitHub identities and first-registration account-age eligibility.
 
 ## Setup
 
@@ -15,7 +15,7 @@ The Host must include managed external authentication support. The first compati
 
 The UI calls `ctx.auth.redirectToExternalLogin()`. Host builds `/api/public/auth/external/start?login_entry_id=<current-entry-id>`. No credentials or private configuration are exposed as public variables. Tokens, authorization codes, secrets and verifier values are never returned in profiles or errors.
 
-Identity uses GitHub's immutable numeric user ID, independent of username changes. Profiles contain only login, name, avatar URL, creation time, verified primary email when available, and email verification status. Host requires email only during first registration. Missing email does not invalidate an existing binding.
+Identity uses GitHub's immutable numeric user ID, independent of username changes. Profiles contain only login, name, avatar URL, canonical `profile_url` mapped from GitHub `html_url`, creation time, verified primary email when available, and email verification status. Host requires email only during first registration. Missing email does not invalidate an existing binding.
 
 Age checks use UTC calendar anniversaries; a February 29 anniversary falls on February 28 in non-leap years. Missing, invalid or future creation times deny registration even with a zero-year minimum. The worker never creates users.
 
@@ -36,3 +36,9 @@ This plugin is a new, independent Rust package and adds no third-party dependenc
 The entry declares `entry_action: external_login`. Clicking GitHub in the sign-in chooser starts authorization immediately, without an intermediate block containing a second sign-in button. Entries without an action default to `render_ui` for form-based authentication. Direct links and a single-entry page still require an explicit click; cancellation and failures never trigger an automatic retry.
 
 On first signup, the provider maps the GitHub login to `account`, the public name to `nickname` (falling back to the login), and supplies `avatar_url`. The Host validates these onboarding hints and adds a unique suffix on account collisions. The real-name field stays empty. Binding an existing account and subsequent sign-ins never overwrite local profile edits.
+
+## Account security
+
+Personal security settings show the GitHub account, nickname, avatar, profile link, link time and linked/unlinked status, including retained records when the provider is unavailable. Unlinking requires another usable sign-in method. An unlinked identity remains owned by its original local account: anonymous authorization neither registers another account nor restores it. Sign in to that local account and verify the same GitHub identity to restore the link.
+
+Accounts without a password first verify a linked GitHub account, then set their first password and sign in again. Identity migration is a separate advanced process requiring verification of both accounts. Self-service migration is not offered here and never merges permissions or resources.
