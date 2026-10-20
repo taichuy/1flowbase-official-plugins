@@ -92,6 +92,17 @@ pub(crate) async fn complete(
             profile.insert(key.into(), Value::String(value.clone()));
         }
     }
+    // Normalize provider-specific profile fields for Host-owned first-signup mapping.
+    if let Some(login) = user.get("login").and_then(Value::as_str) {
+        profile.insert("account".into(), json!(login));
+        let nickname = user
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .unwrap_or(login);
+        profile.insert("nickname".into(), json!(nickname));
+    }
     let emails = send(
         &client,
         "GET",

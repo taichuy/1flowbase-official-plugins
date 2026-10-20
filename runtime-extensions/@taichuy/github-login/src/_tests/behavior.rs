@@ -113,6 +113,9 @@ async fn begin_uses_fixed_github_origin_state_callback_pkce_and_minimal_scope() 
 }
 
 async fn identity(login: &str, emails: Value) -> Value {
+    identity_with_name(login, json!("Fixture User"), emails).await
+}
+async fn identity_with_name(login: &str, name: Value, emails: Value) -> Value {
     let mut calls = 0;
     let response = invoke(config(), complete(), |service, request| {
         assert!(matches!(service, MultiplexHostService::HttpEgressV1));
@@ -136,7 +139,7 @@ async fn identity(login: &str, emails: Value) -> Value {
                 assert_eq!(request["method"], "GET");
                 assert_eq!(request["url"], "https://api.github.com/user");
                 assert_eq!(request["headers"]["authorization"], format!("Bearer {TOKEN}"));
-                http(json!({"id":12345678901234u64,"login":login,"name":"Fixture User",
+                http(json!({"id":12345678901234u64,"login":login,"name":name,
                     "avatar_url":"https://avatars.githubusercontent.com/u/12345678901234",
                     "created_at":"2020-02-29T23:59:59Z","email":"unverified-user-field@example.test",
                     "access_token":TOKEN,"code":CODE,"client_secret":SECRET,"private_gists":99}))
@@ -175,7 +178,7 @@ async fn exchange_uses_host_http_and_stable_numeric_identity_with_verified_prima
     assert!(first["result"]["realm"].is_null());
     assert_eq!(
         first["result"]["profile"],
-        json!({"login":"old-name","name":"Fixture User",
+        json!({"login":"old-name","name":"Fixture User","account":"old-name","nickname":"Fixture User",
         "avatar_url":"https://avatars.githubusercontent.com/u/12345678901234",
         "created_at":"2020-02-29T23:59:59Z","email":"verified-primary@example.test","email_verified":true})
     );
@@ -305,5 +308,16 @@ async fn identity_rejects_missing_string_or_nonpositive_numeric_ids() {
         assert_eq!(response["ok"], false);
         assert_eq!(response["error"]["message"], "github_identity_invalid");
         assert_safe(&response);
+    }
+}
+
+#[tokio::test]
+async fn public_profile_is_normalized_for_first_signup_and_empty_name_falls_back_to_login() {
+    for name in [json!(null), json!(""), json!("  ")] {
+        let response = identity_with_name("readable-login", name, json!([])).await;
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["result"]["profile"]["account"], "readable-login");
+        assert_eq!(response["result"]["profile"]["nickname"], "readable-login");
+        assert_eq!(response["result"]["subject_value"], "12345678901234");
     }
 }

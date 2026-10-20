@@ -34,3 +34,5 @@ This plugin is a new, independent Rust package and adds no third-party dependenc
 | `time` | 0.3.55 | UTC dates and calendar-anniversary checks |
 
 The entry declares `entry_action: external_login`. Clicking GitHub in the sign-in chooser starts authorization immediately, without an intermediate block containing a second sign-in button. Entries without an action default to `render_ui` for form-based authentication. Direct links and a single-entry page still require an explicit click; cancellation and failures never trigger an automatic retry.
+
+On first signup, the provider maps the GitHub login to `account`, the public name to `nickname` (falling back to the login), and supplies `avatar_url`. The Host validates these onboarding hints and adds a unique suffix on account collisions. The real-name field stays empty. Binding an existing account and subsequent sign-ins never overwrite local profile edits.
