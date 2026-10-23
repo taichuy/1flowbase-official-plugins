@@ -48,6 +48,9 @@ mod recovery_diagnostics;
 #[cfg(test)]
 #[path = "_tests/sse_codec.rs"]
 mod sse_codec;
+#[cfg(test)]
+#[path = "_tests/sse_terminal.rs"]
+mod sse_terminal;
 mod upstream_error;
 
 pub use protocol_context::ProtocolContextEnvelope;
@@ -5161,6 +5164,12 @@ where
             &mut response_id,
         )?;
         visibility.publish(&mut events, &mut all_events, on_event)?;
+        // Responses terminals own the final output and usage. Waiting for HTTP EOF
+        // after publishing one keeps the invocation and socket alive unnecessarily.
+        // Chat Completions has a separate reader because usage can follow its finish.
+        if response_stream_finished(&finish_reason) {
+            break;
+        }
     }
     if response_id.is_null() || !response_stream_finished(&finish_reason) {
         return Err(recovery_diagnostics::transport_error(
