@@ -1,0 +1,86 @@
+name: Browser Obscura managed plugin evidence
+on:
+  push:
+    branches: [codex/browser-obscura-plugin-2679]
+  workflow_dispatch:
+    inputs:
+      host_source_sha:
+        description: Exact host source SHA, must match the SDK pin
+        required: true
+        type: string
+      plugin_source_sha:
+        description: Exact official plugin source SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: browser-obscura-${{ inputs.plugin_source_sha || github.sha }}
+  cancel-in-progress: false
+jobs:
+  plugin-evidence:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      EXPECTED_PLUGIN_SHA: ${{ inputs.plugin_source_sha || github.sha }}
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Checkout exact plugin source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.plugin_source_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Resolve exact paired SDK source
+        id: source
+        env:
+          REQUESTED_HOST_SHA: ${{ inputs.host_source_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/test-governance/browser-obscura
+          printf '%s\n' '{"result":"incomplete","stage":"source-validation"}' > tmp/test-governance/browser-obscura/receipt.json
+          host_sha="$(node scripts/browser-obscura-ci/source.mjs 2> tmp/test-governance/browser-obscura/source-pin.log)"
+          echo "host=${host_sha}" >> "${GITHUB_OUTPUT}"
+      - name: Checkout exact host source
+        uses: actions/checkout@v6
+        with:
+          repository: taichuy/1flowbase
+          ref: ${{ steps.source.outputs.host }}
+          path: dist/conformance-host
+          persist-credentials: false
+      - name: Install native engine build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update 2>&1 | tee tmp/test-governance/browser-obscura/system-update.log
+          sudo apt-get install -y --no-install-recommends clang cmake libclang-dev libssl-dev llvm-dev pkg-config 2>&1 | tee tmp/test-governance/browser-obscura/system-dependencies.log
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: Install process-isolated test runner
+        uses: taiki-e/install-action@b20dedce73af6905cdc30d6611090c9b67557c8d
+        with:
+          tool: nextest
+          fallback: none
+      - name: Cache Rust downloads
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: browser-obscura-downloads-${{ runner.os }}-${{ steps.source.outputs.host }}-${{ hashFiles('runtime-extensions/@taichuy/browser-obscura/Cargo.lock') }}
+          restore-keys: |
+            browser-obscura-downloads-${{ runner.os }}-${{ steps.source.outputs.host }}-
+      - name: Test, build, and package exact plugin source
+        env:
+          EXPECTED_HOST_SHA: ${{ steps.source.outputs.host }}
+        run: node scripts/browser-obscura-ci/run.mjs
+      - name: Upload logs, tests, receipt, and GNU package
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: browser-obscura-${{ inputs.plugin_source_sha || github.sha }}
+          path: tmp/test-governance/browser-obscura
+          if-no-files-found: error
+          retention-days: 14

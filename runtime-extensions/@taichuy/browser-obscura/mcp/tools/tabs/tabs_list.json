@@ -1,0 +1,241 @@
+{
+  "tool_id": "browser_obscura_example.tabs_list",
+  "name": "tabs_list",
+  "short_description": "List tabs in the selected browser with stable tab_id, current title, URL and state.",
+  "full_description": "List tabs in the selected browser with stable tab_id, current title, URL and state.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "browser-obscura.tabs.list"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "browser_id": {
+        "type": "string",
+        "description": "Browser ID returned by browsers.create/list.",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "browser_id"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "browser_id": {
+              "type": "string",
+              "description": "Browser ID returned by browsers.create/list.",
+              "minLength": 1
+            },
+            "tab_id": {
+              "type": "string",
+              "description": "Tab ID returned by tabs.create/list.",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "ready",
+                "loading",
+                "failed"
+              ]
+            },
+            "snapshot_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "browser_id",
+            "tab_id",
+            "title",
+            "url",
+            "status",
+            "snapshot_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0,
+        "description": ""
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "success": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "items",
+            "total"
+          ]
+        },
+        "else": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    ]
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "interface_param": "browser_id",
+        "mcp_param": "browser_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser_id"
+        },
+        "required": true,
+        "description": "Browser ID returned by browsers.create/list."
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "browser_id": {
+              "type": "string",
+              "description": "Browser ID returned by browsers.create/list.",
+              "minLength": 1
+            },
+            "tab_id": {
+              "type": "string",
+              "description": "Tab ID returned by tabs.create/list.",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "ready",
+                "loading",
+                "failed"
+              ]
+            },
+            "snapshot_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "browser_id",
+            "tab_id",
+            "title",
+            "url",
+            "status",
+            "snapshot_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0,
+        "description": ""
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "success": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "items",
+            "total"
+          ]
+        },
+        "else": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    ]
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}
