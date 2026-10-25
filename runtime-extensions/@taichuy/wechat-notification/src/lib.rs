@@ -6,7 +6,7 @@ use runtime_extension_sdk::{
     NotificationAuthorizationUserAction, NotificationAuthorizationView,
     NotificationDeliveryWindowStatus, NotificationDeliveryWindowView, NotificationFailureCode,
     NotificationOperation, NotificationRuntimeInput, NotificationRuntimeResult,
-    NotificationSendOutcome, NotificationTypeDescriptor,
+    NotificationSendOutcome, NotificationSendTarget, NotificationTypeDescriptor,
 };
 use serde_json::{json, Value};
 use std::{
@@ -495,6 +495,7 @@ async fn send_notification(
     client: &impl ILink,
     secrets: Secrets,
     input: Value,
+    target: Option<NotificationSendTarget>,
     delivery_window: Option<NotificationDeliveryWindowView>,
     clock: &impl Fn() -> u64,
 ) -> Result<NotificationRuntimeResult, ProviderError> {
@@ -507,6 +508,22 @@ async fn send_notification(
         };
         return Ok(failed(code, state, Secrets::new()));
     }
+    let bound_user_id = secret(&secrets, "bound_user_id").expect("account checked");
+    let recipient = match target.as_ref() {
+        Some(target)
+            if target.sender_id == bound_user_id && target.conversation_id == bound_user_id =>
+        {
+            target.sender_id.as_str()
+        }
+        Some(_) => {
+            return Ok(failed(
+                NotificationFailureCode::ProviderRejected,
+                NotificationAuthorizationStatus::Authorized,
+                Secrets::new(),
+            ))
+        }
+        None => bound_user_id,
+    };
     let mut patch = Secrets::new();
     let mut window = subscription::cached(delivery_window, clock());
     if window.status == NotificationDeliveryWindowStatus::Active
@@ -521,7 +538,7 @@ async fn send_notification(
         ));
     }
     let client_id = format!("1flowbase-{}", uuid::Uuid::new_v4());
-    let mut message = json!({"from_user_id":"", "to_user_id":secret(&secrets,"bound_user_id"),
+    let mut message = json!({"from_user_id":"", "to_user_id":recipient,
         "client_id":client_id, "message_type":2, "message_state":2,
         "item_list":[{"type":1,"text_item":{"text":input["text"]}}]});
     let context = if patch.contains_key("context_token") {
@@ -616,11 +633,15 @@ async fn run_with_clock(
             )
             .await
         }
-        NotificationOperation::Send { input_payload } => {
+        NotificationOperation::Send {
+            input_payload,
+            target,
+        } => {
             send_notification(
                 client,
                 input.managed_secrets,
                 input_payload,
+                target,
                 input.delivery_window,
                 clock,
             )

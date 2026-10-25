@@ -362,3 +362,64 @@ fn receive_descriptor_declares_progressive_host_tools_and_no_secret_cursor() {
         .iter()
         .all(|key| key != "cursor"));
 }
+
+#[tokio::test]
+async fn targeted_reply_uses_explicit_matching_private_peer() {
+    let mut stored = secrets();
+    stored.insert(
+        "context_token".into(),
+        json!("opaque-latest-context-not-a-destination"),
+    );
+    let mut request = send(stored);
+    let NotificationOperation::Send { target, .. } = &mut request.operation else {
+        unreachable!()
+    };
+    *target = Some(NotificationSendTarget {
+        sender_id: "scanner".into(),
+        conversation_id: "scanner".into(),
+        provider_message_id: "durable-inbound-message".into(),
+    });
+    let mock = Mock::new(vec![Ok(json!({"message_id":"accepted-targeted-reply"}))]);
+    let result = run(&mock, request.clone()).await.unwrap();
+    result.validate_for(&request, &descriptor()).unwrap();
+    assert!(matches!(
+        result,
+        NotificationRuntimeResult::Send {
+            outcome: NotificationSendOutcome::Succeeded { .. },
+            ..
+        }
+    ));
+    let requests = mock.requests.borrow();
+    assert_eq!(requests.len(), 1);
+    let msg = &requests[0].body.as_ref().unwrap()["msg"];
+    assert_eq!(msg["to_user_id"], "scanner");
+    assert_eq!(
+        msg["context_token"],
+        "opaque-latest-context-not-a-destination"
+    );
+}
+
+#[tokio::test]
+async fn targeted_reply_rejects_wrong_sender_or_conversation_before_provider_io() {
+    for (sender_id, conversation_id) in [
+        ("attacker", "scanner"),
+        ("scanner", "other-conversation"),
+        ("attacker", "attacker"),
+    ] {
+        let mock = Mock::new(vec![]);
+        let mut request = send(secrets());
+        let NotificationOperation::Send { target, .. } = &mut request.operation else {
+            unreachable!()
+        };
+        *target = Some(NotificationSendTarget {
+            sender_id: sender_id.into(),
+            conversation_id: conversation_id.into(),
+            provider_message_id: "durable-inbound-message".into(),
+        });
+        let result = run(&mock, request.clone()).await.unwrap();
+        failure(&result, NotificationFailureCode::ProviderRejected);
+        assert_eq!(view(&result), NotificationAuthorizationStatus::Authorized);
+        assert!(mock.requests.borrow().is_empty());
+        result.validate_for(&request, &descriptor()).unwrap();
+    }
+}

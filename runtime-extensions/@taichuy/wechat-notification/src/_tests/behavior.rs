@@ -45,6 +45,7 @@ fn send(secrets: Secrets) -> NotificationRuntimeInput {
     let mut input = input(
         NotificationOperation::Send {
             input_payload: json!({"text":"你好"}),
+            target: None,
         },
         secrets,
     );
