@@ -260,7 +260,7 @@ async fn file_message_produces_private_reference_and_download_decrypts_exact_byt
     let result = run(&mock, request.clone()).await.unwrap();
     result.validate_for(&request, &descriptor()).unwrap();
     assert!(
-        matches!(result,NotificationRuntimeResult::DownloadAttachment{outcome:NotificationAttachmentDownloadOutcome::Succeeded{offset:0,data_base64,eof:true}} if STANDARD.decode(data_base64).unwrap()==b"hello")
+        matches!(result,NotificationRuntimeResult::DownloadAttachment{outcome:NotificationAttachmentDownloadOutcome::Succeeded{offset:0,data_base64,eof:true}} if STANDARD.decode(&data_base64).unwrap()==b"hello")
     );
     let requests = mock.requests.borrow();
     let download = &requests[1];
@@ -321,7 +321,7 @@ async fn large_file_chunks_have_no_total_cap_and_support_unaligned_offsets() {
         .await
         .unwrap();
     assert!(
-        matches!(result,NotificationRuntimeResult::DownloadAttachment{outcome:NotificationAttachmentDownloadOutcome::Succeeded{data_base64,eof:false,..}} if STANDARD.decode(data_base64).unwrap()==plain[3..20])
+        matches!(result,NotificationRuntimeResult::DownloadAttachment{outcome:NotificationAttachmentDownloadOutcome::Succeeded{data_base64,eof:false,..}} if STANDARD.decode(&data_base64).unwrap()==plain[3..20])
     );
 }
 #[tokio::test]
@@ -355,6 +355,22 @@ fn receive_descriptor_declares_progressive_host_tools_and_no_secret_cursor() {
     let receive = descriptor.receive.unwrap();
     assert!(receive.default_system_prompt.contains("final reply"));
     assert_eq!(receive.mcp_tools.len(), 3);
+    for tool in receive
+        .mcp_tools
+        .iter()
+        .filter(|tool| tool.name.starts_with("history_"))
+    {
+        assert_eq!(
+            tool.input_schema["properties"]["conversation_id"]["format"],
+            "uuid"
+        );
+        assert!(
+            tool.input_schema["properties"]["conversation_id"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("never external_conversation_key")
+        );
+    }
     assert!(descriptor
         .authorization
         .unwrap()
