@@ -2425,9 +2425,25 @@ impl OpenAiProviderRuntime {
                 socket_generation,
                 directive.as_ref().map(|directive| directive.generation),
                 self.websocket_clock.now(),
+                recovery_directive
+                    .and_then(|directive| directive.constraints().absolute_deadline_unix_ms),
             )
             .await
             .map_err(WebsocketInvocationError::connect_unavailable)?;
+            // Establishment accepted its raw stream before the monotonic setup
+            // deadline. Recheck the request clock before registering ownership.
+            if recovery::deadline_expired(
+                recovery_directive
+                    .and_then(|directive| directive.constraints().absolute_deadline_unix_ms),
+            ) {
+                return Err(WebsocketInvocationError::fallback_blocked(
+                    recovery_diagnostics::transport_error(
+                        "attempt_admission",
+                        "deadline_exceeded",
+                        None,
+                    ),
+                ));
+            }
             connect_duration = Some(connect_started.elapsed());
             session.close_identity = close_identity.clone();
             if let Some(identity) = &close_identity {
@@ -4224,6 +4240,40 @@ impl WebsocketInvocationError {
     }
 }
 
+// One deadline owns the entire DNS/TCP/(CONNECT)/TLS/Upgrade future. Dropping
+// it on timeout also drops any partially established socket or proxy tunnel.
+async fn bounded_websocket_establishment<T>(
+    absolute_deadline_unix_ms: Option<i64>,
+    establish: impl std::future::Future<Output = Result<T>>,
+) -> Result<T> {
+    let started = tokio::time::Instant::now();
+    let allowance = if let Some(absolute) = absolute_deadline_unix_ms {
+        let remaining = absolute.saturating_sub(close::unix_time_ms());
+        if remaining <= 0 {
+            return Err(recovery_diagnostics::transport_error(
+                "attempt_admission",
+                "deadline_exceeded",
+                None,
+            ));
+        }
+        websocket_io::WRITE_TIMEOUT.min(Duration::from_millis(remaining as u64))
+    } else {
+        websocket_io::WRITE_TIMEOUT
+    };
+    let deadline = started + allowance;
+    match tokio::time::timeout_at(deadline, establish).await {
+        // Tokio may poll a ready future before its timer at the boundary. Raw
+        // success is accepted strictly before D, before constructing an owner.
+        Ok(Ok(value)) if tokio::time::Instant::now() < deadline => Ok(value),
+        Ok(Err(error)) => Err(error),
+        _ => Err(recovery_diagnostics::transport_error(
+            "websocket_connect_timeout",
+            "transport_disconnected",
+            None,
+        )),
+    }
+}
+
 async fn connect_responses_websocket(
     config: &ProviderConfig,
     turn_state: Option<&str>,
@@ -4231,6 +4281,7 @@ async fn connect_responses_websocket(
     socket_generation: u64,
     contract_generation: Option<u64>,
     now: Instant,
+    absolute_deadline_unix_ms: Option<i64>,
 ) -> Result<ResponsesWebsocketSession> {
     let url = build_websocket_url(config, protocol_context)?;
     let mut request = url
@@ -4242,13 +4293,16 @@ async fn connect_responses_websocket(
         turn_state,
         protocol_context,
     )?);
-    let (stream, response) = if config.proxy_url.is_some() {
-        connect_responses_websocket_through_proxy(config, &url, request).await
-    } else {
-        connect_async_with_config(request, Some(websocket_io::config()), false)
-            .await
-            .map_err(map_websocket_error)
-    }?;
+    let (stream, response) = bounded_websocket_establishment(absolute_deadline_unix_ms, async {
+        if config.proxy_url.is_some() {
+            connect_responses_websocket_through_proxy(config, &url, request).await
+        } else {
+            connect_async_with_config(request, Some(websocket_io::config()), false)
+                .await
+                .map_err(map_websocket_error)
+        }
+    })
+    .await?;
     // Codex turn state is first-writer-wins within a turn; continuation handshakes
     // must not rotate the sticky routing token for later tool callbacks.
     let turn_state = turn_state.map(ToOwned::to_owned).or_else(|| {
@@ -8545,6 +8599,7 @@ mod tests {
             1,
             None,
             Instant::now(),
+            None,
         )
         .await
         .expect("websocket should connect through configured proxy");
@@ -8744,3 +8799,7 @@ mod websocket_lifecycle_tests;
 #[cfg(test)]
 #[path = "_tests/response_tool_choice.rs"]
 mod response_tool_choice_tests;
+
+#[cfg(test)]
+#[path = "_tests/websocket_connect.rs"]
+mod websocket_connect_tests;

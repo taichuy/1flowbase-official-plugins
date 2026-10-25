@@ -1,42 +1,37 @@
-# OpenAI WebSocket receive liveness
+# OpenAI WebSocket establishment and liveness boundaries
 
-## Ownership and failure boundary
+## One deadline for establishing a connection
 
-`runtime-extensions/@taichuy/openai/src/websocket_io.rs` has one task per physical WebSocket. That task owns reads, writes, control frames and physical close. Provider invocations consume its ordered event mailbox; a mailbox or physical socket does not own the host's logical invocation, continuation lease or business cancellation.
+`runtime-extensions/@taichuy/openai/src/lib.rs` owns connection establishment. The direct path covers DNS, TCP, optional TLS and WebSocket Upgrade. The proxy path also covers the HTTP CONNECT exchange. `SocketOwner` exists only after these operations succeed, so its control-frame handling cannot detect a stalled handshake.
 
-A successful write establishes that the local sink accepted the frame. It does not establish that the receive direction is making progress. The existing 20-second Ping cadence now also drives a receive-liveness probe:
+`bounded_websocket_establishment` bounds the whole establishment future with one monotonic deadline. It reuses the existing ten-second transport write allowance from `websocket_io::WRITE_TIMEOUT` and takes the earlier remaining absolute recovery deadline when present:
 
-1. A successfully flushed Ping arms a deadline one keepalive interval after write completion, provided socket reads are enabled and no probe is outstanding.
-2. Any real inbound frame clears the outstanding probe. Application data, Ping and Pong are all receive progress. This is a transport-progress check, not matching-Pong authentication.
-3. If the full observation window expires without inbound progress, the owner records `read_liveness_timeout`, `transport_disconnected` and `io_error_kind=timed_out`, then leaves its ordinary transport failure path.
-4. The existing recovery state machine decides whether reconnect, context rebuild or termination is safe. The liveness detector does not grant retry eligibility or manufacture a provider/subscriber acknowledgement.
+```text
+D = monotonic_start + min(existing_transport_allowance, remaining_request_budget)
+```
 
-No context-length, message-size or inference-duration ceiling is added. An upstream that returns timely Pong frames can continue reasoning without application output. The detector assumes timely control-frame processing: a peer delayed beyond the observation window is indistinguishable from a failed receive path at this layer.
+The budget is shared across all stages and header reads. Progress into TLS or Upgrade does not grant another allowance. An already-expired request does not poll the network future. A successful raw connection is accepted strictly before D; a success at D is dropped before constructing a socket owner. The caller rechecks the request deadline before activating the close ledger or inserting physical/logical session mappings. The existing deadline check before `response.create` remains in place.
 
-## Backpressure and scheduling
+The allowance limits establishing a transport, independently of context size or established inference duration. A healthy but unusually slow handshake can exceed it. Cooperative async scheduling is required for the timer to run. Dropping the pending future releases sockets and proxy tunnels that it owns; an OS DNS resolver task already executing on a blocking worker may finish later.
 
-The bounded event mailbox and byte semaphore are delivery scheduling windows. Oversized messages continue to acquire the whole byte window rather than being rejected. When a frame is pending admission, the actor deliberately stops reading from the socket. Receive-liveness inference is cleared and suspended for that entire interval, because an unread Pong cannot distinguish local backpressure from peer failure.
+## Errors, recovery and ownership
 
-After admission resumes, a subsequent successful Ping starts a fresh full window. A delayed interval tick never counts as an already-completed probe window. Explicit close and command processing retain their existing ownership and priority.
+A local establishment timeout uses the existing typed transport error path with `kind=websocket_connect_timeout` and `reason_category=transport_disconnected`. An already-expired request retains the existing `attempt_admission / deadline_exceeded` classification. Genuine authorization, protocol, proxy and I/O errors produced by the underlying connection future retain their original diagnosis.
 
-Keepalive writes remain ahead of continuously ready data to avoid starving control writes. Inbound reads precede the separate expiry branch, so a frame and deadline ready together are resolved by reading the frame. The probe uses an explicit Tokio deadline; later keepalive ticks neither shorten nor extend it. In particular, a slow successful Ping gets a complete interval after its flush, not the remainder of the original interval phase.
+The existing recovery FSM owns retry eligibility, attempt accounting, first-failure evidence and context rebuild. The timeout helper does not create a retry, reset an attempt budget, replay committed output or claim that a provider completed business work. No application `response.create` is sent by connection establishment. A rejected setup produces no registered session or close-ledger activation.
 
-Under fair scheduling, finite higher-priority work and successful writes, a peer silent from connection establishment is detected after the first Ping opportunity plus one complete observation window. With immediate writes this is approximately two 20-second intervals. The existing 10-second write timeout bounds each individual write. Scheduling, command processing, a write at the expiry boundary and intentional consumer backpressure mean this is not an unconditional 40-second wall-clock service guarantee.
+The host's connection-scope closure and orphaned invocation admission remain separate from business cancellation. A local transport failure does not manufacture a provider or subscriber acknowledgement.
 
-## Terminal ordering
+## Established connections and large messages
 
-The new failure does not invalidate already-buffered events. A previously received `response.completed` is delivered before the later transport error. Capacity, explicit owner cancellation and other existing invalidating failures retain their distinct behavior. A local socket failure is not proof that the provider stopped executing, and does not change host orphan/admission serialization or business cancellation.
+The existing physical socket owner, event-count and byte backpressure, Ping/Pong handling, oversized-message support and terminal FIFO behavior remain in use. This change adds no complete-message receive timer: complete-message delivery does not expose partial TCP progress and cannot alone distinguish a slowly received large frame from receive silence.
 
-## Verification boundaries
+Existing stream policies remain separate. In particular, `STREAM_IDLE_TIMEOUT` still bounds waiting for the next application-facing event at five minutes; Pong frames are consumed by the socket owner and do not reset that application-facing timer. The establishment change therefore makes no claim that the entire provider invocation can run indefinitely without application output.
 
-The existing owner test module contains paused-clock scenarios for receive silence despite successful writes, timely Pong during extended inference, inbound/deadline ties, slow Ping flush, count and byte backpressure plus resumption, application progress, completion-before-error and the existing write timeout. Tests use Tokio's existing dev-only `test-util` feature; production dependency features and package dependencies are unchanged.
+## Verification and quality layers
 
-The tests also retain real loopback WebSocket checks for control-frame handling, large requests/responses, event order, cancellation and independent socket ownership. Recovery and diagnostics tests remain the authority for retry eligibility and typed error preservation.
+- Level 1: formatting, version consistency and focused `websocket_connect_tests`. Paused-clock tests check one cumulative budget, earlier request deadline, expired zero-poll behavior, exact success-boundary cleanup, original error preservation and accepted-resource survival beyond the setup budget.
+- Level 2: real loopback fixtures cover a silent direct Upgrade, a silent TLS handshake, a silent proxy CONNECT and a successful CONNECT followed by a silent Upgrade. Each observes actual request bytes before pausing time, then verifies EOF/reset after timeout. Existing healthy proxy, compression, large-message, recovery, continuation and diagnostics regressions remain active.
+- Level 3: existing provider package/conformance and release workflows establish artifact/host source identity. Installing a candidate into a running gateway is a separate operational action.
 
-Quality layers for this change:
-
-- Level 1: Rust formatting, metadata alignment and the focused `websocket_io` owner tests. Paused time replaces real network waiting for deadline boundaries.
-- Level 2: related transport, recovery, continuation and diagnostics tests, plus a controlled negative using the prior owner with the new receive-silence fixture.
-- Level 3: the existing provider packaging/conformance and release workflows, with exact host/plugin source identity and isolated provider fixtures. Installing a package into an active gateway is a separate operational action.
-
-Finite-state model checks can establish the stated safety and conditional liveness properties of an abstraction. Rust tests must separately exercise the timer, stream and actor refinement. Neither source analysis nor a successful isolated fixture reconstructs missing historical per-attempt Ping/Pong telemetry.
+A finite-state model checks the shared-deadline contract separately from the Rust fixtures. Its mathematical result is an abstraction proof; real loopback tests supply evidence for the library and resource-ownership boundary. Historical errors that identify connection setup do not reveal whether DNS, TCP, proxy, TLS or Upgrade consumed the historical wait without per-stage timing evidence.

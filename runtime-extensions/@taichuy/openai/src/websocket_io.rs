@@ -6,7 +6,7 @@ use tokio::sync::{mpsc, oneshot, OwnedSemaphorePermit, Semaphore};
 const EVENT_COUNT: usize = 64;
 const COMMAND_COUNT: usize = 8;
 const BYTE_WINDOW_BYTES: usize = 16 * 1024 * 1024;
-const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(20);
 
 pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
@@ -215,9 +215,6 @@ impl SocketOwner {
             // whole window. Stop reading while pending so TCP supplies backpressure,
             // while the owner can still process cancellation and keepalive.
             let mut pending: Option<Message> = None;
-            // Sending is not evidence of receiving. Only a completed Ping write
-            // starts a full read-enabled observation window.
-            let mut probe_deadline: Option<tokio::time::Instant> = None;
             let failure = loop {
                 tokio::select! {
                     biased;
@@ -254,21 +251,12 @@ impl SocketOwner {
                             Err(error) => break error,
                         }
                     }
-                    // Keep control writes ahead of continuously ready data, but
-                    // never infer receive failure from a keepalive tick's phase.
                     _ = keepalive.tick() => {
                         if let Err(error) = write(&mut socket, Message::Ping(Vec::new().into())).await {
                             break error;
                         }
-                        if pending.is_none() && probe_deadline.is_none() {
-                            probe_deadline = Some(tokio::time::Instant::now() + keepalive_interval);
-                        }
                     }
                     incoming = socket.next(), if pending.is_none() => {
-                        // Any real inbound frame proves receive progress. A data
-                        // frame also suspends inference throughout its admission
-                        // wait; resuming can only arm a new, full probe window.
-                        probe_deadline = None;
                         match incoming {
                             Some(Ok(Message::Ping(_))) => {
                                 // tungstenite queued the matching Pong; flush it exactly once.
@@ -287,14 +275,6 @@ impl SocketOwner {
                             Some(Err(error)) => break Failure::websocket(error),
                             None => break Failure { end: StreamEnd::Eof, ..Failure::new("connection_closed") },
                         }
-                    }
-                    // A ready inbound frame wins a simultaneous deadline. This
-                    // transport error drains admitted frames, including completion,
-                    // through the existing non-invalidating terminal path.
-                    _ = async {
-                        tokio::time::sleep_until(probe_deadline.expect("armed probe")).await;
-                    }, if probe_deadline.is_some() => {
-                        break Failure { io_kind: Some("timed_out"), ..Failure::new("read_liveness_timeout") };
                     }
                 }
             };
