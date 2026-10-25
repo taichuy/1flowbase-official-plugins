@@ -34,7 +34,7 @@ Business failures use the host’s standard HTTP 422 response with a stable `cod
 
 ## Editable MCP example
 
-The `mcp/` directory is a standard `1flowbase.mcp.bundle/v2` bundle containing a checksummed manifest, tools, and instances. It uses separate `browser_obscura_example` identifiers so it does not overwrite the generated default instance. Recompute file SHA-256 values after editing files.
+The `_assets/mcp/` directory is a standard `1flowbase.mcp.bundle/v2` bundle containing a checksummed manifest, tools, and instances. It uses separate `browser_obscura_example` identifiers so it does not overwrite the generated default instance. Recompute file SHA-256 values after editing files.
 
 Zip `manifest.json`, `tools/`, and `instances/` from that directory and import it through the host MCP preview/import flow. The example contains no API keys, browser cookies, or user data. You can edit names, descriptions, input/output mappings, groups, and discovery policy; configuration never bypasses operation authorization.
 
@@ -63,4 +63,4 @@ Tests being present does not mean they passed. Root Issue #2679 records candidat
 
 ## License
 
-The plugin and Obscura use Apache-2.0. Dependencies retain their own licenses; see LICENSE, NOTICE, and licenses/. No private commercial plugin source or assets are included.
+The plugin and Obscura use Apache-2.0. Dependencies retain their own licenses; see LICENSE, _assets/NOTICE, and _assets/licenses/. No private commercial plugin source or assets are included.

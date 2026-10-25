@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { readSdkPin } from './source.mjs';
+import { verifyPackageAssets } from './package-assets.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const plugin = path.join(root, 'runtime-extensions/@taichuy/browser-obscura');
@@ -80,6 +81,7 @@ try {
     '--runtime-binary', runtimeBinary, '--target', target]);
   receipt.packages = fs.readdirSync(out).filter(name => name.endsWith('.1flowbasepkg')).map(filename => ({ filename, sha256: digest(path.join(out, filename)) }));
   assert.equal(receipt.packages.length, 1, 'Exactly one fresh GNU package must be produced');
+  receipt.package_assets = verifyPackageAssets(path.join(out, receipt.packages[0].filename));
   assert.equal(digest(path.join(plugin, 'Cargo.lock')), receipt.cargo_lock_sha256, 'Locked tests/build must preserve the source lockfile');
   receipt.result = 'pass'; receipt.finished_at = new Date().toISOString(); checkpoint();
   process.stdout.write(`${JSON.stringify(receipt)}\n`);

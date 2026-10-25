@@ -34,9 +34,9 @@ browsers_create → tabs_create → page_snapshot
 
 ## 可编辑 MCP 示例
 
-`mcp/` 是标准 `1flowbase.mcp.bundle/v2` 目录，包含带校验值的 manifest、tools 和 instances。示例使用独立 `browser_obscura_example` 身份与工具 ID，不覆盖自动创建的默认实例。修改文件后需重新生成对应 SHA-256。
+`_assets/mcp/` 是标准 `1flowbase.mcp.bundle/v2` 目录，包含带校验值的 manifest、tools 和 instances。示例使用独立 `browser_obscura_example` 身份与工具 ID，不覆盖自动创建的默认实例。修改文件后需重新生成对应 SHA-256。
 
-在 `mcp/` 目录将 `manifest.json`、`tools/` 与 `instances/` 压缩为 ZIP，通过宿主 MCP 导入预览确认后导入。示例不包含 API key、浏览器 cookies 或用户数据。名称、描述、参数映射、结果映射、分组与发现策略都可按任务编辑；配置不能绕过业务权限。
+在 `_assets/mcp/` 目录将 `manifest.json`、`tools/` 与 `instances/` 压缩为 ZIP，通过宿主 MCP 导入预览确认后导入。示例不包含 API key、浏览器 cookies 或用户数据。名称、描述、参数映射、结果映射、分组与发现策略都可按任务编辑；配置不能绕过业务权限。
 
 ## 能力与边界
 
@@ -63,4 +63,4 @@ cargo build --release --locked --bin browser-obscura
 
 ## 许可
 
-插件与 Obscura 采用 Apache-2.0；上游依赖保留各自许可。参见 LICENSE、NOTICE 与 licenses/。本插件未复制私有商业插件源码或资产。
+插件与 Obscura 采用 Apache-2.0；上游依赖保留各自许可。参见 LICENSE、_assets/NOTICE 与 _assets/licenses/。本插件未复制私有商业插件源码或资产。

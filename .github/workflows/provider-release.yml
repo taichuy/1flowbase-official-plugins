@@ -305,6 +305,10 @@ jobs:
             exit 1
           fi
 
+          if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
+            node scripts/browser-obscura-ci/package-assets.mjs "${package_file}"
+          fi
+
           if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then
             PACKAGE_FILE="${package_file}" SIGNING_KEY_FILE=official-plugin-signing-key.pem node <<'NODE'
             const assert = require('node:assert/strict');
