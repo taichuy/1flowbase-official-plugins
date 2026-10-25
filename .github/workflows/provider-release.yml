@@ -250,9 +250,10 @@ jobs:
           rm -rf dist artifact-metadata
           mkdir -p dist artifact-metadata
 
-          cargo_lock_args=()
+          # Keep the array nonempty: macOS Bash 3.2 rejects empty arrays under set -u.
+          cargo_build_args=(build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}")
           if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
-            cargo_lock_args+=(--locked)
+            cargo_build_args+=(--locked)
             pinned_host="$(node scripts/browser-obscura-ci/source.mjs)"
             actual_host="$(git -C host rev-parse HEAD)"
             test "${pinned_host}" = "${actual_host}"
@@ -261,7 +262,7 @@ jobs:
           if [ "${{ matrix.libc }}" = "musl" ]; then
             cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
           else
-            cargo build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}" "${cargo_lock_args[@]}"
+            cargo "${cargo_build_args[@]}"
           fi
 
           runtime_binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${PLUGIN_DIR}" --rust-target "${{ matrix.rust_target }}" --field runtime_binary_name)"
