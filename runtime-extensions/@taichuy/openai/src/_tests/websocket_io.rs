@@ -577,3 +577,270 @@ async fn close_follows_tool_frames_and_retains_original_policy_details() {
     let diagnostic = recovery_diagnostics::failure(&failure.into(), None, None);
     assert_eq!(diagnostic["close_reason"], frame.reason.as_str());
 }
+
+// An open peer whose writes succeed independently of inbound progress. Unlike
+// ScriptedSocket, an empty input remains open instead of manufacturing EOF.
+struct LivenessSocket {
+    incoming: mpsc::UnboundedReceiver<Result<Message, WebSocketError>>,
+    sent: mpsc::UnboundedSender<Message>,
+    ping_delay: Duration,
+    flushing: Option<std::pin::Pin<Box<tokio::time::Sleep>>>,
+}
+impl futures_util::Stream for LivenessSocket {
+    type Item = Result<Message, WebSocketError>;
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.incoming.poll_recv(cx)
+    }
+}
+impl futures_util::Sink<Message> for LivenessSocket {
+    type Error = WebSocketError;
+    fn poll_ready(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn start_send(mut self: std::pin::Pin<&mut Self>, message: Message) -> Result<(), Self::Error> {
+        if matches!(message, Message::Ping(_)) && !self.ping_delay.is_zero() {
+            self.flushing = Some(Box::pin(tokio::time::sleep(self.ping_delay)));
+        }
+        let _ = self.sent.send(message);
+        Ok(())
+    }
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        if let Some(flushing) = self.flushing.as_mut() {
+            if std::future::Future::poll(flushing.as_mut(), cx).is_pending() {
+                return std::task::Poll::Pending;
+            }
+        }
+        self.flushing = None;
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+}
+fn liveness_owner(
+    ping_delay: Duration,
+) -> (
+    SocketOwner,
+    mpsc::UnboundedSender<Result<Message, WebSocketError>>,
+    mpsc::UnboundedReceiver<Message>,
+) {
+    let (input, incoming) = mpsc::unbounded_channel();
+    let (sent, output) = mpsc::unbounded_channel();
+    let owner = SocketOwner::new_with_keepalive(
+        LivenessSocket {
+            incoming,
+            sent,
+            ping_delay,
+            flushing: None,
+        },
+        KEEPALIVE_INTERVAL,
+    );
+    (owner, input, output)
+}
+async fn settle_owner() {
+    // Let the bounded owner process its runnable work without auto-advancing
+    // paused time by awaiting a timer or an as-yet absent peer message.
+    for _ in 0..(EVENT_COUNT * 4) {
+        tokio::task::yield_now().await;
+    }
+}
+async fn elapse(duration: Duration) {
+    tokio::time::advance(duration).await;
+    settle_owner().await;
+}
+fn expect_ping(output: &mut mpsc::UnboundedReceiver<Message>) {
+    assert!(matches!(output.try_recv().unwrap(), Message::Ping(_)));
+}
+
+#[tokio::test(start_paused = true)]
+async fn successful_ping_writes_do_not_hide_receive_silence() {
+    let (owner, _input, mut output) = liveness_owner(Duration::ZERO);
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    assert!(owner.failure().is_none());
+    elapse(KEEPALIVE_INTERVAL - Duration::from_millis(1)).await;
+    assert!(owner.failure().is_none());
+    elapse(Duration::from_millis(1)).await;
+    let failure = owner.failure().expect("silent peer must fail");
+    assert_eq!(failure.kind, "read_liveness_timeout");
+    assert_eq!(failure.category, "transport_disconnected");
+    assert_eq!(failure.io_kind, Some("timed_out"));
+}
+
+#[tokio::test(start_paused = true)]
+async fn timely_pongs_allow_active_inference_for_many_windows() {
+    let (owner, input, mut output) = liveness_owner(Duration::ZERO);
+    let activity = owner.activity();
+    settle_owner().await;
+    for _ in 0..12 {
+        elapse(KEEPALIVE_INTERVAL).await;
+        expect_ping(&mut output);
+        input.send(Ok(Message::Pong(Vec::new().into()))).unwrap();
+        settle_owner().await;
+        assert!(owner.failure().is_none());
+        assert!(owner.events.is_empty(), "Pongs are not application output");
+    }
+    activity.complete();
+}
+
+#[tokio::test(start_paused = true)]
+async fn ready_pong_precedes_simultaneously_ready_probe_deadline() {
+    let (owner, input, mut output) = liveness_owner(Duration::ZERO);
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    // No await between enqueue and advance: owner next observes both ready.
+    input.send(Ok(Message::Pong(Vec::new().into()))).unwrap();
+    elapse(KEEPALIVE_INTERVAL).await;
+    assert!(owner.failure().is_none());
+    elapse(KEEPALIVE_INTERVAL).await;
+    assert!(
+        owner.failure().is_none(),
+        "tie Pong must clear the old probe"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn slow_successful_ping_gets_a_full_window_after_flush() {
+    let (owner, _input, mut output) = liveness_owner(Duration::from_secs(9));
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    elapse(Duration::from_secs(9)).await; // Successful first flush at t=29.
+    elapse(Duration::from_secs(11)).await; // Old interval phase t=40.
+    assert!(owner.failure().is_none());
+    elapse(Duration::from_secs(8)).await;
+    assert!(
+        owner.failure().is_none(),
+        "only 19 seconds since successful Ping"
+    );
+    elapse(Duration::from_secs(1)).await;
+    assert_eq!(owner.failure().unwrap().kind, "read_liveness_timeout");
+}
+
+#[tokio::test(start_paused = true)]
+async fn backpressure_suspends_probe_and_resume_grants_a_fresh_window() {
+    let (mut owner, input, mut output) = liveness_owner(Duration::ZERO);
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    for i in 0..=EVENT_COUNT {
+        input.send(Ok(Message::Text(i.to_string().into()))).unwrap();
+    }
+    settle_owner().await;
+    assert_eq!(owner.events.len(), EVENT_COUNT);
+    for _ in 0..5 {
+        elapse(KEEPALIVE_INTERVAL).await;
+        expect_ping(&mut output);
+        assert!(owner.failure().is_none(), "local admission disables reads");
+    }
+    for i in 0..=EVENT_COUNT {
+        assert_eq!(
+            owner.next().await.unwrap().unwrap(),
+            Message::Text(i.to_string().into())
+        );
+    }
+    settle_owner().await;
+    assert!(owner.failure().is_none());
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    elapse(KEEPALIVE_INTERVAL - Duration::from_millis(1)).await;
+    assert!(
+        owner.failure().is_none(),
+        "resumption needs a full fresh window"
+    );
+    elapse(Duration::from_millis(1)).await;
+    assert_eq!(owner.failure().unwrap().kind, "read_liveness_timeout");
+}
+
+#[tokio::test(start_paused = true)]
+async fn queued_completion_is_delivered_before_receive_timeout() {
+    let (mut owner, input, _output) = liveness_owner(Duration::ZERO);
+    input.send(Ok(completed_frame())).unwrap();
+    settle_owner().await;
+    assert_eq!(owner.events.len(), 1);
+    elapse(KEEPALIVE_INTERVAL).await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    assert_eq!(owner.failure().unwrap().kind, "read_liveness_timeout");
+    assert_eq!(owner.next().await.unwrap().unwrap(), completed_frame());
+    assert!(owner.next().await.unwrap().is_err());
+}
+
+#[tokio::test(start_paused = true)]
+async fn stalled_ping_keeps_existing_write_timeout() {
+    let (owner, _input, mut output) = liveness_owner(WRITE_TIMEOUT + Duration::from_secs(1));
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    elapse(WRITE_TIMEOUT - Duration::from_millis(1)).await;
+    assert!(owner.failure().is_none());
+    elapse(Duration::from_millis(1)).await;
+    assert_eq!(owner.failure().unwrap().kind, "write_timeout");
+}
+
+#[tokio::test(start_paused = true)]
+async fn application_frame_clears_probe_and_is_delivered_once() {
+    let (mut owner, input, mut output) = liveness_owner(Duration::ZERO);
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    elapse(Duration::from_secs(19)).await;
+    input.send(Ok(Message::Text("progress".into()))).unwrap();
+    settle_owner().await;
+    assert_eq!(
+        owner.next().await.unwrap().unwrap(),
+        Message::Text("progress".into())
+    );
+    elapse(Duration::from_secs(1)).await;
+    assert!(
+        owner.failure().is_none(),
+        "inbound data cleared the expiring probe"
+    );
+    expect_ping(&mut output);
+    assert!(owner.events.is_empty());
+    elapse(KEEPALIVE_INTERVAL - Duration::from_millis(1)).await;
+    assert!(owner.failure().is_none());
+    elapse(Duration::from_millis(1)).await;
+    assert_eq!(owner.failure().unwrap().kind, "read_liveness_timeout");
+}
+
+#[tokio::test(start_paused = true)]
+async fn byte_backpressure_suspends_receive_timeout() {
+    let (mut owner, input, mut output) = liveness_owner(Duration::ZERO);
+    let payload = Message::Binary(vec![0; BYTE_WINDOW_BYTES / 2 + 1].into());
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    input.send(Ok(payload.clone())).unwrap();
+    input.send(Ok(payload.clone())).unwrap();
+    settle_owner().await;
+    assert_eq!(owner.events.len(), 1);
+    for _ in 0..3 {
+        elapse(KEEPALIVE_INTERVAL).await;
+        expect_ping(&mut output);
+        assert!(owner.failure().is_none());
+    }
+    assert_eq!(owner.next().await.unwrap().unwrap(), payload);
+    settle_owner().await;
+    assert_eq!(owner.next().await.unwrap().unwrap(), payload);
+    settle_owner().await;
+    elapse(KEEPALIVE_INTERVAL).await;
+    expect_ping(&mut output);
+    elapse(KEEPALIVE_INTERVAL - Duration::from_millis(1)).await;
+    assert!(owner.failure().is_none());
+    elapse(Duration::from_millis(1)).await;
+    assert_eq!(owner.failure().unwrap().kind, "read_liveness_timeout");
+}
