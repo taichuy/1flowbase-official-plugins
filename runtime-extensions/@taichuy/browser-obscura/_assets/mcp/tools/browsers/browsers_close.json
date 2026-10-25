@@ -1,0 +1,108 @@
+{
+  "tool_id": "browser_obscura_example.browsers_close",
+  "name": "browsers_close",
+  "short_description": "Close this browser and all its tabs, releasing its resource lease. The old browser ID cannot be reopened.",
+  "full_description": "Close this browser and all its tabs, releasing its resource lease. The old browser ID cannot be reopened.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "browser-obscura.browsers.close"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "browser_id": {
+        "type": "string",
+        "description": "Browser ID returned by browsers.create/list.",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "browser_id"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "const": true
+      },
+      "closed": {
+        "const": true
+      }
+    },
+    "required": [
+      "success",
+      "closed"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "interface_param": "browser_id",
+        "mcp_param": "browser_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser_id"
+        },
+        "required": true,
+        "description": "Browser ID returned by browsers.create/list."
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "closed": {
+        "const": true
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "success": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "closed"
+          ]
+        },
+        "else": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    ]
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

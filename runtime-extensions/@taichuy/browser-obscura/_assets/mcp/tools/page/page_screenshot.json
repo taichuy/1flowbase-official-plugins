@@ -1,0 +1,143 @@
+{
+  "tool_id": "browser_obscura_example.page_screenshot",
+  "name": "page_screenshot",
+  "short_description": "Capture this tab as a PNG image. Width and height set the viewport; use the returned image and metadata together.",
+  "full_description": "Capture this tab as a PNG image. Width and height set the viewport; use the returned image and metadata together.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "browser-obscura.page.screenshot"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "browser_id": {
+        "type": "string",
+        "description": "Browser ID returned by browsers.create/list.",
+        "minLength": 1
+      },
+      "tab_id": {
+        "type": "string",
+        "description": "Tab ID returned by tabs.create/list.",
+        "minLength": 1
+      },
+      "width": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Viewport width in CSS pixels.",
+        "default": 1280
+      },
+      "height": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Viewport height in CSS pixels.",
+        "default": 720
+      }
+    },
+    "required": [
+      "browser_id",
+      "tab_id"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "browser_id": {
+        "type": "string",
+        "description": "Browser ID returned by browsers.create/list.",
+        "minLength": 1
+      },
+      "tab_id": {
+        "type": "string",
+        "description": "Tab ID returned by tabs.create/list.",
+        "minLength": 1
+      },
+      "url": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "width": {
+        "type": "integer",
+        "minimum": 1,
+        "description": ""
+      },
+      "height": {
+        "type": "integer",
+        "minimum": 1,
+        "description": ""
+      }
+    },
+    "required": [
+      "browser_id",
+      "tab_id",
+      "url",
+      "title",
+      "width",
+      "height"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "interface_param": "browser_id",
+        "mcp_param": "browser_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser_id"
+        },
+        "required": true,
+        "description": "Browser ID returned by browsers.create/list."
+      },
+      {
+        "interface_param": "tab_id",
+        "mcp_param": "tab_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "tab_id"
+        },
+        "required": true,
+        "description": "Tab ID returned by tabs.create/list."
+      },
+      {
+        "interface_param": "width",
+        "mcp_param": "width",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "width"
+        },
+        "required": false,
+        "description": "Viewport width in CSS pixels.",
+        "default_value": 1280
+      },
+      {
+        "interface_param": "height",
+        "mcp_param": "height",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "height"
+        },
+        "required": false,
+        "description": "Viewport height in CSS pixels.",
+        "default_value": 720
+      }
+    ]
+  },
+  "output_mapping": {
+    "mcp_content": [
+      {
+        "type": "image",
+        "data_path": "/data",
+        "mime_type_path": "/mime_type"
+      }
+    ],
+    "structured_content_path": "/metadata"
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

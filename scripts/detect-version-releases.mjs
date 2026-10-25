@@ -51,7 +51,42 @@ function parseManifestSlotCodes(content) {
   return values;
 }
 
+function hasManagedServiceOperations(content) {
+  if (content.trimStart().startsWith('{')) {
+    const manifest = JSON.parse(content);
+    if (manifest.manifest_version !== 2 || manifest.consumption_kind !== 'runtime_extension') return false;
+    const contributions = manifest.managed?.module?.contributions;
+    const bindings = manifest.managed?.execution_bindings;
+    return Array.isArray(contributions) && Array.isArray(bindings)
+      && contributions.some(contribution => contribution.point_id === '1flowbase.managed-service.operation'
+        && typeof contribution.contribution_id === 'string'
+        && bindings.some(binding => binding.contribution_id === contribution.contribution_id));
+  }
+  if (!/^manifest_version:\s*2\s*$/m.test(content)
+      || !/^consumption_kind:\s*runtime_extension\s*$/m.test(content)) return false;
+  const lines = content.split(/\r?\n/);
+  const start = lines.findIndex(line => /^managed:\s*$/.test(line));
+  if (start < 0) return false;
+  const block = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() && !/^\s/.test(line)) break;
+    block.push(line);
+  }
+  // Match only the owned managed block; a settings/API declaration elsewhere
+  // does not establish an executable managed-service contribution.
+  const managed = block.join('\n');
+  const module = managed.split(/^  execution_bindings:\s*$/m)[0];
+  const bindings = managed.split(/^  execution_bindings:\s*$/m)[1] ?? '';
+  const bindingIds = new Set([...bindings.matchAll(/^    - contribution_id:\s*(\S+)\s*$/gm)].map(match => match[1]));
+  return /^  module:\s*$/m.test(module) && /^    contributions:\s*$/m.test(module)
+    && module.split(/^      - contribution_id:\s*/m).slice(1).some(contribution => {
+      const id = contribution.split(/\r?\n/, 1)[0].trim();
+      return bindingIds.has(id) && /^        point_id:\s*1flowbase\.managed-service\.operation\s*$/m.test(contribution);
+    });
+}
+
 function isPublishableRuntimeManifest(content) {
+  if (hasManagedServiceOperations(content)) return true;
   // Managed notification contributors are runtime extensions without a provider slot.
   // Their existing managed binding, rather than a synthetic model-provider slot,
   // supplies the execution contract.

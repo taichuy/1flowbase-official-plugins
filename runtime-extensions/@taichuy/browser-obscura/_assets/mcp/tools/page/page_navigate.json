@@ -1,0 +1,239 @@
+{
+  "tool_id": "browser_obscura_example.page_navigate",
+  "name": "page_navigate",
+  "short_description": "Navigate this tab to an HTTP(S) URL or about:blank. Previous snapshot refs expire; take a new snapshot after navigation.",
+  "full_description": "Navigate this tab to an HTTP(S) URL or about:blank. Previous snapshot refs expire; take a new snapshot after navigation.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "browser-obscura.page.navigate"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "browser_id": {
+        "type": "string",
+        "description": "Browser ID returned by browsers.create/list.",
+        "minLength": 1
+      },
+      "tab_id": {
+        "type": "string",
+        "description": "Tab ID returned by tabs.create/list.",
+        "minLength": 1
+      },
+      "url": {
+        "type": "string",
+        "description": "Destination URL.",
+        "minLength": 1
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Maximum operation duration in milliseconds; bounded by the host call deadline.",
+        "default": 30000
+      }
+    },
+    "required": [
+      "browser_id",
+      "tab_id",
+      "url"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "const": true
+      },
+      "tab": {
+        "type": "object",
+        "properties": {
+          "browser_id": {
+            "type": "string",
+            "description": "Browser ID returned by browsers.create/list.",
+            "minLength": 1
+          },
+          "tab_id": {
+            "type": "string",
+            "description": "Tab ID returned by tabs.create/list.",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "loading",
+              "failed"
+            ]
+          },
+          "snapshot_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "browser_id",
+          "tab_id",
+          "title",
+          "url",
+          "status",
+          "snapshot_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success",
+      "tab"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "interface_param": "browser_id",
+        "mcp_param": "browser_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser_id"
+        },
+        "required": true,
+        "description": "Browser ID returned by browsers.create/list."
+      },
+      {
+        "interface_param": "tab_id",
+        "mcp_param": "tab_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "tab_id"
+        },
+        "required": true,
+        "description": "Tab ID returned by tabs.create/list."
+      },
+      {
+        "interface_param": "url",
+        "mcp_param": "url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "url"
+        },
+        "required": true,
+        "description": "Destination URL."
+      },
+      {
+        "interface_param": "timeout_ms",
+        "mcp_param": "timeout_ms",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "timeout_ms"
+        },
+        "required": false,
+        "description": "Maximum operation duration in milliseconds; bounded by the host call deadline.",
+        "default_value": 30000
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "tab": {
+        "type": "object",
+        "properties": {
+          "browser_id": {
+            "type": "string",
+            "description": "Browser ID returned by browsers.create/list.",
+            "minLength": 1
+          },
+          "tab_id": {
+            "type": "string",
+            "description": "Tab ID returned by tabs.create/list.",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "loading",
+              "failed"
+            ]
+          },
+          "snapshot_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "browser_id",
+          "tab_id",
+          "title",
+          "url",
+          "status",
+          "snapshot_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "success": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "tab"
+          ]
+        },
+        "else": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    ]
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

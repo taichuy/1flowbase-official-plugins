@@ -1,0 +1,252 @@
+{
+  "tool_id": "browser_obscura_example.page_wait",
+  "name": "page_wait",
+  "short_description": "Wait until a CSS selector exists and/or visible page text contains the supplied text. Provide at least one condition and an explicit timeout.",
+  "full_description": "Wait until a CSS selector exists and/or visible page text contains the supplied text. Provide at least one condition and an explicit timeout.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "browser-obscura.page.wait"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "browser_id": {
+        "type": "string",
+        "description": "Browser ID returned by browsers.create/list.",
+        "minLength": 1
+      },
+      "tab_id": {
+        "type": "string",
+        "description": "Tab ID returned by tabs.create/list.",
+        "minLength": 1
+      },
+      "selector": {
+        "type": "string",
+        "description": "CSS selector that must exist.",
+        "minLength": 1
+      },
+      "text": {
+        "type": "string",
+        "description": "Visible page text that must be present.",
+        "minLength": 1
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Maximum wait duration in milliseconds."
+      }
+    },
+    "required": [
+      "browser_id",
+      "tab_id",
+      "timeout_ms"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "const": true
+      },
+      "tab": {
+        "type": "object",
+        "properties": {
+          "browser_id": {
+            "type": "string",
+            "description": "Browser ID returned by browsers.create/list.",
+            "minLength": 1
+          },
+          "tab_id": {
+            "type": "string",
+            "description": "Tab ID returned by tabs.create/list.",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "loading",
+              "failed"
+            ]
+          },
+          "snapshot_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "browser_id",
+          "tab_id",
+          "title",
+          "url",
+          "status",
+          "snapshot_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success",
+      "tab"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "interface_param": "browser_id",
+        "mcp_param": "browser_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser_id"
+        },
+        "required": true,
+        "description": "Browser ID returned by browsers.create/list."
+      },
+      {
+        "interface_param": "tab_id",
+        "mcp_param": "tab_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "tab_id"
+        },
+        "required": true,
+        "description": "Tab ID returned by tabs.create/list."
+      },
+      {
+        "interface_param": "selector",
+        "mcp_param": "selector",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "selector"
+        },
+        "required": false,
+        "description": "CSS selector that must exist."
+      },
+      {
+        "interface_param": "text",
+        "mcp_param": "text",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "text"
+        },
+        "required": false,
+        "description": "Visible page text that must be present."
+      },
+      {
+        "interface_param": "timeout_ms",
+        "mcp_param": "timeout_ms",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "timeout_ms"
+        },
+        "required": true,
+        "description": "Maximum wait duration in milliseconds."
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "tab": {
+        "type": "object",
+        "properties": {
+          "browser_id": {
+            "type": "string",
+            "description": "Browser ID returned by browsers.create/list.",
+            "minLength": 1
+          },
+          "tab_id": {
+            "type": "string",
+            "description": "Tab ID returned by tabs.create/list.",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "loading",
+              "failed"
+            ]
+          },
+          "snapshot_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "browser_id",
+          "tab_id",
+          "title",
+          "url",
+          "status",
+          "snapshot_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "success": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "tab"
+          ]
+        },
+        "else": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    ]
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

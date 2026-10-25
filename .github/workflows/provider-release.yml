@@ -77,7 +77,7 @@ jobs:
           release_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]); const sources = JSON.parse(process.argv[2]); process.stdout.write(JSON.stringify({ include: releases.include.map((release) => { const source = sources.include.find((item) => item.provider_code === release.provider_code); if (!source) throw new Error(`Provider manifest not found for ${release.provider_code}`); return { ...release, asset_vendor: source.asset_vendor, asset_plugin_code: source.asset_plugin_code }; }) }));' "${release_matrix_json}" "${source_release_matrix_json}")"
 
           release_count="$(node --input-type=module -e "const matrix = JSON.parse(process.argv[1]); process.stdout.write(String(matrix.include.length));" "${release_matrix_json}")"
-          package_matrix_json="$(node --input-type=module -e 'const releases = JSON.parse(process.argv[1]).include; const targets = [{ runs_on: "ubuntu-latest", rust_target: "x86_64-unknown-linux-musl", os: "linux", arch: "amd64", libc: "musl" }, { runs_on: "ubuntu-latest", rust_target: "aarch64-unknown-linux-musl", os: "linux", arch: "arm64", libc: "musl" }, { runs_on: "macos-latest", rust_target: "x86_64-apple-darwin", os: "darwin", arch: "amd64", libc: "" }, { runs_on: "macos-latest", rust_target: "aarch64-apple-darwin", os: "darwin", arch: "arm64", libc: "" }, { runs_on: "windows-latest", rust_target: "x86_64-pc-windows-msvc", os: "windows", arch: "amd64", libc: "msvc" }, { runs_on: "windows-latest", rust_target: "aarch64-pc-windows-msvc", os: "windows", arch: "arm64", libc: "msvc" }]; process.stdout.write(JSON.stringify({ include: releases.flatMap((release) => targets.map((target) => ({ ...release, ...target }))) }));' "${release_matrix_json}")"
+          package_matrix_json="$(node scripts/provider-release/targets.mjs "${release_matrix_json}")"
           echo "release_matrix=${release_matrix_json}" >> "${GITHUB_OUTPUT}"
           echo "package_matrix=${package_matrix_json}" >> "${GITHUB_OUTPUT}"
           if [ "${release_count}" -gt 0 ]; then
@@ -159,17 +159,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout host repo
-        uses: actions/checkout@v6
-        with:
-          repository: taichuy/1flowbase
-          ref: ${{ inputs.host_repo_ref || 'main' }}
-          path: host
-
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
+
+      - name: Select paired host source
+        id: host-source
+        env:
+          PROVIDER_CODE: ${{ matrix.provider_code }}
+          REQUESTED_HOST_SHA: ${{ inputs.host_repo_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
+            host_ref="$(node scripts/browser-obscura-ci/source.mjs)"
+          else
+            host_ref="${REQUESTED_HOST_SHA:-main}"
+          fi
+          echo "ref=${host_ref}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout host repo
+        uses: actions/checkout@v6
+        with:
+          repository: taichuy/1flowbase
+          ref: ${{ steps.host-source.outputs.ref }}
+          path: host
 
       - name: Sync provider manifest identity fields
         run: node scripts/sync-provider-manifest-versions.mjs
@@ -194,8 +209,14 @@ jobs:
           go-version: '1.24.x'
 
       - name: Install cross
-        if: ${{ matrix.runs_on == 'ubuntu-latest' }}
+        if: ${{ matrix.libc == 'musl' }}
         run: cargo install cross --git https://github.com/cross-rs/cross --locked
+
+      - name: Install native browser engine build dependencies
+        if: ${{ matrix.provider_code == 'browser-obscura' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang cmake libclang-dev libssl-dev llvm-dev pkg-config
 
       - name: Validate signing configuration
         env:
@@ -229,10 +250,18 @@ jobs:
           rm -rf dist artifact-metadata
           mkdir -p dist artifact-metadata
 
-          if [ "${{ matrix.runs_on }}" = "ubuntu-latest" ]; then
+          cargo_lock_args=()
+          if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
+            cargo_lock_args+=(--locked)
+            pinned_host="$(node scripts/browser-obscura-ci/source.mjs)"
+            actual_host="$(git -C host rev-parse HEAD)"
+            test "${pinned_host}" = "${actual_host}"
+          fi
+
+          if [ "${{ matrix.libc }}" = "musl" ]; then
             cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
           else
-            cargo build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
+            cargo build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}" "${cargo_lock_args[@]}"
           fi
 
           runtime_binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${PLUGIN_DIR}" --rust-target "${{ matrix.rust_target }}" --field runtime_binary_name)"
@@ -274,6 +303,10 @@ jobs:
             echo "Failed to locate generated package file from plugin CLI output." >&2
             printf '%s\n' "${package_output}" >&2
             exit 1
+          fi
+
+          if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
+            node scripts/browser-obscura-ci/package-assets.mjs "${package_file}"
           fi
 
           if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then

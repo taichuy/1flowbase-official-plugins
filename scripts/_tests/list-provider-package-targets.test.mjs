@@ -209,3 +209,25 @@ test('readProviderPackageTarget keeps distribution release identity distinct fro
     binary_name: 'session-retry-distribution',
   });
 });
+
+test('managed-only browser package identity and executable need no synthetic slot', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-package-target-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const pluginDir = path.join(root, 'runtime-extensions/@taichuy/browser-obscura');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginDir, 'manifest.yaml'), JSON.stringify({
+    manifest_version: 2, plugin_id: 'browser-obscura', version: '0.1.0', vendor: '1flowbase',
+    slot_codes: [], consumption_kind: 'runtime_extension',
+    managed: { module: { contributions: [] }, execution_bindings: [] },
+    runtime: { protocol: 'stdio_json_multiplex_v1', entry: 'bin/browser-obscura' },
+  }));
+  assert.deepEqual(readProviderPackageTarget(pluginDir, root, { rustTargetTriple: 'x86_64-unknown-linux-gnu' }), {
+    provider_code: 'browser-obscura', plugin_dir: 'runtime-extensions/@taichuy/browser-obscura',
+    binary_name: 'browser-obscura', runtime_binary_name: 'browser-obscura',
+  });
+  assert.deepEqual(listProviderReleaseTargets(root), [{
+    asset_plugin_code: 'browser-obscura', asset_vendor: '1flowbase',
+    plugin_dir: 'runtime-extensions/@taichuy/browser-obscura', provider_code: 'browser-obscura',
+    release_tag: 'browser-obscura-v0.1.0', version: '0.1.0',
+  }]);
+});

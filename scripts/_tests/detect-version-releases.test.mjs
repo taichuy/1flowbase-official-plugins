@@ -238,3 +238,50 @@ test('shared observation SDK requires a manifest bump for every consumer', () =>
   changes[1].afterContent = changes[1].beforeContent;
   assert.throws(() => detectVersionReleases(changes), /provider_version_bump_required/);
 });
+
+const managedServiceManifest = version => `manifest_version: 2
+version: ${version}
+consumption_kind: runtime_extension
+slot_codes: []
+managed:
+  module:
+    contributions:
+      - contribution_id: browser-obscura.browsers.list
+        point_id: 1flowbase.managed-service.operation
+  execution_bindings:
+    - contribution_id: browser-obscura.browsers.list
+      handler: browser-obscura.browsers.list
+`;
+
+test('managed-only service releases without provider slots or notification types', () => {
+  const path = 'runtime-extensions/@taichuy/browser-obscura/manifest.yaml';
+  const afterContent = managedServiceManifest('0.1.0');
+  assert.deepEqual(detectVersionReleases([{ path, afterContent }]), [{
+    plugin_dir: 'runtime-extensions/@taichuy/browser-obscura', provider_code: 'browser-obscura',
+    release_tag: 'browser-obscura-v0.1.0', version: '0.1.0',
+  }]);
+  assert.throws(() => detectVersionReleases([{ path, beforeContent: afterContent, afterContent }]), /provider_version_bump_required/);
+});
+test('managed-only discovery rejects empty, unbound, unrelated, and non-runtime declarations', () => {
+  const path = 'runtime-extensions/@taichuy/browser-obscura/manifest.yaml';
+  const valid = managedServiceManifest('0.1.0');
+  const invalid = [
+    valid.replace(/managed:[\s\S]+/, 'managed:\n  module: {}\n'),
+    valid.replace(/  execution_bindings:[\s\S]+/, '  execution_bindings: []\n'),
+    valid.replace('point_id: 1flowbase.managed-service.operation', 'point_id: 1flowbase.plugin-data.owned-collection'),
+    valid.replace('consumption_kind: runtime_extension', 'consumption_kind: template'),
+    valid.replace('  execution_bindings:\n    - contribution_id: browser-obscura.browsers.list', '  execution_bindings:\n    - contribution_id: unrelated.operation'),
+    valid.replace('managed:', 'other:'),
+  ];
+  for (const afterContent of invalid) assert.deepEqual(detectVersionReleases([{ path, afterContent }]), []);
+});
+test('JSON managed-only services require a matching operation execution binding', () => {
+  const manifest = {
+    manifest_version: 2, version: '0.1.0', consumption_kind: 'runtime_extension', slot_codes: [],
+    managed: { module: { contributions: [{ contribution_id: 'browsers.list', point_id: '1flowbase.managed-service.operation' }] }, execution_bindings: [{ contribution_id: 'browsers.list' }] },
+  };
+  const path = 'runtime-extensions/@taichuy/browser-obscura/manifest.yaml';
+  assert.equal(detectVersionReleases([{ path, afterContent: JSON.stringify(manifest) }]).length, 1);
+  manifest.managed.execution_bindings[0].contribution_id = 'other';
+  assert.deepEqual(detectVersionReleases([{ path, afterContent: JSON.stringify(manifest) }]), []);
+});

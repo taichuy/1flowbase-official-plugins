@@ -1,0 +1,209 @@
+{
+  "tool_id": "browser_obscura_example.browsers_create",
+  "name": "browsers_create",
+  "short_description": "Create an isolated temporary browser. Cookies are shared only by tabs in this browser. Closing a client does not close the browser; close it explicitly when finished.",
+  "full_description": "Create an isolated temporary browser. Cookies are shared only by tabs in this browser. Closing a client does not close the browser; close it explicitly when finished.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "browser-obscura.browsers.create"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Display name for the browser.",
+        "minLength": 1
+      },
+      "idle_timeout_ms": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Idle expiry in milliseconds; omitted uses the service default."
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "const": true
+      },
+      "browser": {
+        "type": "object",
+        "properties": {
+          "browser_id": {
+            "type": "string",
+            "description": "Browser ID returned by browsers.create/list.",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "const": "running"
+          },
+          "created_at_unix_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": ""
+          },
+          "last_activity_at_unix_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": ""
+          },
+          "tab_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": ""
+          },
+          "idle_timeout_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "description": ""
+          }
+        },
+        "required": [
+          "browser_id",
+          "name",
+          "status",
+          "created_at_unix_ms",
+          "last_activity_at_unix_ms",
+          "tab_count",
+          "idle_timeout_ms"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success",
+      "browser"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Display name for the browser."
+      },
+      {
+        "interface_param": "idle_timeout_ms",
+        "mcp_param": "idle_timeout_ms",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "idle_timeout_ms"
+        },
+        "required": false,
+        "description": "Idle expiry in milliseconds; omitted uses the service default."
+      }
+    ]
+  },
+  "output_mapping": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "browser": {
+        "type": "object",
+        "properties": {
+          "browser_id": {
+            "type": "string",
+            "description": "Browser ID returned by browsers.create/list.",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "const": "running"
+          },
+          "created_at_unix_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": ""
+          },
+          "last_activity_at_unix_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": ""
+          },
+          "tab_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": ""
+          },
+          "idle_timeout_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "description": ""
+          }
+        },
+        "required": [
+          "browser_id",
+          "name",
+          "status",
+          "created_at_unix_ms",
+          "last_activity_at_unix_ms",
+          "tab_count",
+          "idle_timeout_ms"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "success": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "browser"
+          ]
+        },
+        "else": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    ]
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
