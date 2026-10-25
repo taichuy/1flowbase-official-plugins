@@ -1,7 +1,7 @@
 //! Tencent iLink notification supplier. Host owns all persistence and trusted call scope.
 use base64::{engine::general_purpose::STANDARD, Engine};
 use runtime_extension_sdk::{
-    execute_authorizable_notification, CapabilityStdioRequest, NotificationAuthorizationActionKind,
+    execute_communication, CapabilityStdioRequest, NotificationAuthorizationActionKind,
     NotificationAuthorizationOperation, NotificationAuthorizationStatus,
     NotificationAuthorizationUserAction, NotificationAuthorizationView,
     NotificationDeliveryWindowStatus, NotificationDeliveryWindowView, NotificationFailureCode,
@@ -16,6 +16,8 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+mod media;
+mod receive;
 mod subscription;
 
 const DEFAULT_BASE: &str = "https://ilinkai.weixin.qq.com";
@@ -27,7 +29,6 @@ const SECRET_KEYS: &[&str] = &[
     "bot_id",
     "base_url",
     "bound_user_id",
-    "cursor",
     "context_token",
     "authorization_invalid",
 ];
@@ -49,6 +50,7 @@ struct Request {
     token: Option<String>,
     body: Option<Value>,
     timeout: Duration,
+    byte_range: Option<(u64, u64)>,
 }
 trait ILink {
     fn request(&self, request: Request) -> ProviderFuture<'_>;
@@ -71,7 +73,11 @@ impl HttpClient {
 impl ILink for HttpClient {
     fn request(&self, request: Request) -> ProviderFuture<'_> {
         Box::pin(async move {
-            let base = trusted_base(&request.base_url)?;
+            let base = if request.byte_range.is_some() {
+                media::trusted_cdn_base(&request.base_url)?
+            } else {
+                trusted_base(&request.base_url)?
+            };
             let url = base
                 .join(request.endpoint)
                 .map_err(|_| ProviderError::UnsafeUrl)?;
@@ -97,7 +103,54 @@ impl ILink for HttpClient {
             if let Some(token) = request.token {
                 builder = builder.bearer_auth(token);
             }
-            let response = builder.send().await.map_err(http_error)?;
+            if let Some((start, end)) = request.byte_range {
+                builder = builder.header("Range", format!("bytes={start}-{end}"));
+            }
+            let mut response = builder.send().await.map_err(http_error)?;
+            if let Some((start, end)) = request.byte_range {
+                let partial = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+                if !partial && !(start == 0 && response.status() == reqwest::StatusCode::OK) {
+                    return Err(ProviderError::Malformed);
+                }
+                let mut eof = !partial;
+                let mut expected_length = None;
+                if partial {
+                    let range = response
+                        .headers()
+                        .get("content-range")
+                        .and_then(|h| h.to_str().ok())
+                        .ok_or(ProviderError::Malformed)?;
+                    let (bounds, total) = range
+                        .strip_prefix("bytes ")
+                        .and_then(|r| r.split_once('/'))
+                        .ok_or(ProviderError::Malformed)?;
+                    let (first, last) = bounds.split_once('-').ok_or(ProviderError::Malformed)?;
+                    let first: u64 = first.parse().map_err(|_| ProviderError::Malformed)?;
+                    let last: u64 = last.parse().map_err(|_| ProviderError::Malformed)?;
+                    let total: u64 = total.parse().map_err(|_| ProviderError::Malformed)?;
+                    if first != start
+                        || last < first
+                        || last > end
+                        || last >= total
+                        || last != end.min(total - 1)
+                    {
+                        return Err(ProviderError::Malformed);
+                    }
+                    eof = last + 1 == total;
+                    expected_length = Some(last - first + 1);
+                }
+                let mut data = Vec::new();
+                while let Some(chunk) = response.chunk().await.map_err(http_error)? {
+                    if data.len() as u64 + chunk.len() as u64 > end - start + 1 {
+                        return Err(ProviderError::Malformed);
+                    }
+                    data.extend_from_slice(&chunk);
+                }
+                if expected_length.is_some_and(|length| length != data.len() as u64) {
+                    return Err(ProviderError::Malformed);
+                }
+                return Ok(json!({"data":STANDARD.encode(data),"eof":eof}));
+            }
             let successful_http = response.status().is_success();
             let value: Value = response.json().await.map_err(|error| {
                 if error.is_timeout() {
@@ -154,7 +207,6 @@ const ACCOUNT_KEYS: &[&str] = &[
     "bot_id",
     "base_url",
     "bound_user_id",
-    "cursor",
     "context_token",
 ];
 fn invalid_patch() -> Secrets {
@@ -241,7 +293,9 @@ fn with_window(
 ) -> NotificationRuntimeResult {
     let view = match &mut result {
         NotificationRuntimeResult::Authorization { authorization, .. } => Some(authorization),
-        NotificationRuntimeResult::Send { authorization, .. } => authorization.as_mut(),
+        NotificationRuntimeResult::Send { authorization, .. }
+        | NotificationRuntimeResult::Receive { authorization, .. } => authorization.as_mut(),
+        NotificationRuntimeResult::DownloadAttachment { .. } => None,
     };
     if let Some(view) =
         view.filter(|view| view.status == NotificationAuthorizationStatus::Authorized)
@@ -313,6 +367,7 @@ fn request(
         token: secret(secrets, "bot_token").map(str::to_string),
         body: Some(body),
         timeout,
+        byte_range: None,
     })
 }
 async fn authorize(
@@ -332,6 +387,7 @@ async fn authorize(
                     token: None,
                     body: None,
                     timeout: Duration::from_secs(15),
+                    byte_range: None,
                 })
                 .await?;
             let qr = response["qrcode"]
@@ -361,6 +417,7 @@ async fn authorize(
                     token: None,
                     body: None,
                     timeout: Duration::from_secs(15),
+                    byte_range: None,
                 })
                 .await?;
             match response["status"].as_str() {
@@ -414,15 +471,12 @@ async fn authorize(
             if !has_account(&secrets) {
                 return Ok(authorization(plain_view(status(&secrets)), Secrets::new()));
             }
-            let prepared = subscription::prepare(client, &secrets, delivery_window, clock).await;
-            let state = if prepared.patch.contains_key("authorization_invalid") {
-                NotificationAuthorizationStatus::Invalid
-            } else {
-                NotificationAuthorizationStatus::Authorized
-            };
             Ok(with_window(
-                authorization(plain_view(state), prepared.patch),
-                prepared.window,
+                authorization(
+                    plain_view(NotificationAuthorizationStatus::Authorized),
+                    Secrets::new(),
+                ),
+                subscription::cached(delivery_window, clock()),
             ))
         }
     }
@@ -443,16 +497,8 @@ async fn send_notification(
         };
         return Ok(failed(code, state, Secrets::new()));
     }
-    let prepared = subscription::prepare(client, &secrets, delivery_window, clock).await;
-    let mut patch = prepared.patch;
-    if patch.contains_key("authorization_invalid") {
-        return Ok(failed(
-            NotificationFailureCode::AuthorizationInvalid,
-            NotificationAuthorizationStatus::Invalid,
-            patch,
-        ));
-    }
-    let mut window = prepared.window;
+    let mut patch = Secrets::new();
+    let mut window = subscription::cached(delivery_window, clock());
     if window.status == NotificationDeliveryWindowStatus::Active
         && window.expires_at_ms.is_some_and(|expiry| clock() >= expiry)
     {
@@ -530,6 +576,36 @@ async fn run_with_clock(
             )
             .await
         }
+        NotificationOperation::Receive {
+            cursor,
+            max_messages,
+            wait_seconds,
+        } => {
+            receive::receive(
+                client,
+                &input.managed_secrets,
+                input.delivery_window,
+                cursor,
+                max_messages,
+                wait_seconds,
+                clock,
+            )
+            .await
+        }
+        NotificationOperation::DownloadAttachment {
+            attachment,
+            offset,
+            max_bytes,
+        } => {
+            media::download(
+                client,
+                &input.managed_secrets,
+                attachment,
+                offset,
+                max_bytes,
+            )
+            .await
+        }
         NotificationOperation::Send { input_payload } => {
             send_notification(
                 client,
@@ -568,8 +644,7 @@ pub async fn dispatch(client: &HttpClient, request: Value) -> Value {
         }
     };
     let response =
-        execute_authorizable_notification(request, &descriptor(), |_, input| run(client, input))
-            .await;
+        execute_communication(request, &descriptor(), |_, input| run(client, input)).await;
     serde_json::to_value(response).expect("typed SDK response")
 }
 #[cfg(test)]
