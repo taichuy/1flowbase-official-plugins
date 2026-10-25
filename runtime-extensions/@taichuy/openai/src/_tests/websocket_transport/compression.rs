@@ -189,6 +189,7 @@ async fn compression_roundtrip(through_proxy: bool, compressed: bool) {
         1,
         None,
         Instant::now(),
+        None,
     )
     .await
     .unwrap();

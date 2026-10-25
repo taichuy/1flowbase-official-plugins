@@ -548,6 +548,7 @@ async fn proactive_close_flushes_frame_and_waits_for_peer_ack() {
         9,
         Some(9),
         Instant::now(),
+        None,
     )
     .await
     .unwrap();

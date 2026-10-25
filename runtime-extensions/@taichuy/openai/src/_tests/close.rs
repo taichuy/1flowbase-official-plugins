@@ -249,6 +249,7 @@ async fn connected_session(
         1,
         Some(1),
         Instant::now(),
+        None,
     )
     .await
     .unwrap();
