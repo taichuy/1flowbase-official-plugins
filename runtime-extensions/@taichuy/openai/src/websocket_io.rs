@@ -6,7 +6,7 @@ use tokio::sync::{mpsc, oneshot, OwnedSemaphorePermit, Semaphore};
 const EVENT_COUNT: usize = 64;
 const COMMAND_COUNT: usize = 8;
 const BYTE_WINDOW_BYTES: usize = 16 * 1024 * 1024;
-const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(20);
 
 pub(super) fn config() -> tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
