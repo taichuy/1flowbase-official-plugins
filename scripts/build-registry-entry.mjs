@@ -66,14 +66,17 @@ function pluginTypeForSlots(slotCodes, manifest) {
   if (slotCodes.length === 0 && object?.manifest_version === 2
       && object.consumption_kind === 'runtime_extension'
       && ((Array.isArray(object.notification_types) && object.notification_types.length > 0)
-          || (Array.isArray(object.authentication_providers) && object.authentication_providers.length > 0))
+          || (Array.isArray(object.authentication_providers) && object.authentication_providers.length > 0)
+          || (object.managed_service && typeof object.managed_service === 'object'
+              && !Array.isArray(object.managed_service)))
       && object.managed && typeof object.managed === 'object') {
     return 'runtime_extension';
   }
   if (slotCodes.length === 0
       && /^manifest_version:\s*2\s*$/m.test(manifest)
       && /^consumption_kind:\s*runtime_extension\s*$/m.test(manifest)
-      && /^(?:notification_types|authentication_providers):\s*\n\s+-\s/m.test(manifest)
+      && (/^(?:notification_types|authentication_providers):\s*\n\s+-\s/m.test(manifest)
+          || /^managed_service:\s*$/m.test(manifest))
       && /^managed:\s*$/m.test(manifest)) {
     return 'runtime_extension';
   }

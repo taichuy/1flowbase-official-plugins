@@ -53,6 +53,7 @@ try {
   await run('rust-version', 'rustc', ['--version', '--verbose']);
   await run('nextest-version', 'cargo', ['nextest', '--version']);
   await run('release-tooling-tests', 'node', ['--test',
+    'scripts/_tests/build-registry-entry.test.mjs',
     'scripts/_tests/detect-version-releases.test.mjs', 'scripts/_tests/list-provider-package-targets.test.mjs',
     'scripts/provider-release/_tests/targets.test.mjs', 'scripts/browser-obscura-ci/_tests/source.test.mjs']);
   const junit = path.join(plugin, 'target/nextest/ci/junit.xml');

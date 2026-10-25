@@ -1,12 +1,53 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { buildRegistryEntry } from '../build-registry-entry.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
+
+test('published browser manifest builds a managed-service catalog entry without model metadata', () => {
+  const entry = buildRegistryEntry({
+    pluginDir: path.join(repoRoot, 'runtime-extensions/@taichuy/browser-obscura'),
+    providerCode: 'browser-obscura', version: '0.1.1', artifacts: [],
+  });
+  assert.equal(entry.plugin_id, '1flowbase.browser-obscura');
+  assert.equal(entry.plugin_type, 'runtime_extension');
+  assert.equal(entry.protocol, 'stdio_json_multiplex_v1');
+  assert.equal(entry.model_discovery_mode, 'not_applicable');
+  assert.deepEqual(entry.slot_codes, []);
+});
+
+test('managed-service JSON retains runtime identity without notification or authentication contributions', (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'managed-service-registry-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(path.join(root, 'manifest.yaml'), JSON.stringify({
+    manifest_version: 2, plugin_id: 'browser', publisher_namespace: 'acme',
+    consumption_kind: 'runtime_extension', slot_codes: [],
+    managed: { module: {} }, managed_service: { service_code: 'browser' },
+    runtime: { protocol: 'stdio_json_multiplex_v1', entry: 'bin/browser' },
+  }));
+  const entry = buildRegistryEntry({ pluginDir: root, providerCode: 'browser', version: '1.0.0', repositoryRoot: root, artifacts: [] });
+  assert.equal(entry.plugin_id, 'acme.browser');
+  assert.equal(entry.plugin_type, 'runtime_extension');
+  assert.equal(entry.protocol, 'stdio_json_multiplex_v1');
+  assert.equal(entry.model_discovery_mode, 'not_applicable');
+});
+
+test('empty-slot legacy providers still require provider metadata', (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'legacy-provider-registry-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const manifest of [
+    'publisher_namespace: acme\nslot_codes: []\n',
+    JSON.stringify({ publisher_namespace: 'acme', slot_codes: [] }),
+  ]) {
+    writeFileSync(path.join(root, 'manifest.yaml'), manifest);
+    assert.throws(() => buildRegistryEntry({ pluginDir: root, providerCode: 'legacy', version: '1.0.0', repositoryRoot: root, artifacts: [] }),
+      /model_provider registry metadata requires provider\/legacy.yaml/);
+  }
+});
 
 test('managed notifications retain runtime identity without model metadata', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'notification-registry-entry-'));
