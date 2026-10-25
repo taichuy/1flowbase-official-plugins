@@ -101,6 +101,23 @@ async fn success_at_establishment_deadline_is_rejected_and_dropped() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn genuine_error_ready_at_deadline_retains_its_classification() {
+    let original = recovery_diagnostics::transport_error(
+        "websocket_handshake",
+        "authorization_rejected",
+        Some(403),
+    );
+    let expected = recovery_diagnostics::failure(&original, None, None);
+    let error = bounded_websocket_establishment(None, async {
+        tokio::time::sleep(websocket_io::WRITE_TIMEOUT).await;
+        Err::<(), _>(original)
+    })
+    .await
+    .unwrap_err();
+    assert_eq!(recovery_diagnostics::failure(&error, None, None), expected);
+}
+
+#[tokio::test(start_paused = true)]
 async fn earlier_success_and_genuine_error_keep_original_results() {
     let dropped = Arc::new(AtomicBool::new(false));
     let resource = SetupResource(dropped.clone());
@@ -236,6 +253,9 @@ async fn silent_direct_upgrade_times_out_and_drops_tcp() {
 
 #[tokio::test]
 async fn silent_direct_tls_times_out_and_drops_tcp() {
+    // Library tests bypass main(), which selects ring when the SDK also enables
+    // aws-lc. Another test may already have installed the process-wide provider.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let config = setup_config(
         format!("https://{}/v1", listener.local_addr().unwrap()),

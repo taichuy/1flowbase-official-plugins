@@ -16,7 +16,7 @@ The allowance limits establishing a transport, independently of context size or 
 
 ## Errors, recovery and ownership
 
-A local establishment timeout uses the existing typed transport error path with `kind=websocket_connect_timeout` and `reason_category=transport_disconnected`. An already-expired request retains the existing `attempt_admission / deadline_exceeded` classification. Genuine authorization, protocol, proxy and I/O errors produced by the underlying connection future retain their original diagnosis.
+A local establishment timeout uses the existing typed transport error path with `kind=websocket_connect_timeout` and `reason_category=transport_disconnected`. An already-expired request retains the existing `attempt_admission / deadline_exceeded` classification. Genuine authorization, protocol, proxy and I/O errors produced by the underlying connection future retain their original diagnosis, including an already-ready error observed at the deadline. This preserves a real refusal instead of turning it into a retryable transport timeout; the strict before-D acceptance rule applies to successful establishment.
 
 The existing recovery FSM owns retry eligibility, attempt accounting, first-failure evidence and context rebuild. The timeout helper does not create a retry, reset an attempt budget, replay committed output or claim that a provider completed business work. No application `response.create` is sent by connection establishment. A rejected setup produces no registered session or close-ledger activation.
 
