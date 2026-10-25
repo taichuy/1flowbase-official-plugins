@@ -109,7 +109,7 @@ impl ILink for HttpClient {
             let mut response = builder.send().await.map_err(http_error)?;
             if let Some((start, end)) = request.byte_range {
                 let partial = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
-                if !partial && !(start == 0 && response.status() == reqwest::StatusCode::OK) {
+                if !partial && response.status() != reqwest::StatusCode::OK {
                     return Err(ProviderError::Malformed);
                 }
                 let mut eof = !partial;
@@ -140,11 +140,21 @@ impl ILink for HttpClient {
                     expected_length = Some(last - first + 1);
                 }
                 let mut data = Vec::new();
+                // Some CDN edges ignore Range. Stream/discard the prefix instead of
+                // buffering the whole file or imposing a hidden file-size limit.
+                let mut fallback = media::RangeBuffer::new(start, end);
                 while let Some(chunk) = response.chunk().await.map_err(http_error)? {
-                    if data.len() as u64 + chunk.len() as u64 > end - start + 1 {
-                        return Err(ProviderError::Malformed);
+                    if partial {
+                        if data.len() as u64 + chunk.len() as u64 > end - start + 1 {
+                            return Err(ProviderError::Malformed);
+                        }
+                        data.extend_from_slice(&chunk);
+                    } else if fallback.push(&chunk)? {
+                        break;
                     }
-                    data.extend_from_slice(&chunk);
+                }
+                if !partial {
+                    (data, eof) = fallback.finish()?;
                 }
                 if expected_length.is_some_and(|length| length != data.len() as u64) {
                     return Err(ProviderError::Malformed);

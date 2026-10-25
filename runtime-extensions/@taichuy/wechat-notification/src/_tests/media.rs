@@ -56,3 +56,23 @@ fn full_url_is_limited_to_exact_https_cdn_download_endpoint() {
         "https://evil.weixin.qq.com/c2c/download?encrypted_query_param=x",
     ] { assert!(locator(&json!({"full_url":url})).is_err(),"{url}"); }
 }
+
+#[test]
+fn ignored_http_range_streams_prefix_without_a_file_size_cap() {
+    let mut buffer = RangeBuffer::new(160 * 1024 + 3, 160 * 1024 + 19);
+    // Network chunks preceding the requested offset never accumulate in memory.
+    for _ in 0..10 {
+        assert!(!buffer.push(&[0u8; 16 * 1024]).unwrap());
+        assert!(buffer.data.is_empty());
+    }
+    let final_network_chunk: Vec<u8> = (0..64).collect();
+    assert!(buffer.push(&final_network_chunk).unwrap());
+    let (bytes, eof) = buffer.finish().unwrap();
+    assert_eq!(bytes, final_network_chunk[3..20]);
+    assert!(!eof);
+    let mut final_range = RangeBuffer::new(3, 100);
+    assert!(!final_range.push(b"prefix and end").unwrap());
+    let (bytes, eof) = final_range.finish().unwrap();
+    assert_eq!(bytes, b"fix and end");
+    assert!(eof);
+}

@@ -7,6 +7,48 @@ use runtime_extension_sdk::{
     NotificationReceivedAttachment,
 };
 const CDN_BASE: &str = "https://novac2c.cdn.weixin.qq.com";
+/// Bounded collection for a CDN edge which returns the whole HTTP 200 body.
+/// Prefix bytes are discarded as they arrive; a suffix byte proves this is not EOF.
+pub(super) struct RangeBuffer {
+    start: u64,
+    end_exclusive: u64,
+    position: u64,
+    data: Vec<u8>,
+    has_suffix: bool,
+}
+impl RangeBuffer {
+    pub(super) fn new(start: u64, end: u64) -> Self {
+        Self {
+            start,
+            end_exclusive: end + 1,
+            position: 0,
+            data: Vec::new(),
+            has_suffix: false,
+        }
+    }
+    /// True means enough ciphertext has arrived and the response can be dropped.
+    pub(super) fn push(&mut self, chunk: &[u8]) -> Result<bool, ProviderError> {
+        let previous = self.position;
+        self.position = previous
+            .checked_add(chunk.len() as u64)
+            .ok_or(ProviderError::Malformed)?;
+        let first = self.start.max(previous);
+        let last = self.end_exclusive.min(self.position);
+        if last > first {
+            self.data
+                .extend_from_slice(&chunk[(first - previous) as usize..(last - previous) as usize]);
+        }
+        self.has_suffix = self.position > self.end_exclusive;
+        Ok(self.has_suffix)
+    }
+    pub(super) fn finish(self) -> Result<(Vec<u8>, bool), ProviderError> {
+        if self.position <= self.start {
+            return Err(ProviderError::Malformed);
+        }
+        Ok((self.data, !self.has_suffix))
+    }
+}
+
 pub(super) fn trusted_cdn_base(raw: &str) -> Result<reqwest::Url, ProviderError> {
     let url = trusted_base(raw)?;
     if url.host_str() != Some("novac2c.cdn.weixin.qq.com") {

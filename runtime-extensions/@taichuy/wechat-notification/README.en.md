@@ -32,7 +32,7 @@ Download references stay private to Host; they contain provider attachment ident
 
 The provider encrypts media with AES-128-ECB and PKCS#7 padding. The plugin uses the already locked `aws-lc-rs` **1.16.3** as a direct dependency; no new third-party package is introduced. It accepts the provider's base64 raw-key and base64 hex-key encodings. ECB is not authenticated encryption; the implementation checks HTTPS, ciphertext block alignment, final padding, HTTP Content-Range and declared plaintext length when supplied. The protocol supplies no authenticated media digest, so these checks cannot prove origin integrity independently of HTTPS.
 
-Host requests byte offsets and at most 48 KiB of decoded plaintext per call. CDN Range requests include aligned AES blocks and one lookahead block, so padding is removed only at the actual file end. There is no total-file-size cap and no whole-file buffering. A CDN which ignores Range is rejected rather than silently redownloading and buffering a large file; live CDN Range interoperability still requires account-backed validation.
+Host requests byte offsets and at most 48 KiB of decoded plaintext per call. CDN Range requests include aligned AES blocks and one lookahead block, so padding is removed only at the actual file end. There is no total-file-size cap and no whole-file buffering. When a CDN ignores Range and returns HTTP 200, the plugin streams and discards the prefix, retaining only the requested blocks and stopping after a suffix byte proves there is more content. This avoids a file-size limit but re-downloads the prefix for later chunks; real CDN interoperability and performance still require account-backed validation.
 
 ## Validation and source evidence
 
