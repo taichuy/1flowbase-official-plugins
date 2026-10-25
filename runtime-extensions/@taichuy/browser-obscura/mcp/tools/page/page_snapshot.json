@@ -37,20 +37,7 @@
     "type": "object",
     "properties": {
       "success": {
-        "type": "boolean"
-      },
-      "error": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "additionalProperties": false
+        "const": true
       },
       "browser_id": {
         "type": "string",
@@ -107,36 +94,16 @@
       }
     },
     "required": [
-      "success"
+      "success",
+      "browser_id",
+      "tab_id",
+      "snapshot_id",
+      "title",
+      "url",
+      "text",
+      "elements"
     ],
-    "additionalProperties": false,
-    "allOf": [
-      {
-        "if": {
-          "properties": {
-            "success": {
-              "const": true
-            }
-          }
-        },
-        "then": {
-          "required": [
-            "browser_id",
-            "tab_id",
-            "snapshot_id",
-            "title",
-            "url",
-            "text",
-            "elements"
-          ]
-        },
-        "else": {
-          "required": [
-            "error"
-          ]
-        }
-      }
-    ]
+    "additionalProperties": false
   },
   "input_mapping": {
     "mappings": [

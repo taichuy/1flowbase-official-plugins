@@ -31,6 +31,7 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
     const body = method === 'GET' || method === 'DELETE' ? undefined : request.postDataJSON();
     calls.push({ operation, method, body, query: Object.fromEntries(url.searchParams) });
     let result;
+    let status = 200;
     if (operation === '/browsers' && method === 'GET') {
       const currentPage = Number(url.searchParams.get('page'));
       const page_size = Number(url.searchParams.get('page_size'));
@@ -91,7 +92,8 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
           assert.equal(parts[4], 'screenshot'); assert.equal(method, 'POST'); assert.deepEqual(body, {});
           if (failScreenshot) {
             failScreenshot = false;
-            result = { success: false, error: { code: 'navigation_timeout', message: 'PRIVATE_ENGINE_DETAIL_TOKEN' } };
+            status = 422;
+            result = { code: 'navigation_timeout', message: 'PRIVATE_ENGINE_DETAIL_TOKEN' };
           } else result = {
             success: true, data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZeEAAAAASUVORK5CYII=', mime_type: 'image/png',
             metadata: { browser_id, tab_id, url: tab.url, title: tab.title, width: 1, height: 1 },
@@ -99,7 +101,7 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
         }
       }
     }
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ data: result }) });
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(status === 200 ? { data: result } : result) });
   };
   await page.route(`**${prefix}/**`, handler);
   const actions = id => page.getByTestId(`browser-actions-${id}`);

@@ -49,11 +49,13 @@ impl Service {
             .map_err(|_| "deadline_exceeded")?
         }
         .await;
-        let output = match result {
-            Ok(output) => output,
-            Err(code) => json!({"success":false,"error":{"code":code}}),
-        };
-        json!({"ok":true,"result":output})
+        match result {
+            Ok(output) => json!({"ok":true,"result":output}),
+            // Use the Host's CapabilityStdioResponse failure path before any
+            // HTTP/MCP success-output mapping (for example screenshot /data).
+            // Codes are static safe identifiers; page/provider messages stay private.
+            Err(code) => json!({"ok":false,"error":{"message":code}}),
+        }
     }
     fn authorize(&self, c: &CallContext) -> Result<()> {
         if c.actor_id.trim().is_empty() || c.workspace_id.trim().is_empty() {

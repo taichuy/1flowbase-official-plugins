@@ -30,6 +30,8 @@ browsers_create → tabs_create → page_snapshot
 
 管理页支持实例搜索、分页、创建、关闭、标签页详情、导航和截图。截图通过 HTTP 返回完整 PNG 数据，通过 MCP 映射为原生 image 内容及独立元数据。
 
+业务失败走宿主标准 HTTP 422 错误响应，稳定错误码位于 `code`；MCP 保留为 `target_code`，不会误当截图数据或自动重放操作。
+
 ## 可编辑 MCP 示例
 
 `mcp/` 是标准 `1flowbase.mcp.bundle/v2` 目录，包含带校验值的 manifest、tools 和 instances。示例使用独立 `browser_obscura_example` 身份与工具 ID，不覆盖自动创建的默认实例。修改文件后需重新生成对应 SHA-256。

@@ -5,8 +5,7 @@ import { request } from '@1flowbase/plugin-settings';
 
 type BrowserSummary = { browser_id: string; name: string; status: 'running'; created_at_unix_ms: number; last_activity_at_unix_ms: number; tab_count: number; idle_timeout_ms: number };
 type TabSummary = { browser_id: string; tab_id: string; title: string; url: string; status: 'ready' | 'loading' | 'failed'; snapshot_id: string | null };
-type Failure = { success: false; error: { code: string; message?: string } };
-type Result<T = object> = ({ success: true } & T) | Failure;
+type Result<T = object> = { success: true } & T;
 type BrowserList = { items: BrowserSummary[]; page: number; page_size: number; total: number };
 type Detail = { browser: BrowserSummary; tabs: TabSummary[] };
 type Screenshot = { data: string; mime_type: 'image/png'; metadata: { browser_id: string; tab_id: string; url: string; title: string; width: number; height: number } };
@@ -87,12 +86,17 @@ export default function BrowserObscuraSettingsPage({ ctx }: { ctx: { ui: { local
     setBusy(true);
     if (!quiet) { setError(undefined); setNotice(undefined); }
     try {
-      const result = await action(active.signal);
+      await action(active.signal);
       if (!mounted.current || active.signal.aborted) return;
-      if (!result.success) { setError(result.error.code); setNotice(undefined); }
-      else if (success) { setNotice(success); setError(undefined); }
-    } catch {
-      if (mounted.current && !active.signal.aborted) { setError('request_failed'); setNotice(undefined); }
+      if (success) { setNotice(success); setError(undefined); }
+    } catch (failure) {
+      if (mounted.current && !active.signal.aborted) {
+        // The host request bridge rejects non-2xx responses with ApiClientError.code.
+        // Use only its structured code; messages and response bodies are not product copy.
+        const code = failure !== null && typeof failure === 'object' && 'code' in failure && typeof failure.code === 'string'
+          ? failure.code : 'request_failed';
+        setError(code); setNotice(undefined);
+      }
     } finally {
       if (controller.current === active) {
         controller.current = null;
@@ -119,7 +123,7 @@ export default function BrowserObscuraSettingsPage({ ctx }: { ctx: { ui: { local
   }
   async function refresh(signal: AbortSignal) {
     const result = await loadList(signal, mobile ? 1 : list.page);
-    if (!result.success || !browser_id) return result;
+    if (!browser_id) return result;
     return loadDetail(signal, browser_id);
   }
   useEffect(() => {
@@ -148,11 +152,9 @@ export default function BrowserObscuraSettingsPage({ ctx }: { ctx: { ui: { local
     tabForm.resetFields();
   }
   async function updateTabs(signal: AbortSignal, action: () => Promise<Result>, successBrowserId: string) {
-    const result = await action();
-    if (!result.success) return result;
+    await action();
     if (mounted.current && !signal.aborted) setScreenshot(undefined);
-    const updated = await loadDetail(signal, successBrowserId);
-    if (!updated.success) return updated;
+    await loadDetail(signal, successBrowserId);
     return loadList(signal, mobile ? 1 : list.page);
   }
   const formatDate = (value: unknown) => new Date(Number(value)).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US');
@@ -170,8 +172,7 @@ export default function BrowserObscuraSettingsPage({ ctx }: { ctx: { ui: { local
         void run(signal => loadDetail(signal, browser.browser_id));
       }}>{t.details}</Button>
       <Popconfirm title={t.closeBrowserConfirm} okText={t.closeBrowser} cancelText={t.cancel} disabled={busy} onConfirm={() => run(async signal => {
-        const result = await call<{ closed: true }>(browserPath(browser.browser_id), 'DELETE', signal);
-        if (!result.success) return result;
+        await call<{ closed: true }>(browserPath(browser.browser_id), 'DELETE', signal);
         return loadList(signal, mobile ? 1 : (list.items.length === 1 && list.page > 1 ? list.page - 1 : list.page));
       }, 'closed')}><Button danger disabled={busy} style={touchStyle}>{t.closeBrowser}</Button></Popconfirm>
     </Space> },
@@ -206,8 +207,7 @@ export default function BrowserObscuraSettingsPage({ ctx }: { ctx: { ui: { local
       <Form form={createForm} name="browser_obscura_create" layout="vertical" disabled={busy} onFinish={values => void run(async signal => {
         const body: { name: string; idle_timeout_ms?: number } = { name: values.name.trim() };
         if (values.idle_timeout_ms != null) body.idle_timeout_ms = values.idle_timeout_ms;
-        const result = await call<{ browser: BrowserSummary }>('/browsers', 'POST', signal, body);
-        if (!result.success) return result;
+        await call<{ browser: BrowserSummary }>('/browsers', 'POST', signal, body);
         if (mounted.current && !signal.aborted) { setCreateOpen(false); createForm.resetFields(); }
         return loadList(signal, 1);
       }, 'created')}>

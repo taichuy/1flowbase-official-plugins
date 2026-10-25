@@ -30,6 +30,8 @@ Browsers expire when idle; creation accepts `idle_timeout_ms`, with the service 
 
 The console supports search, pagination, creation, closure, tab details, navigation, and screenshots. HTTP returns complete PNG data; MCP delivers native image content with separate metadata.
 
+Business failures use the host’s standard HTTP 422 response with a stable `code`; MCP preserves it as `target_code` without treating errors as images or replaying the operation.
+
 ## Editable MCP example
 
 The `mcp/` directory is a standard `1flowbase.mcp.bundle/v2` bundle containing a checksummed manifest, tools, and instances. It uses separate `browser_obscura_example` identifiers so it does not overwrite the generated default instance. Recompute file SHA-256 values after editing files.

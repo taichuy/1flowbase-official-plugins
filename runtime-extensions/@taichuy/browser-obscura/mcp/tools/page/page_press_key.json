@@ -53,20 +53,7 @@
     "type": "object",
     "properties": {
       "success": {
-        "type": "boolean"
-      },
-      "error": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "additionalProperties": false
+        "const": true
       },
       "tab": {
         "type": "object",
@@ -114,30 +101,10 @@
       }
     },
     "required": [
-      "success"
+      "success",
+      "tab"
     ],
-    "additionalProperties": false,
-    "allOf": [
-      {
-        "if": {
-          "properties": {
-            "success": {
-              "const": true
-            }
-          }
-        },
-        "then": {
-          "required": [
-            "tab"
-          ]
-        },
-        "else": {
-          "required": [
-            "error"
-          ]
-        }
-      }
-    ]
+    "additionalProperties": false
   },
   "input_mapping": {
     "mappings": [

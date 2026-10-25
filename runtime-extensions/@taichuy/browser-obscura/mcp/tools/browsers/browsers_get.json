@@ -25,20 +25,7 @@
     "type": "object",
     "properties": {
       "success": {
-        "type": "boolean"
-      },
-      "error": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "additionalProperties": false
+        "const": true
       },
       "browser": {
         "type": "object",
@@ -135,31 +122,11 @@
       }
     },
     "required": [
-      "success"
+      "success",
+      "browser",
+      "tabs"
     ],
-    "additionalProperties": false,
-    "allOf": [
-      {
-        "if": {
-          "properties": {
-            "success": {
-              "const": true
-            }
-          }
-        },
-        "then": {
-          "required": [
-            "browser",
-            "tabs"
-          ]
-        },
-        "else": {
-          "required": [
-            "error"
-          ]
-        }
-      }
-    ]
+    "additionalProperties": false
   },
   "input_mapping": {
     "mappings": [
