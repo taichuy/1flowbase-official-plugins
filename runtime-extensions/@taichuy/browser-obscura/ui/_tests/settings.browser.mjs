@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 /** Central QA owns authentication, extension installation, services, and viewport.
  * Exercise the real mounted settings component through the real request bridge,
  * replacing only this plugin's HTTP responses. Run once per desktop/mobile viewport.
+ * Supply setHostLocale so locale changes also work while the Drawer covers the shell menu.
  */
 export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {}) {
   const prefix = '/api/console/managed-services/browser-obscura';
@@ -19,10 +20,8 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
   let failScreenshot = true;
   const languageMenu = page.locator('.app-shell-language-menu');
   const originalLocale = (await languageMenu.locator('.app-shell-language-label').innerText()) === '中' ? 'zh_Hans' : 'en_US';
-  const switchLocale = setHostLocale ?? (async locale => {
-    await languageMenu.getByRole('menuitem').first().hover();
-    await page.getByRole('menuitem', { name: locale === 'en_US' ? 'English' : /^(Chinese|简体中文)$/, exact: true }).click();
-  });
+  assert.equal(typeof setHostLocale, 'function', 'Central QA supplies the host locale adapter');
+  const switchLocale = setHostLocale;
   const handler = async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -126,10 +125,10 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
     } else {
       // The shared mobile list supports both intersection loading and an explicit button.
       const more = settings.locator('.data-table-mobile__pagination button');
-      if (await more.count()) await more.click();
+      await more.waitFor(); await more.click(); await settings.locator('.data-table-mobile__viewport').evaluate(e=>{for(const x of e.querySelectorAll('*'))if(x.scrollHeight>x.clientHeight+50&&getComputedStyle(x).overflowY!=='visible'){x.scrollTop=x.scrollHeight;x.dispatchEvent(new Event('scroll'));}});
       await actions('existing-20').waitFor();
     }
-    const search = settings.getByRole('textbox', { name: 'Search browsers', exact: true });
+    const search = settings.getByRole('searchbox', { name: 'Search browsers', exact: true });
     await search.fill('AI browser 00'); await search.press('Enter');
     await actions('existing-1').waitFor({ state: 'hidden' });
     await actions('existing-0').waitFor();
@@ -142,9 +141,9 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
     await create.getByLabel('Idle timeout (milliseconds)', { exact: true }).fill('120000');
     await create.getByRole('button', { name: 'Create browser', exact: true }).click();
     await create.waitFor({ state: 'hidden' });
-    await settings.getByText('Browser created', { exact: true }).waitFor();
+    await settings.getByText('Browser created', { exact: true }).waitFor(); if((page.viewportSize()?.width??1280)<768) await settings.locator('.data-table-mobile__viewport').evaluate(e=>{for(const x of e.querySelectorAll('*'))if(x.scrollHeight>x.clientHeight+50&&getComputedStyle(x).overflowY!=='visible'){x.scrollTop=0;x.dispatchEvent(new Event('scroll'));}});
     await actions('created-browser').getByRole('button', { name: 'View details', exact: true }).click();
-    const detail = dialog('Browser details');
+    const detail = page.getByRole('dialog').last();
     await detail.getByText('No tabs. Create one to start browsing.', { exact: true }).waitFor();
     await detail.getByLabel('Initial URL (optional)', { exact: true }).fill('https://example.com/');
     await detail.getByRole('button', { name: 'Create tab', exact: true }).click();
@@ -173,10 +172,10 @@ export async function exerciseBrowserObscuraSettings(page, { setHostLocale } = {
     await detail.waitFor({ state: 'hidden' });
     await actions('created-browser').getByRole('button', { name: 'Close browser', exact: true }).click();
     await confirm('Close browser');
-    await settings.getByText('Browser closed', { exact: true }).waitFor();
+    await settings.getByText('Browser closed', { exact: true }).first().waitFor();
     assert.equal(await actions('created-browser').count(), 0);
     await settings.getByRole('button', { name: 'Refresh', exact: true }).click();
-    await settings.getByText('Refreshed', { exact: true }).waitFor();
+    await settings.getByText('Refreshed', { exact: true }).first().waitFor();
     await page.goto(new URL('/settings/mcp-management', page.url()).toString());
     assert.equal(calls.filter(call => call.method === 'DELETE' && /^\/browsers\/existing-/.test(call.operation)).length, 0, 'Unmount must keep existing browsers alive');
     assert.ok(calls.some(call => call.query.page === '2'), 'Desktop pagination / mobile load more must reach the backend');
