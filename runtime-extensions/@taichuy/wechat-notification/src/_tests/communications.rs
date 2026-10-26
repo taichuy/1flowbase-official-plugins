@@ -355,11 +355,45 @@ fn receive_descriptor_declares_progressive_host_tools_and_no_secret_cursor() {
     let receive = descriptor.receive.unwrap();
     assert!(receive.default_system_prompt.contains("final reply"));
     assert_eq!(receive.mcp_tools.len(), 3);
+    for instruction in [
+        "file message.id as message_id",
+        "at most 5 real messages",
+        "default limit of 5",
+        "newer to older messages",
+        "next_cursor unchanged as cursor",
+        "type (text or file)",
+        "direction (inbound or outbound)",
+    ] {
+        assert!(receive.default_system_prompt.contains(instruction));
+    }
+    assert!(!receive.default_system_prompt.contains("attachment_id"));
+    for tool in &receive.mcp_tools {
+        assert!(!tool.input_schema.to_string().contains("attachment_id"));
+    }
+    let read_file = receive
+        .mcp_tools
+        .iter()
+        .find(|tool| tool.name == "read_file")
+        .unwrap();
+    assert_eq!(read_file.input_schema["required"], json!(["message_id"]));
+    assert_eq!(
+        read_file.input_schema["properties"]["message_id"]["format"],
+        "uuid"
+    );
+    assert_eq!(read_file.input_schema["additionalProperties"], false);
     for tool in receive
         .mcp_tools
         .iter()
         .filter(|tool| tool.name.starts_with("history_"))
     {
+        let properties = &tool.input_schema["properties"];
+        assert_eq!(properties["limit"]["minimum"], 1);
+        assert_eq!(properties["limit"]["maximum"], 5);
+        assert_eq!(properties["limit"]["default"], 5);
+        assert!(properties["cursor"]["description"]
+            .as_str()
+            .unwrap()
+            .contains("next earlier page of real messages"));
         assert_eq!(
             tool.input_schema["properties"]["conversation_id"]["format"],
             "uuid"

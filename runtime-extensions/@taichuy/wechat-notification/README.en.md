@@ -2,7 +2,7 @@
 
 [简体中文](README.md)
 
-Version 2.0.0 is a breaking communications upgrade. The same QR-bound WeChat user can send texts and files, and receive the Agent Flow's final text reply. The plugin contributes distinct `1flowbase.notification.send` and `1flowbase.notification.receive` capabilities. It owns Tencent iLink protocol adaptation; Host owns continuous polling, durable inbox deduplication, cursor commits, selected file-table imports, Agent Flow execution and final-reply delivery.
+Version 3.0.0 is a breaking communications upgrade: `read_file` now takes a file message’s `message_id`, and history tools default to and allow at most 5 real messages per page. Upgrade Host to the unified communications timeline contract first. The same QR-bound WeChat user can send texts and files, and receive the Agent Flow's final text reply. The plugin contributes distinct `1flowbase.notification.send` and `1flowbase.notification.receive` capabilities. It owns Tencent iLink protocol adaptation; Host owns continuous polling, durable inbox deduplication, cursor commits, selected file-table imports, Agent Flow execution and final-reply delivery.
 
 ## Configure
 
@@ -10,7 +10,7 @@ Version 2.0.0 is a breaking communications upgrade. The same QR-bound WeChat use
 2. Create a channel of type `1flowbase/wechat-notification/private`. Select its Agent Flow and file table. The plugin's provider configuration is empty; credentials stay Host-managed.
 3. Begin authorization with action `qr`, scan and confirm in WeChat. Host polls authorization until `authorized`; restart if the QR expires. Incoming messages and replies remain restricted to the scanner. Other senders cannot rebind this private channel.
 4. Enable the channel. Host continuously runs bounded Receive calls, even when the settings page is closed. Incoming text and image, voice, document and video attachments become durable inbox records. Host downloads attachments into the selected file table before invoking the configured Agent Flow; it delivers only the final reply.
-5. Host provisions a separate MCP instance per channel. The plugin declares `history_messages`, `history_files` and `read_file`, plus a default editable system prompt explaining progressive history and file retrieval. Use the session conversation_id for history tools, pass returned next_cursor as cursor for more results, and pass a history_files attachment_id to read_file. IDs are opaque; Host enforces the current conversation and sender scope. Users may configure other MCP tools on their Agent Flow.
+5. Host provisions a separate MCP instance per channel. The plugin declares `history_messages`, `history_files` and `read_file`, plus a default editable system prompt explaining progressive history and file retrieval. Use the session conversation_id for history tools, pass returned next_cursor as cursor for more results, and paginate from newer to older messages. Each page defaults to and allows at most 5 real messages. history_messages returns text and file messages; history_files returns file messages. Both expose `id`, `type` (text/file) and `direction` (inbound/outbound). Pass a file message’s `id` as `message_id` to read_file, which returns the typed `message` and file content. IDs are opaque; Host enforces the current conversation and sender scope. Users may configure other MCP tools on their Agent Flow.
 
 ## Cursor and reply window
 
