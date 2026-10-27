@@ -8,35 +8,35 @@ import { detectVersionReleases } from '../detect-version-releases.mjs';
 const repoRoot = path.resolve(import.meta.dirname, '..', '..');
 
 const notificationManifest = (version) => `manifest_version: 2
-plugin_id: wechat-notification
+plugin_id: wechat-chat-channels
 version: ${version}
 consumption_kind: runtime_extension
 slot_codes: []
 notification_types:
-  - type_code: 1flowbase/wechat-notification/private
+  - type_code: 1flowbase/wechat-chat-channels/private
 managed:
   module: {}
 `;
 
 test('managed notification runtime releases without a model provider slot', () => {
   const releases = detectVersionReleases([{
-    path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml',
+    path: 'runtime-extensions/@taichuy/wechat-chat-channels/manifest.yaml',
     beforeContent: '',
     afterContent: notificationManifest('1.0.0'),
   }]);
   assert.deepEqual(releases, [{
-    plugin_dir: 'runtime-extensions/@taichuy/wechat-notification',
-    provider_code: 'wechat-notification',
-    release_tag: 'wechat-notification-v1.0.0',
+    plugin_dir: 'runtime-extensions/@taichuy/wechat-chat-channels',
+    provider_code: 'wechat-chat-channels',
+    release_tag: 'wechat-chat-channels-v1.0.0',
     version: '1.0.0',
   }]);
 });
 
 test('managed notification implementation changes require a version bump', () => {
   assert.throws(() => detectVersionReleases([
-    { path: 'runtime-extensions/@taichuy/wechat-notification/src/lib.rs' },
+    { path: 'runtime-extensions/@taichuy/wechat-chat-channels/src/lib.rs' },
     {
-      path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml',
+      path: 'runtime-extensions/@taichuy/wechat-chat-channels/manifest.yaml',
       beforeContent: notificationManifest('1.0.0'),
       afterContent: notificationManifest('1.0.0'),
     },
@@ -45,7 +45,7 @@ test('managed notification implementation changes require a version bump', () =>
 
 test('empty managed notification declaration does not become a publishable provider', () => {
   const releases = detectVersionReleases([{
-    path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml',
+    path: 'runtime-extensions/@taichuy/wechat-chat-channels/manifest.yaml',
     beforeContent: '',
     afterContent: notificationManifest('1.0.0').replace(/notification_types:\n  - .+/, 'notification_types: []'),
   }]);
@@ -55,10 +55,10 @@ test('empty managed notification declaration does not become a publishable provi
 test('managed notification JSON manifest uses its real version and empty slots', () => {
   const manifest = JSON.stringify({
     manifest_version: 2, version: '1.0.0', consumption_kind: 'runtime_extension',
-    slot_codes: [], notification_types: [{ type_code: '1flowbase/wechat-notification/private' }],
+    slot_codes: [], notification_types: [{ type_code: '1flowbase/wechat-chat-channels/private' }],
     managed: { module: {} },
   });
-  const change = { path: 'runtime-extensions/@taichuy/wechat-notification/manifest.yaml', afterContent: manifest };
+  const change = { path: 'runtime-extensions/@taichuy/wechat-chat-channels/manifest.yaml', afterContent: manifest };
   assert.equal(detectVersionReleases([change])[0].version, '1.0.0');
   assert.throws(() => detectVersionReleases([{ ...change, beforeContent: manifest }]), /version_bump_required/);
   const empty = JSON.stringify({ ...JSON.parse(manifest), notification_types: [] });

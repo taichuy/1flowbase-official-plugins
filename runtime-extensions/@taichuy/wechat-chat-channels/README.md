@@ -1,4 +1,4 @@
-# 微信私聊通讯
+# 微信聊天渠道（wechat-chat-channels）
 
 [English](README.en.md)
 
@@ -6,8 +6,8 @@
 
 ## 配置
 
-1. 先升级到支持通讯 receive/download 契约、持久收件箱和频道 MCP 自动配置的 Host。manifest 中的最低版本不代表这些能力一定存在。安装官方运行时插件 `1flowbase/wechat-notification`，分配到工作区，授权 `notification.send` 和 `notification.receive`。
-2. 创建类型为 `1flowbase/wechat-notification/private` 的频道，选择 Agent Flow 和文件表。插件供应商配置为空，凭证由 Host 管理。
+1. 先升级到支持通讯 receive/download 契约、持久收件箱和频道 MCP 自动配置的 Host。manifest 中的最低版本不代表这些能力一定存在。安装官方运行时插件 `1flowbase/wechat-chat-channels`，分配到工作区，授权 `notification.send` 和 `notification.receive`。
+2. 创建类型为 `1flowbase/wechat-chat-channels/private` 的频道，选择 Agent Flow 和文件表。插件供应商配置为空，凭证由 Host 管理。
 3. 使用 `qr` 操作开始授权，微信扫码并确认。Host 轮询到 `authorized`；二维码过期后重新开始。收件和回复始终限定扫码用户，其他发送者不能改变私聊绑定。
 4. 启用频道。即使关闭设置页，Host 也持续发起有界 Receive 调用。文本、图片、语音、文档和视频附件进入持久收件箱；Host 把附件下载到选定文件表后再调用所选 Agent Flow，仅发送最终回复。
 5. Host 为每个频道创建独立 MCP 实例。插件声明 `history_messages`、`history_files`、`read_file`，提供解释渐进查询历史和文件的默认可编辑系统提示词；历史工具传入会话消息中的 conversation_id，继续查询时将 next_cursor 原样传为 cursor，历史从新到旧分页，每页默认且最多 5 条真实消息；history_messages 返回文本和文件消息，history_files 返回文件消息，均包含 `id`、`type`（text/file）和 `direction`（inbound/outbound）。read_file 使用文件消息的 `id` 作为 `message_id`，返回 typed `message` 及文件内容。ID 为不透明标识；Host 固定当前会话和发送者作用域。用户可以为 Agent Flow 添加其他 MCP。

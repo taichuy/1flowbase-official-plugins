@@ -1,5 +1,5 @@
 use runtime_extension_sdk::serve;
-use wechat_notification::{dispatch, HttpClient};
+use wechat_chat_channels::{dispatch, HttpClient};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

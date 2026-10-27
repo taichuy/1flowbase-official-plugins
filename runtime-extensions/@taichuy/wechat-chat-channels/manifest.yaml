@@ -1,10 +1,10 @@
 manifest_version: 2
 schema_version: 1flowbase.plugin.manifest/v2
-plugin_id: wechat-notification
+plugin_id: wechat-chat-channels
 version: 3.0.0
 publisher_namespace: 1flowbase
 vendor: 1flowbase
-display_name: WeChat private communications
+display_name: WeChat chat channels
 description: Send text to the WeChat user who authorized this instance with a
   Tencent iLink QR code; receive private texts and files through Host-managed polling
 source_kind: official_registry
@@ -25,12 +25,12 @@ permissions:
   subprocess: deny
 runtime:
   protocol: stdio_json_multiplex_v1
-  entry: bin/wechat-notification
+  entry: bin/wechat-chat-channels
 notification_types:
-  - type_code: 1flowbase/wechat-notification/private
+  - type_code: 1flowbase/wechat-chat-channels/private
     display_name: WeChat private communications
     description: Private text and file conversations with the authorizing WeChat user
-    contribution_id: 1flowbase.wechat-notification.send
+    contribution_id: 1flowbase.wechat-chat-channels.send
     i18n:
       zh_Hans:
         display_name: 微信私聊通讯
@@ -91,7 +91,7 @@ notification_types:
         - delivery_id
       additionalProperties: false
     receive:
-      contribution_id: 1flowbase.wechat-notification.receive
+      contribution_id: 1flowbase.wechat-chat-channels.receive
       default_system_prompt: >-
         You are the assistant for this private WeChat conversation. Reply in the user's language.
         Host provides typed timeline messages with id, type (text or file), and direction (inbound or outbound).
@@ -157,43 +157,43 @@ notification_types:
 managed:
   module:
     bus_version: v1
-    module_id: wechat-notification
+    module_id: wechat-chat-channels
     module_version: 3.0.0
     module_kind: runtime
     contributions:
-      - contribution_id: 1flowbase.wechat-notification.receive
-        contributor_module_id: wechat-notification
+      - contribution_id: 1flowbase.wechat-chat-channels.receive
+        contributor_module_id: wechat-chat-channels
         point_id: 1flowbase.notification.receive
         contract_version: 1flowbase.notification/v1
         required_permissions:
           - notification.receive
         mode: append
-      - contribution_id: 1flowbase.wechat-notification.send
-        contributor_module_id: wechat-notification
+      - contribution_id: 1flowbase.wechat-chat-channels.send
+        contributor_module_id: wechat-chat-channels
         point_id: 1flowbase.notification.send
         contract_version: 1flowbase.notification/v1
         required_permissions:
           - notification.send
         mode: append
   execution_bindings:
-    - contribution_id: 1flowbase.wechat-notification.receive
+    - contribution_id: 1flowbase.wechat-chat-channels.receive
       execution_mode: process_per_call
       runtime:
         protocol: stdio_json_multiplex_v1
-        entry: bin/wechat-notification
+        entry: bin/wechat-chat-channels
       handler: receive
       payload:
         kind: notification_receive
-        type_code: 1flowbase/wechat-notification/private
-    - contribution_id: 1flowbase.wechat-notification.send
+        type_code: 1flowbase/wechat-chat-channels/private
+    - contribution_id: 1flowbase.wechat-chat-channels.send
       execution_mode: process_per_call
       runtime:
         protocol: stdio_json_multiplex_v1
-        entry: bin/wechat-notification
+        entry: bin/wechat-chat-channels
       handler: send
       payload:
         kind: notification_type
-        type_code: 1flowbase/wechat-notification/private
+        type_code: 1flowbase/wechat-chat-channels/private
 keywords:
   - wechat
   - weixin

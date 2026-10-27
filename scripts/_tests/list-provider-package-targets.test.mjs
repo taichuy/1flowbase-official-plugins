@@ -80,22 +80,22 @@ function writeManifestV2(root, providerCode, executablePath) {
 
 test('JSON managed notification packages preserve manifest runtime binary and release identity', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'notification-package-target-'));
-  const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', 'wechat-notification');
+  const pluginDir = path.join(root, 'runtime-extensions', '@taichuy', 'wechat-chat-channels');
   fs.mkdirSync(pluginDir, { recursive: true });
   fs.writeFileSync(path.join(pluginDir, 'manifest.yaml'), JSON.stringify({
-    manifest_version: 2, plugin_id: 'wechat-notification', version: '1.0.0',
+    manifest_version: 2, plugin_id: 'wechat-chat-channels', version: '1.0.0',
     vendor: '1flowbase', slot_codes: [], consumption_kind: 'runtime_extension',
-    notification_types: [{ type_code: '1flowbase/wechat-notification/private' }],
-    runtime: { protocol: 'stdio_json_multiplex_v1', entry: 'bin/wechat-notification' },
+    notification_types: [{ type_code: '1flowbase/wechat-chat-channels/private' }],
+    runtime: { protocol: 'stdio_json_multiplex_v1', entry: 'bin/wechat-chat-channels' },
   }));
   assert.deepEqual(readProviderPackageTarget(pluginDir, root, { rustTargetTriple: 'x86_64-pc-windows-msvc' }), {
-    provider_code: 'wechat-notification', plugin_dir: 'runtime-extensions/@taichuy/wechat-notification',
-    binary_name: 'wechat-notification', runtime_binary_name: 'wechat-notification.exe',
+    provider_code: 'wechat-chat-channels', plugin_dir: 'runtime-extensions/@taichuy/wechat-chat-channels',
+    binary_name: 'wechat-chat-channels', runtime_binary_name: 'wechat-chat-channels.exe',
   });
   assert.deepEqual(listProviderReleaseTargets(root), [{
-    asset_plugin_code: 'wechat-notification', asset_vendor: '1flowbase',
-    plugin_dir: 'runtime-extensions/@taichuy/wechat-notification', provider_code: 'wechat-notification',
-    release_tag: 'wechat-notification-v1.0.0', version: '1.0.0',
+    asset_plugin_code: 'wechat-chat-channels', asset_vendor: '1flowbase',
+    plugin_dir: 'runtime-extensions/@taichuy/wechat-chat-channels', provider_code: 'wechat-chat-channels',
+    release_tag: 'wechat-chat-channels-v1.0.0', version: '1.0.0',
   }]);
 });
 

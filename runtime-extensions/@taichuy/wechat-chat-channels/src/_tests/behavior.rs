@@ -112,7 +112,7 @@ fn manifest_has_empty_config_and_private_secret_contract() {
     );
     let descriptor = descriptor();
     descriptor
-        .validate_plugin_namespace("1flowbase", "wechat-notification")
+        .validate_plugin_namespace("1flowbase", "wechat-chat-channels")
         .unwrap();
     assert!(descriptor.validate_config(&json!({})).is_ok());
     assert!(descriptor
