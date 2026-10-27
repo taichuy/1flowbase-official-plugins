@@ -1,7 +1,7 @@
 manifest_version: 2
 schema_version: 1flowbase.plugin.manifest/v2
 plugin_id: wechat-chat-channels
-version: 3.0.0
+version: 3.1.0
 publisher_namespace: 1flowbase
 vendor: 1flowbase
 display_name: WeChat chat channels
@@ -15,7 +15,7 @@ slot_codes: []
 binding_targets:
   - workspace
 selection_mode: assignment_then_select
-minimum_host_version: 0.5.6
+minimum_host_version: 0.5.8
 contract_version: 1flowbase.extension-bus/v1
 permissions:
   network: outbound_only
@@ -90,6 +90,15 @@ notification_types:
         - accepted
         - delivery_id
       additionalProperties: false
+    log:
+      content: /text
+      extra:
+        accepted:
+          source: result
+          pointer: /accepted
+        delivery_id:
+          source: result
+          pointer: /delivery_id
     receive:
       contribution_id: 1flowbase.wechat-chat-channels.receive
       default_system_prompt: >-
@@ -158,7 +167,7 @@ managed:
   module:
     bus_version: v1
     module_id: wechat-chat-channels
-    module_version: 3.0.0
+    module_version: 3.1.0
     module_kind: runtime
     contributions:
       - contribution_id: 1flowbase.wechat-chat-channels.receive

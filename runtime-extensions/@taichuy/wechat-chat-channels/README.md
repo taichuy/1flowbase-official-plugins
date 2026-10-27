@@ -4,6 +4,10 @@
 
 3.0.0 是不兼容升级：`read_file` 改为接收文件消息的 `message_id`，历史工具默认且每页最多返回 5 条真实消息。请先升级到统一通讯时间线契约的 Host。同一位扫码绑定的微信用户可以发送文本和文件，并收到 Agent Flow 的最终文本回复。插件分别贡献 `1flowbase.notification.send` 与 `1flowbase.notification.receive`，负责腾讯 iLink 协议适配；Host 负责持续轮询、持久收件箱去重、游标提交、导入选定文件表、执行 Agent Flow 和发送最终回复。
 
+## 发送日志
+
+3.1.0 通过类型描述的 `log` 声明接入宿主统一发送日志，需要支持该声明的 Host（本次 SDK 固定源码提交见 Cargo.toml）。正文来自业务输入 `/text`，完整保存；没有独立标题时由 Host 取正文前 255 个 Unicode 字符。业务结果 `/accepted` 和 `/delivery_id` 写入 JSON 附属信息。Host 在调用供应商前持久化经校验且不含凭据的消息快照，发送失败仍保留该快照；授权密钥、secret patch 和内部协议不进入日志。旧日志没有保存过的正文不会自动回填。
+
 ## 配置
 
 1. 先升级到支持通讯 receive/download 契约、持久收件箱和频道 MCP 自动配置的 Host。manifest 中的最低版本不代表这些能力一定存在。安装官方运行时插件 `1flowbase/wechat-chat-channels`，分配到工作区，授权 `notification.send` 和 `notification.receive`。
@@ -40,4 +44,4 @@ Mock fixture 覆盖扫码绑定、私聊隔离、重复与重放身份、游标�
 
 协议参考 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent/blob/0e427d788d253630d38a3a51cd76849e73cd6925/gateway/platforms/weixin.py)（MIT，Python；2026-10-25 观察到 256,843 Stars、56,194 forks）。其消息类型映射、AES 密钥编码和 CDN locator 与本任务吻合。本实现适配其协议模式，持久化由 Host 负责，下载使用有界 typed chunk，不复制其整文件下载与游标持久化方式。
 
-SDK git revision 暂保留上一次已发布 pin，由 Root 发布新 Host 契约提交后更新。集中本地验证时临时将 `runtime-extension-sdk` patch 到 assembly 的 `api/crates/runtime-extension-sdk`，不提交本地路径或尚未发布的 git SHA。
+SDK 固定为 `a29f82200efbb3e3b37afc60c9d6a24009d6a9ad`，包含统一发送日志声明；不提交本地依赖路径。

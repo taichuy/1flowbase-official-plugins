@@ -312,3 +312,24 @@ async fn malicious_qr_redirect_and_incomplete_confirmation_do_not_authorize() {
 
 #[path = "communications.rs"]
 mod communications;
+
+#[test]
+fn send_log_mapping_preserves_text_and_only_exposes_business_receipt() {
+    let descriptor = descriptor();
+    descriptor.validate().unwrap();
+    let mapping = descriptor
+        .log
+        .as_ref()
+        .expect("plugin declares send log mapping");
+    let text = "微信😀".repeat(180);
+    let snapshot = mapping.project_input(&json!({"text":text})).unwrap();
+    assert_eq!(snapshot.content, text);
+    assert_eq!(snapshot.title.chars().count(), 255);
+    assert_eq!(snapshot.extra, json!({}));
+    assert_eq!(
+        mapping.project_result(
+            &json!({"accepted":true,"delivery_id":"delivery-1","bot_token":"not-a-public-field"})
+        ),
+        json!({"accepted":true,"delivery_id":"delivery-1"})
+    );
+}

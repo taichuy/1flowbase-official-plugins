@@ -4,6 +4,10 @@
 
 Version 3.0.0 is a breaking communications upgrade: `read_file` now takes a file message’s `message_id`, and history tools default to and allow at most 5 real messages per page. Upgrade Host to the unified communications timeline contract first. The same QR-bound WeChat user can send texts and files, and receive the Agent Flow's final text reply. The plugin contributes distinct `1flowbase.notification.send` and `1flowbase.notification.receive` capabilities. It owns Tencent iLink protocol adaptation; Host owns continuous polling, durable inbox deduplication, cursor commits, selected file-table imports, Agent Flow execution and final-reply delivery.
 
+## Send logs
+
+Version 3.1.0 opts into the Host send log through the type descriptor’s `log` mapping. It requires a Host that supports this declaration; Cargo.toml pins the SDK source revision. The complete body comes from business input `/text`. With no separate title, the Host uses its first 255 Unicode characters. Business result fields `/accepted` and `/delivery_id` become JSON extra information. Before calling the provider, the Host persists the validated message projection after checking for credentials, so a failed attempt retains its message. Authorization secrets, secret patches and runtime envelopes are excluded. Missing content in historical logs is not backfilled.
+
 ## Configure
 
 1. Upgrade Host to a release supporting the communications receive/download contract, durable inbox and channel MCP provisioning. The manifest version floor alone does not guarantee these capabilities. Install the official `1flowbase/wechat-chat-channels` runtime extension, assign it to the workspace and grant `notification.send` and `notification.receive`.
@@ -40,4 +44,4 @@ Mock fixtures cover QR binding, sender isolation, duplicate/replay identities, c
 
 Protocol patterns were checked against [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent/blob/0e427d788d253630d38a3a51cd76849e73cd6925/gateway/platforms/weixin.py) (MIT, Python; 256,843 Stars and 56,194 forks observed 2026-10-25). Its explicit item mapping, AES key encodings and CDN locator flow match this task. The implementation adapts those protocol patterns to Host-owned persistence and bounded typed chunks; it does not copy Hermes's whole-file download or cursor persistence.
 
-The SDK git revision remains the last published pin until Root publishes the new Host contract commit and updates it. For centralized local verification, temporarily patch `runtime-extension-sdk` to the assembly's `api/crates/runtime-extension-sdk`; do not commit a local path or an unpublished git SHA.
+The SDK is pinned to `a29f82200efbb3e3b37afc60c9d6a24009d6a9ad`, which includes the send-log declaration contract. No local dependency paths are committed.
