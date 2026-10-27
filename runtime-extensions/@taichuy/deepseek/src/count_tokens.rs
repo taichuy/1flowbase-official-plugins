@@ -28,6 +28,14 @@ pub(crate) fn count(wire_body: Value) -> Value {
         return provider_estimate(observable_body, unknown_block_count);
     }
 
+    // Only these model IDs have the pinned template/tokenizer provenance. Aliases
+    // and later model families remain estimates, even when all bytes are visible.
+    if !matches!(
+        observable_body.get("model").and_then(Value::as_str),
+        Some("deepseek-v4-pro" | "deepseek-v4-flash")
+    ) {
+        return provider_estimate(observable_body, 0);
+    }
     let Some(rendered_prompt) = render_prompt(&observable_body) else {
         return provider_estimate(observable_body, 0);
     };
@@ -44,13 +52,27 @@ pub(crate) fn count(wire_body: Value) -> Value {
         .get("tools")
         .and_then(Value::as_array)
         .map_or(0, Vec::len) as u64;
+    let unmodeled_count = unmodeled_tool_definition_count
+        + u64::from(
+            observable_body
+                .get("response_format")
+                .is_some_and(|v| !v.is_null()),
+        )
+        + observable_body
+            .get("messages")
+            .and_then(Value::as_array)
+            .map_or(0, |messages| {
+                messages
+                    .iter()
+                    .filter(|m| m.get("reasoning_content").is_some_and(|v| !v.is_null()))
+                    .count()
+            }) as u64;
     json!({
         "operation": "count_tokens",
         "input_tokens": encoding.len() as u64,
-        "method": "deepseek_v4_tokenizer",
-        "coverage": if unmodeled_tool_definition_count == 0 { "complete" } else { "partial" },
-        "unknown_block_count": 0,
-        "unmodeled_tool_definition_count": unmodeled_tool_definition_count,
+        "method": "model_tokenizer",
+        "coverage": if unmodeled_count == 0 { "complete" } else { "partial" },
+        "unknown_block_count": unmodeled_count,
     })
 }
 
@@ -185,6 +207,7 @@ fn provider_estimate(observable_body: Value, unknown_block_count: u64) -> Value 
         "operation": "count_tokens",
         "input_tokens": input_tokens,
         "method": "provider_estimate",
+        "fallback_reason": "capability_unavailable",
         "coverage": if unknown_block_count == 0 { "complete" } else { "partial" },
         "unknown_block_count": unknown_block_count,
     })
@@ -220,6 +243,8 @@ fn is_unknown_media_block(object: &Map<String, Value>) -> bool {
         "file_data",
         "file_id",
         "source",
+        "encrypted_content",
+        "redacted_thinking",
     ];
     if MEDIA_KEYS.iter().any(|key| object.contains_key(*key)) {
         return true;
@@ -253,5 +278,33 @@ mod tests {
         assert_eq!(result["coverage"], "partial");
         assert_eq!(result["unknown_block_count"], 1);
         assert!(result["input_tokens"].as_u64().is_some());
+    }
+    #[test]
+    fn unmodeled_tools_use_the_existing_incomplete_coverage_contract() {
+        let result = count(json!({
+            "model":"deepseek-v4-pro",
+            "messages":[{"role":"user","content":"hello"}],
+            "tools":[{"type":"function","function":{"name":"effect"}}]
+        }));
+        assert_eq!(result["method"], "model_tokenizer");
+        assert_eq!(result["coverage"], "partial");
+        assert_eq!(result["unknown_block_count"], 1);
+        assert!(result.get("unmodeled_tool_definition_count").is_none());
+    }
+
+    #[test]
+    fn template_scope_and_unmodeled_reasoning_are_explicit() {
+        let alias = count(json!({"model":"deepseek/deepseek-v4.1-flash",
+            "messages":[{"role":"user","content":"hello"}]}));
+        assert_eq!(alias["method"], "provider_estimate");
+        assert_eq!(alias["fallback_reason"], "capability_unavailable");
+        let reasoning = count(json!({"model":"deepseek-v4-pro",
+            "messages":[{"role":"assistant","content":"hello","reasoning_content":"thinking"}],
+            "response_format":{"type":"json_object"}}));
+        assert_eq!(reasoning["coverage"], "partial");
+        assert_eq!(reasoning["unknown_block_count"], 2);
+        let opaque = count(json!({"model":"deepseek-v4-pro", "messages":[{
+            "role":"assistant", "content":[{"type":"reasoning", "encrypted_content":"opaque"}]}]}));
+        assert_eq!(opaque["coverage"], "partial");
     }
 }

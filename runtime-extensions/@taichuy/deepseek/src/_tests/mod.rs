@@ -3,3 +3,5 @@ mod dsml_stream;
 mod network_egress_handoff;
 mod stream_termination;
 mod tool_choice;
+
+mod upstream_error;

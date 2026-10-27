@@ -14,6 +14,7 @@ use serde_json::{json, Map, Value};
 mod count_tokens;
 mod dsml;
 mod tool_choice;
+mod upstream_error;
 
 #[cfg(test)]
 mod _tests;
@@ -1248,31 +1249,13 @@ where
             .await
             .with_context(|| "provider error response was not readable")?;
         let payload = serde_json::from_str::<Value>(&text).unwrap_or(Value::Null);
-        let message = provider_error_message(&payload).replace(api_key, "***");
-        let error = ProviderStreamEvent::Error {
-            error: ProviderRuntimeError {
-                kind: "provider_upstream_error".to_string(),
-                message,
-                provider_summary: None,
-                provider_details: Some(json!({
-                    "status_code": status.as_u16(),
-                    "error_type": provider_error_type(&payload),
-                })),
-            },
-        };
+        let error = upstream_error::event(&payload, &text, api_key, status.as_u16(), false);
         on_event(&error)?;
-        return Ok(RuntimeInvocationEnvelope {
-            events: vec![error],
-            result: ProviderInvocationResult {
-                final_content: None,
-                response_id: None,
-                tool_calls: Vec::new(),
-                mcp_calls: Vec::new(),
-                usage: ProviderUsage::default(),
-                finish_reason: Some(ProviderFinishReason::Error),
-                provider_metadata: json!({}),
-            },
-        });
+        return Ok(upstream_error::finish(
+            vec![error],
+            ProviderUsage::default(),
+            false,
+        ));
     }
 
     let mut stream = response
@@ -1344,7 +1327,7 @@ where
                 stream_termination = StreamTermination::Done;
             }
             let event_start = events.len();
-            process_sse_line(
+            let upstream_failure = process_sse_line(
                 &line,
                 &mut events,
                 &mut text,
@@ -1358,6 +1341,12 @@ where
                 &mut created,
                 &mut system_fingerprint,
             )?;
+            if let Some((payload, raw)) = upstream_failure {
+                let error = upstream_error::event(&payload, &raw, api_key, status.as_u16(), true);
+                on_event(&error)?;
+                events.push(error);
+                return Ok(upstream_error::finish(events, usage, true));
+            }
             emit_new_events(&events, event_start, on_event)?;
         }
     }
@@ -1368,7 +1357,7 @@ where
             stream_termination = StreamTermination::Done;
         }
         let event_start = events.len();
-        process_sse_line(
+        let upstream_failure = process_sse_line(
             &line,
             &mut events,
             &mut text,
@@ -1382,6 +1371,12 @@ where
             &mut created,
             &mut system_fingerprint,
         )?;
+        if let Some((payload, raw)) = upstream_failure {
+            let error = upstream_error::event(&payload, &raw, api_key, status.as_u16(), true);
+            on_event(&error)?;
+            events.push(error);
+            return Ok(upstream_error::finish(events, usage, true));
+        }
         emit_new_events(&events, event_start, on_event)?;
     }
 
@@ -1541,17 +1536,20 @@ fn process_sse_line(
     response_id: &mut Value,
     created: &mut Value,
     system_fingerprint: &mut Value,
-) -> Result<()> {
+) -> Result<Option<(Value, String)>> {
     let line = line.trim();
     if line.is_empty() || line.starts_with(':') || !line.starts_with("data:") {
-        return Ok(());
+        return Ok(None);
     }
     let data = line.trim_start_matches("data:").trim();
     if data.is_empty() || data == "[DONE]" {
-        return Ok(());
+        return Ok(None);
     }
     let payload: Value =
         serde_json::from_str(data).with_context(|| "provider returned invalid SSE JSON")?;
+    if payload.get("error").is_some_and(|error| !error.is_null()) {
+        return Ok(Some((payload, data.to_owned())));
+    }
     process_stream_payload(
         &payload,
         events,
@@ -1566,7 +1564,7 @@ fn process_sse_line(
         created,
         system_fingerprint,
     );
-    Ok(())
+    Ok(None)
 }
 
 #[allow(clippy::too_many_arguments)]
