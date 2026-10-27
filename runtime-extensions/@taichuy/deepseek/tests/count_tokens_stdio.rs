@@ -30,9 +30,16 @@ async fn count_tokens_stdio_matches_deepseek_v4_text_fixture() {
 
     assert!(response.ok);
     assert_eq!(response.result["operation"], "count_tokens");
-    assert_eq!(response.result["method"], "deepseek_v4_tokenizer");
+    assert_eq!(response.result["method"], "model_tokenizer");
     assert_eq!(response.result["coverage"], "complete");
-    assert_eq!(response.result["input_tokens"], 7);
+    // The host denies unknown fields and only accepts canonical method names.
+    assert_eq!(
+        response.result,
+        json!({
+            "operation":"count_tokens", "input_tokens":7, "method":"model_tokenizer",
+            "coverage":"complete", "unknown_block_count":0
+        })
+    );
 }
 
 #[tokio::test]
@@ -72,7 +79,7 @@ async fn count_tokens_stdio_matches_deepseek_v4_tool_history_fixture() {
     .expect("CountTokens must return one result");
 
     assert!(response.ok);
-    assert_eq!(response.result["method"], "deepseek_v4_tokenizer");
+    assert_eq!(response.result["method"], "model_tokenizer");
     assert_eq!(response.result["coverage"], "complete");
     assert_eq!(response.result["input_tokens"], 27);
 }
