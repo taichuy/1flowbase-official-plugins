@@ -269,6 +269,33 @@ export function buildModelPricingCatalog({
     }),
   };
   const searchBytes = json(search);
+  // Keep search transfers bounded too. Each shard owns complete catalog pages.
+  const searchShards = [];
+  for (const page of pages) {
+    if (page.document.rules.length === 0) continue;
+    let shard = searchShards.at(-1);
+    if (!shard || shard.entries.length + page.document.rules.length > 100) {
+      shard = { pages: [], entries: [] };
+      searchShards.push(shard);
+    }
+    shard.pages.push(page.page);
+    shard.entries.push(...search.entries.filter(entry => entry.catalog_page.page === page.page));
+  }
+  const shardDocuments = searchShards.map((shard, position) => {
+    const document = { ...search, entries: shard.entries };
+    const bytes = json(document);
+    return {
+      reference: {
+        schema_version: MODEL_PRICING_SEARCH_SCHEMA_VERSION,
+        entry_count: shard.entries.length,
+        checksum: sha256(bytes),
+        locator: rawUrl(rawBaseUrl, `model-pricing/catalog/v1/search/${position + 1}.json`),
+        provider_codes: [...new Set(shard.entries.map(entry => entry.provider_code))].sort(compareText),
+        pages: shard.pages,
+      },
+      filePath: path.join(paths.catalogRoot, 'search', `${position + 1}.json`), bytes,
+    };
+  });
   const index = {
     schema_version: MODEL_PRICING_INDEX_SCHEMA_VERSION,
     catalog_version: metadata.catalog_version,
@@ -283,6 +310,7 @@ export function buildModelPricingCatalog({
       checksum: sha256(searchBytes),
       locator: rawUrl(rawBaseUrl, 'model-pricing/catalog/v1/search-index.json'),
     },
+    search_shards: shardDocuments.map(shard => shard.reference),
     pages: pages.map(({ page, cursor, rule_count, checksum, locator }) => ({
       page, cursor, rule_count, checksum, locator,
     })),
@@ -294,7 +322,7 @@ export function buildModelPricingCatalog({
     source_fingerprint: fingerprint,
     rules: stateRules,
   };
-  return { paths, aggregate, index, pages, search, searchBytes, state };
+  return { paths, aggregate, index, pages, search, searchBytes, shardDocuments, state };
 }
 
 function expectedFiles(catalog) {
@@ -306,6 +334,7 @@ function expectedFiles(catalog) {
     [catalog.paths.searchIndexPath, catalog.searchBytes],
     [catalog.paths.statePath, json(catalog.state)],
     ...catalog.pages.map((page) => [page.filePath, page.bytes]),
+    ...catalog.shardDocuments.map(shard => [shard.filePath, shard.bytes]),
   ]);
 }
 
@@ -326,6 +355,17 @@ export function updateModelPricingCatalog(options = {}) {
     for (const entry of fs.readdirSync(catalog.paths.pagesRoot, { withFileTypes: true })) {
       const filePath = path.join(catalog.paths.pagesRoot, entry.name);
       if (entry.isFile() && /^\d+\.json$/.test(entry.name) && !expectedPages.has(path.resolve(filePath))) {
+        changedFiles.push(filePath);
+        if (!options.check) fs.unlinkSync(filePath);
+      }
+    }
+  }
+  const searchRoot = path.join(catalog.paths.catalogRoot, 'search');
+  if (fs.existsSync(searchRoot)) {
+    const expectedShards = new Set(catalog.shardDocuments.map(shard => path.resolve(shard.filePath)));
+    for (const entry of fs.readdirSync(searchRoot, { withFileTypes: true })) {
+      const filePath = path.join(searchRoot, entry.name);
+      if (entry.isFile() && /^\d+\.json$/.test(entry.name) && !expectedShards.has(path.resolve(filePath))) {
         changedFiles.push(filePath);
         if (!options.check) fs.unlinkSync(filePath);
       }

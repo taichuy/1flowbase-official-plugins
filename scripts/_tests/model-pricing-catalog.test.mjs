@@ -79,6 +79,18 @@ function shaForTest(bytes) {
   return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
 }
 
+test('search shards cover every identity and page once and declare their exact providers', () => {
+  const published = buildModelPricingCatalog({ repoRoot: path.resolve(import.meta.dirname, '../..') });
+  const documents = published.shardDocuments.map(shard => JSON.parse(shard.bytes));
+  assert.ok(documents.every(shard => shard.entries.length <= 100));
+  assert.deepEqual(documents.flatMap(shard => shard.entries), published.search.entries);
+  assert.deepEqual(published.index.search_shards.flatMap(shard => shard.pages), published.index.pages.map(page => page.page));
+  for (const [index, shard] of published.shardDocuments.entries()) {
+    assert.equal(shaForTest(shard.bytes), shard.reference.checksum);
+    assert.deepEqual(shard.reference.provider_codes, [...new Set(documents[index].entries.map(entry => entry.provider_code))].sort());
+  }
+});
+
 function historicalRules() {
   return JSON.parse(fs.readFileSync(new URL('./fixtures/model-pricing/historical-2026-10-11.json', import.meta.url)));
 }
@@ -166,6 +178,23 @@ function sourceFixture() {
   writeSource('alpha', 'model-a', 'model-a', '20000000-0000-4000-8000-000000000001');
   return repoRoot;
 }
+
+test('an empty catalog publishes no search shards and removes retired shard files', () => {
+  const repoRoot = sourceFixture();
+  try {
+    updateModelPricingCatalog({ repoRoot });
+    const searchRoot = path.join(repoRoot, 'model-pricing/catalog/v1/search');
+    assert.ok(fs.readdirSync(searchRoot).length > 0);
+    fs.rmSync(path.join(repoRoot, 'model-pricing/@alpha'), { recursive: true });
+    fs.rmSync(path.join(repoRoot, 'model-pricing/@zeta'), { recursive: true });
+    updateModelPricingCatalog({ repoRoot });
+    const index = JSON.parse(fs.readFileSync(path.join(repoRoot, 'model-pricing/catalog/v1/index.json')));
+    assert.equal(index.total_rules, 0);
+    assert.deepEqual(index.search_shards, []);
+    assert.deepEqual(fs.readdirSync(searchRoot), []);
+    assert.equal(updateModelPricingCatalog({ repoRoot, check: true }).changed, false);
+  } finally { fs.rmSync(repoRoot, { recursive: true, force: true }); }
+});
 
 test('AC-001 derives provider identity from @provider and keeps upstream model id in the source', () => {
   const repoRoot = sourceFixture();

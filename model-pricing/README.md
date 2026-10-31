@@ -125,3 +125,5 @@ node --test scripts/model-pricing/_tests/*.test.mjs \
   scripts/_tests/model-pricing-catalog.test.mjs scripts/_tests/convert-model-pricing-v2.test.mjs
 node scripts/model-pricing-catalog.mjs --check
 ```
+
+Search metadata is also split into shards of at most 100 entries at the default page size. The index declares each shard’s providers and pages: provider filters download only matching shards; other searches read bounded metadata shards. The complete search snapshot remains for existing consumers.
