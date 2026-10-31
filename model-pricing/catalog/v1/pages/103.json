@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-10-31.5",
+  "catalog_version": "2026-10-31.6",
   "currency_code": "USD",
   "page": 103,
-  "cursor": "YWZ0ZXI6MTIzNzM4YTYtZjgyNi00Njg5LTk2MDktMGY1NDhjMDc0Yzgw",
-  "next_cursor": "YWZ0ZXI6YjdkZjI3MWMtZTI3OS00NjQ4LTgwMjMtYmQ3ZWZiMjJhMmYx",
+  "cursor": "YWZ0ZXI6ODM4M2E1YWYtODcyNi00OTE3LWI5YzYtNjlkNGIxMzRmMDhm",
+  "next_cursor": "YWZ0ZXI6ZWZkYWQwYWMtMDg1NS00MmZjLWIzOTQtOGY5ZDg4ZjJkZDg4",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/104.json",
   "rules": [
+    {
+      "provider_code": "requesty",
+      "upstream_model_id": "grok-4.6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2",
+      "id": "123738a6-f826-4689-9609-0f548c074c80",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "12",
+            "cache_hit_token_unit_price": "1",
+            "cache_write_token_unit_price": "4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "grok-4.6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "grok-4.6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "grok-4.6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "grok-4.6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "12",
+                "cache_hit_token_unit_price": "1",
+                "cache_write_token_unit_price": "4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "123738a6-f826-4689-9609-0f548c074c80",
+      "source_checksum": "sha256:34f0127df120980b9f31414a1b7c888f72efda78f39e4a11f52e513d75f643f6",
+      "source_version": "2026-10-31.6"
+    },
     {
       "provider_code": "requesty",
       "upstream_model_id": "grok-4.7",
@@ -69,7 +163,7 @@
       "source_kind": "official",
       "source_catalog_id": "51ab8831-3606-4199-bcce-057d0ea5794f",
       "source_checksum": "sha256:3562ca59bd2499c4297bba5a5745050e13e6cfff50c6e9db44ea4e6cc54198b8",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -133,7 +227,7 @@
       "source_kind": "official",
       "source_catalog_id": "0ae9feda-a578-493b-9b79-ba5158b93166",
       "source_checksum": "sha256:c06b5d689741c41cc123d96266ba59e73bbd3b1248c8b6b51d86b37b97696673",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -197,7 +291,7 @@
       "source_kind": "official",
       "source_catalog_id": "7e2cb79f-66d2-4406-bb69-05775df19877",
       "source_checksum": "sha256:52c553f18fc1f9a1289c67e78930de8e99647ac804dd5dce6ea41928f5ecd533",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -261,7 +355,7 @@
       "source_kind": "official",
       "source_catalog_id": "dfce0212-ede3-47ca-9760-8613fe22bde3",
       "source_checksum": "sha256:83ad606d7b7493670c135e5194ed1a192847957a7bcde2fd6999fc756a77799b",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -325,7 +419,7 @@
       "source_kind": "official",
       "source_catalog_id": "35810e06-04a9-405e-b392-841dd426e05d",
       "source_checksum": "sha256:61c8c1578b290095693225c239c4e49437cf548ec88abf49c6e652e067b32afe",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -389,7 +483,7 @@
       "source_kind": "official",
       "source_catalog_id": "354fa1d0-275b-4a8a-8894-f3928e071fff",
       "source_checksum": "sha256:7378b092d8208e7c445446018653e1e0b3728c14463c661c21197712e1799d44",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -453,7 +547,7 @@
       "source_kind": "official",
       "source_catalog_id": "148167cc-a145-443e-969b-bf42b7c81b3b",
       "source_checksum": "sha256:e20538e11c15936ac1daf106c7a6dc8839a52186d308d06afc822f0c202c3f4c",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -517,7 +611,7 @@
       "source_kind": "official",
       "source_catalog_id": "b8b55e8b-ab76-4216-8396-0aae9952c971",
       "source_checksum": "sha256:abc34f17e130b8e00de39d063401a59bcca9dae594c11e0603baccf86041c979",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -581,7 +675,7 @@
       "source_kind": "official",
       "source_catalog_id": "9fd000d1-87ea-4596-85b7-6d6b85c2f113",
       "source_checksum": "sha256:65ec465c83b024c7548a24d0dc16d5b4fb274f8686c44e46aabaf74eb4ed9c21",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -645,7 +739,7 @@
       "source_kind": "official",
       "source_catalog_id": "de463fc1-c6e7-4bf6-beb2-6af0d9504dd1",
       "source_checksum": "sha256:2cba3d7e9010e4fc1415ddb8fe0689a3dd8ea944d91995dfcfc568fe5309dfb4",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -709,7 +803,7 @@
       "source_kind": "official",
       "source_catalog_id": "b4e9aaf1-8c82-4136-b2ed-e0389f27b531",
       "source_checksum": "sha256:8932ad6577383cd5287ee5baa0029398097e8843d6da21b1ce82cfa27b27b60f",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -773,7 +867,7 @@
       "source_kind": "official",
       "source_catalog_id": "17a27b20-9fa0-4496-ad6e-9ef3cda52202",
       "source_checksum": "sha256:44a288b19e04088a1ceb141f1203b68fe97fb6769dd70c964225eff49c316f7f",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -837,7 +931,7 @@
       "source_kind": "official",
       "source_catalog_id": "4fe94f37-99cc-4418-b70f-adcdc1235082",
       "source_checksum": "sha256:a9ae49e5c978c90519081dd5402703fc8a52f219f66cb8a50fa135f3c54d772f",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "requesty",
@@ -901,7 +995,7 @@
       "source_kind": "official",
       "source_catalog_id": "94624be9-c77b-4ef7-84fa-ed5304f28800",
       "source_checksum": "sha256:246b009099a8ff81a2aaad9224a3b87c04620d4345f57132964204f54cbd360d",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "sap-ai-core",
@@ -965,7 +1059,7 @@
       "source_kind": "official",
       "source_catalog_id": "43c8c5a3-0ed0-4dae-ae92-7734d4fcd24b",
       "source_checksum": "sha256:b738f3f8c9d9359df39c81a50ac3689e16577edf54762362d73a7954bace40bd",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "sap-ai-core",
@@ -1029,7 +1123,7 @@
       "source_kind": "official",
       "source_catalog_id": "887e9e67-9a4f-4a66-8569-13acb020259b",
       "source_checksum": "sha256:a8ac206e8b0e7fa5833313de4ce685ff2c41b4c3524985c257f611276b59c1cb",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "sap-ai-core",
@@ -1093,7 +1187,7 @@
       "source_kind": "official",
       "source_catalog_id": "99e3d19e-8b1a-488a-ae8f-4dcdc042815b",
       "source_checksum": "sha256:5479a7ae1e15b777b39fbee4400e676ac7e9b3d5f178fb74976b551ed01ee0ab",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "sap-ai-core",
@@ -1157,7 +1251,7 @@
       "source_kind": "official",
       "source_catalog_id": "119ed74a-397a-4901-ad9c-cd05b9479210",
       "source_checksum": "sha256:e817ffbb83dd950d62354c7be4de05febdae9c2f9163c2885f49228ff59809f7",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "sap-ai-core",
@@ -1221,71 +1315,7 @@
       "source_kind": "official",
       "source_catalog_id": "efdad0ac-0855-42fc-b394-8f9d88f2dd88",
       "source_checksum": "sha256:56ffbebe0f501b36e385c8977859e4474881eaf27964e00f327c562b3d609141",
-      "source_version": "2026-10-31.5"
-    },
-    {
-      "provider_code": "sap-ai-core",
-      "upstream_model_id": "anthropic--claude-4.5-sonnet",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "b7df271c-e279-4648-8023-bd7efb22a2f1",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "sap-ai-core",
-              "model": "anthropic--claude-4.5-sonnet",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "sap-ai-core",
-              "model": "anthropic--claude-4.5-sonnet",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "sap-ai-core",
-              "model": "anthropic--claude-4.5-sonnet",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "sap-ai-core",
-              "model": "anthropic--claude-4.5-sonnet",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b7df271c-e279-4648-8023-bd7efb22a2f1",
-      "source_checksum": "sha256:0cd70ae8babcae6a1af7c01b26f7f620a2ad2b41c4ab95b088f8fd3ab2a8fbc2",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     }
   ]
 }

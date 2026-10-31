@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-10-31.5",
+  "catalog_version": "2026-10-31.6",
   "currency_code": "USD",
   "page": 90,
-  "cursor": "YWZ0ZXI6OGNiNzJjZDMtOWQ4ZC00NmUyLTkyY2ItMjRmNTVkNzNiNjQ3",
-  "next_cursor": "YWZ0ZXI6YjVjY2JkYWYtMzUxNC00YjBlLTlmZTQtMmVjMjIzNzAwYWJl",
+  "cursor": "YWZ0ZXI6NDdkN2UxZWEtMzJiOC00M2MzLTkzMTgtYzYwMDU4YTA3ZTJl",
+  "next_cursor": "YWZ0ZXI6OTg2YWQ4OTItMmQ3NC00OTEzLWJjZWEtYWM0NDU0N2YxODE0",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/91.json",
   "rules": [
+    {
+      "provider_code": "opencode",
+      "upstream_model_id": "gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "8cb72cd3-9d8d-46e2-92cb-24f55d73b647",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "opencode",
+              "model": "gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "opencode",
+              "model": "gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "opencode",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "opencode",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8cb72cd3-9d8d-46e2-92cb-24f55d73b647",
+      "source_checksum": "sha256:7f04e6d261d6ebd32aeffc2a50a9363bd357c731c39f2b24e156cb3e4372a490",
+      "source_version": "2026-10-31.6"
+    },
     {
       "provider_code": "opencode",
       "upstream_model_id": "gpt-6.1-sol",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "6bd39cc2-2204-4d6b-8840-09725df8b328",
       "source_checksum": "sha256:dfc72ca3e364ff39b6657a5d0611696654d7b28ef670efd9fe57f2515510bf66",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -163,7 +257,7 @@
       "source_kind": "official",
       "source_catalog_id": "ba048998-6a67-4163-a0b7-735e30a2a5a7",
       "source_checksum": "sha256:473593d2f6e7e1a29b9f3060fea9b84b0c89f4fe494924a4419523db38f586e3",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -227,7 +321,7 @@
       "source_kind": "official",
       "source_catalog_id": "9e9446ed-8724-4f06-80fa-fa22a6a4706c",
       "source_checksum": "sha256:ba3bded6eb3708da92b2ce1494ef98ca3a769d41e267755d21c89b2e9c52edbc",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -291,7 +385,7 @@
       "source_kind": "official",
       "source_catalog_id": "4c1f9a41-7002-45d7-9911-4e9ffe0ac671",
       "source_checksum": "sha256:ae9729af3983e52d82f7232b5093da2f6b4a0c457cac67c88d3e95def768e2ef",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -355,7 +449,7 @@
       "source_kind": "official",
       "source_catalog_id": "7ffe9753-5d40-4582-aca2-b3bcb090528c",
       "source_checksum": "sha256:c78bf88f1d8e009c20619be59e6bba1f5ed36953a1d4e64686775c7f43662bf3",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -419,7 +513,7 @@
       "source_kind": "official",
       "source_catalog_id": "51ea6811-fe18-47d7-b7c9-426b6c403bc6",
       "source_checksum": "sha256:1a36fa801c5e8f89efff3543f045c3f66a38360a5d1166653f10f6893571c3c3",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -483,7 +577,7 @@
       "source_kind": "official",
       "source_catalog_id": "ddc5b414-c72c-46e2-835e-b9c6e3caa33c",
       "source_checksum": "sha256:e6f3581147f155c70ccd1fb9a7efb418067797edff8dcf2965de234740f4ad18",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode",
@@ -547,7 +641,7 @@
       "source_kind": "official",
       "source_catalog_id": "fa656d64-b0f1-448e-8d11-285451d48755",
       "source_checksum": "sha256:ada7831f5773505bd527852eaf4bedf4e0b564d99b0a5d4c118ecebe6dd03cac",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -641,7 +735,7 @@
       "source_kind": "official",
       "source_catalog_id": "e112ae70-181b-47fc-ad31-d533ddf4dc7f",
       "source_checksum": "sha256:0871bc2d7a6620cd36d78fe7cf070e5f394597d5c8325c355e4cd131a582d079",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -735,7 +829,7 @@
       "source_kind": "official",
       "source_catalog_id": "ea648f00-f245-4d9c-898c-9055a8b5fac4",
       "source_checksum": "sha256:8af4660065d62c8be771373fd89bdb61f4f1e97cc637f242f8115dd5d4a533b0",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -829,7 +923,7 @@
       "source_kind": "official",
       "source_catalog_id": "29b79155-5746-46a2-9eee-ce55ac133940",
       "source_checksum": "sha256:4ade596c99bb6c070360cb66206e1992db30f356339d66ee098ec0a40887c6b2",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -893,7 +987,7 @@
       "source_kind": "official",
       "source_catalog_id": "87652282-5e8c-44df-acb9-94a46351eda1",
       "source_checksum": "sha256:11d66b2f44493b078ee1913449374d49a638e31d9121668c4aa4d3132150b907",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -957,7 +1051,7 @@
       "source_kind": "official",
       "source_catalog_id": "0f061ea0-2796-44d4-9858-d85512fab247",
       "source_checksum": "sha256:f142651f581d68fa348c78baeec199fa1ad27dd46a2c650db586717f41ad6d62",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -1021,7 +1115,7 @@
       "source_kind": "official",
       "source_catalog_id": "8c8af66b-701e-423b-84a4-ea8498554ca4",
       "source_checksum": "sha256:542e5348ea6b26313a1d7005e546c765fc359d495a0eab9020b3014cafe3c1d1",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -1115,7 +1209,7 @@
       "source_kind": "official",
       "source_catalog_id": "b914e224-311b-41a7-a67b-5ad17561c764",
       "source_checksum": "sha256:b583235692d60b7184022cffefc7583de4092f3d5a739341f61ffaf55ec8f1e7",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -1179,7 +1273,7 @@
       "source_kind": "official",
       "source_catalog_id": "6305928f-7ac6-4797-bf4d-7626d865917d",
       "source_checksum": "sha256:6f6a51d8dc03b0551845f0e53cd39a32c9b221732d782473332504eeff63cb00",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -1243,7 +1337,7 @@
       "source_kind": "official",
       "source_catalog_id": "b6b38fa7-6666-4830-a5db-56d0505fd899",
       "source_checksum": "sha256:589f25326be63f892b185eff336e5e33027b91bb9fa2a8ac3ac236f41ae81907",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode-go",
@@ -1307,7 +1401,7 @@
       "source_kind": "official",
       "source_catalog_id": "b509b6f5-03b8-4974-8c56-f2b737e47471",
       "source_checksum": "sha256:602ac4d18c94deea85fae0ce8be9bc8cb3644a66efd4bf7b37c037ef6e6e4c98",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     },
     {
       "provider_code": "opencode_go",
@@ -1371,71 +1465,7 @@
       "source_kind": "official",
       "source_catalog_id": "986ad892-2d74-4913-bcea-ac44547f1814",
       "source_checksum": "sha256:95b9f34f8927c2b4bda131c55cd50eafd1f5ae3b2822a0e18227164ebcb31478",
-      "source_version": "2026-10-31.5"
-    },
-    {
-      "provider_code": "opencode_go",
-      "upstream_model_id": "gpt-5.6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.20000000000000002",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.25",
-      "id": "b5ccbdaf-3514-4b0e-9fe4-2ec223700abe",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "opencode_go",
-              "model": "gpt-5.6-luna",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "opencode_go",
-              "model": "gpt-5.6-luna",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "opencode_go",
-              "model": "gpt-5.6-luna",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "opencode_go",
-              "model": "gpt-5.6-luna",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b5ccbdaf-3514-4b0e-9fe4-2ec223700abe",
-      "source_checksum": "sha256:5ae2139b83e771b05d6fcb4b5912b2e5e3fc6cb311b02f3017229e14fbb3f00b",
-      "source_version": "2026-10-31.5"
+      "source_version": "2026-10-31.6"
     }
   ]
 }
