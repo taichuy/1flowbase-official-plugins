@@ -25,6 +25,8 @@ See `schemas/model-pricing/v2/` and `scripts/model-pricing-validation.mjs`.
 
 The publisher deterministically generates `catalog/v1/index.json`, `pages/<page>.json`,
 `search-index.json`, `catalog.json`, `dist/catalog-seed.json`, and maintenance state.
+Published pages contain at most 20 model configurations, matching the console default page size.
+Read the index total before fetching only the required pages; synchronization stages one page at a time.
 All payload schema constants are v2. The physical `catalog/v1/` URL is retained to avoid
 changing discovery endpoints; it does not indicate the payload schema version.
 

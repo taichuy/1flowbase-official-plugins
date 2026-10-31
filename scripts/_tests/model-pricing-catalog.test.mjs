@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import {
   buildSignedModelPricingCatalog,
+  buildModelPricingCatalog,
   canonicalRulesBytes,
   discoverModelPricingRules,
   updateModelPricingCatalog,
@@ -63,6 +64,20 @@ test('publishes unique standard configurations and the explicit zero fallback', 
   const zero = rules.find(r => r.provider_code === 'zero');
   for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
 });
+
+test('default publication batches contain at most twenty models without losing identities', () => {
+  const published = buildModelPricingCatalog({ repoRoot: path.resolve(import.meta.dirname, '../..') });
+  assert.equal(published.index.page_size, 20);
+  assert.ok(published.pages.every(page => page.document.rules.length <= 20));
+  const ids = published.pages.flatMap(page => page.document.rules.map(rule => rule.id));
+  assert.equal(new Set(ids).size, published.index.total_rules);
+  assert.deepEqual(ids, published.aggregate.rules.map(rule => rule.id));
+  for (const page of published.pages) assert.equal(shaForTest(page.bytes), page.checksum);
+});
+
+function shaForTest(bytes) {
+  return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
+}
 
 function historicalRules() {
   return JSON.parse(fs.readFileSync(new URL('./fixtures/model-pricing/historical-2026-10-11.json', import.meta.url)));

@@ -1,0 +1,1517 @@
+{
+  "schema_version": "1flowbase.model-pricing-page/v2",
+  "catalog_version": "2026-10-31.3",
+  "currency_code": "USD",
+  "page": 45,
+  "cursor": "YWZ0ZXI6NDNmYTg3Y2YtOWIyYy00ZTc0LTk0YTgtZTA2OWE0ZGM4OWZm",
+  "next_cursor": "YWZ0ZXI6MjAyMjhjNzItOTZmOS00YjgyLTk0NDgtOGQxMTIzN2Q5YmNl",
+  "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/46.json",
+  "rules": [
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gemini-3-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.49998",
+      "id": "e53a223a-abb0-46fe-b55f-682fe4f888ea",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e53a223a-abb0-46fe-b55f-682fe4f888ea",
+      "source_checksum": "sha256:d352e83b758c4fcbc8e71f3cdfc05faf9499afe954bbeed46e97aee046df6746",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gemini-3-pro-image",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.49998",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15.00002",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "2.49998",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.49998",
+      "id": "e5338f51-d05f-43d7-8283-6fcfc2f0b4ca",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro-image",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro-image",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro-image",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-3-pro-image",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e5338f51-d05f-43d7-8283-6fcfc2f0b4ca",
+      "source_checksum": "sha256:2a3c537553b3e39db6173870ac40d05abdb94cffb4ac3cc082d94682e8700b4e",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gemini-4-argon",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.49998",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12.49997",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.12502",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.49998",
+      "id": "c358d840-d117-4670-bc3c-040bc195eb53",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-4-argon",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-4-argon",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-4-argon",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemini-4-argon",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "c358d840-d117-4670-bc3c-040bc195eb53",
+      "source_checksum": "sha256:2a746a2328e45c63a001bc235a0cd5dce136c9f7fd62307aa22b695a401c6b04",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gemma-3-12b",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.15001",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.50001",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.15001",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.15001",
+      "id": "4ccefd2e-5ed7-489c-aba9-9b1795b21396",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemma-3-12b",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemma-3-12b",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemma-3-12b",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gemma-3-12b",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "4ccefd2e-5ed7-489c-aba9-9b1795b21396",
+      "source_checksum": "sha256:1befffad4f0ae8686de72328f9310d87a697f6cea53f228e0c5a4c280b4b2974",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-glm-5-2",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.4",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.26",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.4",
+      "id": "98d9c269-5acd-4f5e-b9e9-9dd05d00cda3",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-glm-5-2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-glm-5-2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-glm-5-2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-2",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "98d9c269-5acd-4f5e-b9e9-9dd05d00cda3",
+      "source_checksum": "sha256:516af8d3838f1beb66e8036f5eb491bfadacac6fc4a63b95fb140f5965415bd4",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-glm-5-3",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.39999",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25998",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.4",
+      "id": "2840a129-51f3-49c5-952b-7e39b2c948b0",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "2840a129-51f3-49c5-952b-7e39b2c948b0",
+      "source_checksum": "sha256:8593a8dc237cc0080fd58d133cf4f0763bd9897bbbeba93ecef4f120be7e490c",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-glm-5-3-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.15001",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.50001",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.03003",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.15001",
+      "id": "0e473343-c4e7-4c0c-ac03-fdf079c3cb0e",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3-flash",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3-flash",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3-flash",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-glm-5-3-flash",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0e473343-c4e7-4c0c-ac03-fdf079c3cb0e",
+      "source_checksum": "sha256:57b0f609d7b6c7dbcd3e3ef0ff874893aac1d4b6149e7af8ca5eb02337ceb24d",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.25",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.125",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.24999",
+      "id": "79dfb739-b953-4f21-8f3a-e1f87c192f77",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "79dfb739-b953-4f21-8f3a-e1f87c192f77",
+      "source_checksum": "sha256:0b7613dc1ee6badf526af8b3db331d8a16696a810f80f526c677bba3512130ff",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.25",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.125",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.24999",
+      "id": "3542c16d-096e-4575-b224-759e89860bbf",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-1",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3542c16d-096e-4575-b224-759e89860bbf",
+      "source_checksum": "sha256:c8938d0be8c2b2964acaebfae264b9527463e8d352f2314d69236f31ed19a98f",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-2",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.75",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "14",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.175",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.75",
+      "id": "0d5f6972-ff59-4838-8d85-1e6e30455fdd",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-2",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0d5f6972-ff59-4838-8d85-1e6e30455fdd",
+      "source_checksum": "sha256:01dae8c7a5a397b063391a7aa9315ae3615259f636946a236ff5317211e982df",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-3-codex",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.75",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "14",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.175",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.75",
+      "id": "ec7e476c-9d07-4fd6-9cf4-c6e431ce4463",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-3-codex",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-3-codex",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-3-codex",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-3-codex",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "ec7e476c-9d07-4fd6-9cf4-c6e431ce4463",
+      "source_checksum": "sha256:5d38769d5b9239d71f8a359fd096d6d808b7037c67bcd67871b683e1c2846cc7",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-4",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.49998",
+      "id": "186055bc-ce97-470a-b7e4-3df24c7ce4d9",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "5",
+            "output_token_unit_price": "22.5",
+            "cache_hit_token_unit_price": "0.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "5",
+                "output_token_unit_price": "22.5",
+                "cache_hit_token_unit_price": "0.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "186055bc-ce97-470a-b7e4-3df24c7ce4d9",
+      "source_checksum": "sha256:86b76cb77001b3df78a3fdde8d451b753803bbf33aaf6b1d7aa8edb7dc3bdbb5",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-4-mini",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.75",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.075",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.74998",
+      "id": "47f11d92-6322-4d72-8726-29df87adef84",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-mini",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-mini",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-mini",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-mini",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "47f11d92-6322-4d72-8726-29df87adef84",
+      "source_checksum": "sha256:3b913685cc5d2f17b7b18839d90e3dfa5558baa336a8f0242f1cc59e0693b6e7",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-4-nano",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.02",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.19999",
+      "id": "d474780e-c692-4eff-b2d3-cc1b9f2c1007",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-nano",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-nano",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-nano",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-nano",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d474780e-c692-4eff-b2d3-cc1b9f2c1007",
+      "source_checksum": "sha256:8f09b2dcc4c98ef206558aaec6e3d094701a780c6ae468dfeb1c89d5122d3b7c",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-4-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "29.99997",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "180.0001",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "29.99997",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "29.99997",
+      "id": "07b73949-a708-43ed-9a93-559173f2f6e6",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "60",
+            "output_token_unit_price": "270"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-pro",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-pro",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-pro",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-4-pro",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "60",
+                "output_token_unit_price": "270"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "07b73949-a708-43ed-9a93-559173f2f6e6",
+      "source_checksum": "sha256:d5fc4d0405a2e3fbbc843d1669bce3576a349ba7608c0d553fb356104697977d",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "30",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5.00003",
+      "id": "e2107532-23b3-4766-b32c-67d023b6ee22",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "10",
+            "output_token_unit_price": "45",
+            "cache_hit_token_unit_price": "1"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "10",
+                "output_token_unit_price": "45",
+                "cache_hit_token_unit_price": "1"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e2107532-23b3-4766-b32c-67d023b6ee22",
+      "source_checksum": "sha256:91702cbb3bde70dcffe3879fc7e413e6e9fd1c2a1cbedac34b2ce05a0e5bb75d",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-5-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "29.99997",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "180.0001",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "29.99997",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "29.99997",
+      "id": "3a87b0d2-4b29-47a5-b62f-0565859c3925",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "60",
+            "output_token_unit_price": "270"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5-pro",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5-pro",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5-pro",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-5-pro",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "60",
+                "output_token_unit_price": "270"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3a87b0d2-4b29-47a5-b62f-0565859c3925",
+      "source_checksum": "sha256:7230c6c5f9b0c1957e2e336eb44fa4391cb4507fd15cc48bbac80ee50c7d0c6c",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.02",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.25",
+      "id": "ec47c488-e544-4c44-8a38-2108d9aaff15",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.4",
+            "output_token_unit_price": "1.8",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.4",
+                "output_token_unit_price": "1.8",
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "ec47c488-e544-4c44-8a38-2108d9aaff15",
+      "source_checksum": "sha256:ecd9bd63691fda6983f3a2e12ad5c3480fc5d889feea5ef4277d8388fd956efb",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "593dd779-56eb-47af-9c49-08fc58ef6034",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "8",
+            "output_token_unit_price": "30",
+            "cache_hit_token_unit_price": "0.8",
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "8",
+                "output_token_unit_price": "30",
+                "cache_hit_token_unit_price": "0.8",
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "593dd779-56eb-47af-9c49-08fc58ef6034",
+      "source_checksum": "sha256:6f14e56b11e971fb73d18b33ba83d2b71bf0995effc4f3790652158c94cd6881",
+      "source_version": "2026-10-31.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-gpt-5-6-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "20228c72-96f9-4b82-9448-8d11237d9bce",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-gpt-5-6-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "20228c72-96f9-4b82-9448-8d11237d9bce",
+      "source_checksum": "sha256:ecca998ddaf9738e110c9904bf9937ac45937f7d0fc17dff17aced8fc93a9593",
+      "source_version": "2026-10-31.3"
+    }
+  ]
+}

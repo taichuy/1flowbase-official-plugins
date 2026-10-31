@@ -10,7 +10,7 @@ export const MODEL_PRICING_INDEX_SCHEMA_VERSION = '1flowbase.model-pricing-index
 export const MODEL_PRICING_PAGE_SCHEMA_VERSION = '1flowbase.model-pricing-page/v2';
 export const MODEL_PRICING_SEARCH_SCHEMA_VERSION = '1flowbase.model-pricing-search/v2';
 export const MODEL_PRICING_STATE_SCHEMA_VERSION = '1flowbase.model-pricing-state/v2';
-export const DEFAULT_MODEL_PRICING_PAGE_SIZE = 100;
+export const DEFAULT_MODEL_PRICING_PAGE_SIZE = 20;
 export const DEFAULT_MODEL_PRICING_RAW_BASE_URL =
   process.env.MODEL_PRICING_CATALOG_RAW_BASE_URL ||
   'https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main';
