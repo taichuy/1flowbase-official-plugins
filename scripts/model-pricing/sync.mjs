@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { updateModelPricingCatalog } from '../model-pricing-catalog.mjs';
@@ -16,7 +17,7 @@ const PROVIDERS = {
   google: { modelsDev: 'google', liteLlm: 'gemini' },
   deepseek: { modelsDev: 'deepseek', liteLlm: 'deepseek' },
   xai: { modelsDev: 'xai', liteLlm: 'xai' },
-  zai: { modelsDev: 'zai', liteLlm: 'z_ai' },
+  zai: { modelsDev: 'zai', liteLlm: 'zai' },
   kimi: { modelsDev: 'moonshotai', liteLlm: 'moonshot' },
 };
 const FIELDS = {
@@ -65,8 +66,109 @@ export function validateUpstreamData(modelsDev, liteLlm) {
   }
 }
 
+function providerMapping(code) {
+  if (code === 'zero') return null;
+  return Object.hasOwn(PROVIDERS, code) ? PROVIDERS[code] : { modelsDev: code, liteLlm: code };
+}
+
+// Discover identities from the upstream union, rather than using local files as an allowlist.
+export function discoverUpstreamModels(modelsDev, liteLlm) {
+  const models = new Map();
+  const alias = (key, field) => Object.keys(PROVIDERS).find(code => PROVIDERS[code][field] === key) ?? key;
+  const add = (provider_code, upstream_model_id) => {
+    if (!provider_code || !upstream_model_id) return;
+    const source = { provider_code, upstream_model_id };
+    models.set(JSON.stringify([provider_code, upstream_model_id]), source);
+  };
+  for (const [provider, catalog] of Object.entries(modelsDev)) {
+    for (const id of Object.keys(catalog.models ?? {})) add(alias(provider, 'modelsDev'), id);
+  }
+  for (const [key, model] of Object.entries(liteLlm)) {
+    const provider = model?.litellm_provider;
+    if (key === 'sample_spec' || typeof provider !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(provider)) continue;
+    const id = key.startsWith(`${provider}/`) ? key.slice(provider.length + 1) : key;
+    add(alias(provider, 'liteLlm'), id);
+  }
+  return [...models.values()].sort((a, b) => `${a.provider_code}/${a.upstream_model_id}`.localeCompare(`${b.provider_code}/${b.upstream_model_id}`));
+}
+
+function upstreamEntry(source, modelsDev, liteLlm) {
+  const provider = providerMapping(source.provider_code);
+  if (!provider) return {};
+  const id = source.upstream_model_id;
+  return {
+    model: modelsDev[provider.modelsDev]?.models?.[id],
+    fallback: [liteLlm[`${provider.liteLlm}/${id}`], liteLlm[id]]
+      .find(model => model?.litellm_provider === provider.liteLlm),
+  };
+}
+
+// Convert only conditions expressible by the pricing contract; never flatten a tier into the base rate.
+function resolveRules(source, modelsDev, liteLlm) {
+  const { model, fallback } = upstreamEntry(source, modelsDev, liteLlm);
+  const tiers = model?.cost?.tiers;
+  const rules = [];
+  if (tiers !== undefined) {
+    if (!Array.isArray(tiers)) return { reason: 'invalid-price-tiers' };
+    for (const tier of tiers) {
+      if (tier.tier?.type !== 'context' || !Number.isSafeInteger(tier.tier.size) || tier.tier.size < 0) {
+        return { reason: 'unsupported-price-tier' };
+      }
+      const overrides = {};
+      for (const meter of METERS) {
+        const field = FIELDS[meter][0];
+        if (!Object.hasOwn(tier, field)) continue;
+        const price = decimalPrice(tier[field]);
+        if (price === null) return { reason: `invalid-tier-${meter}` };
+        overrides[`${meter}_token_unit_price`] = price;
+      }
+      if (!Object.keys(overrides).length) return { reason: 'empty-price-tier' };
+      rules.push({ when: { input_tokens: { operator: 'gt', value: tier.tier.size } }, overrides });
+    }
+    rules.sort((a, b) => a.when.input_tokens.value - b.when.input_tokens.value);
+  } else {
+    // LiteLLM encodes context thresholds in field names; preserve exact token boundaries.
+    const thresholds = [...new Set(Object.keys(fallback ?? {}).flatMap(key => {
+      const match = /^(?:input_cost_per_token|output_cost_per_token|cache_read_input_token_cost|cache_creation_input_token_cost)_above_(\d+)k_tokens$/.exec(key);
+      return match ? [Number(match[1]) * 1000] : [];
+    }))].sort((a, b) => a - b);
+    for (const threshold of thresholds) {
+      const overrides = {};
+      for (const meter of METERS) {
+        const field = `${FIELDS[meter][1]}_above_${threshold / 1000}k_tokens`;
+        if (!Object.hasOwn(fallback, field)) continue;
+        const price = decimalPrice(fallback[field], 6);
+        if (price === null) return { reason: `invalid-tier-${meter}` };
+        overrides[`${meter}_token_unit_price`] = price;
+      }
+      rules.push({ when: { input_tokens: { operator: 'gt', value: threshold } }, overrides });
+    }
+    if (model?.cost?.context_over_200k && !thresholds.length) return { reason: 'ambiguous-context-price-threshold' };
+  }
+  // LiteLLM's TTL table maps these fields to ephemeral_1h / ephemeral_12h token buckets.
+  // https://github.com/BerriAI/litellm/blob/main/litellm/litellm_core_utils/llm_cost_calc/utils.py
+  for (const hours of [1, 12]) {
+    const ttl = hours * 3600;
+    const field = `cache_creation_input_token_cost_above_${hours}hr`;
+    if (!fallback || !Object.hasOwn(fallback, field)) continue;
+    const price = decimalPrice(fallback[field], 6);
+    if (price === null) return { reason: 'invalid-ttl-cache_write' };
+    rules.push({ when: { cache_write_ttl_seconds: ttl }, overrides: { cache_write_token_unit_price: price } });
+    const contextRates = Object.entries(fallback).flatMap(([name, value]) => {
+      const match = new RegExp(`^${field}_above_(\\d+)k_tokens$`).exec(name);
+      return match ? [{ threshold: Number(match[1]) * 1000, value }] : [];
+    }).sort((a, b) => a.threshold - b.threshold);
+    for (const { threshold, value } of contextRates) {
+      const price = decimalPrice(value, 6);
+      if (price === null) return { reason: 'invalid-ttl-context-cache_write' };
+      rules.push({ when: { input_tokens: { operator: 'gt', value: threshold }, cache_write_ttl_seconds: ttl }, overrides: { cache_write_token_unit_price: price } });
+    }
+  }
+  return { rules };
+}
+
 export function resolvePrices(source, modelsDev, liteLlm) {
-  const provider = PROVIDERS[source.provider_code];
+  const provider = providerMapping(source.provider_code);
   if (!provider) return { reason: 'unmapped-provider' };
   const modelId = source.upstream_model_id;
   const cost = modelsDev[provider.modelsDev]?.models?.[modelId]?.cost;
@@ -111,86 +213,137 @@ function nextVersion(previous, now) {
 
 export function syncModelPricing({ repoRoot, modelsDev, liteLlm, now = new Date().toISOString(), dryRun = false }) {
   validateUpstreamData(modelsDev, liteLlm);
-  // Catch existing invalid/immutable sources and generated drift before any writes.
   updateModelPricingCatalog({ repoRoot, check: true });
   const instant = new Date(now).toISOString();
-  const pending = [];
-  const skipped = [];
-  let unchanged = 0;
   const root = path.join(repoRoot, 'model-pricing');
+  const identity = source => JSON.stringify([source.provider_code, source.upstream_model_id]);
+  const label = source => `${source.provider_code}/${source.upstream_model_id}`;
+  const existing = new Map();
   for (const provider of fs.readdirSync(root, { withFileTypes: true }).filter(p => p.isDirectory() && p.name.startsWith('@'))) {
-    const providerRoot = path.join(root, provider.name);
-    for (const model of fs.readdirSync(providerRoot, { withFileTypes: true }).filter(m => m.isDirectory())) {
-      const file = path.join(providerRoot, model.name, 'pricing.json');
-      if (!fs.existsSync(file)) continue;
-      const source = readJson(file);
-      const label = `${source.provider_code}/${source.upstream_model_id}`;
-      if (!source.enabled || source.extensions.price_sync === false) {
-        skipped.push({ model: label, reason: 'disabled-or-opted-out' });
-        continue;
+    for (const model of fs.readdirSync(path.join(root, provider.name), { withFileTypes: true }).filter(m => m.isDirectory())) {
+      const file = path.join(root, provider.name, model.name, 'pricing.json');
+      if (fs.existsSync(file)) {
+        const source = readJson(file);
+        existing.set(identity(source), { source, file });
       }
-      if (Date.parse(source.effective_from) > Date.parse(instant) ||
-          (source.effective_to !== null && Date.parse(source.effective_to) <= Date.parse(instant))) {
-        skipped.push({ model: label, reason: 'not-current' });
-        continue;
-      }
-      const resolved = resolvePrices(source, modelsDev, liteLlm);
-      if (resolved.reason) {
-        skipped.push({ model: label, reason: resolved.reason });
-        continue;
-      }
-      if (pricesEqual(source, resolved.rates)) {
-        unchanged++;
-        continue;
-      }
-      const updated = {
-        ...source,
-        ...resolved.rates,
-        id: crypto.randomUUID(),
-        effective_from: instant,
-        extensions: {
-          ...source.extensions,
-          source: 'community_pricing',
-          price_sync: { synced_at: instant, meters: resolved.origins },
-        },
-      };
-      // A previous vendor verification cannot attest to new community prices.
-      delete updated.extensions.source_url;
-      delete updated.extensions.verified_on;
-      validatePricingConfiguration(updated, label, true);
-      pending.push({ file, source: updated, model: label });
     }
   }
-  const result = { updated: pending.map(p => p.model).sort(), unchanged, skipped: skipped.sort((a, b) => a.model.localeCompare(b.model)), dry_run: dryRun };
-  if (!pending.length) return result;
+  const upstream = discoverUpstreamModels(modelsDev, liteLlm);
+  const candidates = new Map(upstream.map(source => [identity(source), source]));
+  const pending = [];
+  const removed = [];
+  const skipped = [];
+  const inventory = [];
+  let unchanged = 0;
+  for (const source of upstream) {
+    const previous = existing.get(identity(source));
+    const old = previous?.source;
+    const { model, fallback } = upstreamEntry(source, modelsDev, liteLlm);
+    const quote = {
+      models_dev: model?.cost ?? null,
+      litellm: fallback ? Object.fromEntries(Object.entries(fallback).filter(([field]) => /cost|price/.test(field))) : null,
+    };
+    const skip = reason => {
+      skipped.push({ model: label(source), reason });
+      inventory.push({ ...source, model: label(source), status: 'unavailable', reason, pricing: quote });
+    };
+    if (old && (!old.enabled || old.extensions.price_sync === false)) { skip('disabled-or-opted-out'); continue; }
+    if (old && (Date.parse(old.effective_from) > Date.parse(instant) ||
+        (old.effective_to !== null && Date.parse(old.effective_to) <= Date.parse(instant)))) { skip('not-current'); continue; }
+    const mode = fallback?.mode;
+    if ((!model && mode && !['chat', 'completion', 'responses'].includes(mode)) ||
+        (model?.type && !['chat', 'text', 'llm'].includes(model.type))) { skip('unsupported-model-meter'); continue; }
+    const resolved = resolvePrices(source, modelsDev, liteLlm);
+    if (resolved.reason) { skip(resolved.reason); continue; }
+    const conditions = resolveRules(source, modelsDev, liteLlm);
+    if (conditions.reason) { skip(conditions.reason); continue; }
+    // Preserve locally authored non-context rules; upstream owns context thresholds and rates.
+    const managedRules = old?.extensions.price_sync?.rules ?? [];
+    const rules = [...conditions.rules, ...(old?.rules ?? []).filter(r => {
+      if (managedRules.some(managed => JSON.stringify(managed) === JSON.stringify(r))) return false;
+      if (Object.keys(r.when).length === 1 && r.when.input_tokens) return false;
+      if (r.when.cache_write_ttl_seconds &&
+          Object.keys(r.when).every(key => ['cache_write_ttl_seconds', 'input_tokens'].includes(key)) &&
+          conditions.rules.some(rule => rule.when.cache_write_ttl_seconds === r.when.cache_write_ttl_seconds)) return false;
+      return true;
+    })];
+    inventory.push({ ...source, model: label(source), status: 'synchronized', pricing: quote });
+    if (old && pricesEqual(old, resolved.rates) && JSON.stringify(old.rules) === JSON.stringify(rules) &&
+        JSON.stringify(managedRules) === JSON.stringify(conditions.rules)) {
+      unchanged++;
+      continue;
+    }
+    const updated = {
+      schema_version: '1flowbase.model-pricing-source/v2',
+      ...source, currency_code: 'USD',
+      effective_to: null, timezone: 'UTC', weekday_mask: 127,
+      local_time_start: null, local_time_end: null, priority: 0, enabled: true,
+      ...old, ...resolved.rates,
+      id: crypto.randomUUID(), effective_from: instant, rules,
+      extensions: {
+        ...old?.extensions, source: 'community_pricing',
+        price_sync: { synced_at: instant, meters: resolved.origins, rules: conditions.rules },
+      },
+    };
+    delete updated.extensions.source_url;
+    delete updated.extensions.verified_on;
+    validatePricingConfiguration(updated, label(source), true);
+    // Encode identifiers as one path component (including slash, dots and percent escapes).
+    const component = value => {
+      const encoded = encodeURIComponent(value).replace(/\./g, '%2E');
+      return encoded.length <= 180 ? encoded : `model-${crypto.createHash('sha256').update(value).digest('hex')}`;
+    };
+    // Provider directory must match the contract identity, and cannot escape the source root.
+    if (!/^[a-zA-Z0-9_.-]+$/.test(source.provider_code)) throw new Error(`unsafe provider identity: ${source.provider_code}`);
+    const target = previous?.file ?? path.join(root, `@${source.provider_code}`, component(source.upstream_model_id), 'pricing.json');
+    pending.push({ file: target, source: updated, model: label(source), added: !old });
+  }
+  for (const [key, entry] of existing) {
+    if (candidates.has(key)) continue;
+    const source = entry.source;
+    if (providerMapping(source.provider_code) && source.enabled && source.extensions.price_sync !== false &&
+        source.extensions.source === 'community_pricing') removed.push({ ...entry, model: label(source) });
+    else skipped.push({ model: label(source), reason: 'local-only' });
+  }
+  const result = {
+    discovered: upstream.length,
+    added: pending.filter(p => p.added).map(p => p.model).sort(),
+    updated: pending.filter(p => !p.added).map(p => p.model).sort(),
+    removed: removed.map(p => p.model).sort(), unchanged,
+    skipped: skipped.sort((a, b) => a.model.localeCompare(b.model)), dry_run: dryRun,
+  };
+  const canonical = value => Array.isArray(value) ? value.map(canonical)
+    : object(value) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+  const report = json(canonical({ schema_version: '1flowbase.upstream-model-inventory/v1', models: inventory }));
+  const reportPath = path.join(root, '_maintenance/upstream-models.json');
+  const reportChanged = !fs.existsSync(reportPath) || fs.readFileSync(reportPath, 'utf8') !== report;
+  if (!pending.length && !removed.length && !reportChanged) return result;
   const metadataPath = path.join(root, 'catalog-source.json');
   const metadata = readJson(metadataPath);
-  const version = nextVersion(metadata.catalog_version, instant);
-  result.catalog_version = version;
+  const changed = pending.length > 0 || removed.length > 0;
+  if (changed) result.catalog_version = nextVersion(metadata.catalog_version, instant);
   if (dryRun) return result;
-  // Roll back source/catalog changes if generation rejects the candidate (including reused historical IDs).
-  const trackedRoots = ['catalog', 'dist', '_maintenance'];
-  const backups = new Map(pending.map(p => [p.file, fs.readFileSync(p.file)]));
-  backups.set(metadataPath, fs.readFileSync(metadataPath));
-  for (const directory of trackedRoots) {
-    const walk = dir => {
-      if (!fs.existsSync(dir)) return;
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const file = path.join(dir, entry.name);
-        if (entry.isDirectory()) walk(file);
-        else if (entry.isFile()) backups.set(file, fs.readFileSync(file));
-      }
-    };
-    walk(path.join(root, directory));
-  }
+  // Snapshot the entire pricing tree so additions, removed sources and generated pages roll back together.
+  const backupRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'model-pricing-transaction-'));
+  const backup = path.join(backupRoot, 'model-pricing');
+  fs.cpSync(root, backup, { recursive: true });
   try {
-    for (const update of pending) fs.writeFileSync(update.file, json(update.source));
-    fs.writeFileSync(metadataPath, json({ ...metadata, catalog_version: version }));
+    for (const update of pending) {
+      fs.mkdirSync(path.dirname(update.file), { recursive: true });
+      fs.writeFileSync(update.file, json(update.source));
+    }
+    for (const entry of removed) fs.unlinkSync(entry.file);
+    if (changed) fs.writeFileSync(metadataPath, json({ ...metadata, catalog_version: result.catalog_version }));
     updateModelPricingCatalog({ repoRoot, now: instant });
     updateModelPricingCatalog({ repoRoot, check: true });
+    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+    fs.writeFileSync(reportPath, report);
   } catch (error) {
-    for (const [file, bytes] of backups) fs.writeFileSync(file, bytes);
+    fs.rmSync(root, { recursive: true });
+    fs.cpSync(backup, root, { recursive: true });
     throw error;
+  } finally {
+    fs.rmSync(backupRoot, { recursive: true, force: true });
   }
   return result;
 }
@@ -234,8 +387,13 @@ async function main(argv) {
   const result = syncModelPricing({ repoRoot: path.resolve(import.meta.dirname, '../..'), ...upstream, dryRun: options.dryRun });
   console.log(JSON.stringify(result, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) {
-    const summary = `### Model pricing sync\n\nUpdated: ${result.updated.length}; unchanged: ${result.unchanged}; skipped: ${result.skipped.length}.\n\n` +
-      [...result.updated.map(m => `- Updated: ${m}`), ...result.skipped.map(s => `- Skipped: ${s.model} (${s.reason})`)].join('\n') + '\n';
+    const reasons = result.skipped.reduce((counts, entry) => {
+      counts[entry.reason] = (counts[entry.reason] ?? 0) + 1;
+      return counts;
+    }, {});
+    const summary = `### Model pricing sync\n\nDiscovered: ${result.discovered}; added: ${result.added.length}; updated: ${result.updated.length}; removed: ${result.removed.length}; unchanged: ${result.unchanged}; skipped: ${result.skipped.length}.\n\n` +
+      Object.entries(reasons).map(([reason, count]) => `- ${reason}: ${count}`).join('\n') +
+      '\n\nFull model identities, upstream pricing and availability reasons are in `_maintenance/upstream-models.json` and the `model-pricing-sync-report` artifact.\n';
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
   }
 }

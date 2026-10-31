@@ -50,8 +50,16 @@ test('builds an Ed25519 signature over canonical rule bytes', () => {
 
 test('publishes unique standard configurations and the explicit zero fallback', () => {
   const rules = discoverModelPricingRules(path.resolve(import.meta.dirname, '../..'));
-  assert.equal(rules.length, 29);
-  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, 29);
+  assert.ok(rules.length > 0);
+  assert.equal(new Set(rules.map(r => JSON.stringify([r.provider_code,r.upstream_model_id]))).size, rules.length);
+  const inventoryPath = path.resolve(import.meta.dirname, '../../model-pricing/_maintenance/upstream-models.json');
+  if (fs.existsSync(inventoryPath)) {
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath));
+    const published = new Set(rules.map(r => JSON.stringify([r.provider_code, r.upstream_model_id])));
+    for (const model of inventory.models.filter(m => m.status === 'synchronized')) {
+      assert.ok(published.has(JSON.stringify([model.provider_code, model.upstream_model_id])), `missing synchronized model ${model.model}`);
+    }
+  }
   const zero = rules.find(r => r.provider_code === 'zero');
   for (const meter of ['input','output','cache_hit','cache_write']) assert.equal(zero[`${meter}_token_unit_price`], '0');
 });

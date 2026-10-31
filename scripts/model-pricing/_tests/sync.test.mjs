@@ -47,7 +47,7 @@ function snapshot(root) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const file = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(file);
-      else files[path.relative(root, file)] = fs.readFileSync(file, 'utf8');
+      else if (!file.endsWith('/_maintenance/upstream-models.json')) files[path.relative(root, file)] = fs.readFileSync(file, 'utf8');
     }
   }
   walk(root);
@@ -101,7 +101,7 @@ test('updates all four rates, publishes a new immutable ID/version, preserves ru
   assert.equal(updated.extensions.verified_on, undefined);
   assert.equal(updated.extensions.source_url, undefined);
   assert.equal(updated.extensions.price_sync.meters.input.url, MODELS_DEV_URL);
-  assert.deepEqual(updated.rules, f.source.rules);
+  assert.deepEqual(updated.rules, f.source.rules.filter(r => !r.when.input_tokens));
   assert.deepEqual(['input', 'output', 'cache_hit', 'cache_write'].map(m => updated[`${m}_token_unit_price`]), ['3', '15', '0.3', '3.75']);
   assert.equal(result.catalog_version, '2026-10-14.2');
   const aggregate = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/catalog/v1/catalog.json')));
@@ -126,7 +126,7 @@ test('a repeated sync is byte-for-byte idle even with a new timestamp or changed
 
 test('equivalent prices with another unit size do not create a revision', t => {
   const f = fixture(t);
-  const source = { ...f.source, input_token_unit_size: 1000, input_token_unit_price: '0.001' };
+  const source = { ...f.source, rules: f.source.rules.filter(r => !r.when.input_tokens), input_token_unit_size: 1000, input_token_unit_price: '0.001' };
   // Set up an unpublished fixture baseline with its own immutable state.
   fs.writeFileSync(f.sourcePath, JSON.stringify({ ...source, id: crypto.randomUUID() }));
   updateModelPricingCatalog({ repoRoot: f.repoRoot });
@@ -151,7 +151,7 @@ test('missing or invalid cache write skips the whole model without deletion or p
   }
 });
 
-test('does not add upstream-only models and allows explicit opt-out', t => {
+test('discovers upstream-only models while respecting explicit opt-out', t => {
   const f = fixture(t);
   const source = { ...f.source, id: crypto.randomUUID(), extensions: { price_sync: false } };
   fs.writeFileSync(f.sourcePath, JSON.stringify(source));
@@ -160,7 +160,10 @@ test('does not add upstream-only models and allows explicit opt-out', t => {
   data.modelsDev.anthropic.models['upstream-only'] = { cost: price };
   const before = snapshot(f.repoRoot);
   assert.equal(syncModelPricing({ ...f, ...data }).skipped[0].reason, 'disabled-or-opted-out');
-  assert.deepEqual(snapshot(f.repoRoot), before);
+  assert.ok(syncModelPricing({ ...f, ...data }).unchanged >= 1);
+  const rules = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/catalog/v1/catalog.json'))).rules;
+  assert.ok(rules.some(r => r.upstream_model_id === 'upstream-only'));
+  assert.equal(JSON.parse(fs.readFileSync(f.sourcePath)).extensions.price_sync, false);
 });
 
 test('missing Models.dev models can use a complete native LiteLLM entry', t => {
@@ -246,4 +249,130 @@ test('network failures retry a bounded number of times and never turn into empty
     if (url === MODELS_DEV_URL) return { ok: true, json: async () => upstream().modelsDev };
     throw new Error('network unavailable');
   }, attempts: 1 }), /network unavailable/);
+});
+
+
+test('reconciles the complete upstream union including new providers, tier changes and removed models', t => {
+  const f = fixture(t);
+  const data = upstream();
+  data.modelsDev.openai = { models: { 'gpt-6.1-terra': { cost: { ...price, tiers: [{ input: 6, output: 30, cache_read: 0.6, cache_write: 7.5, tier: { type: 'context', size: 272000 } }] } } } };
+  data.modelsDev['new-provider'] = { models: { 'vendor/model': { cost: price } } };
+  data.liteLlm['new-provider/lite-only'] = { ...fallback, litellm_provider: 'new-provider', mode: 'chat' };
+  data.liteLlm['openai/gpt-6.1-terra'] = { ...fallback, litellm_provider: 'openai', mode: 'chat' };
+  const first = syncModelPricing({ ...f, ...data, now: NOW });
+  assert.deepEqual(first.added, ['new-provider/lite-only', 'new-provider/vendor/model', 'openai/gpt-6.1-terra']);
+  let catalog = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/catalog/v1/catalog.json')));
+  const terra = catalog.rules.find(r => r.upstream_model_id === 'gpt-6.1-terra');
+  assert.equal(terra.input_token_unit_price, '3');
+  assert.deepEqual(terra.rules, [{ when: { input_tokens: { operator: 'gt', value: 272000 } }, overrides: { input_token_unit_price: '6', output_token_unit_price: '30', cache_hit_token_unit_price: '0.6', cache_write_token_unit_price: '7.5' } }]);
+  const before = snapshot(f.repoRoot);
+  const repeat = syncModelPricing({ ...f, ...data, now: '2026-10-15T00:00:00Z' });
+  assert.deepEqual(repeat.added, []);
+  assert.deepEqual(repeat.updated, []);
+  assert.deepEqual(snapshot(f.repoRoot), before);
+  data.modelsDev.openai.models['gpt-6.1-terra'].cost.tiers[0].input = 8;
+  assert.ok(syncModelPricing({ ...f, ...data, now: NOW }).updated.includes('openai/gpt-6.1-terra'));
+  delete data.modelsDev.openai;
+  delete data.liteLlm['openai/gpt-6.1-terra'];
+  const removal = syncModelPricing({ ...f, ...data, now: NOW });
+  assert.deepEqual(removal.removed, ['openai/gpt-6.1-terra']);
+  catalog = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/catalog/v1/catalog.json')));
+  assert.ok(!catalog.rules.some(r => r.upstream_model_id === 'gpt-6.1-terra'));
+  const state = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/_maintenance/catalog-state.json')));
+  assert.ok(state.rules[terra.id], 'retired identity remains immutable');
+});
+
+test('dry run and failed publication roll back additions, removals and generated pages', t => {
+  const f = fixture(t);
+  const data = upstream();
+  data.modelsDev.anthropic.models['new/model'] = { cost: price };
+  const before = snapshot(f.repoRoot);
+  assert.deepEqual(syncModelPricing({ ...f, ...data, now: NOW, dryRun: true }).added, ['anthropic/new/model']);
+  assert.deepEqual(snapshot(f.repoRoot), before);
+  const original = fs.writeFileSync;
+  let failed = false;
+  fs.writeFileSync = (file, ...args) => {
+    if (!failed && String(file).endsWith('catalog/v1/index.json')) { failed = true; throw new Error('publication failed'); }
+    return original(file, ...args);
+  };
+  try { assert.throws(() => syncModelPricing({ ...f, ...data, now: NOW }), /publication failed/); }
+  finally { fs.writeFileSync = original; }
+  assert.deepEqual(snapshot(f.repoRoot), before);
+  assert.equal(fs.existsSync(path.join(f.repoRoot, 'model-pricing/_maintenance/upstream-models.json')), false);
+});
+
+test('reports every upstream identity including unavailable rates without fabricating prices', t => {
+  const f = fixture(t);
+  const data = upstream();
+  data.modelsDev.openai = { models: { missing: { cost: { input: 1, output: 2 } } } };
+  const result = syncModelPricing({ ...f, ...data, now: NOW });
+  assert.ok(result.skipped.some(r => r.model === 'openai/missing' && r.reason === 'missing-or-invalid-cache_hit'));
+  const inventory = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/_maintenance/upstream-models.json')));
+  assert.equal(inventory.models.length, 2);
+  assert.equal(inventory.models.find(m => m.model === 'openai/missing').status, 'unavailable');
+});
+
+
+test('imports one-hour cache writes and combined context rates without dropping compound local conditions', t => {
+  const f = fixture(t);
+  const compound = { when: { input_tokens: { operator: 'gt', value: 100 }, timezone: 'UTC', weekday_mask: 31 }, overrides: { output_token_unit_price: '9' } };
+  fs.writeFileSync(f.sourcePath, JSON.stringify({ ...f.source, id: crypto.randomUUID(), rules: [...f.source.rules, compound] }));
+  updateModelPricingCatalog({ repoRoot: f.repoRoot });
+  const data = upstream();
+  data.liteLlm['test-model'].cache_creation_input_token_cost_above_1hr = 6e-6;
+  data.liteLlm['test-model'].cache_creation_input_token_cost_above_1hr_above_200k_tokens = 12e-6;
+  syncModelPricing({ ...f, ...data, now: NOW });
+  const saved = JSON.parse(fs.readFileSync(f.sourcePath));
+  assert.ok(saved.rules.some(r => r.when.cache_write_ttl_seconds === 3600 && !r.when.input_tokens && r.overrides.cache_write_token_unit_price === '6'));
+  assert.ok(saved.rules.some(r => r.when.cache_write_ttl_seconds === 3600 && r.when.input_tokens?.value === 200000 && r.overrides.cache_write_token_unit_price === '12'));
+  assert.ok(saved.rules.some(r => JSON.stringify(r) === JSON.stringify(compound)));
+  assert.equal(saved.rules.filter(r => r.when.cache_write_ttl_seconds === 3600 && !r.when.input_tokens).length, 1);
+});
+
+test('keeps provider prices separate, encodes model paths and mirrors raw incomplete quotes', t => {
+  const f = fixture(t);
+  const data = upstream();
+  data.modelsDev['provider-b'] = { models: { '../test-model': { cost: { ...price, input: 99 } }, missing: { cost: { input: 4 } } } };
+  data.liteLlm['provider-c/test-model'] = { ...fallback, litellm_provider: 'provider-c', mode: 'chat', input_cost_per_token: 7e-6 };
+  syncModelPricing({ ...f, ...data, now: NOW });
+  const catalog = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/catalog/v1/catalog.json')));
+  assert.equal(catalog.rules.find(r => r.provider_code === 'provider-b').input_token_unit_price, '99');
+  assert.equal(catalog.rules.find(r => r.provider_code === 'provider-c').input_token_unit_price, '7');
+  assert.ok(fs.existsSync(path.join(f.repoRoot, 'model-pricing/@provider-b/%2E%2E%2Ftest-model/pricing.json')));
+  const file = path.join(f.repoRoot, 'model-pricing/_maintenance/upstream-models.json');
+  const report = fs.readFileSync(file, 'utf8');
+  const model = JSON.parse(report).models.find(m => m.model === 'provider-b/missing');
+  assert.deepEqual(model.pricing.models_dev, { input: 4 });
+  const reordered = Object.fromEntries(Object.entries(data.modelsDev).reverse());
+  syncModelPricing({ ...f, ...data, modelsDev: reordered, now: NOW });
+  assert.equal(fs.readFileSync(file, 'utf8'), report);
+});
+
+
+test('imports the exact twelve-hour TTL bucket and its context override for newly discovered Terra', t => {
+  const f = fixture(t);
+  const data = upstream();
+  data.modelsDev.openai = { models: { 'gpt-6.1-terra': { cost: { input: 1, output: 5, cache_read: 0.05, cache_write: 1.25, tiers: [{ tier: { type: 'context', size: 272000 }, input: 2, output: 7.5, cache_read: 0.1, cache_write: 2.5 }] } } } };
+  data.liteLlm['gpt-6.1-terra'] = { litellm_provider: 'openai', mode: 'chat', cache_creation_input_token_cost_above_12hr: 2.5e-6, cache_creation_input_token_cost_above_12hr_above_272k_tokens: 5e-6 };
+  syncModelPricing({ ...f, ...data, now: NOW });
+  const rules = JSON.parse(fs.readFileSync(path.join(f.repoRoot, 'model-pricing/catalog/v1/catalog.json'))).rules.find(r => r.upstream_model_id === 'gpt-6.1-terra').rules;
+  assert.ok(rules.some(r => r.when.cache_write_ttl_seconds === 43200 && !r.when.input_tokens && r.overrides.cache_write_token_unit_price === '2.5'));
+  assert.ok(rules.some(r => r.when.cache_write_ttl_seconds === 43200 && r.when.input_tokens?.value === 272000 && r.overrides.cache_write_token_unit_price === '5'));
+});
+
+
+test('removes previously synchronized TTL conditions when upstream withdraws them, preserving manual conditions', t => {
+  const f = fixture(t);
+  const data = upstream();
+  data.liteLlm['test-model'].cache_creation_input_token_cost_above_12hr = 8e-6;
+  syncModelPricing({ ...f, ...data, now: NOW });
+  const first = JSON.parse(fs.readFileSync(f.sourcePath));
+  assert.ok(first.rules.some(r => r.when.cache_write_ttl_seconds === 43200));
+  delete data.liteLlm['test-model'].cache_creation_input_token_cost_above_12hr;
+  assert.deepEqual(syncModelPricing({ ...f, ...data, now: NOW }).updated, ['anthropic/test-model']);
+  const second = JSON.parse(fs.readFileSync(f.sourcePath));
+  assert.ok(!second.rules.some(r => r.when.cache_write_ttl_seconds === 43200));
+  assert.ok(second.rules.some(r => r.when.cache_write_ttl_seconds === 3600));
+  assert.ok(second.rules.some(r => r.when.local_time_start === '01:00:00'));
+  assert.notEqual(second.id, first.id);
 });

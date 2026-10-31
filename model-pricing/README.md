@@ -65,33 +65,43 @@ in [LiteLLM](https://github.com/BerriAI/litellm/blob/main/model_prices_and_conte
 No SDK or gateway dependency is installed; the converter uses Node.js built-ins.
 Upstream MIT notices are retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Only existing provider/model sources are updated. All four valid nonnegative rates
-must be available; otherwise the whole model is skipped without deletion or partial updates.
-An explicit zero is valid, while a missing field is never assumed to be zero or the input rate.
-Prices are converted to decimal strings in USD per 1,000,000 tokens. LiteLLM's per-token
-rates are scaled with decimal arithmetic. Provider identity is checked to avoid borrowing
-relay prices. `kimi` maps to international `moonshotai` / `moonshot`, not `moonshotai-cn`;
-`google` maps to `google` / `gemini`, and `zai` to `zai` / `z_ai`.
-Unmapped providers (including `zero/any`), disabled or non-current configurations, and
-sources with `extensions.price_sync: false` are skipped.
+The sync discovers the union of provider/model identities in both upstream catalogs,
+including new providers and models. Local files no longer act as an allowlist. Existing
+aliases remain: `kimi` maps to international `moonshotai` / `moonshot`, `google` to
+`google` / `gemini`, and `zai` to `zai`. Other providers retain their upstream identity.
+Rates never cross provider or regional boundaries. Community-managed sources absent
+from both snapshots are removed; local/manual sources, `zero/any`, disabled sources,
+and explicit `extensions.price_sync: false` configurations are retained.
 
-The sync changes only the four default rates. Existing context, time-window and cache-TTL
-rules, ordering and other configuration remain intact; it neither imports nor recalculates
-conditional rules. Those rules continue to require separate review when defaults change.
-Changed configurations receive a new UUID and use the sync observation time as
-`effective_from`; this is not a claimed vendor price-change date. Their `extensions.source`
-becomes `community_pricing`, and `extensions.price_sync` records the observation time and
-source URL/provider/model/field for each meter. Previous vendor verification metadata is
-removed from changed configurations. Numerically unchanged prices retain their ID,
-timestamps, provenance and bytes, so idle runs do not create commits.
+`_maintenance/upstream-models.json` mirrors the complete identity set and upstream
+pricing, marking each model `synchronized` or `unavailable` with a reason. Publishing a
+standard price configuration requires all four valid, nonnegative default rates.
+Missing values are never replaced with zero or the input rate; explicit zero is valid.
+Image, audio, video and other meters unsupported by the four-token-meter contract remain
+in the inventory without fabricated standard prices. A complete inventory does not imply
+that every model has a usable standard quote. Existing sources with incomplete new quotes
+are retained but marked unavailable in the inventory, rather than verified as current.
 
-On change, `catalog_version` advances and all catalog, search, seed and maintenance
-artifacts are regenerated and checked before the workflow commits to `main`. Historical
-IDs remain in maintenance state. Both upstream snapshots must download successfully;
-network/JSON/invalid-catalog errors fail the job before syncing, and transient requests
-retry at most three times with a 60-second timeout per attempt. Logs and the Action summary
-identify updated, unchanged and skipped models. Signed tagged releases remain a separate
-existing release operation; hourly sync does not create tags or signed release assets.
+Rates use decimal USD per million tokens. The sync also imports explicit context tiers,
+preferring Models.dev `cost.tiers` and otherwise using LiteLLM's exact
+`_above_<N>k_tokens` thresholds. It never guesses a threshold from the legacy
+`context_over_200k` field name. LiteLLM's documented one-hour and twelve-hour TTL buckets, including combined context
+conditions, are imported. Previously synchronized rules are removed when upstream withdraws
+them. Other manual TTL, compound conditions and time-window rates remain and require separate review. Batch, flex, priority and
+other service tiers unsupported by the condition contract are not imported.
+
+Default-rate or context-rule changes receive a new UUID and observation time, preserving
+historical identities. Previous vendor verification metadata is removed. Unchanged
+configurations retain their IDs, timestamps and bytes; replaying the same snapshots is idle.
+Additions, updates or removals advance the catalog version and regenerate indexes,
+pages, search, aggregate, seed and maintenance state. A failed write restores the entire
+pricing tree, including new/deleted sources and generated pages.
+
+Both snapshots must download successfully; malformed data and network failures fail the
+job. Requests retry at most three times with a 60-second timeout per attempt. The Action
+summary and `model-pricing-sync-report` artifact expose discovery, additions, updates,
+removals and unavailable quotes. GitHub may delay scheduled runs. Signed tagged releases
+remain a separate operation; hourly synchronization does not create signed release assets.
 
 Preview live data without writing:
 

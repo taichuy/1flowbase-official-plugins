@@ -24,8 +24,24 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Synchronize existing model prices
-        run: node scripts/model-pricing/sync.mjs
+      - name: Synchronize complete upstream model and price catalog
+        run: |
+          mkdir -p tmp/test-governance/model-pricing-sync
+          node scripts/model-pricing/sync.mjs > tmp/test-governance/model-pricing-sync/result.json
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const result = JSON.parse(fs.readFileSync('tmp/test-governance/model-pricing-sync/result.json'));
+          console.log(JSON.stringify({ discovered: result.discovered, added: result.added.length, updated: result.updated.length, removed: result.removed.length, unchanged: result.unchanged, skipped: result.skipped.length }));
+          JS
+      - name: Preserve complete sync evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-pricing-sync-report
+          path: |
+            tmp/test-governance/model-pricing-sync/result.json
+            model-pricing/_maintenance/upstream-models.json
+          if-no-files-found: ignore
       - name: Verify source conversion and catalog contracts
         run: node --test scripts/model-pricing/_tests/*.test.mjs scripts/_tests/model-pricing-catalog.test.mjs scripts/_tests/convert-model-pricing-v2.test.mjs
       - name: Verify generated catalog
@@ -38,5 +54,5 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: sync model pricing from community catalogs"
+          git commit -m "chore: synchronize complete upstream model pricing catalog"
           git push origin HEAD:main
