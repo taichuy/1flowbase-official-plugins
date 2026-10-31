@@ -1,9 +1,16 @@
 {
   "schema_version": "1flowbase.model-pricing-source/v2",
-  "id": "22000000-0000-4000-8000-000000000106",
   "provider_code": "anthropic",
   "upstream_model_id": "claude-opus-5-5",
   "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "id": "10933d7a-68be-495d-8eae-73c6641a3b90",
   "input_token_unit_size": 1000000,
   "input_token_unit_price": "4",
   "output_token_unit_size": 1000000,
@@ -12,14 +19,7 @@
   "cache_hit_token_unit_price": "0.2",
   "cache_write_token_unit_size": 1000000,
   "cache_write_token_unit_price": "5",
-  "effective_from": "2026-10-02T00:00:00Z",
-  "effective_to": null,
-  "timezone": "UTC",
-  "weekday_mask": 127,
-  "local_time_start": null,
-  "local_time_end": null,
-  "priority": 0,
-  "enabled": true,
+  "effective_from": "2026-10-31T02:01:38.612Z",
   "rules": [
     {
       "when": {
@@ -32,8 +32,49 @@
   ],
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published",
-    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "verified_on": "2026-10-02"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-opus-5-5",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-opus-5-5",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-opus-5-5",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-opus-5-5",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "8"
+          }
+        }
+      ]
+    }
   }
 }

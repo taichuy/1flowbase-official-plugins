@@ -1,0 +1,61 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "vercel_ai_gateway",
+  "upstream_model_id": "anthropic/claude-haiku-4.5",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "1",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "5",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.1",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "1.25",
+  "id": "1dfc916b-2520-4f18-9cf2-c53e2993141b",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "litellm",
+          "provider": "vercel_ai_gateway",
+          "model": "anthropic/claude-haiku-4.5",
+          "field": "input_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "output": {
+          "source": "litellm",
+          "provider": "vercel_ai_gateway",
+          "model": "anthropic/claude-haiku-4.5",
+          "field": "output_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_hit": {
+          "source": "litellm",
+          "provider": "vercel_ai_gateway",
+          "model": "anthropic/claude-haiku-4.5",
+          "field": "cache_read_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "vercel_ai_gateway",
+          "model": "anthropic/claude-haiku-4.5",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      },
+      "rules": []
+    }
+  }
+}

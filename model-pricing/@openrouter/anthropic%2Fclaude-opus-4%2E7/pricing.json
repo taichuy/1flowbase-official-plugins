@@ -1,0 +1,91 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "openrouter",
+  "upstream_model_id": "anthropic/claude-opus-4.7",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "5",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "25",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.5",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "6.25",
+  "id": "4bf22a5f-c740-4635-ad2c-4d8bccce2cbe",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 200000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "10",
+        "output_token_unit_price": "37.5",
+        "cache_hit_token_unit_price": "1",
+        "cache_write_token_unit_price": "12.5"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "openrouter",
+          "model": "anthropic/claude-opus-4.7",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "openrouter",
+          "model": "anthropic/claude-opus-4.7",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "openrouter",
+          "model": "anthropic/claude-opus-4.7",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "openrouter",
+          "model": "anthropic/claude-opus-4.7",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "10",
+            "output_token_unit_price": "37.5",
+            "cache_hit_token_unit_price": "1",
+            "cache_write_token_unit_price": "12.5"
+          }
+        }
+      ]
+    }
+  }
+}

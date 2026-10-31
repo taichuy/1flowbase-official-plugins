@@ -1,0 +1,91 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "openai",
+  "upstream_model_id": "daybreak-red-latest",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "12.5",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "75",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "1.25",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "15.625",
+  "id": "8879e484-1c60-42f6-845d-c19ae75433f9",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 272000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "25",
+        "output_token_unit_price": "112.5",
+        "cache_hit_token_unit_price": "2.5",
+        "cache_write_token_unit_price": "31.25"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "litellm",
+          "provider": "openai",
+          "model": "daybreak-red-latest",
+          "field": "input_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "output": {
+          "source": "litellm",
+          "provider": "openai",
+          "model": "daybreak-red-latest",
+          "field": "output_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_hit": {
+          "source": "litellm",
+          "provider": "openai",
+          "model": "daybreak-red-latest",
+          "field": "cache_read_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "openai",
+          "model": "daybreak-red-latest",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "25",
+            "output_token_unit_price": "112.5",
+            "cache_hit_token_unit_price": "2.5",
+            "cache_write_token_unit_price": "31.25"
+          }
+        }
+      ]
+    }
+  }
+}

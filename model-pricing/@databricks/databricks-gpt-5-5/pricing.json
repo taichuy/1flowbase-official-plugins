@@ -1,0 +1,89 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "databricks",
+  "upstream_model_id": "databricks-gpt-5-5",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "5",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "30",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.5",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "5.00003",
+  "id": "e2107532-23b3-4766-b32c-67d023b6ee22",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 272000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "10",
+        "output_token_unit_price": "45",
+        "cache_hit_token_unit_price": "1"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-gpt-5-5",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-gpt-5-5",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-gpt-5-5",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "databricks",
+          "model": "databricks-gpt-5-5",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "10",
+            "output_token_unit_price": "45",
+            "cache_hit_token_unit_price": "1"
+          }
+        }
+      ]
+    }
+  }
+}

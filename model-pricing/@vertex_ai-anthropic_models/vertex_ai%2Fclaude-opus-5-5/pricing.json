@@ -1,0 +1,79 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "vertex_ai-anthropic_models",
+  "upstream_model_id": "vertex_ai/claude-opus-5-5",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "4",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "20",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.2",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "5",
+  "id": "1c38fabe-af60-4b46-b1dc-708cf6cc0880",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "cache_write_ttl_seconds": 3600
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "8"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "litellm",
+          "provider": "vertex_ai-anthropic_models",
+          "model": "vertex_ai/claude-opus-5-5",
+          "field": "input_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "output": {
+          "source": "litellm",
+          "provider": "vertex_ai-anthropic_models",
+          "model": "vertex_ai/claude-opus-5-5",
+          "field": "output_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_hit": {
+          "source": "litellm",
+          "provider": "vertex_ai-anthropic_models",
+          "model": "vertex_ai/claude-opus-5-5",
+          "field": "cache_read_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "vertex_ai-anthropic_models",
+          "model": "vertex_ai/claude-opus-5-5",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "8"
+          }
+        }
+      ]
+    }
+  }
+}

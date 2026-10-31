@@ -1,9 +1,16 @@
 {
   "schema_version": "1flowbase.model-pricing-source/v2",
-  "id": "22000000-0000-4000-8000-000000000109",
   "provider_code": "anthropic",
   "upstream_model_id": "claude-haiku-5-5",
   "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "id": "4b4fafc8-cd1f-4c16-8626-220fca915bbe",
   "input_token_unit_size": 1000000,
   "input_token_unit_price": "0.1",
   "output_token_unit_size": 1000000,
@@ -12,23 +19,8 @@
   "cache_hit_token_unit_price": "0.01",
   "cache_write_token_unit_size": 1000000,
   "cache_write_token_unit_price": "0.125",
-  "effective_from": "2026-10-11T00:00:00Z",
-  "effective_to": null,
-  "timezone": "UTC",
-  "weekday_mask": 127,
-  "local_time_start": null,
-  "local_time_end": null,
-  "priority": 0,
-  "enabled": true,
+  "effective_from": "2026-10-31T02:01:38.612Z",
   "rules": [
-    {
-      "when": {
-        "cache_write_ttl_seconds": 3600
-      },
-      "overrides": {
-        "cache_write_token_unit_price": "0.2"
-      }
-    },
     {
       "when": {
         "input_tokens": {
@@ -41,6 +33,14 @@
         "output_token_unit_price": "2.5",
         "cache_hit_token_unit_price": "0.05",
         "cache_write_token_unit_price": "0.625"
+      }
+    },
+    {
+      "when": {
+        "cache_write_ttl_seconds": 3600
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "0.2"
       }
     },
     {
@@ -58,8 +58,75 @@
   ],
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published",
-    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "verified_on": "2026-10-11"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 100000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.5",
+            "output_token_unit_price": "2.5",
+            "cache_hit_token_unit_price": "0.05",
+            "cache_write_token_unit_price": "0.625"
+          }
+        },
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "0.2"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 100000
+            },
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "1"
+          }
+        }
+      ]
+    }
   }
 }

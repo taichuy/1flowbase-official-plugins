@@ -1,0 +1,91 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "aihubmix",
+  "upstream_model_id": "qwen3.6-plus",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "0.282",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "1.692",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.0282",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "0.3525",
+  "id": "ff5f7b35-6e40-4fd6-b1e5-e6154a33c1e0",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 256000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "1.128",
+        "output_token_unit_price": "6.768",
+        "cache_hit_token_unit_price": "0.1128",
+        "cache_write_token_unit_price": "1.41"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "aihubmix",
+          "model": "qwen3.6-plus",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "aihubmix",
+          "model": "qwen3.6-plus",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "aihubmix",
+          "model": "qwen3.6-plus",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "aihubmix",
+          "model": "qwen3.6-plus",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "1.128",
+            "output_token_unit_price": "6.768",
+            "cache_hit_token_unit_price": "0.1128",
+            "cache_write_token_unit_price": "1.41"
+          }
+        }
+      ]
+    }
+  }
+}

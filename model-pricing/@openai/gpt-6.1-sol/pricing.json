@@ -3,14 +3,6 @@
   "provider_code": "openai",
   "upstream_model_id": "gpt-6.1-sol",
   "currency_code": "USD",
-  "id": "21000000-0000-4000-8000-000000000107",
-  "input_token_unit_size": 1000000,
-  "input_token_unit_price": "2",
-  "output_token_unit_size": 1000000,
-  "output_token_unit_price": "10",
-  "cache_hit_token_unit_size": 1000000,
-  "cache_hit_token_unit_price": "0.1",
-  "effective_from": "2026-10-11T00:00:00Z",
   "effective_to": null,
   "timezone": "UTC",
   "weekday_mask": 127,
@@ -18,11 +10,86 @@
   "local_time_end": null,
   "priority": 0,
   "enabled": true,
+  "id": "4c0bc019-a990-46d0-9c31-7b7bb37855a9",
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "2",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "10",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.1",
+  "effective_from": "2026-10-31T02:01:38.612Z",
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published",
-    "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
-    "verified_on": "2026-10-11"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "openai",
+          "model": "gpt-6.1-sol",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "openai",
+          "model": "gpt-6.1-sol",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "openai",
+          "model": "gpt-6.1-sol",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "openai",
+          "model": "gpt-6.1-sol",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        },
+        {
+          "when": {
+            "cache_write_ttl_seconds": 43200
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "5"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            },
+            "cache_write_ttl_seconds": 43200
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ]
+    }
   },
   "cache_write_token_unit_size": 1000000,
   "cache_write_token_unit_price": "2.5",
@@ -39,6 +106,26 @@
         "output_token_unit_price": "15",
         "cache_hit_token_unit_price": "0.2",
         "cache_write_token_unit_price": "5"
+      }
+    },
+    {
+      "when": {
+        "cache_write_ttl_seconds": 43200
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "5"
+      }
+    },
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 272000
+        },
+        "cache_write_ttl_seconds": 43200
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "10"
       }
     }
   ]

@@ -1,9 +1,16 @@
 {
   "schema_version": "1flowbase.model-pricing-source/v2",
-  "id": "22000000-0000-4000-8000-000000000105",
   "provider_code": "anthropic",
   "upstream_model_id": "claude-fable-5-1",
   "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "id": "03d3f81f-e16d-483b-bb97-97f401b3544d",
   "input_token_unit_size": 1000000,
   "input_token_unit_price": "10",
   "output_token_unit_size": 1000000,
@@ -12,14 +19,7 @@
   "cache_hit_token_unit_price": "0.25",
   "cache_write_token_unit_size": 1000000,
   "cache_write_token_unit_price": "12.5",
-  "effective_from": "2026-09-09T00:00:00Z",
-  "effective_to": null,
-  "timezone": "UTC",
-  "weekday_mask": 127,
-  "local_time_start": null,
-  "local_time_end": null,
-  "priority": 0,
-  "enabled": true,
+  "effective_from": "2026-10-31T02:01:38.612Z",
   "rules": [
     {
       "when": {
@@ -32,6 +32,49 @@
   ],
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-fable-5-1",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-fable-5-1",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-fable-5-1",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "anthropic",
+          "model": "claude-fable-5-1",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "20"
+          }
+        }
+      ]
+    }
   }
 }

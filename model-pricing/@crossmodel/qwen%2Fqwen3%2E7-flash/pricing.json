@@ -1,0 +1,119 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "crossmodel",
+  "upstream_model_id": "qwen/qwen3.7-flash",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "0.04",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "0.13",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.01",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "0.04",
+  "id": "66d420fc-c9f7-42c8-a613-2fd69a5f5a41",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 32000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "0.1",
+        "output_token_unit_price": "0.37",
+        "cache_hit_token_unit_price": "0.02",
+        "cache_write_token_unit_price": "0.12"
+      }
+    },
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 256000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "0.19",
+        "output_token_unit_price": "0.74",
+        "cache_hit_token_unit_price": "0.04",
+        "cache_write_token_unit_price": "0.24"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "crossmodel",
+          "model": "qwen/qwen3.7-flash",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "crossmodel",
+          "model": "qwen/qwen3.7-flash",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "crossmodel",
+          "model": "qwen/qwen3.7-flash",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "crossmodel",
+          "model": "qwen/qwen3.7-flash",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 32000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.1",
+            "output_token_unit_price": "0.37",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.12"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.19",
+            "output_token_unit_price": "0.74",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.24"
+          }
+        }
+      ]
+    }
+  }
+}

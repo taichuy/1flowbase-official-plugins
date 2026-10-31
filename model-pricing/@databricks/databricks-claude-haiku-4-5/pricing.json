@@ -1,0 +1,79 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "databricks",
+  "upstream_model_id": "databricks-claude-haiku-4-5",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "1",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "5",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.1",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "1.25",
+  "id": "5269d492-d077-435a-8cdf-a46a5d74ab6f",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "cache_write_ttl_seconds": 3600
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "1.99997"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-claude-haiku-4-5",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-claude-haiku-4-5",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-claude-haiku-4-5",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-claude-haiku-4-5",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "1.99997"
+          }
+        }
+      ]
+    }
+  }
+}

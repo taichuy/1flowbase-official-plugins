@@ -1,0 +1,89 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "databricks",
+  "upstream_model_id": "databricks-gemini-3-1-pro",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "2",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "12",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.2",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "2.49998",
+  "id": "6fa730c9-0e2c-4ae8-b701-545e7f5f84cd",
+  "effective_from": "2026-10-31T02:01:38.612Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 200000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "4",
+        "output_token_unit_price": "18",
+        "cache_hit_token_unit_price": "0.4"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-gemini-3-1-pro",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-gemini-3-1-pro",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "databricks",
+          "model": "databricks-gemini-3-1-pro",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "databricks",
+          "model": "databricks-gemini-3-1-pro",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -3,14 +3,6 @@
   "provider_code": "kimi",
   "upstream_model_id": "kimi-k3",
   "currency_code": "USD",
-  "id": "25000000-0000-4000-8000-000000000001",
-  "input_token_unit_size": 1000000,
-  "input_token_unit_price": "3",
-  "output_token_unit_size": 1000000,
-  "output_token_unit_price": "15",
-  "cache_hit_token_unit_size": 1000000,
-  "cache_hit_token_unit_price": "0.3",
-  "effective_from": "2026-08-18T00:00:00Z",
   "effective_to": null,
   "timezone": "UTC",
   "weekday_mask": 127,
@@ -18,11 +10,71 @@
   "local_time_end": null,
   "priority": 0,
   "enabled": true,
+  "id": "145eecae-e65d-4c2c-a360-a04d0fce5f0b",
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "3",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "15",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.3",
+  "effective_from": "2026-10-31T02:01:38.612Z",
   "extensions": {
     "price_type": "standard_api",
-    "source": "vendor_published"
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-10-31T02:01:38.612Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "moonshotai",
+          "model": "kimi-k3",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "moonshotai",
+          "model": "kimi-k3",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "moonshotai",
+          "model": "kimi-k3",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "moonshotai",
+          "model": "kimi-k3",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "6"
+          }
+        }
+      ]
+    }
   },
   "cache_write_token_unit_size": 1000000,
   "cache_write_token_unit_price": "3",
-  "rules": []
+  "rules": [
+    {
+      "when": {
+        "cache_write_ttl_seconds": 3600
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "6"
+      }
+    }
+  ]
 }
