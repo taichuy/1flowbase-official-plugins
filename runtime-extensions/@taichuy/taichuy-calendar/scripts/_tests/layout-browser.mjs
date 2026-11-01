@@ -14,7 +14,7 @@ const report = { checks: [], errors: [] };
 await mkdir(out, { recursive: true });
 try {
   for (const name of ['ComposedPage', 'CalendarPage']) {
-    for (const viewport of [{ width: 1440, height: 1000 }, { width: 1440, height: 600 }, { width: 390, height: 844 }]) {
+    for (const viewport of [{ width: 2560, height: 1200 }, { width: 1920, height: 1080 }, { width: 1440, height: 1000 }, { width: 1440, height: 600 }, { width: 390, height: 844 }]) {
       const context = await browser.newContext({ viewport, timezoneId: 'Asia/Shanghai', locale: 'zh-CN' });
       try {
         await context.route('**/*', route => route.abort());
@@ -34,6 +34,25 @@ try {
           assert.equal(await section.locator('[data-calendar-date="2026-11-01"]:visible').count(), 1);
         } else {
           assert.equal(await rail.evaluate(n => getComputedStyle(n).position), 'sticky');
+          if (viewport.width >= 1920) {
+            const box = await section.evaluate(n => {
+              const rect = n.getBoundingClientRect(), style = getComputedStyle(n);
+              return { x: rect.x + parseFloat(style.paddingLeft), width: n.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) };
+            });
+            const main = await section.locator('main').boundingBox(), calendar = await rail.boundingBox();
+            const ratios = [(main.x - box.x) / box.width, main.width / box.width,
+              (calendar.x - main.x - main.width) / box.width, calendar.width / box.width];
+            for (const [index, expected] of [0.1, 0.6, 0.1, 0.2].entries()) {
+              assert.ok(Math.abs(ratios[index] - expected) < 0.002, `${name}: column ${index} ratio ${ratios[index]} != ${expected}`);
+            }
+            // Resize only the block, not the viewport: responsiveness belongs to the block.
+            await section.evaluate(n => n.style.width = '700px');
+            assert.equal(await rail.isVisible(), false, 'Narrow block must use inline calendar even on a wide screen');
+            assert.equal(await section.locator('[data-calendar-date="2026-11-01"]:visible').count(), 1);
+            await section.evaluate(n => n.style.removeProperty('width'));
+          }
+          const overflow = await section.evaluate(n => n.scrollWidth > n.clientWidth + 1);
+          assert.equal(overflow, false, 'Block must not overflow horizontally');
           await owner.evaluate(n => n.scrollTop = 250);
           const first = await rail.boundingBox();
           const leftFirst = await section.locator('main').boundingBox();
