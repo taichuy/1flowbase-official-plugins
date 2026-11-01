@@ -12,7 +12,7 @@ const packageValue = {
   schema_version: '1flowbase.portable-template/v1',
   release: { template_id: '@taichuy/calendar-composition', release_version: 5,
     name: '太初y 日历排盘 · 可编辑组合 / Editable Calendar',
-    description: 'Linked calendar, almanac, birth form and charts composed in editable JSX; requires taichuy-calendar 0.1.12.',
+    description: 'Linked calendar, almanac, birth form and charts composed in editable JSX; requires taichuy-calendar 0.1.13.',
     exported_from_system_version: '0.6.1', exported_at: '2026-11-02T00:00:00Z' },
   pages: [{ id: page, parent_id: null, kind: 'page', title: '日历排盘', icon: null, tooltip: null,
     is_hidden: false, placement: 'topbar', content_presentation: 'single', slug: 'calendar-composition', rank: 'a', visibility_rules: [],
@@ -26,14 +26,14 @@ const packageValue = {
           id: block, codeRef: `frontstage.block.${block}`, rendererVersion: 'v1', renderer_version: 'v1',
           ports: { inputs: [], outputs: [] }, props: {},
           catalog: { providerCode: 'taichuy-calendar', installationId: installation },
-          contribution: { code: 'Calendar', pluginId: 'taichuy-calendar@0.1.12', pluginVersion: '0.1.12' },
-          runtime: { kind: 'native_react', hint: 'native_react', entry: 'default', code_template_version: '0.1.12', code_template_language: 'tsx' },
+          contribution: { code: 'Calendar', pluginId: 'taichuy-calendar@0.1.13', pluginVersion: '0.1.13' },
+          runtime: { kind: 'native_react', hint: 'native_react', entry: 'default', code_template_version: '0.1.13', code_template_language: 'tsx' },
           'x-layout': { order: 0 }, 'x-presentation': { height: null, heightMode: 'auto' },
         } }],
     }],
   }],
   applications: [], data_models: [], mcp_bundle: null,
-  plugins: [{ plugin_id: 'taichuy-calendar@0.1.12', plugin_version: '0.1.12', checksum: null, contribution_code: 'Calendar' }],
+  plugins: [{ plugin_id: 'taichuy-calendar@0.1.13', plugin_version: '0.1.13', checksum: null, contribution_code: 'Calendar' }],
 };
 const directory = resolve(root, '../../../applications-demo/@taichuy/calendar-composition');
 await mkdir(directory, { recursive: true });
