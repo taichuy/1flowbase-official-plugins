@@ -73,16 +73,20 @@ being mistaken for the dayjs default function.
 All of these existing host modules are external, with the locally inspected target versions:
 
 - `react@19.2.5`, `antd@6.6.2`, `dayjs@1.11.20`, `@ant-design/icons@6.3.4`.
-- To retain source styles and clipboard behavior: `antd-style@4.1.0`,
-  `clsx@2.1.1`, `copy-to-clipboard@4.0.2`.
-- Locale defaults: `antd/locale/zh_CN`, `dayjs/locale/zh-cn`.
+- To retain source styles: `antd-style@4.1.0`, `clsx@2.1.1`.
+- Existing source-site `copy-to-clipboard@3.3.3` and its dependencies, Antd Chinese
+  locale metadata and the dayjs Chinese locale side effect are bundled, NOT host
+  bindings. No new download or clipboard feedback change is required; dayjs core
+  remains external.
 
 Original scoped CSS-in-JS objects live in the bundle and execute through host
 antd-style. There is no missing static stylesheet and no artificial empty
 browser.css. React, ReactDOM and every host package must not enter the release
-bundle. The build enforces this boundary.
+bundle, except for the narrowly allowed Chinese locale metadata. The build
+enforces this boundary.
 
-Only the five approved business dependencies are bundled:
+The five approved business dependencies are bundled alongside the existing
+support code described above:
 `lunar-typescript@1.8.6`, `tyme4ts@1.3.9`, `iztro@2.5.3`,
 `astronomy-engine@2.1.19`, `china-division@2.7.0`. Their needed transitive code is
 bundled too, not expected from the host. All bundled licenses are retained,

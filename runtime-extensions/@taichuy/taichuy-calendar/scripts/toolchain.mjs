@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { businessDependencies } from './module-contract.mjs';
+import { businessDependencies, bundledSupportDependencies } from './module-contract.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const hostRoot = process.env.TAICHUY_HOST_ROOT ?? '/home/taichuy/git/1flowbase';
@@ -21,7 +21,7 @@ export async function loadEsbuild() {
 }
 
 export async function verifyBusinessVersions() {
-  for (const [name, version] of Object.entries(businessDependencies)) {
+  for (const [name, version] of Object.entries({ ...businessDependencies, ...bundledSupportDependencies })) {
     const metadata = JSON.parse(await readFile(resolve(sourceNodeModules, name, 'package.json'), 'utf8'));
     if (metadata.version !== version) throw new Error(`${name}: expected approved ${version}, found ${metadata.version}`);
   }

@@ -16,7 +16,22 @@ export const hostModules = [
   { source: '@ant-design/icons', version: '6.3.4', exports: ['CheckOutlined', 'CompassOutlined', 'CalculatorOutlined', 'InfoCircleOutlined', 'CopyOutlined', 'LeftOutlined', 'RightOutlined', 'FileTextOutlined', 'QuestionCircleOutlined', 'ReloadOutlined'] },
   { source: 'antd-style', version: '4.1.0', exports: ['createStyles'] },
   { source: 'clsx', version: '2.1.1', exports: ['clsx'] },
-  { source: 'copy-to-clipboard', version: '4.0.2', exports: ['default'] },
-  { source: 'antd/locale/zh_CN', version: '6.6.2', exports: ['default'] },
-  { source: 'dayjs/locale/zh-cn', version: '1.11.20', exports: ['default'] },
 ];
+
+// Existing source-site support code, NOT additional host ABI requirements or new downloads.
+export const bundledSupportDependencies = { 'copy-to-clipboard': '3.3.3' };
+
+/** Only Chinese locale metadata may cross the otherwise external-only antd/dayjs boundary. */
+export function isBundledHostMetadata(input) {
+  return /(?:^|\/)node_modules\/antd\/(?:lib|es)\/(?:locale|(?:calendar|date-picker|time-picker)\/locale)\/zh_CN\.js$/.test(input)
+    || /(?:^|\/)node_modules\/dayjs\/locale\/zh-cn\.js$/.test(input);
+}
+
+export function assertBundlingBoundary(inputs) {
+  for (const input of inputs) {
+    if (/(?:^|\/)node_modules\/(?:react|react-dom|antd|dayjs|antd-style|clsx|@ant-design\/icons)(?:\/|$)/.test(input)
+      && !isBundledHostMetadata(input)) {
+      throw new Error(`Host module was bundled: ${input}`);
+    }
+  }
+}

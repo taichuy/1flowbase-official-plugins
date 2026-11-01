@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { root, sourceNodeModules, loadEsbuild, verifyBusinessVersions } from './toolchain.mjs';
-import { componentExports, hostModules } from './module-contract.mjs';
+import { componentExports, hostModules, assertBundlingBoundary, isBundledHostMetadata } from './module-contract.mjs';
 import { writeManifest } from './manifest.mjs';
 import { writeBundledLicenses } from './licenses.mjs';
 
@@ -35,11 +35,7 @@ const result = await esbuild.build({
 });
 const imported = new Set(Object.values(result.metafile.outputs).flatMap((output) => output.imports.map((item) => item.path)));
 for (const name of imported) if (!bySource.has(name)) throw new Error(`Undeclared external ${name}`);
-for (const input of Object.keys(result.metafile.inputs)) {
-  if (/(?:^|\/)node_modules\/(?:react|react-dom|antd|dayjs|antd-style|clsx|copy-to-clipboard|@ant-design\/icons)(?:\/|$)/.test(input)) {
-    throw new Error(`Host module was bundled: ${input}`);
-  }
-}
+assertBundlingBoundary(Object.keys(result.metafile.inputs));
 // Do not evaluate a CJS bundle in a blob with bare imports. The host resolves manifest bindings first.
 const text = `// Generated from approved source. Rebuild with scripts/build.mjs; do not edit.\n` +
   `export function createFrontendModule(hostModules) {\n` +
@@ -58,6 +54,7 @@ await writeFile(resolve(root, 'migration/bundle-contract.json'), JSON.stringify(
   exports: componentExports, hostModules, externalSources: [...imported].sort(),
   asset: { path: '_assets/ui/browser.js', sha256, bytes: Buffer.byteLength(text) },
   esbuildVersion: esbuild.version,
+  bundledHostMetadataInputs: Object.keys(result.metafile.inputs).filter(isBundledHostMetadata).sort(),
   // Relative paths only: reproducible across source worktrees.
   bundledPackages: [...new Set(Object.keys(result.metafile.inputs).flatMap((input) => {
     const match = [...input.matchAll(/node_modules\/((?:@[^/]+\/)?[^/]+)/g)].at(-1); return match ? [match[1]] : [];

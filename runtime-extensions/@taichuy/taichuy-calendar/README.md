@@ -67,12 +67,13 @@ export function createFrontendModule(hostModules) {
 精确 source/version/exports 在 [module-contract](scripts/module-contract.mjs)，全部 external：
 
 - `react` **19.2.5**、`antd` **6.6.2**、`dayjs` **1.11.20**、`@ant-design/icons` **6.3.4**。
-- 保留原样式与复制逻辑还需要宿主已有的 `antd-style` **4.1.0**、`clsx` **2.1.1**、
-  `copy-to-clipboard` **4.0.2**，以及 `antd/locale/zh_CN`、`dayjs/locale/zh-cn` 的 default。
+- 保留原样式还需要宿主已有的 `antd-style` **4.1.0**、`clsx` **2.1.1**。
+- 原站已有 `copy-to-clipboard@3.3.3` 与其依赖、Antd 中文 locale 元数据和 dayjs 中文 locale
+  side effect 随插件 bundle；它们不是 host binding，不新增下载，不修改复制反馈。dayjs 核心仍 external。
 - 不打包 React、ReactDOM 或上述宿主模块。原始所有 CSS-in-JS 样式代码在 bundle 内，
   由宿主 antd-style 挂载；没有被遗漏的静态 CSS，也不需要伪造空 browser.css。
 
-仅五个批准的业务依赖入 bundle，源码安装中版本不符立即停止：
+五个批准的业务依赖均入 bundle，另包含上述原站已有支持代码；源码安装中版本不符立即停止：
 `lunar-typescript@1.8.6`、`tyme4ts@1.3.9`、`iztro@2.5.3`、
 `astronomy-engine@2.1.19`、`china-division@2.7.0`。其实际传递依赖也由 bundle 隔离，
 不要求宿主提供。完整许可证含 Astronomy Engine 源头的完整 MIT `@preserve` 声明。
@@ -120,6 +121,7 @@ node scripts/run-component-fixtures.mjs
 React/Antd/Playwright；不安装浏览器、不启动服务。算法 fixture 在固定时区/时钟下，对比源哈希校验后
 从**原文件**截取的计算体，覆盖子时、闰日、节气/闰月与真太阳时跨日，以及已有源站预期数据。
 组件 fixture 用实际 factory + 冻结的 namespace 执行，缺少 dayjs 绑定必须拒绝；六入口均真实挂载。
+fixture 不预加载 locale/clipboard，断言 factory 将中文 locale 注册到同一个宿主 dayjs 核心。
 桌面/移动交互覆盖黄历与出生日期分离、日期/时间/性别/经纬与真太阳时联动、月/年/今天/签到、
 紫微宫位/运限、八字大运/流年展开与全部复制路径，并阻断网络、保存截图/文本/报告。
 QA-only host bundle 不进入安装资产，也不代表插件私带 React。

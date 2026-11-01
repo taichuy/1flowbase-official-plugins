@@ -30,7 +30,7 @@ await esbuild.build({
   define: { 'process.env.NODE_ENV': '"production"' },
   plugins: [{ name: 'test-host-root', setup(build) {
     // The harness lives outside the host; stop Node resolution falling back to source-site React.
-    build.onResolve({ filter: /^(react(?:-dom)?(?:\/.*)?|antd(?:\/.*)?|antd-style|dayjs(?:\/.*)?|clsx|copy-to-clipboard|@ant-design\/icons)$/ }, async (args) => {
+    build.onResolve({ filter: /^(react(?:-dom)?(?:\/.*)?|antd(?:\/.*)?|antd-style|dayjs(?:\/.*)?|clsx|@ant-design\/icons)$/ }, async (args) => {
       if (args.pluginData?.hostResolved) return undefined;
       const result = await build.resolve(args.path, { kind: args.kind,
         resolveDir: resolve(hostRoot, 'web/app'), pluginData: { hostResolved: true } });
