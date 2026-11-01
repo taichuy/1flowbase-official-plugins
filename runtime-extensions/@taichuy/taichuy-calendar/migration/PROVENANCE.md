@@ -73,3 +73,10 @@ requires one explicit declarative_only execution binding per frontend payload;
 all six point to the packaging guard, not a business service. Minimum host version
 is 0.6.1 **with the new contract code**; older published 0.6.1 builds are insufficient. The plugin must not compensate with global React, iframe loading,
 hardcoded management records, backend prediction/data APIs, or permission grants.
+
+### Native prefix adaptation (0.1.2)
+
+The 21 Ant Design descendant selectors in page/styles.ts, ziwei-styles.ts and
+BaziCalculator.tsx interpolate the existing createStyles `prefixCls`. Selector
+meaning and rule declarations are unchanged; both default `ant` and host-owned
+native prefixes work. No global CSS, provider prefix override or algorithm change.

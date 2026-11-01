@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 
-export const usePageStyles = createStyles(({ token, css }) => ({
+export const usePageStyles = createStyles(({ token, css, prefixCls }) => ({
   container: css`
     max-width: 1200px;
     margin: 0 auto;
@@ -23,12 +23,12 @@ export const usePageStyles = createStyles(({ token, css }) => ({
     background: ${token.colorBgContainer};
     border-radius: ${token.borderRadiusLG}px;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    .ant-card-body {
+    .${prefixCls}-card-body {
       padding: 24px;
     }
     @media (max-width: 768px) {
       margin-bottom: 16px;
-      .ant-card-body {
+      .${prefixCls}-card-body {
         padding: 16px;
       }
     }
@@ -44,7 +44,7 @@ export const usePageStyles = createStyles(({ token, css }) => ({
       margin-bottom: 0;
     }
 
-    .ant-form-item {
+    .${prefixCls}-form-item {
       margin-bottom: 0;
       flex: 1;
     }
@@ -55,13 +55,13 @@ export const usePageStyles = createStyles(({ token, css }) => ({
       gap: 16px;
       margin-bottom: 16px;
 
-      .ant-form-item {
+      .${prefixCls}-form-item {
         width: 100%;
       }
     }
   `,
   tabCard: css`
-    .ant-tabs-nav {
+    .${prefixCls}-tabs-nav {
       margin-bottom: 16px;
     }
   `,
@@ -91,16 +91,16 @@ export const usePageStyles = createStyles(({ token, css }) => ({
   `,
   // Popup styles to override Ant Design default cell size
   datePickerPopup: css`
-    .ant-picker-content {
+    .${prefixCls}-picker-content {
       table-layout: fixed;
       width: 100%;
     }
 
-    .ant-picker-cell {
+    .${prefixCls}-picker-cell {
       padding: 4px 0; /* Add vertical spacing between rows */
     }
 
-    .ant-picker-cell-inner {
+    .${prefixCls}-picker-cell-inner {
       width: 46px !important; /* Wider cell */
       height: 46px !important; /* Taller cell */
       border-radius: 8px !important;
@@ -115,13 +115,13 @@ export const usePageStyles = createStyles(({ token, css }) => ({
     }
 
     /* Ensure the header row aligns */
-    .ant-picker-header {
+    .${prefixCls}-picker-header {
       margin-bottom: 8px;
     }
 
     /* Mobile adjustments if necessary */
     @media (max-width: 768px) {
-      .ant-picker-cell-inner {
+      .${prefixCls}-picker-cell-inner {
         width: 40px !important;
         height: 40px !important;
       }

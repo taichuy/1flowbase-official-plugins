@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 
-export const useZiWeiStyles = createStyles(({ token, css }) => ({
+export const useZiWeiStyles = createStyles(({ token, css, prefixCls }) => ({
   container: css`
     width: 100%;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -371,7 +371,7 @@ export const useZiWeiStyles = createStyles(({ token, css }) => ({
     margin-bottom: 8px;
     width: 100%;
 
-    .ant-picker {
+    .${prefixCls}-picker {
       flex: 1;
     }
   `,
@@ -381,16 +381,16 @@ export const useZiWeiStyles = createStyles(({ token, css }) => ({
     margin-top: 24px;
     background: ${token.colorFillAlter};
 
-    .ant-card-head {
+    .${prefixCls}-card-head {
       @media (max-width: 576px) {
         min-height: auto;
         padding: 12px;
 
-        .ant-card-head-wrapper {
+        .${prefixCls}-card-head-wrapper {
           flex-wrap: wrap;
           gap: 8px;
 
-          .ant-card-head-title {
+          .${prefixCls}-card-head-title {
             padding: 0;
             white-space: normal;
             display: -webkit-box;
@@ -398,7 +398,7 @@ export const useZiWeiStyles = createStyles(({ token, css }) => ({
             -webkit-box-orient: vertical;
           }
 
-          .ant-card-extra {
+          .${prefixCls}-card-extra {
             padding: 0;
             margin-left: auto;
           }
@@ -416,7 +416,7 @@ export const useZiWeiStyles = createStyles(({ token, css }) => ({
       align-items: flex-end;
       gap: 6px;
 
-      .ant-btn {
+      .${prefixCls}-btn {
         font-size: 12px;
         padding: 4px 8px;
         height: auto;

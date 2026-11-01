@@ -10,7 +10,7 @@ import { generateBaziAIDescription } from './baziPrompts';
 import { useT } from '../../i18n/client';
 import { copyToClipboard } from '../../utils/clipboard';
 
-const useStyle = createStyles(({ token, css }) => ({
+const useStyle = createStyles(({ token, css, prefixCls }) => ({
   container: css`
     background: ${token.colorBgContainer};
     border-radius: ${token.borderRadiusLG}px;
@@ -19,16 +19,16 @@ const useStyle = createStyles(({ token, css }) => ({
     margin-top: 24px;
     background: ${token.colorFillAlter};
 
-    .ant-card-head {
+    .${prefixCls}-card-head {
       @media (max-width: 576px) {
         min-height: auto;
         padding: 12px;
 
-        .ant-card-head-wrapper {
+        .${prefixCls}-card-head-wrapper {
           flex-wrap: wrap;
           gap: 8px;
 
-          .ant-card-head-title {
+          .${prefixCls}-card-head-title {
             padding: 0;
             white-space: normal;
             display: -webkit-box;
@@ -36,7 +36,7 @@ const useStyle = createStyles(({ token, css }) => ({
             -webkit-box-orient: vertical;
           }
 
-          .ant-card-extra {
+          .${prefixCls}-card-extra {
             padding: 0;
             margin-left: auto;
           }
@@ -46,7 +46,7 @@ const useStyle = createStyles(({ token, css }) => ({
   `,
   headerActions: css`
     @media (max-width: 576px) {
-      .ant-btn {
+      .${prefixCls}-btn {
         font-size: 12px;
         padding: 4px 8px;
         height: auto;
