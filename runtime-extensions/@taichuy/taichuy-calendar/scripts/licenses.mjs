@@ -40,5 +40,5 @@ export async function writeBundledLicenses(inputs) {
     sections.push(`## ${identity}\nDeclared license: ${JSON.stringify(metadata.license ?? metadata.licenses ?? 'See upstream text')}\n\n${text.join('\n')}`);
   }
   await writeFile(resolve(root, '_assets/ui/THIRD_PARTY_LICENSES.txt'),
-    'Third-party packages bundled into the Taichuy Calendar frontend. Host-provided packages are not bundled.\n\n' + sections.join('\n\n') + '\n');
+    'Third-party packages bundled into the Taichuy Calendar frontend and embedded runtime. Host-provided packages are not bundled.\n\n' + sections.join('\n\n') + '\n');
 }

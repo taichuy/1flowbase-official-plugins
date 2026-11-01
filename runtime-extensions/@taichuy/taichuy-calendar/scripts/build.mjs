@@ -5,6 +5,7 @@ import { root, sourceNodeModules, loadEsbuild, verifyBusinessVersions } from './
 import { publicExports, hostModules, assertBundlingBoundary, isBundledHostMetadata } from './module-contract.mjs';
 import { buildBusinessModules } from './business-modules.mjs';
 import { writeManifest } from './manifest.mjs';
+import { buildBackend } from './build-backend.mjs';
 import { writeBundledLicenses } from './licenses.mjs';
 
 await verifyBusinessVersions();
@@ -48,11 +49,12 @@ await mkdir(resolve(root, '_assets/ui'), { recursive: true });
 await writeFile(resolve(root, '_assets/ui/browser.js'), text);
 const sha256 = createHash('sha256').update(text).digest('hex');
 const business = await buildBusinessModules(esbuild);
+const backend = await buildBackend(esbuild);
 await writeManifest(sha256, business.modules);
-await writeBundledLicenses({ ...result.metafile.inputs, ...business.inputs });
+await writeBundledLicenses({ ...result.metafile.inputs, ...business.inputs, ...backend.inputs });
 await mkdir(resolve(root, 'migration'), { recursive: true });
 await writeFile(resolve(root, 'migration/bundle-contract.json'), JSON.stringify({
-  source: '@taichuy/taichuy-calendar', version: '0.1.10', factory: 'createFrontendModule',
+  source: '@taichuy/taichuy-calendar', version: '0.1.11', factory: 'createFrontendModule',
   exports: publicExports, hostModules, externalSources: [...imported].sort(),
   businessModules: business.modules,
   asset: { path: '_assets/ui/browser.js', sha256, bytes: Buffer.byteLength(text) },

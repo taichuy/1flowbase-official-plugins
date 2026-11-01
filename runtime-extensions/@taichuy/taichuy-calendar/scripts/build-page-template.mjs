@@ -10,10 +10,10 @@ const installation = 'd36ae101-7c46-485e-a4da-f5928a114c04';
 const source = await readFile(resolve(root, 'examples/composed-page.tsx'), 'utf8');
 const packageValue = {
   schema_version: '1flowbase.portable-template/v1',
-  release: { template_id: '@taichuy/calendar-composition', release_version: 4,
+  release: { template_id: '@taichuy/calendar-composition', release_version: 5,
     name: '太初y 日历排盘 · 可编辑组合 / Editable Calendar',
-    description: 'Linked calendar, almanac, birth form and charts composed in editable JSX; requires taichuy-calendar 0.1.10.',
-    exported_from_system_version: '0.6.1', exported_at: '2026-11-01T00:00:00Z' },
+    description: 'Linked calendar, almanac, birth form and charts composed in editable JSX; requires taichuy-calendar 0.1.11.',
+    exported_from_system_version: '0.6.1', exported_at: '2026-11-02T00:00:00Z' },
   pages: [{ id: page, parent_id: null, kind: 'page', title: '日历排盘', icon: null, tooltip: null,
     is_hidden: false, placement: 'topbar', content_presentation: 'single', slug: 'calendar-composition', rank: 'a', visibility_rules: [],
     tabs: [{ id: tab, title: 'Default', rank: 'a', is_default: true, route_segment: null,
@@ -26,14 +26,14 @@ const packageValue = {
           id: block, codeRef: `frontstage.block.${block}`, rendererVersion: 'v1', renderer_version: 'v1',
           ports: { inputs: [], outputs: [] }, props: {},
           catalog: { providerCode: 'taichuy-calendar', installationId: installation },
-          contribution: { code: 'Calendar', pluginId: 'taichuy-calendar@0.1.10', pluginVersion: '0.1.10' },
-          runtime: { kind: 'native_react', hint: 'native_react', entry: 'default', code_template_version: '0.1.10', code_template_language: 'tsx' },
+          contribution: { code: 'Calendar', pluginId: 'taichuy-calendar@0.1.11', pluginVersion: '0.1.11' },
+          runtime: { kind: 'native_react', hint: 'native_react', entry: 'default', code_template_version: '0.1.11', code_template_language: 'tsx' },
           'x-layout': { order: 0 }, 'x-presentation': { height: null, heightMode: 'auto' },
         } }],
     }],
   }],
   applications: [], data_models: [], mcp_bundle: null,
-  plugins: [{ plugin_id: 'taichuy-calendar@0.1.10', plugin_version: '0.1.10', checksum: null, contribution_code: 'Calendar' }],
+  plugins: [{ plugin_id: 'taichuy-calendar@0.1.11', plugin_version: '0.1.11', checksum: null, contribution_code: 'Calendar' }],
 };
 const directory = resolve(root, '../../../applications-demo/@taichuy/calendar-composition');
 await mkdir(directory, { recursive: true });

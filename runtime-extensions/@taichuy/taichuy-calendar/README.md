@@ -1,15 +1,15 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.9**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.11**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
-最低宿主版本字段为 **0.6.1**，且必须使用**包含本次新契约的宿主构建**（H1 自动注册及通用
-factory/host bindings/去重配套）。已经发布但不包含这些改动的旧 0.6.1 构建仍不支持，需升级代码；
-不能只按相同版本号判断可用性。
+最低宿主版本为 **0.6.2**；宿主旧版 0.6.1 不具备本版本的执行预算和混合贡献契约。
+正式目录使用既有 minimum_host_version 检查，不应绕过低版本警告强行启用。
+构建时 Cargo SDK git rev 与云打包 checkout 绑定同一个明确宿主 SHA；不是把宿主 main/dev 当作固定契约。
 
 从用户批准的太初y 网站源码迁移，而不是重写的简化日历：保留月/年历、黄历、出生信息、
 真太阳时、紫微斗数桌面/移动排盘、八字/大运/流年/流月与复制交互。不使用 iframe，不含旧站导航、
-热榜、登录、接口服务、在线地理服务或后端预测。传统文化历法数据仅供文化兴趣与参考，
+热榜、登录、接口服务、在线地理服务或后端预测。新增后端接口仅复用同一批 npm 本地计算算法，不提供预测服务。传统文化历法数据仅供文化兴趣与参考，
 不构成命运判断。迁移原文、源哈希和适配边界见 [PROVENANCE](migration/PROVENANCE.md)
 与 [inventory](migration/inventory.json)。
 
@@ -213,3 +213,29 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 ## 0.1.10 — 缩小留白并加宽日历
 
 区块内比例调整为「左留白 : 详情 : 间隔 : 日历 = 0.3 : 6 : 0.3 : 3.4」，两处留白省出的宽度全部分配给日历。中等宽度仍采用相同比例，必要时为日历保留 280px 最小宽度；不超过 768px 继续单列。可编辑组合、兼容整页和页面模板同步更新，保留 sticky 与独立滚动。
+
+## 后端计算接口（0.1.11）
+
+后端通过正式 managed-service 贡献注册，由底座处理发现、安装/授权、调用者权限和进程生命周期。
+插件是 system process_per_call 服务；原有 UI 绑定仍是 declarative_only，**仍须显式分配到目标工作区**且具备对应贡献授权，不因系统启用而对所有工作区显示。
+运行时无需 Node/npm/pnpm 或 node_modules。npm/esbuild 只用于构建；Rust 共享 SDK 可选 javascript feature 内嵌已有 QuickJS。
+
+所有路由为 `POST /api/console/managed-services/taichuy-calendar/` 加下列后缀；JSON body 见 scripts/runtime-contract.mjs，完整输出 schema 由 scripts/runtime-schemas.mjs 定义。
+
+| contribution/interface | 后缀 | 业务范围 |
+|---|---|---|
+| taichuy-calendar.calendar.month | calendar/month | 月历及逐日农历/节日 |
+| taichuy-calendar.calendar.convert | calendar/convert | 公农历双向转换（显式闰月） |
+| taichuy-calendar.almanac.day | almanac/day | 原黄历、宜忌、时辰吉凶 |
+| taichuy-calendar.birth.normalize | birth/normalize | 民用日期/时间、固定 offset、出生地规范化 |
+| taichuy-calendar.time.true-solar | time/true-solar | 复用 astronomy-engine 真太阳时，秒精度 |
+| taichuy-calendar.bazi.calculate | bazi/calculate | 原八字算法、八组大运/流年/流月、显式 as_of |
+| taichuy-calendar.ziwei.calculate | ziwei/calculate | 原紫微算法、十二宫和显式时刻运限 |
+| taichuy-calendar.regions.children | regions/children | china-division 的省市区子级查询 |
+
+日期不统一收窄为 1901–2099。先校验真实公历日期，再由对应上游算法的实际范围约束；紫微使用 iztro 2.5.3 明确的 1900-01-31 至 2100-12-31（包括两端）。
+输入 `civil_date`、`civil_time`、`utc_offset_minutes` 定义固定 offset，不猜出生地时区，不读机器默认 TZ；`as_of`/`as_of_time` 明确给出，不隐式用 now。
+`UTC = civil-as-UTC - utc_offset_minutes * 60000`。秒精度真太阳时的 correction_seconds 与返回民用时间的算术差保持一致。
+
+业务错误使用 `{ok:false,error:{code,message}}`；资产、协议或引擎错误使用原 CapabilityStdioResponse 的**外层**失败，不能用业务成功掩盖执行失败。
+Node 参照和真实 Rust 接口须按相同版本包装比较，且独立日期/UTC 算术 oracle 先成立。方法与有限证明边界见 migration/runtime-contract.md。

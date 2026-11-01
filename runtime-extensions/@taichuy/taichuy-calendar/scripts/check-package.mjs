@@ -51,3 +51,21 @@ for (const module of contract.businessModules) {
     assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256);
   }
 }
+
+
+// Release backend identity is compiled into the executable as the same descriptor.
+// Runtime behavior and registration still require real-binary/Host acceptance.
+const descriptor = JSON.parse(await readFile(resolve(root, '_assets/runtime/descriptor.json'), 'utf8'));
+const backend = await readFile(resolve(root, descriptor.path));
+const metadata = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
+const backendContract = JSON.parse(await readFile(resolve(root, 'migration/backend-contract.json'), 'utf8'));
+assert.equal(descriptor.version, metadata.version);
+assert.equal(descriptor.path, '_assets/runtime/backend.js');
+assert.equal(descriptor.bytes, backend.byteLength);
+assert.equal(descriptor.sha256, createHash('sha256').update(backend).digest('hex'));
+for (const key of ['version', 'path', 'bytes', 'sha256']) assert.equal(backendContract[key], descriptor[key]);
+for (const [name, version] of Object.entries(businessDependencies)) assert.equal(backendContract.packages[name], version);
+assert.ok(backendContract.inputs.length > 0);
+assert.ok(!backendContract.inputs.some(input => input.startsWith('/home/')), 'No build-machine absolute source paths in release metadata');
+assert.match(await readFile(resolve(root, 'manifest.yaml'), 'utf8'), /minimum_host_version: 0\.6\.2(?:\n|$)/);
+console.log(JSON.stringify({ status: 'backend_release_files_ready', ...descriptor, note: 'Not a substitute for installed API/authorization/runtime acceptance.' }));

@@ -1,3 +1,5 @@
+import { operations, object, operationId, route, outputSchema } from './runtime-contract.mjs';
+import { dataSchemas } from './runtime-schemas.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { root } from './toolchain.mjs';
@@ -20,42 +22,47 @@ export async function manifestText(sha256, businessModules) {
       type_declarations: module.exports.map((name) => name === 'default'
         ? 'declare const defaultExport: any; export default defaultExport;'
         : `export declare const ${name}: any;`).join('\n') })),
-    { source: moduleSource, version: '0.1.10', exports: publicExports, binding: 'fetched',
+    { source: moduleSource, version: '0.1.11', exports: publicExports, binding: 'fetched',
       assets: [{ path: '_assets/ui/browser.js', role: 'browser_module', media_type: 'text/javascript; charset=utf-8', sha256 }],
       type_declarations: typeDeclarations },
     ...businessModules,
   ];
   const manifest = {
     manifest_version: 2, schema_version: '1flowbase.plugin.manifest/v2',
-    plugin_id: 'taichuy-calendar', version: '0.1.10', publisher_namespace: '1flowbase', vendor: 'Taichuy',
+    plugin_id: 'taichuy-calendar', version: '0.1.11', publisher_namespace: '1flowbase', vendor: 'Taichuy',
     display_name: '太初y 日历排盘 / Taichuy Calendar',
     description: 'Independent lunar calendar, almanac, birth information, ZiWei and Bazi with local astronomical calculations',
     source_kind: 'official_registry', trust_level: 'verified_official', consumption_kind: 'runtime_extension',
-    execution_mode: 'declarative_only', slot_codes: [], binding_targets: ['workspace'],
-    selection_mode: 'assignment_then_select', minimum_host_version: '0.6.1',
+    execution_mode: 'process_per_call', slot_codes: [], binding_targets: ['system'],
+    selection_mode: 'assignment_then_select', minimum_host_version: '0.6.2',
     contract_version: '1flowbase.extension-bus/v1',
     permissions: { network: 'none', secrets: 'none', storage: 'none', mcp: 'none', subprocess: 'deny' },
     runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
     managed: {
-      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.10', module_kind: 'runtime',
-        contributions: componentExports.map((name) => ({
+      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.11', module_kind: 'runtime',
+        contributions: [...operations.map(op => ({ contribution_id: operationId(op.name), contributor_module_id: 'taichuy-calendar', point_id: '1flowbase.managed-service.operation', contract_version: '1', required_permissions: ['service.execute'], mode: 'append' })), ...componentExports.map((name) => ({
           contribution_id: `taichuy-calendar.${name}`, contributor_module_id: 'taichuy-calendar',
           point_id: '1flowbase.workspace.frontend-block-contribution', contract_version: '1',
           required_permissions: ['frontend-block.ui-mount.trusted-host'], mode: 'append',
-        })),
+        }))],
       },
-      // Declarative payload ownership is explicit; these are NOT process/backend operations.
-      execution_bindings: componentExports.map((name) => ({
+      // Frontend payloads stay declarative; backend bindings are explicitly separate.
+      execution_bindings: [...operations.map(op => ({ contribution_id: operationId(op.name), execution_mode: 'process_per_call', runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' }, handler: op.name })), ...componentExports.map((name) => ({
         contribution_id: `taichuy-calendar.${name}`, execution_mode: 'declarative_only',
         runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
         handler: `taichuy-calendar.render.${name}`,
         payload: { kind: 'frontend_block', contribution_code: name },
-      })),
+      }))],
+    },
+    managed_service: {
+      scope: 'system',
+      feature: { feature_id: 'taichuy-calendar.settings', label: '太初y 日历计算 / Calendar calculations', description: 'Version-pinned synchronous calendar calculations', route_id: 'taichuy-calendar', path: '/settings/taichuy-calendar', icon: 'CalendarOutlined' },
+      operations: operations.map(op => ({ interface_id: operationId(op.name), contribution_id: operationId(op.name), method: 'POST', path: route(op.name), summary: op.title, description: op.title + '; deterministic bundled npm computation; no runtime Node dependency', execution_concurrency: 'parallel', input_schema: object({ path: object({}), query: object({}), body: op.body }), output_schema: outputSchema(dataSchemas[op.name]) })),
     },
     block_contributions: componentExports.map((name) => ({
       contribution_code: name, title: titles[name], runtime: 'native_react', entry: 'default', ui_registration: 'component',
       code_template: `import { ${name} } from '${moduleSource}';\nexport default function Block() { return <${name} />; }\n`,
-      code_template_version: '0.1.10', code_template_language: 'tsx', code_modules: codeModules,
+      code_template_version: '0.1.11', code_template_language: 'tsx', code_modules: codeModules,
       context_contract: { primitives: [], input_schema: { type: 'object', additionalProperties: false, properties: {} } },
       permissions: { network: 'none', storage: 'none', secrets: 'none' },
       ui_capabilities: ['responsive', 'theming'],
