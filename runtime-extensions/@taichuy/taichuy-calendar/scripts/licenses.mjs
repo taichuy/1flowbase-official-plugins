@@ -32,6 +32,10 @@ export async function writeBundledLicenses(inputs) {
       }
       text.push(`--- astronomy.js @preserve header ---\n${notice}`);
     }
+    if (!text.length && identity === 'toggle-selection@1.0.6') {
+      // The npm tarball omits LICENSE; retain the upstream copyright-bearing text.
+      text.push('--- upstream LICENSE (see vendored provenance) ---\n' + await readFile(resolve(root, '_assets/licenses/toggle-selection-1.0.6.LICENSE'), 'utf8'));
+    }
     if (!text.length) throw new Error(`Bundled package ${identity} has no license text; stop publication and resolve attribution`);
     sections.push(`## ${identity}\nDeclared license: ${JSON.stringify(metadata.license ?? metadata.licenses ?? 'See upstream text')}\n\n${text.join('\n')}`);
   }

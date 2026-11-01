@@ -23,7 +23,7 @@ export const bundledSupportDependencies = { 'copy-to-clipboard': '3.3.3' };
 
 /** Only Chinese locale metadata may cross the otherwise external-only antd/dayjs boundary. */
 export function isBundledHostMetadata(input) {
-  return /(?:^|\/)node_modules\/antd\/(?:lib|es)\/(?:locale|(?:calendar|date-picker|time-picker)\/locale)\/zh_CN\.js$/.test(input)
+  return /(?:^|\/)node_modules\/antd\/(?:(?:lib|es)\/)?(?:locale|(?:calendar|date-picker|time-picker)\/locale)\/zh_CN\.js$/.test(input)
     || /(?:^|\/)node_modules\/dayjs\/locale\/zh-cn\.js$/.test(input);
 }
 
