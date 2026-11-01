@@ -50,7 +50,7 @@ await writeManifest(sha256);
 await writeBundledLicenses(result.metafile.inputs);
 await mkdir(resolve(root, 'migration'), { recursive: true });
 await writeFile(resolve(root, 'migration/bundle-contract.json'), JSON.stringify({
-  source: '@taichuy/taichuy-calendar', version: '0.1.0', factory: 'createFrontendModule',
+  source: '@taichuy/taichuy-calendar', version: '0.1.1', factory: 'createFrontendModule',
   exports: componentExports, hostModules, externalSources: [...imported].sort(),
   asset: { path: '_assets/ui/browser.js', sha256, bytes: Buffer.byteLength(text) },
   esbuildVersion: esbuild.version,

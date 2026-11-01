@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.0** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.1** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.1**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host

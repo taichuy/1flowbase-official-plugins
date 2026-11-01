@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.0**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.1**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本字段为 **0.6.1**，且必须使用**包含本次新契约的宿主构建**（H1 自动注册及通用
