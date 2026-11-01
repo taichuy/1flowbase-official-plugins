@@ -1,0 +1,240 @@
+manifest_version: 2
+schema_version: 1flowbase.plugin.manifest/v2
+plugin_id: taichuy-calendar
+version: 0.1.4
+publisher_namespace: 1flowbase
+vendor: Taichuy
+display_name: "太初y 日历排盘 / Taichuy Calendar"
+description: "Independent lunar calendar, almanac, birth information, ZiWei and Bazi with local astronomical calculations"
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: declarative_only
+slot_codes: []
+binding_targets: ["workspace"]
+selection_mode: assignment_then_select
+minimum_host_version: 0.6.1
+contract_version: 1flowbase.extension-bus/v1
+permissions:
+  network: none
+  secrets: none
+  storage: none
+  mcp: none
+  subprocess: deny
+runtime:
+  protocol: stdio_json
+  entry: bin/taichuy-calendar
+managed:
+  module:
+    bus_version: v1
+    module_id: taichuy-calendar
+    module_version: 0.1.4
+    module_kind: runtime
+    contributions:
+      - contribution_id: taichuy-calendar.Calendar
+        contributor_module_id: taichuy-calendar
+        point_id: 1flowbase.workspace.frontend-block-contribution
+        contract_version: "1"
+        required_permissions: ["frontend-block.ui-mount.trusted-host"]
+        mode: append
+      - contribution_id: taichuy-calendar.Almanac
+        contributor_module_id: taichuy-calendar
+        point_id: 1flowbase.workspace.frontend-block-contribution
+        contract_version: "1"
+        required_permissions: ["frontend-block.ui-mount.trusted-host"]
+        mode: append
+      - contribution_id: taichuy-calendar.BirthInfo
+        contributor_module_id: taichuy-calendar
+        point_id: 1flowbase.workspace.frontend-block-contribution
+        contract_version: "1"
+        required_permissions: ["frontend-block.ui-mount.trusted-host"]
+        mode: append
+      - contribution_id: taichuy-calendar.ZiWei
+        contributor_module_id: taichuy-calendar
+        point_id: 1flowbase.workspace.frontend-block-contribution
+        contract_version: "1"
+        required_permissions: ["frontend-block.ui-mount.trusted-host"]
+        mode: append
+      - contribution_id: taichuy-calendar.Bazi
+        contributor_module_id: taichuy-calendar
+        point_id: 1flowbase.workspace.frontend-block-contribution
+        contract_version: "1"
+        required_permissions: ["frontend-block.ui-mount.trusted-host"]
+        mode: append
+      - contribution_id: taichuy-calendar.CalendarPage
+        contributor_module_id: taichuy-calendar
+        point_id: 1flowbase.workspace.frontend-block-contribution
+        contract_version: "1"
+        required_permissions: ["frontend-block.ui-mount.trusted-host"]
+        mode: append
+  execution_bindings:
+    - contribution_id: taichuy-calendar.Calendar
+      execution_mode: declarative_only
+      runtime:
+        protocol: stdio_json
+        entry: bin/taichuy-calendar
+      handler: taichuy-calendar.render.Calendar
+      payload:
+        kind: frontend_block
+        contribution_code: Calendar
+    - contribution_id: taichuy-calendar.Almanac
+      execution_mode: declarative_only
+      runtime:
+        protocol: stdio_json
+        entry: bin/taichuy-calendar
+      handler: taichuy-calendar.render.Almanac
+      payload:
+        kind: frontend_block
+        contribution_code: Almanac
+    - contribution_id: taichuy-calendar.BirthInfo
+      execution_mode: declarative_only
+      runtime:
+        protocol: stdio_json
+        entry: bin/taichuy-calendar
+      handler: taichuy-calendar.render.BirthInfo
+      payload:
+        kind: frontend_block
+        contribution_code: BirthInfo
+    - contribution_id: taichuy-calendar.ZiWei
+      execution_mode: declarative_only
+      runtime:
+        protocol: stdio_json
+        entry: bin/taichuy-calendar
+      handler: taichuy-calendar.render.ZiWei
+      payload:
+        kind: frontend_block
+        contribution_code: ZiWei
+    - contribution_id: taichuy-calendar.Bazi
+      execution_mode: declarative_only
+      runtime:
+        protocol: stdio_json
+        entry: bin/taichuy-calendar
+      handler: taichuy-calendar.render.Bazi
+      payload:
+        kind: frontend_block
+        contribution_code: Bazi
+    - contribution_id: taichuy-calendar.CalendarPage
+      execution_mode: declarative_only
+      runtime:
+        protocol: stdio_json
+        entry: bin/taichuy-calendar
+      handler: taichuy-calendar.render.CalendarPage
+      payload:
+        kind: frontend_block
+        contribution_code: CalendarPage
+block_contributions:
+  - contribution_code: Calendar
+    title: "太初y 月历 / Lunar Calendar"
+    runtime: native_react
+    entry: default
+    code_template: "import { Calendar } from '@taichuy/taichuy-calendar';\nexport default function Block() { return <Calendar />; }\n"
+    code_template_version: 0.1.4
+    code_template_language: tsx
+    code_modules: [{"source":"react","version":"19.2.5","exports":["default","createContext","useContext","useState","useMemo","useEffect","useRef","useImperativeHandle","forwardRef"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;\nexport declare const createContext: any;\nexport declare const useContext: any;\nexport declare const useState: any;\nexport declare const useMemo: any;\nexport declare const useEffect: any;\nexport declare const useRef: any;\nexport declare const useImperativeHandle: any;\nexport declare const forwardRef: any;"},{"source":"antd","version":"6.6.2","exports":["App","Button","Calendar","Card","Cascader","Col","ConfigProvider","DatePicker","Descriptions","Flex","Form","Input","InputNumber","Radio","Row","Select","Switch","Table","Tabs","Tag","TimePicker","Tooltip","Typography","theme"],"binding":"host","type_declarations":"export declare const App: any;\nexport declare const Button: any;\nexport declare const Calendar: any;\nexport declare const Card: any;\nexport declare const Cascader: any;\nexport declare const Col: any;\nexport declare const ConfigProvider: any;\nexport declare const DatePicker: any;\nexport declare const Descriptions: any;\nexport declare const Flex: any;\nexport declare const Form: any;\nexport declare const Input: any;\nexport declare const InputNumber: any;\nexport declare const Radio: any;\nexport declare const Row: any;\nexport declare const Select: any;\nexport declare const Switch: any;\nexport declare const Table: any;\nexport declare const Tabs: any;\nexport declare const Tag: any;\nexport declare const TimePicker: any;\nexport declare const Tooltip: any;\nexport declare const Typography: any;\nexport declare const theme: any;"},{"source":"dayjs","version":"1.11.20","exports":["default"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;"},{"source":"@ant-design/icons","version":"6.3.4","exports":["CheckOutlined","CompassOutlined","CalculatorOutlined","InfoCircleOutlined","CopyOutlined","LeftOutlined","RightOutlined","FileTextOutlined","QuestionCircleOutlined","ReloadOutlined"],"binding":"host","type_declarations":"export declare const CheckOutlined: any;\nexport declare const CompassOutlined: any;\nexport declare const CalculatorOutlined: any;\nexport declare const InfoCircleOutlined: any;\nexport declare const CopyOutlined: any;\nexport declare const LeftOutlined: any;\nexport declare const RightOutlined: any;\nexport declare const FileTextOutlined: any;\nexport declare const QuestionCircleOutlined: any;\nexport declare const ReloadOutlined: any;"},{"source":"antd-style","version":"4.1.0","exports":["createStyles","ThemeProvider"],"binding":"host","type_declarations":"export declare const createStyles: any;\nexport declare const ThemeProvider: any;"},{"source":"clsx","version":"2.1.1","exports":["clsx"],"binding":"host","type_declarations":"export declare const clsx: any;"},{"source":"@taichuy/taichuy-calendar","version":"0.1.4","exports":["Calendar","Almanac","BirthInfo","ZiWei","Bazi","CalendarPage"],"binding":"fetched","assets":[{"path":"_assets/ui/browser.js","role":"browser_module","media_type":"text/javascript; charset=utf-8","sha256":"514a8b8b1eed8dec13871612399dadf88b8a8d4bf481baaa8314fee3cd03d75d"}],"type_declarations":"import type { ReactElement } from 'react';\n\nexport interface CalendarComponentProps {\n  /** Initial calendar/almanac date, independent of the birth date. ISO civil date. */\n  initialDate?: string;\n  initialBirthDate?: string;\n  /** HH:mm or HH:mm:ss, interpreted in the browser's timezone. */\n  initialTime?: string;\n  initialGender?: 'male' | 'female';\n  initialLongitude?: number;\n  initialLatitude?: number;\n  initialUseTrueSolarTime?: boolean;\n  /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */\n  locale?: 'zh' | 'en';\n}\nexport declare function Calendar(props?: CalendarComponentProps): ReactElement;\nexport declare function Almanac(props?: CalendarComponentProps): ReactElement;\nexport declare function BirthInfo(props?: CalendarComponentProps): ReactElement;\nexport declare function ZiWei(props?: CalendarComponentProps): ReactElement;\nexport declare function Bazi(props?: CalendarComponentProps): ReactElement;\nexport declare function CalendarPage(props?: CalendarComponentProps): ReactElement;\n"}]
+    context_contract:
+      primitives: []
+      input_schema:
+        type: object
+        additionalProperties: false
+        properties: {}
+    permissions:
+      network: none
+      storage: none
+      secrets: none
+    ui_capabilities: ["responsive","theming"]
+  - contribution_code: Almanac
+    title: "太初y 黄历 / Almanac"
+    runtime: native_react
+    entry: default
+    code_template: "import { Almanac } from '@taichuy/taichuy-calendar';\nexport default function Block() { return <Almanac />; }\n"
+    code_template_version: 0.1.4
+    code_template_language: tsx
+    code_modules: [{"source":"react","version":"19.2.5","exports":["default","createContext","useContext","useState","useMemo","useEffect","useRef","useImperativeHandle","forwardRef"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;\nexport declare const createContext: any;\nexport declare const useContext: any;\nexport declare const useState: any;\nexport declare const useMemo: any;\nexport declare const useEffect: any;\nexport declare const useRef: any;\nexport declare const useImperativeHandle: any;\nexport declare const forwardRef: any;"},{"source":"antd","version":"6.6.2","exports":["App","Button","Calendar","Card","Cascader","Col","ConfigProvider","DatePicker","Descriptions","Flex","Form","Input","InputNumber","Radio","Row","Select","Switch","Table","Tabs","Tag","TimePicker","Tooltip","Typography","theme"],"binding":"host","type_declarations":"export declare const App: any;\nexport declare const Button: any;\nexport declare const Calendar: any;\nexport declare const Card: any;\nexport declare const Cascader: any;\nexport declare const Col: any;\nexport declare const ConfigProvider: any;\nexport declare const DatePicker: any;\nexport declare const Descriptions: any;\nexport declare const Flex: any;\nexport declare const Form: any;\nexport declare const Input: any;\nexport declare const InputNumber: any;\nexport declare const Radio: any;\nexport declare const Row: any;\nexport declare const Select: any;\nexport declare const Switch: any;\nexport declare const Table: any;\nexport declare const Tabs: any;\nexport declare const Tag: any;\nexport declare const TimePicker: any;\nexport declare const Tooltip: any;\nexport declare const Typography: any;\nexport declare const theme: any;"},{"source":"dayjs","version":"1.11.20","exports":["default"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;"},{"source":"@ant-design/icons","version":"6.3.4","exports":["CheckOutlined","CompassOutlined","CalculatorOutlined","InfoCircleOutlined","CopyOutlined","LeftOutlined","RightOutlined","FileTextOutlined","QuestionCircleOutlined","ReloadOutlined"],"binding":"host","type_declarations":"export declare const CheckOutlined: any;\nexport declare const CompassOutlined: any;\nexport declare const CalculatorOutlined: any;\nexport declare const InfoCircleOutlined: any;\nexport declare const CopyOutlined: any;\nexport declare const LeftOutlined: any;\nexport declare const RightOutlined: any;\nexport declare const FileTextOutlined: any;\nexport declare const QuestionCircleOutlined: any;\nexport declare const ReloadOutlined: any;"},{"source":"antd-style","version":"4.1.0","exports":["createStyles","ThemeProvider"],"binding":"host","type_declarations":"export declare const createStyles: any;\nexport declare const ThemeProvider: any;"},{"source":"clsx","version":"2.1.1","exports":["clsx"],"binding":"host","type_declarations":"export declare const clsx: any;"},{"source":"@taichuy/taichuy-calendar","version":"0.1.4","exports":["Calendar","Almanac","BirthInfo","ZiWei","Bazi","CalendarPage"],"binding":"fetched","assets":[{"path":"_assets/ui/browser.js","role":"browser_module","media_type":"text/javascript; charset=utf-8","sha256":"514a8b8b1eed8dec13871612399dadf88b8a8d4bf481baaa8314fee3cd03d75d"}],"type_declarations":"import type { ReactElement } from 'react';\n\nexport interface CalendarComponentProps {\n  /** Initial calendar/almanac date, independent of the birth date. ISO civil date. */\n  initialDate?: string;\n  initialBirthDate?: string;\n  /** HH:mm or HH:mm:ss, interpreted in the browser's timezone. */\n  initialTime?: string;\n  initialGender?: 'male' | 'female';\n  initialLongitude?: number;\n  initialLatitude?: number;\n  initialUseTrueSolarTime?: boolean;\n  /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */\n  locale?: 'zh' | 'en';\n}\nexport declare function Calendar(props?: CalendarComponentProps): ReactElement;\nexport declare function Almanac(props?: CalendarComponentProps): ReactElement;\nexport declare function BirthInfo(props?: CalendarComponentProps): ReactElement;\nexport declare function ZiWei(props?: CalendarComponentProps): ReactElement;\nexport declare function Bazi(props?: CalendarComponentProps): ReactElement;\nexport declare function CalendarPage(props?: CalendarComponentProps): ReactElement;\n"}]
+    context_contract:
+      primitives: []
+      input_schema:
+        type: object
+        additionalProperties: false
+        properties: {}
+    permissions:
+      network: none
+      storage: none
+      secrets: none
+    ui_capabilities: ["responsive","theming"]
+  - contribution_code: BirthInfo
+    title: "太初y 出生信息 / Birth Information"
+    runtime: native_react
+    entry: default
+    code_template: "import { BirthInfo } from '@taichuy/taichuy-calendar';\nexport default function Block() { return <BirthInfo />; }\n"
+    code_template_version: 0.1.4
+    code_template_language: tsx
+    code_modules: [{"source":"react","version":"19.2.5","exports":["default","createContext","useContext","useState","useMemo","useEffect","useRef","useImperativeHandle","forwardRef"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;\nexport declare const createContext: any;\nexport declare const useContext: any;\nexport declare const useState: any;\nexport declare const useMemo: any;\nexport declare const useEffect: any;\nexport declare const useRef: any;\nexport declare const useImperativeHandle: any;\nexport declare const forwardRef: any;"},{"source":"antd","version":"6.6.2","exports":["App","Button","Calendar","Card","Cascader","Col","ConfigProvider","DatePicker","Descriptions","Flex","Form","Input","InputNumber","Radio","Row","Select","Switch","Table","Tabs","Tag","TimePicker","Tooltip","Typography","theme"],"binding":"host","type_declarations":"export declare const App: any;\nexport declare const Button: any;\nexport declare const Calendar: any;\nexport declare const Card: any;\nexport declare const Cascader: any;\nexport declare const Col: any;\nexport declare const ConfigProvider: any;\nexport declare const DatePicker: any;\nexport declare const Descriptions: any;\nexport declare const Flex: any;\nexport declare const Form: any;\nexport declare const Input: any;\nexport declare const InputNumber: any;\nexport declare const Radio: any;\nexport declare const Row: any;\nexport declare const Select: any;\nexport declare const Switch: any;\nexport declare const Table: any;\nexport declare const Tabs: any;\nexport declare const Tag: any;\nexport declare const TimePicker: any;\nexport declare const Tooltip: any;\nexport declare const Typography: any;\nexport declare const theme: any;"},{"source":"dayjs","version":"1.11.20","exports":["default"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;"},{"source":"@ant-design/icons","version":"6.3.4","exports":["CheckOutlined","CompassOutlined","CalculatorOutlined","InfoCircleOutlined","CopyOutlined","LeftOutlined","RightOutlined","FileTextOutlined","QuestionCircleOutlined","ReloadOutlined"],"binding":"host","type_declarations":"export declare const CheckOutlined: any;\nexport declare const CompassOutlined: any;\nexport declare const CalculatorOutlined: any;\nexport declare const InfoCircleOutlined: any;\nexport declare const CopyOutlined: any;\nexport declare const LeftOutlined: any;\nexport declare const RightOutlined: any;\nexport declare const FileTextOutlined: any;\nexport declare const QuestionCircleOutlined: any;\nexport declare const ReloadOutlined: any;"},{"source":"antd-style","version":"4.1.0","exports":["createStyles","ThemeProvider"],"binding":"host","type_declarations":"export declare const createStyles: any;\nexport declare const ThemeProvider: any;"},{"source":"clsx","version":"2.1.1","exports":["clsx"],"binding":"host","type_declarations":"export declare const clsx: any;"},{"source":"@taichuy/taichuy-calendar","version":"0.1.4","exports":["Calendar","Almanac","BirthInfo","ZiWei","Bazi","CalendarPage"],"binding":"fetched","assets":[{"path":"_assets/ui/browser.js","role":"browser_module","media_type":"text/javascript; charset=utf-8","sha256":"514a8b8b1eed8dec13871612399dadf88b8a8d4bf481baaa8314fee3cd03d75d"}],"type_declarations":"import type { ReactElement } from 'react';\n\nexport interface CalendarComponentProps {\n  /** Initial calendar/almanac date, independent of the birth date. ISO civil date. */\n  initialDate?: string;\n  initialBirthDate?: string;\n  /** HH:mm or HH:mm:ss, interpreted in the browser's timezone. */\n  initialTime?: string;\n  initialGender?: 'male' | 'female';\n  initialLongitude?: number;\n  initialLatitude?: number;\n  initialUseTrueSolarTime?: boolean;\n  /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */\n  locale?: 'zh' | 'en';\n}\nexport declare function Calendar(props?: CalendarComponentProps): ReactElement;\nexport declare function Almanac(props?: CalendarComponentProps): ReactElement;\nexport declare function BirthInfo(props?: CalendarComponentProps): ReactElement;\nexport declare function ZiWei(props?: CalendarComponentProps): ReactElement;\nexport declare function Bazi(props?: CalendarComponentProps): ReactElement;\nexport declare function CalendarPage(props?: CalendarComponentProps): ReactElement;\n"}]
+    context_contract:
+      primitives: []
+      input_schema:
+        type: object
+        additionalProperties: false
+        properties: {}
+    permissions:
+      network: none
+      storage: none
+      secrets: none
+    ui_capabilities: ["responsive","theming"]
+  - contribution_code: ZiWei
+    title: "太初y 紫微斗数 / ZiWei"
+    runtime: native_react
+    entry: default
+    code_template: "import { ZiWei } from '@taichuy/taichuy-calendar';\nexport default function Block() { return <ZiWei />; }\n"
+    code_template_version: 0.1.4
+    code_template_language: tsx
+    code_modules: [{"source":"react","version":"19.2.5","exports":["default","createContext","useContext","useState","useMemo","useEffect","useRef","useImperativeHandle","forwardRef"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;\nexport declare const createContext: any;\nexport declare const useContext: any;\nexport declare const useState: any;\nexport declare const useMemo: any;\nexport declare const useEffect: any;\nexport declare const useRef: any;\nexport declare const useImperativeHandle: any;\nexport declare const forwardRef: any;"},{"source":"antd","version":"6.6.2","exports":["App","Button","Calendar","Card","Cascader","Col","ConfigProvider","DatePicker","Descriptions","Flex","Form","Input","InputNumber","Radio","Row","Select","Switch","Table","Tabs","Tag","TimePicker","Tooltip","Typography","theme"],"binding":"host","type_declarations":"export declare const App: any;\nexport declare const Button: any;\nexport declare const Calendar: any;\nexport declare const Card: any;\nexport declare const Cascader: any;\nexport declare const Col: any;\nexport declare const ConfigProvider: any;\nexport declare const DatePicker: any;\nexport declare const Descriptions: any;\nexport declare const Flex: any;\nexport declare const Form: any;\nexport declare const Input: any;\nexport declare const InputNumber: any;\nexport declare const Radio: any;\nexport declare const Row: any;\nexport declare const Select: any;\nexport declare const Switch: any;\nexport declare const Table: any;\nexport declare const Tabs: any;\nexport declare const Tag: any;\nexport declare const TimePicker: any;\nexport declare const Tooltip: any;\nexport declare const Typography: any;\nexport declare const theme: any;"},{"source":"dayjs","version":"1.11.20","exports":["default"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;"},{"source":"@ant-design/icons","version":"6.3.4","exports":["CheckOutlined","CompassOutlined","CalculatorOutlined","InfoCircleOutlined","CopyOutlined","LeftOutlined","RightOutlined","FileTextOutlined","QuestionCircleOutlined","ReloadOutlined"],"binding":"host","type_declarations":"export declare const CheckOutlined: any;\nexport declare const CompassOutlined: any;\nexport declare const CalculatorOutlined: any;\nexport declare const InfoCircleOutlined: any;\nexport declare const CopyOutlined: any;\nexport declare const LeftOutlined: any;\nexport declare const RightOutlined: any;\nexport declare const FileTextOutlined: any;\nexport declare const QuestionCircleOutlined: any;\nexport declare const ReloadOutlined: any;"},{"source":"antd-style","version":"4.1.0","exports":["createStyles","ThemeProvider"],"binding":"host","type_declarations":"export declare const createStyles: any;\nexport declare const ThemeProvider: any;"},{"source":"clsx","version":"2.1.1","exports":["clsx"],"binding":"host","type_declarations":"export declare const clsx: any;"},{"source":"@taichuy/taichuy-calendar","version":"0.1.4","exports":["Calendar","Almanac","BirthInfo","ZiWei","Bazi","CalendarPage"],"binding":"fetched","assets":[{"path":"_assets/ui/browser.js","role":"browser_module","media_type":"text/javascript; charset=utf-8","sha256":"514a8b8b1eed8dec13871612399dadf88b8a8d4bf481baaa8314fee3cd03d75d"}],"type_declarations":"import type { ReactElement } from 'react';\n\nexport interface CalendarComponentProps {\n  /** Initial calendar/almanac date, independent of the birth date. ISO civil date. */\n  initialDate?: string;\n  initialBirthDate?: string;\n  /** HH:mm or HH:mm:ss, interpreted in the browser's timezone. */\n  initialTime?: string;\n  initialGender?: 'male' | 'female';\n  initialLongitude?: number;\n  initialLatitude?: number;\n  initialUseTrueSolarTime?: boolean;\n  /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */\n  locale?: 'zh' | 'en';\n}\nexport declare function Calendar(props?: CalendarComponentProps): ReactElement;\nexport declare function Almanac(props?: CalendarComponentProps): ReactElement;\nexport declare function BirthInfo(props?: CalendarComponentProps): ReactElement;\nexport declare function ZiWei(props?: CalendarComponentProps): ReactElement;\nexport declare function Bazi(props?: CalendarComponentProps): ReactElement;\nexport declare function CalendarPage(props?: CalendarComponentProps): ReactElement;\n"}]
+    context_contract:
+      primitives: []
+      input_schema:
+        type: object
+        additionalProperties: false
+        properties: {}
+    permissions:
+      network: none
+      storage: none
+      secrets: none
+    ui_capabilities: ["responsive","theming"]
+  - contribution_code: Bazi
+    title: "太初y 八字排盘 / Bazi"
+    runtime: native_react
+    entry: default
+    code_template: "import { Bazi } from '@taichuy/taichuy-calendar';\nexport default function Block() { return <Bazi />; }\n"
+    code_template_version: 0.1.4
+    code_template_language: tsx
+    code_modules: [{"source":"react","version":"19.2.5","exports":["default","createContext","useContext","useState","useMemo","useEffect","useRef","useImperativeHandle","forwardRef"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;\nexport declare const createContext: any;\nexport declare const useContext: any;\nexport declare const useState: any;\nexport declare const useMemo: any;\nexport declare const useEffect: any;\nexport declare const useRef: any;\nexport declare const useImperativeHandle: any;\nexport declare const forwardRef: any;"},{"source":"antd","version":"6.6.2","exports":["App","Button","Calendar","Card","Cascader","Col","ConfigProvider","DatePicker","Descriptions","Flex","Form","Input","InputNumber","Radio","Row","Select","Switch","Table","Tabs","Tag","TimePicker","Tooltip","Typography","theme"],"binding":"host","type_declarations":"export declare const App: any;\nexport declare const Button: any;\nexport declare const Calendar: any;\nexport declare const Card: any;\nexport declare const Cascader: any;\nexport declare const Col: any;\nexport declare const ConfigProvider: any;\nexport declare const DatePicker: any;\nexport declare const Descriptions: any;\nexport declare const Flex: any;\nexport declare const Form: any;\nexport declare const Input: any;\nexport declare const InputNumber: any;\nexport declare const Radio: any;\nexport declare const Row: any;\nexport declare const Select: any;\nexport declare const Switch: any;\nexport declare const Table: any;\nexport declare const Tabs: any;\nexport declare const Tag: any;\nexport declare const TimePicker: any;\nexport declare const Tooltip: any;\nexport declare const Typography: any;\nexport declare const theme: any;"},{"source":"dayjs","version":"1.11.20","exports":["default"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;"},{"source":"@ant-design/icons","version":"6.3.4","exports":["CheckOutlined","CompassOutlined","CalculatorOutlined","InfoCircleOutlined","CopyOutlined","LeftOutlined","RightOutlined","FileTextOutlined","QuestionCircleOutlined","ReloadOutlined"],"binding":"host","type_declarations":"export declare const CheckOutlined: any;\nexport declare const CompassOutlined: any;\nexport declare const CalculatorOutlined: any;\nexport declare const InfoCircleOutlined: any;\nexport declare const CopyOutlined: any;\nexport declare const LeftOutlined: any;\nexport declare const RightOutlined: any;\nexport declare const FileTextOutlined: any;\nexport declare const QuestionCircleOutlined: any;\nexport declare const ReloadOutlined: any;"},{"source":"antd-style","version":"4.1.0","exports":["createStyles","ThemeProvider"],"binding":"host","type_declarations":"export declare const createStyles: any;\nexport declare const ThemeProvider: any;"},{"source":"clsx","version":"2.1.1","exports":["clsx"],"binding":"host","type_declarations":"export declare const clsx: any;"},{"source":"@taichuy/taichuy-calendar","version":"0.1.4","exports":["Calendar","Almanac","BirthInfo","ZiWei","Bazi","CalendarPage"],"binding":"fetched","assets":[{"path":"_assets/ui/browser.js","role":"browser_module","media_type":"text/javascript; charset=utf-8","sha256":"514a8b8b1eed8dec13871612399dadf88b8a8d4bf481baaa8314fee3cd03d75d"}],"type_declarations":"import type { ReactElement } from 'react';\n\nexport interface CalendarComponentProps {\n  /** Initial calendar/almanac date, independent of the birth date. ISO civil date. */\n  initialDate?: string;\n  initialBirthDate?: string;\n  /** HH:mm or HH:mm:ss, interpreted in the browser's timezone. */\n  initialTime?: string;\n  initialGender?: 'male' | 'female';\n  initialLongitude?: number;\n  initialLatitude?: number;\n  initialUseTrueSolarTime?: boolean;\n  /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */\n  locale?: 'zh' | 'en';\n}\nexport declare function Calendar(props?: CalendarComponentProps): ReactElement;\nexport declare function Almanac(props?: CalendarComponentProps): ReactElement;\nexport declare function BirthInfo(props?: CalendarComponentProps): ReactElement;\nexport declare function ZiWei(props?: CalendarComponentProps): ReactElement;\nexport declare function Bazi(props?: CalendarComponentProps): ReactElement;\nexport declare function CalendarPage(props?: CalendarComponentProps): ReactElement;\n"}]
+    context_contract:
+      primitives: []
+      input_schema:
+        type: object
+        additionalProperties: false
+        properties: {}
+    permissions:
+      network: none
+      storage: none
+      secrets: none
+    ui_capabilities: ["responsive","theming"]
+  - contribution_code: CalendarPage
+    title: "太初y 日历排盘 / Calendar and Charts"
+    runtime: native_react
+    entry: default
+    code_template: "import { CalendarPage } from '@taichuy/taichuy-calendar';\nexport default function Block() { return <CalendarPage />; }\n"
+    code_template_version: 0.1.4
+    code_template_language: tsx
+    code_modules: [{"source":"react","version":"19.2.5","exports":["default","createContext","useContext","useState","useMemo","useEffect","useRef","useImperativeHandle","forwardRef"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;\nexport declare const createContext: any;\nexport declare const useContext: any;\nexport declare const useState: any;\nexport declare const useMemo: any;\nexport declare const useEffect: any;\nexport declare const useRef: any;\nexport declare const useImperativeHandle: any;\nexport declare const forwardRef: any;"},{"source":"antd","version":"6.6.2","exports":["App","Button","Calendar","Card","Cascader","Col","ConfigProvider","DatePicker","Descriptions","Flex","Form","Input","InputNumber","Radio","Row","Select","Switch","Table","Tabs","Tag","TimePicker","Tooltip","Typography","theme"],"binding":"host","type_declarations":"export declare const App: any;\nexport declare const Button: any;\nexport declare const Calendar: any;\nexport declare const Card: any;\nexport declare const Cascader: any;\nexport declare const Col: any;\nexport declare const ConfigProvider: any;\nexport declare const DatePicker: any;\nexport declare const Descriptions: any;\nexport declare const Flex: any;\nexport declare const Form: any;\nexport declare const Input: any;\nexport declare const InputNumber: any;\nexport declare const Radio: any;\nexport declare const Row: any;\nexport declare const Select: any;\nexport declare const Switch: any;\nexport declare const Table: any;\nexport declare const Tabs: any;\nexport declare const Tag: any;\nexport declare const TimePicker: any;\nexport declare const Tooltip: any;\nexport declare const Typography: any;\nexport declare const theme: any;"},{"source":"dayjs","version":"1.11.20","exports":["default"],"binding":"host","type_declarations":"declare const defaultExport: any; export default defaultExport;"},{"source":"@ant-design/icons","version":"6.3.4","exports":["CheckOutlined","CompassOutlined","CalculatorOutlined","InfoCircleOutlined","CopyOutlined","LeftOutlined","RightOutlined","FileTextOutlined","QuestionCircleOutlined","ReloadOutlined"],"binding":"host","type_declarations":"export declare const CheckOutlined: any;\nexport declare const CompassOutlined: any;\nexport declare const CalculatorOutlined: any;\nexport declare const InfoCircleOutlined: any;\nexport declare const CopyOutlined: any;\nexport declare const LeftOutlined: any;\nexport declare const RightOutlined: any;\nexport declare const FileTextOutlined: any;\nexport declare const QuestionCircleOutlined: any;\nexport declare const ReloadOutlined: any;"},{"source":"antd-style","version":"4.1.0","exports":["createStyles","ThemeProvider"],"binding":"host","type_declarations":"export declare const createStyles: any;\nexport declare const ThemeProvider: any;"},{"source":"clsx","version":"2.1.1","exports":["clsx"],"binding":"host","type_declarations":"export declare const clsx: any;"},{"source":"@taichuy/taichuy-calendar","version":"0.1.4","exports":["Calendar","Almanac","BirthInfo","ZiWei","Bazi","CalendarPage"],"binding":"fetched","assets":[{"path":"_assets/ui/browser.js","role":"browser_module","media_type":"text/javascript; charset=utf-8","sha256":"514a8b8b1eed8dec13871612399dadf88b8a8d4bf481baaa8314fee3cd03d75d"}],"type_declarations":"import type { ReactElement } from 'react';\n\nexport interface CalendarComponentProps {\n  /** Initial calendar/almanac date, independent of the birth date. ISO civil date. */\n  initialDate?: string;\n  initialBirthDate?: string;\n  /** HH:mm or HH:mm:ss, interpreted in the browser's timezone. */\n  initialTime?: string;\n  initialGender?: 'male' | 'female';\n  initialLongitude?: number;\n  initialLatitude?: number;\n  initialUseTrueSolarTime?: boolean;\n  /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */\n  locale?: 'zh' | 'en';\n}\nexport declare function Calendar(props?: CalendarComponentProps): ReactElement;\nexport declare function Almanac(props?: CalendarComponentProps): ReactElement;\nexport declare function BirthInfo(props?: CalendarComponentProps): ReactElement;\nexport declare function ZiWei(props?: CalendarComponentProps): ReactElement;\nexport declare function Bazi(props?: CalendarComponentProps): ReactElement;\nexport declare function CalendarPage(props?: CalendarComponentProps): ReactElement;\n"}]
+    context_contract:
+      primitives: []
+      input_schema:
+        type: object
+        additionalProperties: false
+        properties: {}
+    permissions:
+      network: none
+      storage: none
+      secrets: none
+    ui_capabilities: ["responsive","theming"]
+keywords: ["calendar","almanac","lunar","ziwei","bazi","日历","黄历","紫微","八字"]
