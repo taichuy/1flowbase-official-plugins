@@ -112,19 +112,33 @@ manifest 的 fetched asset 摘要必须对应真实 JS 字节，构建后修改�
 ## Root 集中 QA（D1 只写 fixture，不运行）
 
 ```bash
+export TAICHUY_HOST_ROOT="${TAICHUY_HOST_ROOT:-/home/taichuy/git/1flowbase}"
+export TAICHUY_EVIDENCE_ROOT="${TAICHUY_EVIDENCE_ROOT:-$TAICHUY_HOST_ROOT/tmp/test-governance/taichuy-calendar}"
+export TAICHUY_CHROME_EXECUTABLE="${TAICHUY_CHROME_EXECUTABLE:-/usr/bin/google-chrome}"
 node scripts/build-fixtures.mjs
-TZ=Asia/Shanghai node --test "$TAICHUY_HOST_ROOT/tmp/test-governance/taichuy-calendar/compiled/algorithms.test.cjs"
+TZ=Asia/Shanghai node --test "$TAICHUY_EVIDENCE_ROOT/compiled/algorithms.test.cjs"
 node scripts/run-component-fixtures.mjs
 ```
 
-可选 `TAICHUY_EVIDENCE_ROOT` 指定取证目录。准备脚本需要真实已生成的 browser.js 和已有宿主
-React/Antd/Playwright；不安装浏览器、不启动服务。算法 fixture 在固定时区/时钟下，对比源哈希校验后
-从**原文件**截取的计算体，覆盖子时、闰日、节气/闰月与真太阳时跨日，以及已有源站预期数据。
+以上命令从插件根目录执行；`npm run fixtures:prepare` / `npm run fixtures:components`
+仍分别调用相同的准备 / 组件脚本。可用 `TAICHUY_EVIDENCE_ROOT` 指定取证目录；算法命令须使用同一目录。
+准备脚本需要真实已生成的 browser.js 和已有宿主 React/Antd/Playwright，不安装依赖、不启动服务。
+浏览器 runner 默认使用本机 `/usr/bin/google-chrome`；其他位置通过 `TAICHUY_CHROME_EXECUTABLE`
+显式指定已有 Chrome/Chromium 可执行文件。路径无效即失败，不下载或依赖 Playwright headless_shell。
+算法 fixture 在固定时区/时钟下，对比源哈希校验后从**原文件**截取的计算体，保留 6 个出生边界案例、
+24 组真太阳时对照，以及固定 `2026-11-01` 的黄历、八字、紫微与提示词预期。
+紫微序列化在实际值和源站参考值两侧同时排除 `astrolabe` / `_astrolabe` 反向引用及方法；
+`FunctionalPalace._astrolabe` 指回所属星盘，不是额外业务数据，其余星曜、宫位、运限数据仍完整比较。
 组件 fixture 用实际 factory + 冻结的 namespace 执行，缺少 dayjs 绑定必须拒绝；六入口均真实挂载。
 fixture 不预加载 locale/clipboard，断言 factory 将中文 locale 注册到同一个宿主 dayjs 核心。
 桌面/移动交互覆盖黄历与出生日期分离、日期/时间/性别/经纬与真太阳时联动、月/年/今天/签到、
 紫微宫位/运限、八字大运/流年展开与全部复制路径，并阻断网络、保存截图/文本/报告。
 QA-only host bundle 不进入安装资产，也不代表插件私带 React。
+浏览器使用可见日历所属 Card 的作用域、Antd 两字按钮空格、黄历 hover 后复制、Cascader 的真实
+combobox 与带图标前缀的复制按钮名称；不 force click、不跳过断言。桌面 / 移动端失败都会使报告失败，
+并在 finally 中关闭 context / Chrome。原报告路径保持为 `$TAICHUY_EVIDENCE_ROOT/component-fixtures.json`。
+PF1 只将 QA1 已证明等价的 fixture 修正纳回原命令；此修复未运行构建或行为测试，等待 Root 集中 QA2。
+QA1 的临时 runner 通过不代表本次修正候选已通过，也不代表真实宿主页或系统剪贴板已验收。
 
 **本源码 packet 未运行构建、测试、服务、Cargo 或安装。** Root 还需完成通用 host factory、
 host bindings、重复模块去重与 UI-only block 自动注册契约，并集中验证安装/禁用/卸载、编辑器入口和

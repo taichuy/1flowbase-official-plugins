@@ -132,21 +132,43 @@ package names are recorded. Use the host's standard package command to create
 ## Centralized Root QA (fixtures written, not run by D1)
 
 ```bash
+export TAICHUY_HOST_ROOT="${TAICHUY_HOST_ROOT:-/home/taichuy/git/1flowbase}"
+export TAICHUY_EVIDENCE_ROOT="${TAICHUY_EVIDENCE_ROOT:-$TAICHUY_HOST_ROOT/tmp/test-governance/taichuy-calendar}"
+export TAICHUY_CHROME_EXECUTABLE="${TAICHUY_CHROME_EXECUTABLE:-/usr/bin/google-chrome}"
 node scripts/build-fixtures.mjs
-TZ=Asia/Shanghai node --test "$TAICHUY_HOST_ROOT/tmp/test-governance/taichuy-calendar/compiled/algorithms.test.cjs"
+TZ=Asia/Shanghai node --test "$TAICHUY_EVIDENCE_ROOT/compiled/algorithms.test.cjs"
 node scripts/run-component-fixtures.mjs
 ```
 
-`TAICHUY_EVIDENCE_ROOT` overrides the evidence location. Fixtures require a real
-built browser.js and existing host React/Antd/Playwright. They start no server,
-install/download nothing, and block network. Algorithms compare to hash-checked
-bodies extracted from the **original source**, with a fixed clock and Shanghai
-timezone, covering hour/day/leap/solar-term boundaries and source-site snapshots.
+Run these commands from the plugin root. `npm run fixtures:prepare` and
+`npm run fixtures:components` still invoke the same preparation and browser scripts.
+`TAICHUY_EVIDENCE_ROOT` overrides the evidence location; use that same directory for
+the algorithm command. Fixtures require a real built browser.js and existing host
+React/Antd/Playwright. They start no server, install/download nothing, and block network.
+The browser runner defaults to the existing `/usr/bin/google-chrome`. Set
+`TAICHUY_CHROME_EXECUTABLE` to an existing Chrome/Chromium executable elsewhere.
+An invalid path fails explicitly; no Playwright headless_shell is required or downloaded.
+Algorithms compare to hash-checked bodies extracted from the **original source**,
+with a fixed clock and Shanghai timezone: six birth-boundary cases, 24 true-solar-time
+comparisons, and fixed `2026-11-01` almanac, Bazi, ZiWei and prompt expectations.
+ZiWei serialization excludes `astrolabe` / `_astrolabe` reverse references and methods
+on BOTH actual and reference values. `FunctionalPalace._astrolabe` points back to its
+owning chart, not additional business data; all other star, palace and horoscope data
+remain part of the full comparison.
 The browser fixture executes the actual factory with frozen namespace bindings,
 rejects a missing dayjs binding, mounts every export, and exercises desktop/mobile
 calendar/form/chart/clipboard paths. It saves text, screenshots and a report.
 The QA-only host bundle is not shipped and does not make the plugin privately
 bundle React.
+Browser interactions use the visible calendar's Card scope, Antd's Chinese button
+spacing, hover-revealed almanac copy, the actual Cascader combobox, and icon-prefixed
+copy-button names. No forced clicks or skipped assertions are used. Failures in either
+viewport fail the report; contexts and Chrome close in finally. The report remains at
+`$TAICHUY_EVIDENCE_ROOT/component-fixtures.json`.
+PF1 integrates the QA1-proven equivalent fixture corrections into the original commands;
+this repair has not run builds or behavioral tests and awaits centralized Root QA2.
+The passing temporary QA1 runner is not a pass for this repaired candidate, installed
+host-page integration, or the physical system clipboard.
 
 This source packet has **not** run a build, Cargo, tests, server, browser or
 installer. Root still owns generic factory loading, the additional host sources,

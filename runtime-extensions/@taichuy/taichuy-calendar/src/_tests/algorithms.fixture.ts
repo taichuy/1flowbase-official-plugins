@@ -24,8 +24,12 @@ function normalizeBazi(calculation: ReturnType<typeof calculateBazi>) {
     daYun: daYun.map((item) => item.getName()), initialDaYunIndex: calculation.initialDaYunIndex };
 }
 function normalizeZiWei(result: ReturnType<typeof calculateZiWei>, viewDate: string) {
-  // Full serializable natal data, all star groups, decadal, ages and current horoscope.
-  return JSON.parse(JSON.stringify({ ...result, horoscope: result.horoscope(dayjs(viewDate).toDate()) }, (key, value) => key === 'astrolabe' || typeof value === 'function' ? undefined : value));
+  // Keep all natal data, star groups, decadal, ages and current horoscope on BOTH sides.
+  // FunctionalPalace._astrolabe is a private reverse link to its owning astrolabe,
+  // not additional chart data. Exclude it alongside the existing astrolabe link
+  // and methods; do not use a generic cycle filter that could hide data differences.
+  return JSON.parse(JSON.stringify({ ...result, horoscope: result.horoscope(dayjs(viewDate).toDate()) },
+    (key, value) => key === 'astrolabe' || key === '_astrolabe' || typeof value === 'function' ? undefined : value));
 }
 const cases = [
   ['2026-11-01', '09:02:00', 'male'],

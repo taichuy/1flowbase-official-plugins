@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { hostRoot, loadHostTool } from './toolchain.mjs';
 
@@ -9,8 +10,10 @@ const script = await readFile(resolve(evidenceRoot, 'compiled/factory-browser.js
 const css = await readFile(resolve(evidenceRoot, 'compiled/factory-browser.css'), 'utf8');
 const expected = JSON.parse(await readFile(new URL('../src/_tests/source-expectations.json', import.meta.url), 'utf8'));
 const { chromium } = loadHostTool('playwright');
-const browser = await chromium.launch({ headless: true });
-const report = { status: 'running', timezone: expected.timezone, scenarios: [], errors: [], requests: [] };
+// Use an existing browser only, never Playwright's downloaded headless_shell.
+const executablePath = process.env.TAICHUY_CHROME_EXECUTABLE ?? '/usr/bin/google-chrome';
+let browser;
+const report = { status: 'running', timezone: expected.timezone, scenarios: [], errors: [], requests: [], failures: [] };
 const props = { initialDate: expected.birthDate, initialBirthDate: expected.birthDate,
   initialTime: expected.time, initialUseTrueSolarTime: false };
 await mkdir(evidenceRoot, { recursive: true });
@@ -29,6 +32,10 @@ async function clipboardCopy(page, click, expectedText) {
   assert.match(text, expectedText);
 }
 try {
+  await access(executablePath, constants.X_OK).catch((error) => {
+    throw new Error(`Chrome is not executable at ${executablePath}; set TAICHUY_CHROME_EXECUTABLE to an existing Chrome/Chromium executable. No browser is downloaded.`, { cause: error });
+  });
+  browser = await chromium.launch({ headless: true, executablePath });
   for (const viewport of [{ width: 1440, height: 1100 }, { width: 390, height: 844 }]) {
     const label = viewport.width > 768 ? 'desktop' : 'mobile';
     const context = await browser.newContext({ viewport, timezoneId: expected.timezone, locale: 'zh-CN' });
@@ -51,6 +58,7 @@ try {
         report.scenarios.push(`${label}: independent ${name} through real factory`);
       }
       await mount(page, 'CalendarPage');
+      await page.screenshot({ path: resolve(evidenceRoot, `plugin-${label}-initial.png`), fullPage: true });
       const calendar = page.locator('[data-calendar-section="calendar"]:visible');
       const birthDate = page.getByRole('textbox', { name: '出生日期', exact: true });
       assert.equal(await birthDate.inputValue(), '2026-11-01');
@@ -60,11 +68,15 @@ try {
       await calendar.getByText('年', { exact: true }).click();
       assert.equal(await calendar.getAttribute('data-calendar-mode'), 'year');
       await calendar.getByText('月', { exact: true }).click();
-      const calendarCard = calendar.locator('..');
-      await calendarCard.getByRole('button', { name: '今天', exact: true }).click();
-      await calendarCard.getByRole('button', { name: '签到', exact: true }).click();
+      // Scope actions to this visible calendar's Card body, not a hidden responsive twin.
+      const calendarCard = calendar.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-card-body ")][1]');
+      // Antd inserts a space into two-character Chinese button names.
+      await calendarCard.getByRole('button', { name: /^今\s*天$/ }).click();
+      await calendarCard.getByRole('button', { name: /^签\s*到$/ }).click();
       assert.equal(await calendar.locator('[data-calendar-date="2026-11-01"]').getAttribute('data-signed'), 'true');
       report.scenarios.push(`${label}: calendar selection, month/year, today, in-memory sign and birth separation`);
+      // Source styling reveals the copy control only while its almanac card is hovered.
+      await page.locator('[data-calendar-section="almanac"]').hover();
       await clipboardCopy(page, () => page.getByLabel('复制黄历信息', { exact: true }).click(), /2026.*11/);
       // DatePicker popup still uses source lunar cells, now Antd 6 popup.root classNames.
       await birthDate.click();
@@ -73,7 +85,8 @@ try {
       await timeInput.fill('11:30');
       await timeInput.press('Enter');
       await page.getByText('出生地点', { exact: true }).click();
-      await page.getByText('请选择出生地点 (省/市/区)', { exact: true }).click();
+      // Click the actual input; the placeholder is covered by the Cascader combobox.
+      await page.locator('.ant-cascader input[role="combobox"]').click();
       const locationPopup = page.locator('.ant-cascader-dropdown:visible');
       await locationPopup.getByTitle('北京市', { exact: true }).click();
       await locationPopup.getByTitle('市辖区', { exact: true }).click();
@@ -93,8 +106,9 @@ try {
       await waitFor(page, () => document.querySelector('[data-calendar-section="ziwei"]')?.getAttribute('data-birth-time') !== '11:30:00', 'longitude and true-solar toggle -> ZiWei');
       const adjustedTime = await ziwei.getAttribute('data-birth-time');
       await page.getByRole('button', { name: '开始排盘', exact: true }).click();
-      await clipboardCopy(page, () => page.getByRole('button', { name: '复制本命数据', exact: true }).click(), /紫微斗数/);
-      await clipboardCopy(page, () => page.getByRole('button', { name: '复制运限数据', exact: true }).click(), /运势信息/);
+      // Antd icon labels prefix the accessible name (copy / file-text).
+      await clipboardCopy(page, () => page.getByRole('button', { name: /复制本命数据$/ }).click(), /紫微斗数/);
+      await clipboardCopy(page, () => page.getByRole('button', { name: /复制运限数据$/ }).click(), /运势信息/);
       const visiblePalaces = page.locator('[data-palace-index]:visible');
       const targetPalace = visiblePalaces.nth(4);
       await targetPalace.click();
@@ -123,15 +137,21 @@ try {
       assert.equal(await page.locator('iframe, a[href]').count(), 0, 'No old navigation or iframe');
       await page.screenshot({ path: resolve(evidenceRoot, `plugin-${label}.png`), fullPage: true });
       await writeFile(resolve(evidenceRoot, `plugin-${label}-text.txt`), await page.locator('body').innerText());
+    } catch (error) {
+      // Attempt both viewports, but retain every failure as a failing assertion below.
+      report.failures.push(`${label}: ${error.stack ?? error}`);
     } finally { await context.close(); }
   }
   assert.deepEqual(report.errors, [], 'Browser errors must be investigated, not swallowed');
   assert.deepEqual(report.requests, [], 'No frontend data/network requests are permitted');
+  assert.deepEqual(report.failures, [], 'Complete desktop/mobile scenario failures');
   report.status = 'passed';
 } catch (error) {
   report.status = 'failed'; report.failure = error.stack; process.exitCode = 1;
 } finally {
-  await browser.close();
-  await writeFile(resolve(evidenceRoot, 'component-fixtures.json'), JSON.stringify(report, null, 2) + '\n');
+  try { await browser?.close(); }
+  finally {
+    await writeFile(resolve(evidenceRoot, 'component-fixtures.json'), JSON.stringify(report, null, 2) + '\n');
+  }
 }
 console.log(JSON.stringify({ status: report.status, scenarios: report.scenarios.length, failure: report.failure?.split('\n')[0] }));
