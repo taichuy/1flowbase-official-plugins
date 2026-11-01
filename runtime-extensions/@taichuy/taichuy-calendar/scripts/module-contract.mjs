@@ -14,7 +14,7 @@ export const hostModules = [
   { source: 'antd', version: '6.6.2', exports: ['App', 'Button', 'Calendar', 'Card', 'Cascader', 'Col', 'ConfigProvider', 'DatePicker', 'Descriptions', 'Flex', 'Form', 'Input', 'InputNumber', 'Radio', 'Row', 'Select', 'Switch', 'Table', 'Tabs', 'Tag', 'TimePicker', 'Tooltip', 'Typography', 'theme'] },
   { source: 'dayjs', version: '1.11.20', exports: ['default'] },
   { source: '@ant-design/icons', version: '6.3.4', exports: ['CheckOutlined', 'CompassOutlined', 'CalculatorOutlined', 'InfoCircleOutlined', 'CopyOutlined', 'LeftOutlined', 'RightOutlined', 'FileTextOutlined', 'QuestionCircleOutlined', 'ReloadOutlined'] },
-  { source: 'antd-style', version: '4.1.0', exports: ['createStyles'] },
+  { source: 'antd-style', version: '4.1.0', exports: ['createStyles', 'ThemeProvider'] },
   { source: 'clsx', version: '2.1.1', exports: ['clsx'] },
 ];
 

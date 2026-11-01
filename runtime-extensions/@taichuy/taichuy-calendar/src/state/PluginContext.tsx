@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { App, ConfigProvider } from 'antd';
+import { ThemeProvider } from 'antd-style';
 import zhCN from 'antd/locale/zh_CN';
 import 'dayjs/locale/zh-cn';
 import { DateProvider } from './DateContext';
@@ -57,6 +58,10 @@ export function usePluginContext(): PluginState {
 function Provider({ children, ...props }: CalendarComponentProps & { children: React.ReactNode }) {
   const state = useBirthState(props);
   return (
+    <ThemeProvider themeMode="light" theme={{ token: {
+      colorPrimary: '#0056D2', colorInfo: '#0056D2', colorLink: '#0056D2',
+      colorBgLayout: '#f0f2f5', colorTextBase: '#0f172a'
+    } }}>
     <ConfigProvider locale={zhCN}>
       <App>
         <I18nProvider locale={props.locale ?? 'zh'}>
@@ -66,6 +71,7 @@ function Provider({ children, ...props }: CalendarComponentProps & { children: R
         </I18nProvider>
       </App>
     </ConfigProvider>
+    </ThemeProvider>
   );
 }
 
