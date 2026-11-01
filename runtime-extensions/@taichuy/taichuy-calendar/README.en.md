@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.6** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.7** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.1**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -231,10 +231,14 @@ assuming `ant`. This preserves the original form/card/picker rules when the host
 uses isolated native prefixes; it does not change algorithms or override host
 provider/portal ownership. The native surface must contain the host style hooks.
 
-## UI registration boundary (0.1.6)
+## UI registration boundary (0.1.7)
 
 All six `block_contributions` explicitly declare `ui_registration: component`. They are
 registered only in `/settings/ui-management/components`, not as official code templates.
 `code_template` remains the complete component mounting source; it does not imply template registration.
 The host owns registration, upgrade, read-only provenance and uninstall cleanup. The plugin never writes component tables.
 A host source build supporting this field is required; the previously published 0.6.1 release does not support this contract.
+
+## 0.1.7 — Editable composition and direct calculation imports
+
+New pages compose a Provider and public components instead of a full-page wrapper; CalendarPage remains compatible. Five existing business packages are importable by their original source names. iztro declarations include only dependencies reachable from its public entry, and the portable template uses the host-supported topbar root route.

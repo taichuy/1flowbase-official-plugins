@@ -19,10 +19,13 @@ test('editable page source owns layout and uses public components instead of ful
 test('portable template ships the same editable source with remappable identities', async () => {
   const p = await readPackage(resolve(repo, 'applications-demo/@taichuy/calendar-composition'));
   assert.equal(p.pages.length, 1); assert.equal(p.pages[0].tabs.length, 1);
+  assert.equal(p.pages[0].parent_id, null);
+  assert.equal(p.pages[0].placement, 'topbar', 'Standalone templates need a routable root');
+  assert.equal(p.pages[0].slug, 'calendar-composition');
   const b = p.pages[0].tabs[0].blocks[0];
   assert.equal(b.source_code, source);
   assert.equal(b.runtime_descriptor.contribution.code, 'Calendar');
-  assert.equal(p.plugins[0].plugin_version, '0.1.6');
+  assert.equal(p.plugins[0].plugin_version, '0.1.7');
   assert.notEqual(p.pages[0].id, '01a1949d-0dee-7099-bd6c-b7c94e926c61');
   assert.deepEqual(await buildArchive(resolve(repo, 'applications-demo/@taichuy/calendar-composition')), await readFile(resolve(root, '_assets/templates/calendar-composition.zip')));
 });

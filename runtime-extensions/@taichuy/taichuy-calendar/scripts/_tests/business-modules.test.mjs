@@ -175,12 +175,23 @@ test('published declarations compile real consumers and reject unavailable field
   }));
   const iztro = ts.createSourceFile('iztro.d.ts', modules.find((item) => item.source === 'iztro').type_declarations,
     ts.ScriptTarget.Latest, true);
-  assert.ok(iztro.statements.length >= 105, 'Every upstream iztro declaration file must be represented');
   assert.ok(iztro.statements.every((node) => ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name)),
     'The iztro declarations must be a script of absolute ambient modules, not an outer external module');
   const ambientNames = iztro.statements.map((node) => node.name.text);
   assert.equal(new Set(ambientNames).size, ambientNames.length, 'No ambiguous ambient source names');
   assert.ok(ambientNames.includes('iztro'));
+  // Independently resolve the actual public entry with TypeScript, rather than
+  // copying the generator's traversal or treating every lib file as public.
+  const upstreamRoot = resolve(sourceNodeModules, 'iztro');
+  const metadata = JSON.parse(await readFile(resolve(upstreamRoot, 'package.json'), 'utf8'));
+  const entry = resolve(upstreamRoot, metadata.types ?? metadata.typings ?? 'index.d.ts');
+  const upstream = ts.createProgram([entry], options);
+  const expectedIztro = upstream.getSourceFiles()
+    .map((file) => file.fileName).filter((file) => file.startsWith(upstreamRoot + '/'))
+    .map((file) => file === entry ? 'iztro' : 'iztro/' + file.slice(upstreamRoot.length + 1).replace(/\.d\.ts$/, ''));
+  assert.ok(expectedIztro.length > 0);
+  assert.deepEqual(ambientNames.filter((name) => name === 'iztro' || name.startsWith('iztro/')).sort(),
+    expectedIztro.sort(), 'Publish exactly the upstream public declaration graph, not unreachable files');
   assert.ok(ambientNames.includes('lunar-lite/lib/types'));
   assert.ok(ambientNames.includes('i18next'));
   function checkSpecifier(node) {

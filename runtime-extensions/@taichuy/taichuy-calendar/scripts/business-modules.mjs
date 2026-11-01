@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createRequire, builtinModules } from 'node:module';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { Script } from 'node:vm';
 import { root, sourceNodeModules, loadHostTool } from './toolchain.mjs';
@@ -75,14 +75,10 @@ async function iztroDeclarations(ts, packageRoot) {
     return name;
   }
 
-  async function collect(dir) {
-    for (const item of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const path = resolve(dir, item.name);
-      if (item.isDirectory()) await collect(path);
-      else if (item.name.endsWith('.d.ts')) await enqueue(path);
-    }
-  }
-  await collect(resolve(packageRoot, 'lib'));
+  // Only publish declarations reachable from the public type entry. Scanning all
+  // of lib promotes upstream's stale, unexported files into ambient roots.
+  const metadata = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'));
+  await enqueue(resolve(packageRoot, metadata.types ?? metadata.typings ?? 'index.d.ts'));
   for (let index = 0; index < pending.length; index++) {
     const record = pending[index];
     const source = ts.createSourceFile(record.file, await readFile(record.file, 'utf8'), ts.ScriptTarget.Latest, true);
