@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.7** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.8** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.1**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -242,3 +242,7 @@ A host source build supporting this field is required; the previously published 
 ## 0.1.7 — Editable composition and direct calculation imports
 
 New pages compose a Provider and public components instead of a full-page wrapper; CalendarPage remains compatible. Five existing business packages are importable by their original source names. iztro declarations include only dependencies reachable from its public entry, and the portable template uses the host-supported topbar root route.
+
+## 0.1.8 — Independent calendar rail
+
+The desktop composition keeps a sticky right calendar beside the scrolling left panels. In short viewports the calendar rail scrolls independently without chaining wheel input to the left. Mobile keeps one inline calendar. Layout remains editable in `examples/composed-page.tsx` and is also shipped in the portable page template; no new dependency or opaque page wrapper is introduced.

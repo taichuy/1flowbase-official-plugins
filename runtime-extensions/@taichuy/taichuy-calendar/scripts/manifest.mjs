@@ -20,14 +20,14 @@ export async function manifestText(sha256, businessModules) {
       type_declarations: module.exports.map((name) => name === 'default'
         ? 'declare const defaultExport: any; export default defaultExport;'
         : `export declare const ${name}: any;`).join('\n') })),
-    { source: moduleSource, version: '0.1.7', exports: publicExports, binding: 'fetched',
+    { source: moduleSource, version: '0.1.8', exports: publicExports, binding: 'fetched',
       assets: [{ path: '_assets/ui/browser.js', role: 'browser_module', media_type: 'text/javascript; charset=utf-8', sha256 }],
       type_declarations: typeDeclarations },
     ...businessModules,
   ];
   const manifest = {
     manifest_version: 2, schema_version: '1flowbase.plugin.manifest/v2',
-    plugin_id: 'taichuy-calendar', version: '0.1.7', publisher_namespace: '1flowbase', vendor: 'Taichuy',
+    plugin_id: 'taichuy-calendar', version: '0.1.8', publisher_namespace: '1flowbase', vendor: 'Taichuy',
     display_name: '太初y 日历排盘 / Taichuy Calendar',
     description: 'Independent lunar calendar, almanac, birth information, ZiWei and Bazi with local astronomical calculations',
     source_kind: 'official_registry', trust_level: 'verified_official', consumption_kind: 'runtime_extension',
@@ -37,7 +37,7 @@ export async function manifestText(sha256, businessModules) {
     permissions: { network: 'none', secrets: 'none', storage: 'none', mcp: 'none', subprocess: 'deny' },
     runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
     managed: {
-      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.7', module_kind: 'runtime',
+      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.8', module_kind: 'runtime',
         contributions: componentExports.map((name) => ({
           contribution_id: `taichuy-calendar.${name}`, contributor_module_id: 'taichuy-calendar',
           point_id: '1flowbase.workspace.frontend-block-contribution', contract_version: '1',
@@ -55,7 +55,7 @@ export async function manifestText(sha256, businessModules) {
     block_contributions: componentExports.map((name) => ({
       contribution_code: name, title: titles[name], runtime: 'native_react', entry: 'default', ui_registration: 'component',
       code_template: `import { ${name} } from '${moduleSource}';\nexport default function Block() { return <${name} />; }\n`,
-      code_template_version: '0.1.7', code_template_language: 'tsx', code_modules: codeModules,
+      code_template_version: '0.1.8', code_template_language: 'tsx', code_modules: codeModules,
       context_contract: { primitives: [], input_schema: { type: 'object', additionalProperties: false, properties: {} } },
       permissions: { network: 'none', storage: 'none', secrets: 'none' },
       ui_capabilities: ['responsive', 'theming'],

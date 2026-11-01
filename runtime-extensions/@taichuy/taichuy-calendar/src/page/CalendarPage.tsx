@@ -22,7 +22,16 @@ const useLayoutStyles = createStyles(({ css }) => ({
     @media (max-width: 768px) { display: block; }
   `,
   main: css`min-width: 0;`,
-  aside: css`@media (max-width: 768px) { display: none; }`,
+  aside: css`
+    position: sticky;
+    top: 16px;
+    /* Keep short-window controls reachable below the host toolbar. */
+    max-height: calc(100dvh - 160px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    @media (max-width: 768px) { display: none; }
+  `,
 }));
 
 export default function CalendarPageContent() {
@@ -54,7 +63,7 @@ export default function CalendarPageContent() {
           <BirthInfoForm />
           <Tabs defaultActiveKey="ziwei" items={items} type="card" size="large" className={styles.tabCard} />
         </main>
-        <aside className={layout.aside}><TaichuyCalendarCard onAlmanac={goAlmanac} /></aside>
+        <aside className={layout.aside} aria-label="日历" tabIndex={0}><TaichuyCalendarCard onAlmanac={goAlmanac} /></aside>
       </div>
     </section>
   );
