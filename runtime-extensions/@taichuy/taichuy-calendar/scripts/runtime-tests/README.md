@@ -43,14 +43,14 @@ node --test scripts/_tests/runtime-harness.test.mjs scripts/_tests/runtime-refer
 Binary acceptance is for Root's centralized frozen assembly, not per-packet QA:
 
 ```sh
-RUNTIME_PACKAGE_ROOT=/absolute/install/0.1.13 \
+RUNTIME_PACKAGE_ROOT=/absolute/install/0.1.14 \
 TEST_EVIDENCE_DIR=/absolute/workspace/tmp/test-governance/calendar-runtime \
 node --test scripts/_tests/runtime-binary.test.mjs
 ```
 
 `RUNTIME_PACKAGE_ROOT` must contain `bin/taichuy-calendar` (or `.exe`) and the
 matching `_assets/runtime/{backend.js,descriptor.json}` from the same build; its
-basename must equal the descriptor version (`0.1.13` for this candidate). No
+basename must equal the descriptor version (`0.1.14` for this candidate). No
 fallback to a locally built binary is allowed. If the variable is absent, **all
 binary-only tests visibly SKIP; QuickJS/binary acceptance is NOT established**.
 An explicitly configured but incomplete/mismatched package is a failure, not skip.

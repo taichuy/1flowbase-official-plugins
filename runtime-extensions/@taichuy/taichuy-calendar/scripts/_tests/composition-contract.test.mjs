@@ -31,6 +31,10 @@ test('portable template ships the same editable source with remappable identitie
   assert.equal(b.runtime_descriptor.runtime.code_template_version, version);
   assert.notEqual(p.pages[0].id, '01a1949d-0dee-7099-bd6c-b7c94e926c61');
   assert.deepEqual(await buildArchive(resolve(repo, 'applications-demo/@taichuy/calendar-composition')), await readFile(resolve(root, '_assets/templates/calendar-composition.zip')));
+  // Reusing a published (template_id, release_version) with changed bytes must fail preflight.
+  // The planner accepts either an exact already-published release or a new immutable version.
+  const { buildReleasePlan } = await import(resolve(repo, 'scripts/application-template/publisher.mjs'));
+  await buildReleasePlan({ repoRoot: repo });
 });
 test('public declarations match actual source types and allow composing hooks and primitives', async () => {
   const req=createRequire(resolve(hostRoot,'web/package.json')); const ts=req('typescript');
