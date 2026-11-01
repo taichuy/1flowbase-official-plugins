@@ -82,3 +82,5 @@ meaning and rule declarations are unchanged; both default `ant` and host-owned
 native prefixes work. No global CSS, provider prefix override or algorithm change.
 
 - 0.1.3 preserves the host-provided date-cell class from `cellRender.originNode`; no hardcoded `ant-picker-cell-inner` remains in the custom lunar date cell. Algorithm inputs and behavior are unchanged.
+
+- 0.1.4 corrects the TypeScript cellRender callback parameter to accept the upstream unknown-props ReactElement and narrows only the known native cell class at the read site. Generated browser bytes are unchanged from 0.1.3.

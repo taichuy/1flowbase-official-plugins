@@ -14,7 +14,7 @@ export default function BirthInfoForm() {
     setLocationCodes, setLocationName, trueSolarDateTime, requestChart } = usePluginContext();
   const cellRender = (
     current: Dayjs | number | string,
-    info: { originNode: React.ReactElement<{ className?: string }>; type: string }
+    info: { originNode: React.ReactElement; type: string }
   ) => {
     if (info.type !== 'date') return info.originNode;
     const date = current as Dayjs;
@@ -24,7 +24,7 @@ export default function BirthInfoForm() {
     const solarTerm = lunar.getJieQi();
 
     return (
-      <div className={cx(info.originNode.props.className, styles.dateCell)}>
+      <div className={cx((info.originNode.props as { className?: string }).className, styles.dateCell)}>
         <span className={styles.solarDate}>{date.date()}</span>
         <span className={styles.lunarDate}>{solarTerm || lunarText}</span>
       </div>
