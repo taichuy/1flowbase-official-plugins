@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.5**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.6**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本字段为 **0.6.1**，且必须使用**包含本次新契约的宿主构建**（H1 自动注册及通用
@@ -13,7 +13,7 @@ factory/host bindings/去重配套）。已经发布但不包含这些改动的�
 不构成命运判断。迁移原文、源哈希和适配边界见 [PROVENANCE](migration/PROVENANCE.md)
 与 [inventory](migration/inventory.json)。
 
-## 六个入口
+## 公共组件与组合入口
 
 组件 source 统一为 `@taichuy/taichuy-calendar`，公开 exports：
 
@@ -24,24 +24,64 @@ factory/host bindings/去重配套）。已经发布但不包含这些改动的�
 | `BirthInfo` | 原出生日期/时间/省市区/经纬度/真太阳时/性别表单 |
 | `ZiWei` | 原紫微斗数排盘、宫位交互、三方四正、运限切换、复制 |
 | `Bazi` | 原八字、藏干十神、五行、八组大运、流年/流月展开、复制 |
-| `CalendarPage` | 完整联动页面：黄历、表单与两种排盘；桌面右侧仅月历，移动月历在原位置 |
+| `CalendarPage` | 旧版整页兼容导出；新页面使用下方显式组合模板 |
 
 ```tsx
-import { CalendarPage } from '@taichuy/taichuy-calendar';
+import { CalendarProvider, Calendar, Almanac, BirthInfo, ZiWei, Bazi } from '@taichuy/taichuy-calendar';
 export default function Block() {
-  return <CalendarPage />;
+  return <CalendarProvider>
+    <Calendar /><Almanac /><BirthInfo /><ZiWei /><Bazi />
+  </CalendarProvider>;
 }
 ```
 
-独立入口自己创建 React Context。完整页使用同一 provider；黄历日期与出生日期按源站设计分离，
-更改月历不会改出生日期；出生日期、时间、地点、性别与真太阳时会实时驱动排盘。
-这些入口作为分离的宿主 block 挂载时各自独立，不在全局变量中共享状态或 React。
+推荐从 `examples/composed-page.tsx` 开始：响应式列布局、Tab、锚点滚动均在可编辑源码中，
+不是 `<CalendarPage />` 黑盒。`CalendarProvider` 为同一树下组件共享状态；不同 Provider 与
+不同宿主区块互相隔离。日历联动黄历，出生日期/时间/地点/性别/真太阳时联动两个排盘；
+黄历日期不改变出生日期。无 Provider 的五个独立组件仍可单独使用。
 
-所有入口支持 `types/index.d.ts` 中的可选初值：`initialDate`、`initialBirthDate`、
-`initialTime`（HH:mm[:ss]）、`initialGender`、`initialLongitude`、`initialLatitude`、
-`initialUseTrueSolarTime`、`locale`（zh/en）。初值只用于初始化；交互后以组件自身状态为准。
-日期/天文校正沿用源站浏览器本地时区语义，不擅自改为 UTC 或出生地时区。
-英文 locale 保留原站已有的副标题/引文/免责声明译文；传统图表和表单标签仍为中文。
+- `useCalendarDate()`：读写日历日期；`useBirthInfo()`：读写出生信息与排盘状态。
+- 更底层的受控组件：`LunarInfoCard({date})`、`ZiWeiCalculator({date,time,gender,locationInfo})`、
+  `BaziCalculator`（同上）、`LocationSelector({value,onChange})`。置于 Provider 内以复用主题/语言。
+- `Calendar({onAlmanac})` 可把黄历按钮连接到自定义页面锚点。
+- `CalendarPage` 导出及 contribution 暂时保留兼容；不再作为新页面的推荐组合入口。
+- 可选初始值见 `types/index.d.ts`。它们只初始化状态，不是受控 props；出生时间使用浏览器本地
+  民用时间语义，不自动转换为出生地时区。`locale` 仅调整原站引语/免责声明，传统术语保留中文。
+
+### 直接使用现有业务包
+
+下列五包是**已有依赖开放低代码 import**，版本不变、无新增下载。它们通过本插件的
+`code_modules` 授权，不成为宿主全局 npm 包，也不开放任意 npm import。
+
+| import source | 版本 | 开放范围 |
+|---|---|---|
+| `lunar-typescript` | 1.8.6 | 原包公共运行时导出及类型 |
+| `tyme4ts` | 1.3.9 | 原包公共运行时导出及类型 |
+| `iztro` | 2.5.3 | `astro`、`star`、`util`、`data` 及类型 |
+| `astronomy-engine` | 2.1.19 | 浏览器可用公共导出及类型 |
+| `china-division` | 2.7.0 | 浏览器省/市/区子集：`provinces,cities,areas,pc,pcC,pca,pcaC` 与 default；不含 Node fs/path、街道/村数据或任意 JSON 子路径 |
+
+```tsx
+import { Solar } from 'lunar-typescript';
+import { SolarDay } from 'tyme4ts';
+import { astro } from 'iztro';
+import { SunPosition } from 'astronomy-engine';
+import { pcaC } from 'china-division';
+export default function CustomCalendarSummary() {
+  const lunar = Solar.fromYmd(2026, 11, 1).getLunar();
+  return <div>{lunar.toString()} · {SolarDay.fromYmd(2026, 11, 1).toString()} · {pcaC[0].name}</div>;
+}
+```
+
+### 页面模板与组件管理
+
+五个业务组件仍自动注册到 UI 组件管理；旧版整页记录仅为兼容保留，Provider/hooks/计算包不伪装成 UI 组件。
+页面组合可保存/发布到宿主 JSX 编辑器的“页面模板”（底层为 managed code template），不重复注册五个组件为代码模板。
+完整可移植页面包另由 `node scripts/build-page-template.mjs` 生成至
+`applications-demo/@taichuy/calendar-composition` 与 `_assets/templates/calendar-composition.zip`，
+通过现有应用模板导入/预览/安装流程使用。导入后创建新页面，页面/区块源码可继续编辑。
+模板不复制用户已有页面 ID，不携带登录信息，安装时由宿主映射插件安装身份。
+源文件生成不等于已发布官方签名云端模板。
 
 ## 宿主模块 ABI
 
@@ -144,13 +184,13 @@ QA1 的临时 runner 通过不代表本次修正候选已通过，也不代表�
 host bindings、重复模块去重与 UI-only block 自动注册契约，并集中验证安装/禁用/卸载、编辑器入口和
 视觉/行为。fixtures 的存在不等于通过，原站截图不等于新插件截图；未完成前不得宣称云端可安装。
 
-## 0.1.5 — 原生区块样式前缀
+## 0.1.6 — 原生区块样式前缀
 
 Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假定固定的 `ant`。
 宿主使用隔离前缀时，原出生表单、卡片与日期弹层规则仍然生效。此次只适配选择器，
 不改变历法算法、不覆盖宿主 Provider / portal 归属；原生表面需包含宿主样式 hooks。
 
-## UI 注册边界（0.1.5）
+## UI 注册边界（0.1.6）
 
 六个 `block_contributions` 显式声明 `ui_registration: component`，只自动注册到
 `/settings/ui-management/components`，不再作为官方条目出现在代码模板列表。

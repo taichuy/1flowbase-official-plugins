@@ -1,5 +1,6 @@
 export const moduleSource = '@taichuy/taichuy-calendar';
 export const componentExports = ['Calendar', 'Almanac', 'BirthInfo', 'ZiWei', 'Bazi', 'CalendarPage'];
+export const publicExports = [...componentExports, 'CalendarProvider', 'useBirthInfo', 'useCalendarDate', 'LunarInfoCard', 'ZiWeiCalculator', 'BaziCalculator', 'LocationSelector'];
 export const businessDependencies = {
   'lunar-typescript': '1.8.6',
   tyme4ts: '1.3.9',

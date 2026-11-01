@@ -29,6 +29,7 @@ await esbuild.build({
   nodePaths: [resolve(hostRoot, 'web/app/node_modules'), resolve(hostRoot, 'web/node_modules')],
   define: { 'process.env.NODE_ENV': '"production"' },
   plugins: [{ name: 'test-host-root', setup(build) {
+    build.onResolve({ filter: /^@taichuy\/taichuy-calendar$/ }, () => ({ path: resolve(root, 'src/_tests/public-components.fixture.tsx') }));
     // The harness lives outside the host; stop Node resolution falling back to source-site React.
     build.onResolve({ filter: /^(react(?:-dom)?(?:\/.*)?|antd(?:\/.*)?|antd-style|dayjs(?:\/.*)?|clsx|@ant-design\/icons)$/ }, async (args) => {
       if (args.pluginData?.hostResolved) return undefined;

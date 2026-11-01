@@ -55,7 +55,7 @@ export function usePluginContext(): PluginState {
   return state;
 }
 
-function Provider({ children, ...props }: CalendarComponentProps & { children: React.ReactNode }) {
+export function CalendarProvider({ children, ...props }: CalendarComponentProps & { children: React.ReactNode }) {
   const state = useBirthState(props);
   return (
     <ThemeProvider themeMode="light" theme={{ token: {
@@ -75,8 +75,8 @@ function Provider({ children, ...props }: CalendarComponentProps & { children: R
   );
 }
 
-/** Independent exports get their own state; composition inside CalendarPage shares one owner. */
+/** Standalone exports own state; an explicit CalendarProvider shares state across composed children. */
 export function PluginBoundary({ children, ...props }: CalendarComponentProps & { children: React.ReactNode }) {
   const parent = useContext(PluginContext);
-  return parent ? <>{children}</> : <Provider {...props}>{children}</Provider>;
+  return parent ? <>{children}</> : <CalendarProvider {...props}>{children}</CalendarProvider>;
 }

@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.5** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.6** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.1**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -15,7 +15,7 @@ and the source SHA-256 [inventory](migration/inventory.json).
 
 ## Public components
 
-All six exports have source `@taichuy/taichuy-calendar`:
+The five panels and the legacy compatibility page share source `@taichuy/taichuy-calendar`:
 
 | Export | Original functionality |
 | --- | --- |
@@ -24,32 +24,78 @@ All six exports have source `@taichuy/taichuy-calendar`:
 | `BirthInfo` | Date/time, province/city/district, coordinates, true solar time and gender |
 | `ZiWei` | Twelve palaces, focus/connected palaces, mobile details, horoscope stepping and copy |
 | `Bazi` | Pillars, hidden stems/ten gods, five elements, eight decades, years/months and copy |
-| `CalendarPage` | Linked complete page; calendar-only desktop rail and original mobile placement |
+| `CalendarPage` | Legacy compatibility export; new pages use the explicit composition below |
 
 ```tsx
-import { CalendarPage } from '@taichuy/taichuy-calendar';
-export default function Block() { return <CalendarPage />; }
+import { CalendarProvider, Calendar, Almanac, BirthInfo, ZiWei, Bazi } from '@taichuy/taichuy-calendar';
+export default function Block() {
+  return <CalendarProvider>
+    <Calendar /><Almanac /><BirthInfo /><ZiWei /><Bazi />
+  </CalendarProvider>;
+}
 ```
 
-Each independent export provides its own Context. The complete page shares one
-provider. Calendar/almanac selection intentionally does not change birth date;
-birth date/time/location/gender/true-solar edits recalculate the natal charts.
-Separately mounted host blocks are independent, without global state sharing.
+Start with `examples/composed-page.tsx`: responsive layout, tabs and scroll targets live
+in editable JSX, not a hidden `<CalendarPage />`. One `CalendarProvider` links sibling
+components; separate providers and separate host blocks remain isolated. Calendar
+selection updates the almanac without changing birth date. Birth date/time/location,
+gender and true-solar-time edits update both charts. The five standalone components
+still supply their own boundary when no provider is present.
 
-Optional initialization props are declared in `types/index.d.ts`: `initialDate`,
-`initialBirthDate`, `initialTime` (HH:mm[:ss]), `initialGender`, `initialLongitude`,
-`initialLatitude`, `initialUseTrueSolarTime`, `locale` (zh/en). They initialize
-state rather than making the component controlled. The browser-local civil-time
-semantics of the source algorithm are preserved, not changed to UTC or a birth-
-location timezone. The original English subtitle/quote/disclaimer translations
-remain; traditional chart/form terminology remains Chinese, even with locale en.
+`useCalendarDate()` exposes calendar state; `useBirthInfo()` exposes birth/chart state.
+Controlled primitives are also available: `LunarInfoCard({date})`, `ZiWeiCalculator`
+and `BaziCalculator` with `{date,time,gender,locationInfo}`, and
+`LocationSelector({value,onChange})`. Put them inside a provider for theme and locale.
+`Calendar({onAlmanac})` connects its almanac button to an editable scroll target.
+`CalendarPage` and its contribution remain for compatibility, not as the recommended
+new-page entry. Initialization props in `types/index.d.ts` initialize rather than
+control state. Civil times retain browser-local semantics, not birth-location timezone
+conversion; locale changes the original quotation/disclaimer, not traditional terms.
+
+### Import the existing business packages
+
+This release exposes **existing dependencies to authorized low-code imports**; it adds
+no new dependencies or downloads. These sources are scoped to the plugin's authorized
+`code_modules`, not global host npm availability or unrestricted npm imports.
+
+| Source | Version | Browser surface |
+|---|---|---|
+| `lunar-typescript` | 1.8.6 | Upstream public runtime exports and types |
+| `tyme4ts` | 1.3.9 | Upstream public runtime exports and types |
+| `iztro` | 2.5.3 | `astro`, `star`, `util`, `data` and types |
+| `astronomy-engine` | 2.1.19 | Public browser-compatible exports and types |
+| `china-division` | 2.7.0 | Province/city/district subset: `provinces,cities,areas,pc,pcC,pca,pcaC` and default; no Node fs/path, street/village data or arbitrary JSON subpaths |
+
+```tsx
+import { Solar } from 'lunar-typescript';
+import { SolarDay } from 'tyme4ts';
+import { astro } from 'iztro';
+import { SunPosition } from 'astronomy-engine';
+import { pcaC } from 'china-division';
+export default function CustomCalendarSummary() {
+  return <div>{Solar.fromYmd(2026, 11, 1).getLunar().toString()} · {SolarDay.fromYmd(2026, 11, 1).toString()} · {pcaC[0].name}</div>;
+}
+```
+
+### Templates and component management
+
+The five components continue to register in UI component management; the legacy full-page
+record remains only for compatibility. Providers, hooks and calculation packages are not
+registered as UI components. Save/publish the composed source through the JSX editor's
+page-template chooser (a managed code template); do not duplicate component registrations.
+`node scripts/build-page-template.mjs` also generates the portable full-page template in
+`applications-demo/@taichuy/calendar-composition` and
+`_assets/templates/calendar-composition.zip`. Use the existing application-template
+preview/import/install flow to create an independently editable page. Stable sample IDs
+are distinct from the user's page; installation identities are remapped by the host.
+No session or credential data is included. Generating these files is not a signed cloud release.
 
 ## Frontend factory ABI
 
 The ESM asset `_assets/ui/browser.js` exports only
 `createFrontendModule(hostModules)`. The host first resolves manifest bindings
 and passes frozen ESM namespaces keyed by their exact sources. The factory
-returns exactly the six components. It has no bare ES imports, global React
+returns the declared public components, provider, hooks and controlled primitives. It has no bare ES imports, global React
 bridge, ReactDOM dependency or `react/jsx-runtime` external.
 
 ```js
@@ -103,6 +149,7 @@ export TAICHUY_SOURCE_ROOT=/home/taichuy/git/taichu-y-web-master
 # Needed if esbuild cannot be resolved directly from an existing toolchain:
 export ESBUILD_MODULE=/absolute/path/to/existing/esbuild/lib/main.js
 node scripts/build.mjs
+node scripts/build-page-template.mjs
 # Root alone performs centralized runtime build and release readiness checking:
 node scripts/build-runtime.mjs
 node scripts/check-package.mjs
@@ -177,14 +224,14 @@ centralized install/disable/uninstall and visual/interaction acceptance. Existin
 source screenshots are inputs, not proof of the migrated plugin. Do not call
 this source-only packet a cloud-installable release before Root's asset assembly.
 
-## 0.1.5 — Native surface style prefixes
+## 0.1.6 — Native surface style prefixes
 
 Scoped Ant Design overrides use the owning `createStyles` `prefixCls` instead of
 assuming `ant`. This preserves the original form/card/picker rules when the host
 uses isolated native prefixes; it does not change algorithms or override host
 provider/portal ownership. The native surface must contain the host style hooks.
 
-## UI registration boundary (0.1.5)
+## UI registration boundary (0.1.6)
 
 All six `block_contributions` explicitly declare `ui_registration: component`. They are
 registered only in `/settings/ui-management/components`, not as official code templates.

@@ -21,8 +21,8 @@ function ChartContent({ kind }: { kind: 'ziwei' | 'bazi' }) {
 }
 
 /** Standalone lunar month/year calendar, including today and session-only sign actions. */
-export function Calendar(props: CalendarComponentProps = {}) {
-  return <PluginBoundary {...props}><section data-calendar-component="Calendar"><TaichuyCalendarCard /></section></PluginBoundary>;
+export function Calendar({ onAlmanac, ...props }: CalendarComponentProps & { onAlmanac?: () => void } = {}) {
+  return <PluginBoundary {...props}><section data-calendar-component="Calendar"><TaichuyCalendarCard onAlmanac={onAlmanac} /></section></PluginBoundary>;
 }
 export function Almanac(props: CalendarComponentProps = {}) {
   return <PluginBoundary {...props}><section data-calendar-component="Almanac"><AlmanacContent /></section></PluginBoundary>;
@@ -39,3 +39,12 @@ export function Bazi(props: CalendarComponentProps = {}) {
 export function CalendarPage(props: CalendarComponentProps = {}) {
   return <PluginBoundary {...props}><CalendarPageContent /></PluginBoundary>;
 }
+
+// Composition APIs: one explicit owner, no module-global shared state.
+export { CalendarProvider, usePluginContext as useBirthInfo } from './state/PluginContext';
+export { useDateContext as useCalendarDate } from './state/DateContext';
+// Controlled primitives require CalendarProvider for theme/locale, but accept their own data.
+export { default as LunarInfoCard } from './components/divination/LunarInfoCard';
+export { default as ZiWeiCalculator } from './components/divination/ZiWeiCalculator';
+export { default as BaziCalculator } from './components/divination/BaziCalculator';
+export { default as LocationSelector } from './components/LocationSelector';

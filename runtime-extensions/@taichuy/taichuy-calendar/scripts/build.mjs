@@ -2,7 +2,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { root, sourceNodeModules, loadEsbuild, verifyBusinessVersions } from './toolchain.mjs';
-import { componentExports, hostModules, assertBundlingBoundary, isBundledHostMetadata } from './module-contract.mjs';
+import { publicExports, hostModules, assertBundlingBoundary, isBundledHostMetadata } from './module-contract.mjs';
+import { buildBusinessModules } from './business-modules.mjs';
 import { writeManifest } from './manifest.mjs';
 import { writeBundledLicenses } from './licenses.mjs';
 
@@ -46,12 +47,14 @@ const text = `// Generated from approved source. Rebuild with scripts/build.mjs;
 await mkdir(resolve(root, '_assets/ui'), { recursive: true });
 await writeFile(resolve(root, '_assets/ui/browser.js'), text);
 const sha256 = createHash('sha256').update(text).digest('hex');
-await writeManifest(sha256);
-await writeBundledLicenses(result.metafile.inputs);
+const business = await buildBusinessModules(esbuild);
+await writeManifest(sha256, business.modules);
+await writeBundledLicenses({ ...result.metafile.inputs, ...business.inputs });
 await mkdir(resolve(root, 'migration'), { recursive: true });
 await writeFile(resolve(root, 'migration/bundle-contract.json'), JSON.stringify({
-  source: '@taichuy/taichuy-calendar', version: '0.1.5', factory: 'createFrontendModule',
-  exports: componentExports, hostModules, externalSources: [...imported].sort(),
+  source: '@taichuy/taichuy-calendar', version: '0.1.6', factory: 'createFrontendModule',
+  exports: publicExports, hostModules, externalSources: [...imported].sort(),
+  businessModules: business.modules,
   asset: { path: '_assets/ui/browser.js', sha256, bytes: Buffer.byteLength(text) },
   esbuildVersion: esbuild.version,
   bundledHostMetadataInputs: Object.keys(result.metafile.inputs).filter(isBundledHostMetadata).sort(),
@@ -60,4 +63,4 @@ await writeFile(resolve(root, 'migration/bundle-contract.json'), JSON.stringify(
     const match = [...input.matchAll(/node_modules\/((?:@[^/]+\/)?[^/]+)/g)].at(-1); return match ? [match[1]] : [];
   }))].sort(),
 }, null, 2) + '\n');
-console.log(JSON.stringify({ assetBytes: Buffer.byteLength(text), sha256, exports: componentExports, externalSources: [...imported].sort() }));
+console.log(JSON.stringify({ assetBytes: Buffer.byteLength(text), sha256, exports: publicExports, externalSources: [...imported].sort() }));

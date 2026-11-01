@@ -5,18 +5,19 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from './toolchain.mjs';
 import { manifestText } from './manifest.mjs';
-import { componentExports, hostModules, businessDependencies, bundledSupportDependencies, isBundledHostMetadata } from './module-contract.mjs';
+import { publicExports, hostModules, businessDependencies, bundledSupportDependencies, isBundledHostMetadata } from './module-contract.mjs';
 
 // Release readiness only: this does NOT claim host installation or UI acceptance.
 const browser = await readFile(resolve(root, '_assets/ui/browser.js'), 'utf8');
 const digest = createHash('sha256').update(browser).digest('hex');
-assert.equal(await readFile(resolve(root, 'manifest.yaml'), 'utf8'), await manifestText(digest),
+const contract = JSON.parse(await readFile(resolve(root, 'migration/bundle-contract.json'), 'utf8'));
+assert.equal(await readFile(resolve(root, 'manifest.yaml'), 'utf8'), await manifestText(digest, contract.businessModules),
   'Manifest must be rebuilt from the current asset/host-module contract');
 assert.equal((await readFile(resolve(root, 'manifest.yaml'), 'utf8')).match(/ui_registration: component/g)?.length, 6, 'Every UI contribution must register only as a component');
-const contract = JSON.parse(await readFile(resolve(root, 'migration/bundle-contract.json'), 'utf8'));
+
 assert.equal(contract.asset.sha256, digest);
 assert.equal(contract.asset.bytes, Buffer.byteLength(browser));
-assert.deepEqual(contract.exports, componentExports);
+assert.deepEqual(contract.exports, publicExports);
 assert.deepEqual(contract.hostModules, hostModules);
 assert.deepEqual(contract.externalSources, hostModules.map((module) => module.source).sort());
 for (const name of Object.keys({ ...businessDependencies, ...bundledSupportDependencies })) assert.ok(contract.bundledPackages.includes(name), `${name} not bundled`);
@@ -38,5 +39,15 @@ const namespace = await import(pathToFileURL(resolve(root, '_assets/ui/browser.j
 assert.equal(typeof namespace.createFrontendModule, 'function');
 assert.deepEqual(Object.keys(namespace), ['createFrontendModule']);
 await access(resolve(root, `bin/taichuy-calendar${process.platform === 'win32' ? '.exe' : ''}`));
-console.log(JSON.stringify({ status: 'release_files_ready', sha256: digest, exports: componentExports,
+console.log(JSON.stringify({ status: 'release_files_ready', sha256: digest, exports: publicExports,
   note: 'Host schema/loader installation and component behavior still require centralized QA.' }));
+
+assert.equal(contract.businessModules.length, 5);
+for (const module of contract.businessModules) {
+  assert.equal(module.version, businessDependencies[module.source]);
+  assert.ok(module.type_declarations.trim());
+  for (const asset of module.assets) {
+    const bytes = await readFile(resolve(root, asset.path));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256);
+  }
+}

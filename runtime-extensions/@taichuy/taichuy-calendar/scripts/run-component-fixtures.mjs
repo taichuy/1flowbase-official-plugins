@@ -58,6 +58,16 @@ try {
         report.scenarios.push(`${label}: independent ${name} through real factory`);
       }
       await mount(page, 'CalendarPage');
+      assert.ok(await page.locator('[data-calendar-component=CalendarPage]').count(), 'Legacy export stays usable');
+      await mount(page, 'Isolation');
+      await page.locator('[data-provider=a]').getByText('Calendar +1', { exact: true }).click();
+      assert.equal(await page.locator('[data-provider=sibling] [data-value=calendar]').textContent(), '2026-11-02');
+      assert.equal(await page.locator('[data-provider=b] [data-value=calendar]').textContent(), '2026-11-01');
+      await page.locator('[data-provider=a]').getByText('Birth +1', { exact: true }).click();
+      assert.equal(await page.locator('[data-provider=sibling] [data-value=birth]').textContent(), '2000-01-02');
+      assert.equal(await page.locator('[data-provider=b] [data-value=birth]').textContent(), '2000-01-01');
+      report.scenarios.push(`${label}: Provider sibling linkage, date/birth independence and tree isolation`);
+      await mount(page, 'ComposedPage');
       await page.screenshot({ path: resolve(evidenceRoot, `plugin-${label}-initial.png`), fullPage: true });
       const calendar = page.locator('[data-calendar-section="calendar"]:visible');
       const birthDate = page.getByRole('textbox', { name: '出生日期', exact: true });
