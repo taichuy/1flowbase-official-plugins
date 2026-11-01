@@ -253,6 +253,10 @@ jobs:
           rm -rf dist artifact-metadata
           mkdir -p dist artifact-metadata
 
+          if [ "${PROVIDER_CODE}" = "taichuy-calendar" ]; then
+            node scripts/calendar-runtime-ci/assets.mjs snapshot "${PLUGIN_DIR}" "${RUNNER_TEMP}/taichuy-calendar-descriptor.json"
+          fi
+
           # Keep the array nonempty: macOS Bash 3.2 rejects empty arrays under set -u.
           cargo_build_args=(build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}")
           if [ "${PROVIDER_CODE}" = "browser-obscura" ] || [ "${PROVIDER_CODE}" = "taichuy-calendar" ]; then
@@ -271,6 +275,9 @@ jobs:
           runtime_binary_name="$(node scripts/list-provider-package-targets.mjs --plugin-dir "${PLUGIN_DIR}" --rust-target "${{ matrix.rust_target }}" --field runtime_binary_name)"
           binary_path="${PLUGIN_DIR}/target/${{ matrix.rust_target }}/release/${runtime_binary_name}"
           package_runtime_binary_path="${binary_path}"
+          if [ "${PROVIDER_CODE}" = "taichuy-calendar" ]; then
+            node "${PLUGIN_DIR}/scripts/check-package.mjs" --runtime-binary "${package_runtime_binary_path}"
+          fi
           package_args=(
             package "${PLUGIN_DIR}"
             --out dist
@@ -311,6 +318,9 @@ jobs:
 
           if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
             node scripts/browser-obscura-ci/package-assets.mjs "${package_file}"
+          fi
+          if [ "${PROVIDER_CODE}" = "taichuy-calendar" ]; then
+            node scripts/calendar-runtime-ci/assets.mjs verify-package "${PLUGIN_DIR}" "${RUNNER_TEMP}/taichuy-calendar-descriptor.json" "${package_file}"
           fi
 
           if [ "${PROVIDER_CODE}" = "clash-proxy" ]; then
