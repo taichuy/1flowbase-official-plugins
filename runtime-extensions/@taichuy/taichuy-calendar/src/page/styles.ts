@@ -2,18 +2,14 @@ import { createStyles } from 'antd-style';
 
 export const usePageStyles = createStyles(({ token, css, prefixCls }) => ({
   container: css`
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 24px;
-    @media (max-width: 768px) {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-    }
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px 16px;
+    container: calendar-page / inline-size;
   `,
   mobileCalendar: css`
     display: none;
-    @media (max-width: 768px) {
+    @container calendar-page (max-width: 768px) {
       display: block;
       margin-bottom: 16px;
     }

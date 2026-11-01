@@ -25,7 +25,10 @@ test('portable template ships the same editable source with remappable identitie
   const b = p.pages[0].tabs[0].blocks[0];
   assert.equal(b.source_code, source);
   assert.equal(b.runtime_descriptor.contribution.code, 'Calendar');
-  assert.equal(p.plugins[0].plugin_version, '0.1.8');
+  const { version } = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
+  assert.equal(p.plugins[0].plugin_version, version);
+  assert.equal(b.runtime_descriptor.contribution.pluginVersion, version);
+  assert.equal(b.runtime_descriptor.runtime.code_template_version, version);
   assert.notEqual(p.pages[0].id, '01a1949d-0dee-7099-bd6c-b7c94e926c61');
   assert.deepEqual(await buildArchive(resolve(repo, 'applications-demo/@taichuy/calendar-composition')), await readFile(resolve(root, '_assets/templates/calendar-composition.zip')));
 });

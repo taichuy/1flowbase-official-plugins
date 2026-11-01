@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.8** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.9** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.1**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -246,3 +246,7 @@ New pages compose a Provider and public components instead of a full-page wrappe
 ## 0.1.8 — Independent calendar rail
 
 The desktop composition keeps a sticky right calendar beside the scrolling left panels. In short viewports the calendar rail scrolls independently without chaining wheel input to the left. Mobile keeps one inline calendar. Layout remains editable in `examples/composed-page.tsx` and is also shipped in the portable page template; no new dependency or opaque page wrapper is introduced.
+
+## 0.1.9 Block-relative layout proportions
+
+The composition uses Ant Design `Flex` with a leading-space : detail : gap : calendar ratio of **1 : 6 : 1 : 2**, measured within the block content width. Below 1200px it removes the leading space and keeps a 280px calendar rail with a 24px gap; at 768px or less it shows one inline calendar. The rail retains sticky positioning and independent overflow. The editable composition, compatibility page and portable template share this layout.
