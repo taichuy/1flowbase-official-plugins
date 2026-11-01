@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { buildRegistryEntry } from '../build-registry-entry.mjs';
+
 import {
   CATALOG_CATEGORIES,
   discoverCatalogEntries,
@@ -40,6 +42,33 @@ function canonicalEntry(repoRoot, category, organization, artifact, overrides = 
 
 function read(repoRoot, relativePath) {
   return JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), 'utf8'));
+}
+
+function runtimeExtensionContract(entry) {
+  const manifestPath = path.join(repositoryRoot, entry.source.locator);
+  const manifest = fs.readFileSync(manifestPath, 'utf8');
+  const declared = buildRegistryEntry({
+    pluginDir: path.dirname(manifestPath),
+    providerCode: entry.source.provider_code,
+    version: entry.version,
+    artifacts: [],
+    repositoryRoot,
+  });
+  return {
+    execution_mode: manifest.trimStart().startsWith('{')
+      ? JSON.parse(manifest).execution_mode
+      : manifest.match(/^execution_mode:[ \t]*(\S+)[ \t]*$/m)?.[1],
+    protocol: declared.protocol,
+  };
+}
+
+function assertRuntimeExtensionContract(entry, declared = runtimeExtensionContract(entry)) {
+  assert.equal(entry.source.protocol, declared.protocol, `${entry.id} protocol must match its manifest`);
+  assert.ok(
+    declared.execution_mode === 'process_per_call'
+      && (declared.protocol === 'stdio_json' || declared.protocol === 'stdio_json_multiplex_v1'),
+    `${entry.id} invalid runtime lifecycle/protocol pair: ${declared.execution_mode}/${declared.protocol}`,
+  );
 }
 
 test('AC-CAT-1 emits the same v1 index/page/state contract for all six categories', () => {
@@ -381,7 +410,8 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
     }
   }
 
-  for (const entry of discoverCatalogEntries({ repoRoot: repositoryRoot, category: 'runtime-extensions' })) {
+  const runtimeEntries = discoverCatalogEntries({ repoRoot: repositoryRoot, category: 'runtime-extensions' });
+  for (const entry of runtimeEntries) {
     if (entry.source.distribution_kind === 'client_collector') {
       const published = read(repositoryRoot, `runtime-extensions/@${entry.organization}/${entry.artifact}/catalog-entry.json`);
       assert.equal(entry.source.locator, `runtime-extensions/@${entry.organization}/${entry.artifact}/collector-manifest.json`);
@@ -404,7 +434,7 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
     );
     if (entry.source.plugin_type === 'runtime_extension') {
       assert.equal(entry.source.contract_version, '1flowbase.extension-bus/v1');
-      assert.equal(entry.source.protocol, 'stdio_json_multiplex_v1');
+      assertRuntimeExtensionContract(entry);
       assert.equal(entry.source.model_discovery_mode, 'not_applicable');
     }
     assert.equal(entry.source.provider_code, entry.artifact);
@@ -412,6 +442,36 @@ test('AC-CAT-1 source locators resolve independently from publisher-based runtim
     assert.ok(entry.source.protocol.length > 0);
     assert.equal(typeof entry.source.model_discovery_mode, 'string');
     assert.ok(entry.source.model_discovery_mode.length > 0);
+  }
+
+  // Pin the existing multiplex integrations independently of manifest-derived expectations.
+  for (const [artifact, protocol] of [
+    ['taichuy-calendar', 'stdio_json'],
+    ['browser-obscura', 'stdio_json_multiplex_v1'],
+    ['wechat-chat-channels', 'stdio_json_multiplex_v1'],
+  ]) {
+    const entry = runtimeEntries.find((candidate) => candidate.id === `runtime-extensions:1flowbase/${artifact}`);
+    assert.ok(entry, `${artifact} must remain in the runtime catalog`);
+    assert.equal(entry.source.plugin_type, 'runtime_extension');
+    const declared = runtimeExtensionContract(entry);
+    assert.deepEqual(declared, { execution_mode: 'process_per_call', protocol });
+    assertRuntimeExtensionContract(entry, declared);
+    const wrongProtocol = protocol === 'stdio_json' ? 'stdio_json_multiplex_v1' : 'stdio_json';
+    assert.throws(
+      () => assertRuntimeExtensionContract({ ...entry, source: { ...entry.source, protocol: wrongProtocol } }),
+      { code: 'ERR_ASSERTION', message: /protocol must match its manifest/ },
+    );
+    assert.throws(
+      () => assertRuntimeExtensionContract(entry, { ...declared, execution_mode: 'stateful_runtime_worker' }),
+      { code: 'ERR_ASSERTION', message: /invalid runtime lifecycle\/protocol pair/ },
+    );
+    assert.throws(
+      () => assertRuntimeExtensionContract(
+        { ...entry, source: { ...entry.source, protocol: 'stdio_json_worker' } },
+        { ...declared, protocol: 'stdio_json_worker' },
+      ),
+      { code: 'ERR_ASSERTION', message: /invalid runtime lifecycle\/protocol pair/ },
+    );
   }
 
   for (const removedPath of [
