@@ -250,3 +250,7 @@ The desktop composition keeps a sticky right calendar beside the scrolling left 
 ## 0.1.9 Block-relative layout proportions
 
 The composition uses Ant Design `Flex` with a leading-space : detail : gap : calendar ratio of **1 : 6 : 1 : 2**, measured within the block content width. Below 1200px it removes the leading space and keeps a 280px calendar rail with a 24px gap; at 768px or less it shows one inline calendar. The rail retains sticky positioning and independent overflow. The editable composition, compatibility page and portable template share this layout.
+
+## 0.1.10 — Smaller gaps, wider calendar
+
+The block-relative leading-space : detail : gap : calendar ratio is now **0.3 : 6 : 0.3 : 3.4**. Both reduced spaces are reassigned to the calendar. Medium blocks retain this ratio with a 280px minimum calendar width where necessary; blocks at 768px or less remain single-column. Editable composition, compatibility page and portable template stay aligned, with sticky positioning and independent scrolling preserved.

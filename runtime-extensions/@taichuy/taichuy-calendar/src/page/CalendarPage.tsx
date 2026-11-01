@@ -16,24 +16,21 @@ const useLayoutStyles = createStyles(({ css }) => ({
 
   layout: css`width:100%;`,
   spacer: css`
-    flex: 1 1 0;
+    flex: 0.3 1 0;
     min-width: 0;
-    @container calendar-page (max-width: 1199px) { flex: 0 0 24px; }
     @container calendar-page (max-width: 768px) { display: none; }
   `,
   leadingSpace: css`
-    flex: 1 1 0;
+    flex: 0.3 1 0;
     min-width: 0;
-    @container calendar-page (max-width: 1199px) { display: none; }
   `,
   main: css`
     flex: 6 1 0;
     min-width: 0;
-    @container calendar-page (max-width: 1199px) { flex: 1 1 0; }
     @container calendar-page (max-width: 768px) { flex: 1 1 100%; }
   `,
   aside: css`
-    flex: 2 1 0;
+    flex: 3.4 1 0;
     min-width: 0;
     position: sticky;
     top: 16px;
@@ -42,7 +39,7 @@ const useLayoutStyles = createStyles(({ css }) => ({
     overflow-y: auto;
     overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
-    @container calendar-page (max-width: 1199px) { flex: 0 0 280px; }
+    @container calendar-page (min-width: 769px) and (max-width: 1199px) { min-width: 280px; }
     @container calendar-page (max-width: 768px) { display: none; }
   `,
 

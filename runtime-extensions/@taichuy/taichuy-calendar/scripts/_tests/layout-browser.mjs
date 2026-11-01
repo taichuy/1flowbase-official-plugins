@@ -42,7 +42,7 @@ try {
             const main = await section.locator('main').boundingBox(), calendar = await rail.boundingBox();
             const ratios = [(main.x - box.x) / box.width, main.width / box.width,
               (calendar.x - main.x - main.width) / box.width, calendar.width / box.width];
-            for (const [index, expected] of [0.1, 0.6, 0.1, 0.2].entries()) {
+            for (const [index, expected] of [0.03, 0.6, 0.03, 0.34].entries()) {
               assert.ok(Math.abs(ratios[index] - expected) < 0.002, `${name}: column ${index} ratio ${ratios[index]} != ${expected}`);
             }
             // Resize only the block, not the viewport: responsiveness belongs to the block.
