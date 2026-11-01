@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.4**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.5**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本字段为 **0.6.1**，且必须使用**包含本次新契约的宿主构建**（H1 自动注册及通用
@@ -144,8 +144,16 @@ QA1 的临时 runner 通过不代表本次修正候选已通过，也不代表�
 host bindings、重复模块去重与 UI-only block 自动注册契约，并集中验证安装/禁用/卸载、编辑器入口和
 视觉/行为。fixtures 的存在不等于通过，原站截图不等于新插件截图；未完成前不得宣称云端可安装。
 
-## 0.1.4 — 原生区块样式前缀
+## 0.1.5 — 原生区块样式前缀
 
 Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假定固定的 `ant`。
 宿主使用隔离前缀时，原出生表单、卡片与日期弹层规则仍然生效。此次只适配选择器，
 不改变历法算法、不覆盖宿主 Provider / portal 归属；原生表面需包含宿主样式 hooks。
+
+## UI 注册边界（0.1.5）
+
+六个 `block_contributions` 显式声明 `ui_registration: component`，只自动注册到
+`/settings/ui-management/components`，不再作为官方条目出现在代码模板列表。
+`code_template` 保留为组件完整挂载源码，不代表注册到代码模板。
+底座负责根据声明进行注册、升级、只读归属和卸载清理；插件不直接写组件表。
+需要支持该字段的底座源码；已发布旧版 0.6.1 不支持此契约。

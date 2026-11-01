@@ -12,6 +12,7 @@ const browser = await readFile(resolve(root, '_assets/ui/browser.js'), 'utf8');
 const digest = createHash('sha256').update(browser).digest('hex');
 assert.equal(await readFile(resolve(root, 'manifest.yaml'), 'utf8'), await manifestText(digest),
   'Manifest must be rebuilt from the current asset/host-module contract');
+assert.equal((await readFile(resolve(root, 'manifest.yaml'), 'utf8')).match(/ui_registration: component/g)?.length, 6, 'Every UI contribution must register only as a component');
 const contract = JSON.parse(await readFile(resolve(root, 'migration/bundle-contract.json'), 'utf8'));
 assert.equal(contract.asset.sha256, digest);
 assert.equal(contract.asset.bytes, Buffer.byteLength(browser));
