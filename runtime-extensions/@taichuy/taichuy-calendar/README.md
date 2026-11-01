@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.7**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.8**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本字段为 **0.6.1**，且必须使用**包含本次新契约的宿主构建**（H1 自动注册及通用
@@ -201,3 +201,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 ## 0.1.7 — 可编辑组合与底层包导入
 
 以 Provider + 多个公共组件替代新页面的整页黑盒；保留旧 CalendarPage。五个现有业务包可在区块 JSX 中按原 source 导入。iztro 类型只打包公开入口可达依赖；页面模板使用宿主支持的顶栏根路由。
+
+## 0.1.8 — 独立日历栏
+
+桌面组合保持左右分栏，右侧日历随左侧内容滚动时保持可见；矮窗口中日历栏可独立滚动，滚轮不传递到左侧。手机端保留单列日历。布局仍由 `examples/composed-page.tsx` 的可编辑源码负责，页面模板同步提供相同组合，未增加依赖或隐藏页面封装。
