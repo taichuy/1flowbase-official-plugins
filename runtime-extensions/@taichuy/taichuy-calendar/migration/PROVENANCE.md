@@ -80,3 +80,5 @@ The 21 Ant Design descendant selectors in page/styles.ts, ziwei-styles.ts and
 BaziCalculator.tsx interpolate the existing createStyles `prefixCls`. Selector
 meaning and rule declarations are unchanged; both default `ant` and host-owned
 native prefixes work. No global CSS, provider prefix override or algorithm change.
+
+- 0.1.3 preserves the host-provided date-cell class from `cellRender.originNode`; no hardcoded `ant-picker-cell-inner` remains in the custom lunar date cell. Algorithm inputs and behavior are unchanged.

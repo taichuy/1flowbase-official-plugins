@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.2** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.3** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.1**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -177,7 +177,7 @@ centralized install/disable/uninstall and visual/interaction acceptance. Existin
 source screenshots are inputs, not proof of the migrated plugin. Do not call
 this source-only packet a cloud-installable release before Root's asset assembly.
 
-## 0.1.2 — Native surface style prefixes
+## 0.1.3 — Native surface style prefixes
 
 Scoped Ant Design overrides use the owning `createStyles` `prefixCls` instead of
 assuming `ant`. This preserves the original form/card/picker rules when the host
