@@ -157,25 +157,23 @@ export function detectVersionReleases(changes) {
     .sort((left, right) => left.provider_code.localeCompare(right.provider_code));
 }
 
-function runGit(args) {
-  return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+function runGit(args, options = {}) {
+  return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
 }
 
-function refExists(ref) {
-  if (!ref || /^0+$/.test(ref)) {
-    return false;
-  }
-
+function resolveCommit(ref) {
+  if (!ref || /^0+$/.test(ref)) return '';
   try {
-    runGit(['rev-parse', '--verify', ref]);
-    return true;
-  } catch {
-    return false;
+    return runGit(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
+  } catch (error) {
+    // Quiet rev-parse uses status 1 for a missing ref; Git/process failures are not absence.
+    if (error.status === 1) return '';
+    throw error;
   }
 }
 
 function listChangedProviderPaths(baseRef, headRef) {
-  if (refExists(baseRef)) {
+  if (resolveCommit(baseRef)) {
     const output = runGit([
       'diff',
       '--name-only',
@@ -205,15 +203,18 @@ function listChangedProviderPaths(baseRef, headRef) {
 }
 
 function readFileAtRef(ref, path) {
-  if (!refExists(ref)) {
-    return '';
-  }
+  const commit = resolveCommit(ref);
+  if (!commit) return '';
 
-  try {
-    return runGit(['show', `${ref}:${path}`]);
-  } catch {
-    return '';
-  }
+  // Only an absent tree entry means a missing file. Never swallow an object read failure.
+  const entry = runGit(['ls-tree', '-z', commit, '--', path]);
+  if (!entry) return '';
+  const blob = entry.match(/^\d+ blob ([a-f0-9]+)\t/);
+  if (!blob) throw new Error(`Expected manifest blob at ${commit}:${path}`);
+
+  // Size and read the same immutable object, in bytes, without an arbitrary capacity limit.
+  const size = Number(runGit(['cat-file', '-s', blob[1]]));
+  return runGit(['cat-file', 'blob', blob[1]], { maxBuffer: size + 1 });
 }
 
 export function detectVersionReleasesBetweenRefs(baseRef, headRef) {

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 import { detectVersionReleases } from '../detect-version-releases.mjs';
 
@@ -284,4 +286,75 @@ test('JSON managed-only services require a matching operation execution binding'
   assert.equal(detectVersionReleases([{ path, afterContent: JSON.stringify(manifest) }]).length, 1);
   manifest.managed.execution_bindings[0].contribution_id = 'other';
   assert.deepEqual(detectVersionReleases([{ path, afterContent: JSON.stringify(manifest) }]), []);
+});
+
+function gitManifestFixture(t, initialContent) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'release-detector-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', args, {
+    cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  git('init', '-q');
+  const manifestPath = 'runtime-extensions/@taichuy/large-service/manifest.yaml';
+  const absolutePath = path.join(directory, manifestPath);
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  const commit = content => {
+    if (content === null) fs.rmSync(absolutePath);
+    else fs.writeFileSync(absolutePath, content);
+    git('add', '--', manifestPath);
+    git('-c', 'user.name=Release detector test', '-c', 'user.email=release-detector@example.invalid',
+      '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Fixture manifest');
+    return git('rev-parse', 'HEAD');
+  };
+  const detect = (base, head = 'HEAD') => JSON.parse(execFileSync(process.execPath, [
+    path.join(repoRoot, 'scripts/detect-version-releases.mjs'), base, head,
+  ], { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  return { directory, git, commit, detect, manifestPath, initial: commit(initialContent) };
+}
+
+test('Git-backed detection reads complete managed manifests larger than the default maxBuffer', t => {
+  // Multibyte declarations also reject sizing the read by JavaScript string length.
+  const manifest = version => managedServiceManifest(version).replaceAll('browser-obscura', 'large-service')
+    + `types:\n  declarations: |\n    ${'型'.repeat(400_000)}\n`;
+  const fixture = gitManifestFixture(t, manifest('0.1.10'));
+  fixture.commit(manifest('0.1.12'));
+  for (const ref of [fixture.initial, 'HEAD']) {
+    assert.ok(Number(fixture.git('cat-file', '-s', `${ref}:${fixture.manifestPath}`)) > 1024 * 1024);
+  }
+  assert.throws(() => fixture.git('show', `HEAD:${fixture.manifestPath}`), { code: 'ENOBUFS' });
+  assert.deepEqual(fixture.detect(fixture.initial), { include: [{
+    plugin_dir: 'runtime-extensions/@taichuy/large-service', provider_code: 'large-service',
+    release_tag: 'large-service-v0.1.12', version: '0.1.12',
+  }] });
+});
+
+test('Git-backed detection preserves missing base refs and missing manifest paths', t => {
+  const manifest = managedServiceManifest('0.1.0').replaceAll('browser-obscura', 'large-service');
+  const fixture = gitManifestFixture(t, manifest);
+  const expected = { include: [{
+    plugin_dir: 'runtime-extensions/@taichuy/large-service', provider_code: 'large-service',
+    release_tag: 'large-service-v0.1.0', version: '0.1.0',
+  }] };
+  for (const missingRef of ['', '0'.repeat(40), 'missing-ref']) {
+    assert.deepEqual(fixture.detect(missingRef), expected);
+  }
+  const deleted = fixture.commit(null);
+  assert.deepEqual(fixture.detect(fixture.initial), { include: [] });
+  fixture.commit(manifest);
+  assert.deepEqual(fixture.detect(deleted), expected);
+});
+
+test('Git-backed detection propagates real blob read failures instead of reporting no releases', t => {
+  const manifest = version => managedServiceManifest(version).replaceAll('browser-obscura', 'large-service');
+  const fixture = gitManifestFixture(t, manifest('0.1.10'));
+  fixture.commit(manifest('0.1.12'));
+  const oid = fixture.git('rev-parse', `HEAD:${fixture.manifestPath}`);
+  fs.rmSync(path.join(fixture.directory, '.git/objects', oid.slice(0, 2), oid.slice(2)));
+  // Changed-path discovery still succeeds; the failure is reading the referenced blob.
+  assert.equal(fixture.git('diff', '--name-only', fixture.initial, 'HEAD'), fixture.manifestPath);
+  assert.throws(() => fixture.detect(fixture.initial), error => {
+    assert.notEqual(error.status, 0);
+    assert.match(error.stderr.toString(), /git cat-file -s|could not get object info/);
+    return true;
+  });
 });
