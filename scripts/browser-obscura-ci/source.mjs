@@ -11,6 +11,6 @@ export function readSdkPin(content, requested = '') {
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = path.resolve(import.meta.dirname, '../..');
-  const manifest = fs.readFileSync(path.join(root, 'runtime-extensions/@taichuy/browser-obscura/Cargo.toml'), 'utf8');
+  const manifest = fs.readFileSync(process.argv[2] ?? path.join(root, 'runtime-extensions/@taichuy/browser-obscura/Cargo.toml'), 'utf8');
   process.stdout.write(`${readSdkPin(manifest, process.env.REQUESTED_HOST_SHA)}\n`);
 }

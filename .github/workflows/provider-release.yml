@@ -18,7 +18,7 @@ on:
         required: false
         type: string
       host_repo_ref:
-        description: Optional host repo ref for plugin packaging; defaults to main
+        description: Optional host ref; defaults to main except SDK-pinned browser/calendar (must match pin)
         required: false
         type: string
       allow_existing_tag_repair:
@@ -168,12 +168,15 @@ jobs:
         id: host-source
         env:
           PROVIDER_CODE: ${{ matrix.provider_code }}
+          PLUGIN_DIR: ${{ matrix.plugin_dir }}
           REQUESTED_HOST_SHA: ${{ inputs.host_repo_ref }}
         shell: bash
         run: |
           set -euo pipefail
           if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
             host_ref="$(node scripts/browser-obscura-ci/source.mjs)"
+          elif [ "${PROVIDER_CODE}" = "taichuy-calendar" ]; then
+            host_ref="$(node scripts/browser-obscura-ci/source.mjs "${PLUGIN_DIR}/Cargo.toml")"
           else
             host_ref="${REQUESTED_HOST_SHA:-main}"
           fi
@@ -252,15 +255,15 @@ jobs:
 
           # Keep the array nonempty: macOS Bash 3.2 rejects empty arrays under set -u.
           cargo_build_args=(build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}")
-          if [ "${PROVIDER_CODE}" = "browser-obscura" ]; then
+          if [ "${PROVIDER_CODE}" = "browser-obscura" ] || [ "${PROVIDER_CODE}" = "taichuy-calendar" ]; then
             cargo_build_args+=(--locked)
-            pinned_host="$(node scripts/browser-obscura-ci/source.mjs)"
+            pinned_host="$(node scripts/browser-obscura-ci/source.mjs "${PLUGIN_DIR}/Cargo.toml")"
             actual_host="$(git -C host rev-parse HEAD)"
             test "${pinned_host}" = "${actual_host}"
           fi
 
           if [ "${{ matrix.libc }}" = "musl" ]; then
-            cross build --manifest-path "${PLUGIN_DIR}/Cargo.toml" --release --target "${{ matrix.rust_target }}"
+            cross "${cargo_build_args[@]}"
           else
             cargo "${cargo_build_args[@]}"
           fi
