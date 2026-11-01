@@ -15,6 +15,12 @@ assert.equal(await readFile(resolve(root, 'manifest.yaml'), 'utf8'), await manif
   'Manifest must be rebuilt from the current asset/host-module contract');
 assert.equal((await readFile(resolve(root, 'manifest.yaml'), 'utf8')).match(/ui_registration: component/g)?.length, 6, 'Every UI contribution must register only as a component');
 
+const interfaceMetadata = [...(await readFile(resolve(root, 'manifest.yaml'), 'utf8')).matchAll(/^      (?:summary|description): (.+)$/gm)];
+assert.equal(interfaceMetadata.length, 16, 'All eight canonical operations must declare English summary and description');
+for (const match of interfaceMetadata) {
+  assert.match(match[1], /^[\x20-\x7e]+$/, 'Canonical operation metadata must be static English ASCII');
+}
+
 assert.equal(contract.asset.sha256, digest);
 assert.equal(contract.asset.bytes, Buffer.byteLength(browser));
 assert.deepEqual(contract.exports, publicExports);

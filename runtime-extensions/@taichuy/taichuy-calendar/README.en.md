@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.11** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.12** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.2**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -255,7 +255,7 @@ The composition uses Ant Design `Flex` with a leading-space : detail : gap : cal
 
 The block-relative leading-space : detail : gap : calendar ratio is now **0.3 : 6 : 0.3 : 3.4**. Both reduced spaces are reassigned to the calendar. Medium blocks retain this ratio with a 280px minimum calendar width where necessary; blocks at 768px or less remain single-column. Editable composition, compatibility page and portable template stay aligned, with sticky positioning and independent scrolling preserved.
 
-## Embedded computation API (0.1.11)
+## Embedded computation API (0.1.12)
 
 Requires host **0.6.2** (not an older 0.6.1 build). The existing official catalog minimum-host check and exact SDK git SHA pin are distinct: one checks installation compatibility, the other pairs release builds.
 The eight managed-service POST operations are declared in scripts/runtime-contract.mjs; output DTOs in scripts/runtime-schemas.mjs. Node/npm are build-only; the published Rust executable runs the closed _assets/runtime/backend.js using the optional shared SDK JavaScript feature. No node_modules, private HTTP server, runtime package download, or Node compatibility layer.

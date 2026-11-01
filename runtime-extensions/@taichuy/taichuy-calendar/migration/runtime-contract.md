@@ -1,4 +1,4 @@
-# Embedded computation contract — 0.1.11
+# Embedded computation contract — 0.1.12
 
 ## Specification
 

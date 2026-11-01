@@ -11,6 +11,14 @@ const titles = {
   Bazi: '太初y 八字排盘 / Bazi', CalendarPage: '太初y 旧版整页（兼容） / Legacy Calendar Page',
 };
 
+// Canonical interface metadata is static English ASCII, independent of UI labels.
+const interfaceSummaries = {
+  'calendar.month': 'Month calendar', 'calendar.convert': 'Calendar conversion',
+  'almanac.day': 'Daily almanac', 'birth.normalize': 'Normalize birth information',
+  'time.true-solar': 'True solar time', 'bazi.calculate': 'Bazi chart',
+  'ziwei.calculate': 'Ziwei chart', 'regions.children': 'Region children',
+};
+
 export async function manifestText(sha256, businessModules) {
   if (typeof sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(sha256)) {
     throw new Error('A real browser.js SHA-256 is required; never publish a placeholder manifest');
@@ -22,14 +30,14 @@ export async function manifestText(sha256, businessModules) {
       type_declarations: module.exports.map((name) => name === 'default'
         ? 'declare const defaultExport: any; export default defaultExport;'
         : `export declare const ${name}: any;`).join('\n') })),
-    { source: moduleSource, version: '0.1.11', exports: publicExports, binding: 'fetched',
+    { source: moduleSource, version: '0.1.12', exports: publicExports, binding: 'fetched',
       assets: [{ path: '_assets/ui/browser.js', role: 'browser_module', media_type: 'text/javascript; charset=utf-8', sha256 }],
       type_declarations: typeDeclarations },
     ...businessModules,
   ];
   const manifest = {
     manifest_version: 2, schema_version: '1flowbase.plugin.manifest/v2',
-    plugin_id: 'taichuy-calendar', version: '0.1.11', publisher_namespace: '1flowbase', vendor: 'Taichuy',
+    plugin_id: 'taichuy-calendar', version: '0.1.12', publisher_namespace: '1flowbase', vendor: 'Taichuy',
     display_name: '太初y 日历排盘 / Taichuy Calendar',
     description: 'Independent lunar calendar, almanac, birth information, ZiWei and Bazi with local astronomical calculations',
     source_kind: 'official_registry', trust_level: 'verified_official', consumption_kind: 'runtime_extension',
@@ -39,7 +47,7 @@ export async function manifestText(sha256, businessModules) {
     permissions: { network: 'none', secrets: 'none', storage: 'none', mcp: 'none', subprocess: 'deny' },
     runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
     managed: {
-      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.11', module_kind: 'runtime',
+      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.12', module_kind: 'runtime',
         contributions: [...operations.map(op => ({ contribution_id: operationId(op.name), contributor_module_id: 'taichuy-calendar', point_id: '1flowbase.managed-service.operation', contract_version: '1', required_permissions: ['service.execute'], mode: 'append' })), ...componentExports.map((name) => ({
           contribution_id: `taichuy-calendar.${name}`, contributor_module_id: 'taichuy-calendar',
           point_id: '1flowbase.workspace.frontend-block-contribution', contract_version: '1',
@@ -57,12 +65,12 @@ export async function manifestText(sha256, businessModules) {
     managed_service: {
       scope: 'system',
       feature: { feature_id: 'taichuy-calendar.settings', label: '太初y 日历计算 / Calendar calculations', description: 'Version-pinned synchronous calendar calculations', route_id: 'taichuy-calendar', path: '/settings/taichuy-calendar', icon: 'CalendarOutlined' },
-      operations: operations.map(op => ({ interface_id: operationId(op.name), contribution_id: operationId(op.name), method: 'POST', path: route(op.name), summary: op.title, description: op.title + '; deterministic bundled npm computation; no runtime Node dependency', execution_concurrency: 'parallel', input_schema: object({ path: object({}), query: object({}), body: op.body }), output_schema: outputSchema(dataSchemas[op.name]) })),
+      operations: operations.map(op => ({ interface_id: operationId(op.name), contribution_id: operationId(op.name), method: 'POST', path: route(op.name), summary: interfaceSummaries[op.name], description: interfaceSummaries[op.name] + '; deterministic bundled npm computation; no runtime Node dependency', execution_concurrency: 'parallel', input_schema: object({ path: object({}), query: object({}), body: op.body }), output_schema: outputSchema(dataSchemas[op.name]) })),
     },
     block_contributions: componentExports.map((name) => ({
       contribution_code: name, title: titles[name], runtime: 'native_react', entry: 'default', ui_registration: 'component',
       code_template: `import { ${name} } from '${moduleSource}';\nexport default function Block() { return <${name} />; }\n`,
-      code_template_version: '0.1.11', code_template_language: 'tsx', code_modules: codeModules,
+      code_template_version: '0.1.12', code_template_language: 'tsx', code_modules: codeModules,
       context_contract: { primitives: [], input_schema: { type: 'object', additionalProperties: false, properties: {} } },
       permissions: { network: 'none', storage: 'none', secrets: 'none' },
       ui_capabilities: ['responsive', 'theming'],
