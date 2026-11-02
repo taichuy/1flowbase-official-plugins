@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-01.3",
+  "catalog_version": "2026-11-02.1",
   "currency_code": "USD",
   "page": 87,
-  "cursor": "YWZ0ZXI6OGM2MTkxMzYtZDMzNC00OWM3LWFhYjMtNjdjY2RmZWNlNjM0",
-  "next_cursor": "YWZ0ZXI6YzZiODFiYTMtNTA1Yi00ODUxLTgxZDQtNDEwYTFhYzI0ODBm",
+  "cursor": "YWZ0ZXI6NjNiNzllNzQtMmYxOC00M2ZhLWI3MjItOTNkYWRkMmJmZjIx",
+  "next_cursor": "YWZ0ZXI6ODAxODAzOTAtZDcxMi00MTdjLTk2OWMtNDE3YzM5ZWMxZWZl",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/88.json",
   "rules": [
+    {
+      "provider_code": "ofox",
+      "upstream_model_id": "openai/gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "8c619136-d334-49c7-aab3-67ccdfece634",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "ofox",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "ofox",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "ofox",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "ofox",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8c619136-d334-49c7-aab3-67ccdfece634",
+      "source_checksum": "sha256:d8bf2cc6084ad2f18d7a2bdb185ab9a0c51604e41114d26efdf56f3fb3a615a2",
+      "source_version": "2026-11-02.1"
+    },
     {
       "provider_code": "ofox",
       "upstream_model_id": "openai/gpt-6.1-sol",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "c8ba087c-c655-45d0-a610-fd47697ea01e",
       "source_checksum": "sha256:e1119c6061ef39000b1ad26db753d3871ebdef59ed8ad0597e11907590b510c6",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -193,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "67866ab5-63cb-41cd-93ad-8f0f346d0525",
       "source_checksum": "sha256:97b93eb030051a4cf140ff91ae1f491f17484030a39c48f04d5678676a91cbb6",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -257,7 +351,7 @@
       "source_kind": "official",
       "source_catalog_id": "aff9760f-0bf2-4625-95f7-e9e202032e99",
       "source_checksum": "sha256:3fcd044671384e753ed71cece25e338fbbb08c524f13d593bc7f3fc512f00c6b",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -321,7 +415,7 @@
       "source_kind": "official",
       "source_catalog_id": "8edcfb15-77fa-41d3-ace2-37d21c35d019",
       "source_checksum": "sha256:fcba9c9ddb4cf450b5fa1cbe879b1b983c2bd69ccd58bf3aa3afa3ad086e9c02",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -385,7 +479,7 @@
       "source_kind": "official",
       "source_catalog_id": "945dfa57-1f78-4f59-a4b5-3d3b4533b8e2",
       "source_checksum": "sha256:2cbcdcc3eadaaf696a38b61c523507bcd067b2449b02a354e0c362fb3d5778b5",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -449,7 +543,7 @@
       "source_kind": "official",
       "source_catalog_id": "31158caf-f37d-4de3-a9ac-41d30570f98e",
       "source_checksum": "sha256:e3fff4be163a9f1ad6d4c08f3e92f44fe819e6ec99a1d25a9ca2055a706c050f",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -513,7 +607,7 @@
       "source_kind": "official",
       "source_catalog_id": "a9d01a45-cbda-4fea-a893-2a236aeeeaa3",
       "source_checksum": "sha256:847395bb011e3e47a6443ec5d8635f54d778d394d366bcf84839b18dc4b60228",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -577,7 +671,7 @@
       "source_kind": "official",
       "source_catalog_id": "f0cb6160-6618-477d-b045-e8db48648281",
       "source_checksum": "sha256:851d69b123ef68f11fdf9bd83c1bc514576d735c98f548b3a879ed4b925cf3e5",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -641,7 +735,7 @@
       "source_kind": "official",
       "source_catalog_id": "67ea73d1-9f00-4b0b-83d2-436c7aa1710d",
       "source_checksum": "sha256:1c03cfb0bbea2e9b753d1c27f2484e57892429796f34ca3e880811510a594ca3",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -705,7 +799,7 @@
       "source_kind": "official",
       "source_catalog_id": "f7143835-aa9f-401f-bb5f-76881ae56155",
       "source_checksum": "sha256:8cbbb9ec5343974fcdfb64bf5e4b0dfac227d61f560b5a4eb5c6c4d14ce002ac",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -769,7 +863,7 @@
       "source_kind": "official",
       "source_catalog_id": "4f4ded45-10ce-425f-95cb-5ddcced3eb28",
       "source_checksum": "sha256:3fdf6922ef31fcf5845485a7d5b3d64a385a4fc86b01223c128a64eb06037b38",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -833,7 +927,7 @@
       "source_kind": "official",
       "source_catalog_id": "68fdb1e3-88af-4146-8364-59eb515daec5",
       "source_checksum": "sha256:6220029e8798329df6db7329a67abce54eaff0cac2400b510aaad54dca250952",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -897,7 +991,7 @@
       "source_kind": "official",
       "source_catalog_id": "0734fe66-e66e-439a-bf40-61b6fb12ed2d",
       "source_checksum": "sha256:1334f6e812c513c1833d91a05c54dba7a3189301bde541040f8bb71c11408ff3",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -961,7 +1055,7 @@
       "source_kind": "official",
       "source_catalog_id": "904bce19-ad65-4e1f-a29a-e51c7774ff83",
       "source_checksum": "sha256:d4e05b35325d87d70edef1b94ef7b93246738cf1a2ef99ea71870df2881ec4cf",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -1025,7 +1119,7 @@
       "source_kind": "official",
       "source_catalog_id": "75dfe2fc-f0b7-4d36-8bea-eb9f68e5e1a7",
       "source_checksum": "sha256:42a620ddc9e11fed219eb238145b10f971982c764683e84c4762aa60f53ee59f",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -1089,7 +1183,7 @@
       "source_kind": "official",
       "source_catalog_id": "b1be75b3-70ac-483e-8ff0-9fba7cb7df93",
       "source_checksum": "sha256:64d5d2876ecf3031b57f258969682172d358b003ccc6d4e89fc9abf90fa2d55d",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -1153,7 +1247,7 @@
       "source_kind": "official",
       "source_catalog_id": "ead9baff-c88e-4765-a767-3548596f3d99",
       "source_checksum": "sha256:24b5131769d1e737fbdfa3bc4769cd78c7ee85e041eece6246abee805b9b5b6f",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -1217,7 +1311,7 @@
       "source_kind": "official",
       "source_catalog_id": "a6f685d7-d458-456c-babf-2791d718c477",
       "source_checksum": "sha256:221f02039ba944f974dc69f4d768dd12ad1176e5f0b8ce54aa0b876b66008970",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     },
     {
       "provider_code": "ofox",
@@ -1281,71 +1375,7 @@
       "source_kind": "official",
       "source_catalog_id": "80180390-d712-417c-969c-417c39ec1efe",
       "source_checksum": "sha256:be0e2562325b1f14f5587e97e65f6141a3fb44d4be12a5867c7a370c5d0d1a38",
-      "source_version": "2026-11-01.3"
-    },
-    {
-      "provider_code": "ofox",
-      "upstream_model_id": "volcengine/doubao-seed-2.0-pro",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.67",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.36",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.14",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0024",
-      "id": "c6b81ba3-505b-4851-81d4-410a1ac2480f",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "volcengine/doubao-seed-2.0-pro",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "volcengine/doubao-seed-2.0-pro",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "volcengine/doubao-seed-2.0-pro",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "volcengine/doubao-seed-2.0-pro",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c6b81ba3-505b-4851-81d4-410a1ac2480f",
-      "source_checksum": "sha256:cf27dcd1207e9832061caf8bef306c8171dcb6c5291f088aa6df15e3f171725e",
-      "source_version": "2026-11-01.3"
+      "source_version": "2026-11-02.1"
     }
   ]
 }
