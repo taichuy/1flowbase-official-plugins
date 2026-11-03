@@ -2889,9 +2889,9 @@ fn recovery_error_source(
     anyhow::Error::new(runtime_error)
 }
 
-// HTTP cannot continue within this invocation. Only a typed transport failure
-// before semantic output offers the host a logical retry; authentication, parsing
-// and upstream semantic errors remain refusals.
+// HTTP retries belong to the host's logical invocation budget. Before semantic
+// output, typed transport failures and explicitly nonterminal server errors may
+// return control to that owner; authentication, parsing and semantic errors stop.
 fn http_failure_transition(
     machine: &mut RecoveryFsm,
     source: &anyhow::Error,
@@ -2900,9 +2900,20 @@ fn http_failure_transition(
     if semantic_committed {
         machine.observe_semantic_event();
     }
-    let transport_failure = source
+    let retryable_failure = source
         .downcast_ref::<ProviderRuntimeError>()
-        .is_some_and(|error| error.kind == ProviderRuntimeErrorKind::ProviderTransportUnavailable);
+        .is_some_and(|error| match error.kind {
+            ProviderRuntimeErrorKind::ProviderTransportUnavailable => true,
+            ProviderRuntimeErrorKind::ProviderUpstreamError => {
+                error.provider_details.as_ref().is_some_and(|details| {
+                    details["semantic_terminal"].as_bool() == Some(false)
+                        && details["status_code"]
+                            .as_u64()
+                            .is_some_and(|status| (500..600).contains(&status))
+                })
+            }
+            _ => false,
+        });
     machine.decide_transition(RecoveryFacts {
         signal: if source
             .downcast_ref::<ProviderRuntimeError>()
@@ -2913,7 +2924,7 @@ fn http_failure_transition(
                     .is_some_and(|details| details["semantic_terminal"] == true)
             }) {
             RecoverySignal::SemanticTerminal
-        } else if transport_failure {
+        } else if retryable_failure {
             RecoverySignal::ProxyFailed
         } else {
             RecoverySignal::PolicyRejected
