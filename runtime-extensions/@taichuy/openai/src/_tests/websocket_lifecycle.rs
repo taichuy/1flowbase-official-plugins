@@ -1509,3 +1509,6 @@ fn native_history_total_budget_evicts_oldest_and_preserves_latest_complete_chain
 
 #[path = "websocket_policy_close.rs"]
 mod websocket_policy_close;
+
+#[path = "http_recovery.rs"]
+mod http_recovery;
