@@ -262,3 +262,7 @@ The eight managed-service POST operations are declared in scripts/runtime-contra
 Existing frontend components, low-code npm modules and editable page template remain available with explicit workspace assignment and contribution grants.
 Civil time uses an explicit fixed utc_offset_minutes and explicit as_of; it never infers host TZ or a current business date. Only Ziwei adopts iztro's actual inclusive 1900-01-31 through 2100-12-31 bounds; other endpoints retain their own upstream constraints.
 See migration/runtime-contract.md for the specification/implementation/verifier mapping and proof limitations.
+
+### API permissions and settings navigation
+
+The calendar plugin does not register an admin settings page. Its backend calculations are grouped under the stable plugin ID `taichuy-calendar` in the role permissions **Plugins** tab, with enabled, full-access and custom operation policies. Frontend components continue to call the managed calculation interfaces.

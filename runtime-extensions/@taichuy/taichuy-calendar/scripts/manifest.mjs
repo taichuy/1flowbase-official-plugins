@@ -64,7 +64,6 @@ export async function manifestText(sha256, businessModules) {
     },
     managed_service: {
       scope: 'system',
-      feature: { feature_id: 'taichuy-calendar.settings', label: '太初y 日历计算 / Calendar calculations', description: 'Version-pinned synchronous calendar calculations', route_id: 'taichuy-calendar', path: '/settings/taichuy-calendar', icon: 'CalendarOutlined' },
       operations: operations.map(op => ({ interface_id: operationId(op.name), contribution_id: operationId(op.name), method: 'POST', path: route(op.name), summary: interfaceSummaries[op.name], description: interfaceSummaries[op.name] + '; deterministic bundled npm computation; no runtime Node dependency', execution_concurrency: 'parallel', input_schema: object({ path: object({}), query: object({}), body: op.body }), output_schema: outputSchema(dataSchemas[op.name]) })),
     },
     block_contributions: componentExports.map((name) => ({
