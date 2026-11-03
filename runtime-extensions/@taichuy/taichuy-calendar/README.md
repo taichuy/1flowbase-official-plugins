@@ -239,3 +239,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 
 业务错误使用 `{ok:false,error:{code,message}}`；资产、协议或引擎错误使用原 CapabilityStdioResponse 的**外层**失败，不能用业务成功掩盖执行失败。
 Node 参照和真实 Rust 接口须按相同版本包装比较，且独立日期/UTC 算术 oracle 先成立。方法与有限证明边界见 migration/runtime-contract.md。
+
+### 接口权限与设置入口
+
+日历插件不注册后台设置页。后端计算接口按稳定插件标识 `taichuy-calendar` 注册到权限管理的「插件」页签，可按角色设置启用、完全访问或自定义接口访问；前端组件继续通过受管接口调用计算能力。

@@ -26,6 +26,8 @@ export async function checkPackage(assetRoot = root,
   const manifest = await readFile(resolve(assetRoot, 'manifest.yaml'), 'utf8');
   assert.equal(manifest, expectedManifest, 'Package manifest must match the source contract (including target runtime.entry)');
   assert.equal(manifest.match(/ui_registration: component/g)?.length, 6, 'Every UI contribution must register only as a component');
+  assert.doesNotMatch(manifest, /^  feature:|^settings_pages:|\/settings\/taichuy-calendar/m,
+    'Calendar exposes backend calculations and components without an admin settings page');
 
   const interfaceMetadata = [...manifest.matchAll(/^      (?:summary|description): (.+)$/gm)];
   assert.equal(interfaceMetadata.length, 16, 'All eight canonical operations must declare English summary and description');
