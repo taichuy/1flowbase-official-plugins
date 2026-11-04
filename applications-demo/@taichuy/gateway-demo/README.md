@@ -14,11 +14,11 @@ release v3 同步报表三个区块的源码、`reportState` 端口声明和 `us
 
 ## 工作流节点 MCP
 
-release v4 增加工作流节点工具分组，提供 HTTP、SQL、数据 CRUD、模板转换、代码和变量聚合的配置示例与单点调试入口。先读取 `workflow_ops_create_application` 的完整说明，再创建或复用应用、获取节点目录、保存编排并调试。节点调用在 `mcp_call` 外层传入这份前置说明的当前 `des_id`；应用、节点与权限仍由后端校验。单点执行不会自动运行上游，写节点会真实修改授权数据。需支持此描述校验契约的宿主（导出版本 0.5.3）。模板不包含验收应用或测试记录。
+release v4 增加工作流节点工具分组，提供 HTTP、SQL、数据 CRUD、模板转换、代码和变量聚合的配置示例与单点调试入口。先读取 `application_create_workflow` 的完整说明，再创建或复用应用、获取节点目录、保存编排并调试。节点调用在 `mcp_call` 外层传入这份前置说明的当前 `des_id`；应用、节点与权限仍由后端校验。单点执行不会自动运行上游，写节点会真实修改授权数据。需支持此描述校验契约的宿主（导出版本 0.5.3）。模板不包含验收应用或测试记录。
 
 ## Workflow node MCP
 
-Release v4 adds configuration examples and node-preview tools for HTTP, SQL, data CRUD, template transforms, code, and variable aggregation. Read the complete `workflow_ops_create_application` description first, create or reuse an application, discover its nodes, save the graph, and preview a target node. Pass the prerequisite description’s current `des_id` at the outer `mcp_call` level. The backend still validates the application, node, and permissions. A preview does not run upstream nodes, and write nodes modify authorized data. The host must support this description-validation contract (exported from 0.5.3). This template excludes acceptance applications and test records.
+Release v4 adds configuration examples and node-preview tools for HTTP, SQL, data CRUD, template transforms, code, and variable aggregation. Read the complete `application_create_workflow` description first, create or reuse an application, discover its nodes, save the graph, and preview a target node. Pass the prerequisite description’s current `des_id` at the outer `mcp_call` level. The backend still validates the application, node, and permissions. A preview does not run upstream nodes, and write nodes modify authorized data. The host must support this description-validation contract (exported from 0.5.3). This template excludes acceptance applications and test records.
 
 ## 文件管理与 ChatGPT 文件导入
 
@@ -31,3 +31,13 @@ ChatGPT 调用时把文件引用放在 `mcp_call` 外层 `file`，`arguments` �
 Release v11 adds the file management page at `/route/pages/01a14516-1821-740b-b87a-665c0657eaed`, using the host’s `FileTableView` to browse and manage file tables. The `1flowbase` MCP instance exposes `chatgpt_import_file` under `/tool/chatgpt`, backed by `POST /api/console/files/import-remote`. Host version 0.5.7 or later is required.
 
 Pass the ChatGPT file reference in the outer `mcp_call.file` field and use `arguments: {}` to save to the default attachments table. To choose a table, set `arguments.file_table_id` to its UUID. The reference requires `download_url` and `file_id`; `file_name` and `mime_type` are optional. You can also pass the reference directly as `arguments.file`; if both locations are provided, they must match. The download URL must be accessible; a `sandbox:/` path cannot be used directly. The result contains `file_table_id`, `storage_id`, and the persisted `record`. ChatGPT’s temporary `file_id` is different from the saved `record.id`.
+
+## Workflow document validation / 工作流文档校验
+
+Release v12 修正 Workflow Start 的 MCP 编排说明：`outputs` 必须为 `[]`，输入变量由 `config.input_fields` 派生；节点目录的 `document_schema` 在宿主支持时提供机器可读结构约束。保存后需要实际打开编排页面，单点调试通过不能代替页面验收。
+
+同时移除“应用 API Key 汇总”草稿及已发布定义中重复的 Start 输出声明，保留排序参数、变量引用和 API 映射。模板不包含本轮日志删除测试应用、临时会话或测试记录。后端结构校验由宿主负责，不能只依赖 MCP 说明；允许未完成草稿，拒绝非法节点结构。
+
+Release v12 corrects the Workflow Start authoring guidance: `outputs` must be `[]`, and input variables come from `config.input_fields`. When supported by the host, node discovery exposes structural constraints through `document_schema`. Open the saved orchestration in the editor as part of verification; a successful node preview does not establish editor compatibility.
+
+The API Key summary draft and published definition no longer duplicate Start input fields in `outputs`. Sorting parameters, variable references and API mappings are preserved. This template excludes the log-deletion test application, temporary sessions and test records. The host owns structural validation: incomplete drafts remain editable, while invalid node structures must be rejected.

@@ -2,7 +2,7 @@
   "tool_id": "application_list_nodes",
   "name": "list_application_nodes",
   "short_description": "按 Application 类型返回边界节点、内置节点、插件节点及其结构化配置契约和运行状态。",
-  "full_description": "创建或复用应用后查询当前全部节点。field_contract分别给config、bindings/输入和outputs约束；runtime_status=ready、authoring_status=published的节点优先使用。HTTP请求外部接口；SQL使用可选数据源查询；data_model_list/get/create/update/delete操作数据记录；template_transform转换文本；code运行代码；if_else分支；variable_assigner/aggregator处理变量；llm生成内容。先浏览清单，再按需要用mcp_result获取字段契约与插件schema。具体使用路径见mcp_get(workflow_ops_create_application)，节点单点调试见Workflow节点工具分组。",
+  "full_description": "创建或复用应用后查询当前全部节点。field_contract分别给config、bindings/输入和outputs字段目录；document_schema在可用时给出节点文档的机器可读结构约束；runtime_status=ready、authoring_status=published的节点优先使用。HTTP请求外部接口；SQL使用可选数据源查询；data_model_list/get/create/update/delete操作数据记录；template_transform转换文本；code运行代码；if_else分支；variable_assigner/aggregator处理变量；llm生成内容。先浏览清单，再按需要用mcp_result获取字段契约与插件schema。具体使用路径见mcp_get(application_create_workflow)，节点单点调试见Workflow节点工具分组。",
   "execution_target": {
     "kind": "interface_wrapper",
     "interface_id": "list_node_contributions"
@@ -56,9 +56,6 @@
             },
             "plugin": {
               "oneOf": [
-                {
-                  "type": "null"
-                },
                 {
                   "type": "object",
                   "required": [
@@ -172,6 +169,9 @@
                     }
                   },
                   "description": "Present only when source_kind is plugin."
+                },
+                {
+                  "type": "null"
                 }
               ]
             },
@@ -316,6 +316,13 @@
                 "unavailable"
               ],
               "type": "string"
+            },
+            "document_schema": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "Structural JSON Schema constraints on the flow-document node, independent of execution readiness."
             },
             "authoring_status": {
               "enum": [
