@@ -14,11 +14,36 @@ export interface CalendarComponentProps {
   /** Changes the source's quotation/disclaimer copy; traditional chart labels stay Chinese. */
   locale?: 'zh' | 'en';
 }
+/** Replaces the whole assistant panel; chart calculation and navigation remain plugin-owned.
+ * These strings are the same complete descriptions used by the built-in copy actions.
+ * They are browser render data, not persisted records or an external MCP query result.
+ */
+export interface ZiWeiAIHelperData {
+  kind: 'ziwei';
+  natalText: string;
+  horoscopeText: string;
+  /** Selected horoscope civil date/time, YYYY-MM-DD HH:mm:ss. */
+  viewDate: string;
+  copyNatal: () => void;
+  copyHoroscope: () => void;
+}
+export interface BaziAIHelperData {
+  kind: 'bazi';
+  natalText: string;
+  selectedDaYunIndex: number;
+  copyNatal: () => void;
+}
+export type ChartAIHelperData = ZiWeiAIHelperData | BaziAIHelperData;
+/** Return null to omit the panel. Omit the prop to keep the original assistant. */
+export type ChartAIHelperRenderer = (data: ChartAIHelperData) => ReactNode;
+export interface ChartComponentProps extends CalendarComponentProps {
+  renderAIHelper?: ChartAIHelperRenderer;
+}
 export declare function Calendar(props?: CalendarComponentProps & { onAlmanac?: () => void }): ReactElement;
 export declare function Almanac(props?: CalendarComponentProps): ReactElement;
 export declare function BirthInfo(props?: CalendarComponentProps): ReactElement;
-export declare function ZiWei(props?: CalendarComponentProps): ReactElement;
-export declare function Bazi(props?: CalendarComponentProps): ReactElement;
+export declare function ZiWei(props?: ChartComponentProps): ReactElement;
+export declare function Bazi(props?: ChartComponentProps): ReactElement;
 export declare function CalendarPage(props?: CalendarComponentProps): ReactElement;
 
 /** Owns an isolated calendar + birth state tree. Wrap sibling components to link them. */
@@ -57,7 +82,7 @@ export interface BirthInfoState {
   requestChart: () => void;
 }
 export declare function useBirthInfo(): BirthInfoState;
-export interface ChartProps { date: Dayjs; time: Dayjs; gender: 'male' | 'female'; locationInfo?: ChartLocationInfo; }
+export interface ChartProps { date: Dayjs; time: Dayjs; gender: 'male' | 'female'; locationInfo?: ChartLocationInfo; renderAIHelper?: ChartAIHelperRenderer; }
 export declare function LunarInfoCard(props: { date: Dayjs }): ReactElement;
 export declare function ZiWeiCalculator(props: ChartProps): ReactElement;
 export declare function BaziCalculator(props: ChartProps): ReactElement;

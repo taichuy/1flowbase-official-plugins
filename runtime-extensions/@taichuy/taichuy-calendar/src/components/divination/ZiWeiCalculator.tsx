@@ -1,4 +1,5 @@
 'use client';
+import type { ChartAIHelperRenderer } from '../../../types';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Card, Input, App, Tooltip } from 'antd';
 import { CopyOutlined, LeftOutlined, RightOutlined, FileTextOutlined } from '@ant-design/icons';
@@ -20,6 +21,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 // Define the grid mapping for the 12 Earthly Branches (Standard Zi Wei Dou Shu Layout)
 // x/y coordinates are percentages of the container for SVG lines (center of each cell)
 interface ZiWeiCalculatorProps {
+  renderAIHelper?: ChartAIHelperRenderer;
   date: Dayjs;
   time: Dayjs;
   gender: 'male' | 'female';
@@ -36,6 +38,7 @@ export default function ZiWeiCalculator({
   time,
   gender,
   locationInfo,
+  renderAIHelper,
 }: ZiWeiCalculatorProps) {
   const { styles } = useStyle();
   const { message } = App.useApp();
@@ -460,17 +463,7 @@ export default function ZiWeiCalculator({
   };
 
   const handleCopy = () => {
-    const text = generateZiWeiAIDescription(
-      astrolabe,
-      locationInfo
-        ? {
-            ...locationInfo,
-            trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss'),
-          }
-        : undefined,
-      { age, chineseAge },
-      gender
-    );
+    const text = natalText;
     if (text) {
       copyToClipboard(
         text,
@@ -481,18 +474,7 @@ export default function ZiWeiCalculator({
   };
 
   const handleCopyHoroscope = () => {
-    const text = generateZiWeiAIDescriptionWithHoroscope(
-      astrolabe,
-      horoscope,
-      locationInfo
-        ? {
-            ...locationInfo,
-            trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss'),
-          }
-        : undefined,
-      { age, chineseAge },
-      gender
-    );
+    const text = horoscopeText;
     if (text) {
       copyToClipboard(
         text,
@@ -503,6 +485,17 @@ export default function ZiWeiCalculator({
   };
 
   if (!astrolabe) return null;
+
+  const natalText = generateZiWeiAIDescription(
+    astrolabe,
+    locationInfo ? { ...locationInfo, trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss') } : undefined,
+    { age, chineseAge }, gender
+  );
+  const horoscopeText = generateZiWeiAIDescriptionWithHoroscope(
+    astrolabe, horoscope,
+    locationInfo ? { ...locationInfo, trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss') } : undefined,
+    { age, chineseAge }, gender
+  );
 
   return (
     <div data-calendar-section="ziwei" data-view-date={viewDate.format('YYYY-MM-DD HH:mm')} data-birth-date={date.format('YYYY-MM-DD')} data-birth-time={time.format('HH:mm:ss')} data-gender={gender} className={styles.container}>
@@ -807,58 +800,55 @@ export default function ZiWeiCalculator({
         </div>
       </div>
 
-      <Card
-        title="AI 解读助手 (紫微斗数)"
-        className={styles.aiCard}
-        extra={
-          <div className={styles.headerActions}>
-            <Tooltip title="复制本命盘的基础数据，适用于分析先天命格">
-              <Button icon={<CopyOutlined />} onClick={handleCopy}>
-                复制本命数据
-              </Button>
-            </Tooltip>
-            <Tooltip title="复制本命盘及当前大限、流年等运限数据，适用于分析近期运势">
-              <Button type="primary" icon={<FileTextOutlined />} onClick={handleCopyHoroscope}>
-                复制运限数据
-              </Button>
-            </Tooltip>
-          </div>
-        }
-      >
-        <div className={styles.quoteBox}>
-          <p>{t('divination.quote.part1')}</p>
-          <p>{t('divination.quote.part2')}</p>
-        </div>
-        <div style={{ marginBottom: 16, color: '#666' }}>{t('divination.instruction')}</div>
-
-        <Input.TextArea
-          value={generateZiWeiAIDescription(
-            astrolabe,
-            locationInfo
-              ? {
-                  ...locationInfo,
-                  trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss'),
-                }
-              : undefined,
-            { age, chineseAge },
-            gender
-          )}
-          autoSize={{ minRows: 4, maxRows: 10 }}
-          readOnly
-          className={styles.aiTextArea}
-        />
-        <div
-          style={{
-            marginBottom: 16,
-            fontSize: 12,
-            color: '#999',
-            lineHeight: 1.5,
-            whiteSpace: 'pre-wrap',
-          }}
+      {renderAIHelper ? renderAIHelper({
+        kind: 'ziwei', natalText,
+        horoscopeText,
+        viewDate: viewDate.format('YYYY-MM-DD HH:mm:ss'),
+        copyNatal: handleCopy, copyHoroscope: handleCopyHoroscope,
+      }) : (
+        <Card
+          title="AI 解读助手 (紫微斗数)"
+          className={styles.aiCard}
+          extra={
+            <div className={styles.headerActions}>
+              <Tooltip title="复制本命盘的基础数据，适用于分析先天命格">
+                <Button icon={<CopyOutlined />} onClick={handleCopy}>
+                  复制本命数据
+                </Button>
+              </Tooltip>
+              <Tooltip title="复制本命盘及当前大限、流年等运限数据，适用于分析近期运势">
+                <Button type="primary" icon={<FileTextOutlined />} onClick={handleCopyHoroscope}>
+                  复制运限数据
+                </Button>
+              </Tooltip>
+            </div>
+          }
         >
-          {t('divination.aiHelperTips')}
-        </div>
-      </Card>
+          <div className={styles.quoteBox}>
+            <p>{t('divination.quote.part1')}</p>
+            <p>{t('divination.quote.part2')}</p>
+          </div>
+          <div style={{ marginBottom: 16, color: '#666' }}>{t('divination.instruction')}</div>
+
+          <Input.TextArea
+            value={natalText}
+            autoSize={{ minRows: 4, maxRows: 10 }}
+            readOnly
+            className={styles.aiTextArea}
+          />
+          <div
+            style={{
+              marginBottom: 16,
+              fontSize: 12,
+              color: '#999',
+              lineHeight: 1.5,
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {t('divination.aiHelperTips')}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

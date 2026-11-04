@@ -40,17 +40,19 @@ test('public declarations match actual source types and allow composing hooks an
   const req=createRequire(resolve(hostRoot,'web/package.json')); const ts=req('typescript');
   const declarations=await readFile(resolve(root,'types/index.d.ts'),'utf8');
   const fixture=`import React from 'react'; import dayjs from 'dayjs';
-import { CalendarProvider, Calendar, BirthInfo, useCalendarDate, useBirthInfo, LunarInfoCard, ZiWeiCalculator, BaziCalculator, LocationSelector } from '@taichuy/taichuy-calendar';
-function Custom() { const calendar=useCalendarDate(); const birth=useBirthInfo(); birth.setBirthDate(dayjs()); birth.setGender('female'); calendar.setSelectedDate(dayjs()); return <><Calendar onAlmanac={()=>{}}/><BirthInfo/><LunarInfoCard date={calendar.selectedDate}/><ZiWeiCalculator date={birth.birthDate} time={birth.time} gender={birth.gender} locationInfo={birth.locationInfo}/><BaziCalculator date={birth.birthDate} time={birth.time} gender={birth.gender}/><LocationSelector onChange={(codes,lng,lat)=>{ codes.join(); lng?.toFixed(); lat?.toFixed(); }}/></>; }
+import { CalendarProvider, Calendar, BirthInfo, useCalendarDate, useBirthInfo, LunarInfoCard, ZiWeiCalculator, BaziCalculator, LocationSelector, ZiWei, Bazi, type ChartAIHelperData } from '@taichuy/taichuy-calendar';
+function Assistant({ data }: { data: ChartAIHelperData }) { if (data.kind === 'ziwei') return <button onClick={data.copyHoroscope}>{data.horoscopeText}{data.viewDate}</button>; return <button onClick={data.copyNatal}>{data.natalText}{data.selectedDaYunIndex}</button>; }
+function Custom() { const calendar=useCalendarDate(); const birth=useBirthInfo(); birth.setBirthDate(dayjs()); birth.setGender('female'); calendar.setSelectedDate(dayjs()); return <><Calendar onAlmanac={()=>{}}/><BirthInfo/><ZiWei renderAIHelper={data=><Assistant data={data}/>}/><Bazi renderAIHelper={()=>null}/><LunarInfoCard date={calendar.selectedDate}/><ZiWeiCalculator date={birth.birthDate} time={birth.time} gender={birth.gender} locationInfo={birth.locationInfo}/><BaziCalculator date={birth.birthDate} time={birth.time} gender={birth.gender}/><LocationSelector onChange={(codes,lng,lat)=>{ codes.join(); lng?.toFixed(); lat?.toFixed(); }}/></>; }
 export default function Block() { return <CalendarProvider><Custom/></CalendarProvider>; }`;
   const filename=resolve(hostRoot,'web/app/calendar-composition-type.fixture.tsx');
+  const exampleName=resolve(hostRoot,'web/app/calendar-assistant-page.fixture.tsx');
   const declname=resolve(hostRoot,'web/app/node_modules/@taichuy/taichuy-calendar/index.d.ts');
   const host=ts.createCompilerHost({}); const read=host.readFile.bind(host),exists=host.fileExists.bind(host);
-  host.readFile=p=>p===filename?fixture:p===declname?declarations:read(p);
-  host.fileExists=p=>p===filename||p===declname||exists(p);
+  host.readFile=p=>p===filename?fixture:p===exampleName?source:p===declname?declarations:read(p);
+  host.fileExists=p=>p===filename||p===exampleName||p===declname||exists(p);
   const options={noEmit:true,strict:true,skipLibCheck:false,esModuleInterop:true,jsx:ts.JsxEmit.React,module:ts.ModuleKind.ESNext,moduleResolution:ts.ModuleResolutionKind.Bundler,target:ts.ScriptTarget.ES2022,baseUrl:resolve(hostRoot,'web/app'),paths:{'@taichuy/taichuy-calendar':[declname]}};
-  const program=ts.createProgram([filename,declname],options,host);
+  const program=ts.createProgram([filename,exampleName,declname],options,host);
   // Upstream host declarations may have unrelated diagnostics; include our fixture and public API only.
-  const diagnostics=ts.getPreEmitDiagnostics(program).filter(d=>d.file&&(d.file.fileName===filename||d.file.fileName===declname));
+  const diagnostics=ts.getPreEmitDiagnostics(program).filter(d=>d.file&&(d.file.fileName===filename||d.file.fileName===exampleName||d.file.fileName===declname));
   assert.deepEqual(diagnostics.map(d=>ts.flattenDiagnosticMessageText(d.messageText,'\n')),[]);
 });

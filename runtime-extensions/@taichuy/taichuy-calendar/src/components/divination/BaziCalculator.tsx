@@ -1,4 +1,5 @@
 'use client';
+import type { ChartAIHelperRenderer } from '../../../types';
 import React, { useState, useEffect } from 'react';
 import { Descriptions, Card, Row, Col, App, Button, theme, Table, Input, Tabs } from 'antd';
 import { createStyles } from 'antd-style';
@@ -101,6 +102,7 @@ const useStyle = createStyles(({ token, css, prefixCls }) => ({
 }));
 
 interface BaziCalculatorProps {
+  renderAIHelper?: ChartAIHelperRenderer;
   date: Dayjs;
   time: Dayjs;
   gender: 'male' | 'female';
@@ -112,7 +114,7 @@ interface BaziCalculatorProps {
   };
 }
 
-export default function BaziCalculator({ date, time, gender, locationInfo }: BaziCalculatorProps) {
+export default function BaziCalculator({ date, time, gender, locationInfo, renderAIHelper }: BaziCalculatorProps) {
   const { styles } = useStyle();
   const { token } = theme.useToken();
   const { message } = App.useApp();
@@ -136,15 +138,7 @@ export default function BaziCalculator({ date, time, gender, locationInfo }: Baz
   }, [date, time, gender, message]);
 
   const handleCopy = () => {
-    const text = generateBaziAIDescription(
-      baziResult,
-      locationInfo
-        ? {
-            ...locationInfo,
-            trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss'),
-          }
-        : undefined
-    );
+    const text = natalText;
     if (text) {
       copyToClipboard(
         text,
@@ -159,6 +153,11 @@ export default function BaziCalculator({ date, time, gender, locationInfo }: Baz
   };
 
   if (!baziResult) return null;
+
+  const natalText = generateBaziAIDescription(
+    baziResult,
+    locationInfo ? { ...locationInfo, trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss') } : undefined
+  );
 
   return (
     <div data-calendar-section="bazi" data-birth-date={date.format('YYYY-MM-DD')} data-birth-time={time.format('HH:mm:ss')} data-gender={gender} className={styles.container}>
@@ -416,49 +415,45 @@ export default function BaziCalculator({ date, time, gender, locationInfo }: Baz
         </Col>
 
         <Col span={24}>
-          <Card
-            title="AI解读助手(八字排盘)"
-            className={styles.aiCard}
-            extra={
-              <div className={styles.headerActions}>
-                <Button type="primary" icon={<CopyOutlined />} onClick={handleCopy}>
-                  一键复制完整数据
-                </Button>
-              </div>
-            }
-          >
-            <div className={styles.quoteBox}>
-              <p>{t('divination.quote.part1')}</p>
-              <p>{t('divination.quote.part2')}</p>
-            </div>
-            <div style={{ marginBottom: 16, color: '#666' }}>{t('divination.instruction')}</div>
-
-            <Input.TextArea
-              value={generateBaziAIDescription(
-                baziResult,
-                locationInfo
-                  ? {
-                      ...locationInfo,
-                      trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss'),
-                    }
-                  : undefined
-              )}
-              autoSize={{ minRows: 4, maxRows: 10 }}
-              readOnly
-              className={styles.aiTextArea}
-            />
-            <div
-              style={{
-                marginBottom: 16,
-                fontSize: 12,
-                color: '#999',
-                lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-              }}
+          {renderAIHelper ? renderAIHelper({
+            kind: 'bazi', natalText, selectedDaYunIndex, copyNatal: handleCopy,
+          }) : (
+            <Card
+              title="AI解读助手(八字排盘)"
+              className={styles.aiCard}
+              extra={
+                <div className={styles.headerActions}>
+                  <Button type="primary" icon={<CopyOutlined />} onClick={handleCopy}>
+                    一键复制完整数据
+                  </Button>
+                </div>
+              }
             >
-              {t('divination.aiHelperTips')}
-            </div>
-          </Card>
+              <div className={styles.quoteBox}>
+                <p>{t('divination.quote.part1')}</p>
+                <p>{t('divination.quote.part2')}</p>
+              </div>
+              <div style={{ marginBottom: 16, color: '#666' }}>{t('divination.instruction')}</div>
+
+              <Input.TextArea
+                value={natalText}
+                autoSize={{ minRows: 4, maxRows: 10 }}
+                readOnly
+                className={styles.aiTextArea}
+              />
+              <div
+                style={{
+                  marginBottom: 16,
+                  fontSize: 12,
+                  color: '#999',
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {t('divination.aiHelperTips')}
+              </div>
+            </Card>
+          )}
         </Col>
       </Row>
     </div>

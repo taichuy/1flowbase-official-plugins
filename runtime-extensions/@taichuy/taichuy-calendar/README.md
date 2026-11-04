@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.14**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.15**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本为 **0.6.2**；宿主旧版 0.6.1 不具备本版本的执行预算和混合贡献契约。
@@ -47,6 +47,26 @@ export default function Block() {
 - `CalendarPage` 导出及 contribution 暂时保留兼容；不再作为新页面的推荐组合入口。
 - 可选初始值见 `types/index.d.ts`。它们只初始化状态，不是受控 props；出生时间使用浏览器本地
   民用时间语义，不自动转换为出生地时区。`locale` 仅调整原站引语/免责声明，传统术语保留中文。
+
+### MCP 可编辑的 AI 解读助手
+
+`ZiWei`、`Bazi` 及其底层 Calculator 支持 `renderAIHelper(data)`，替换整个助手区域。
+`examples/composed-page.tsx` 在页面源码内定义助手的文案、按钮、布局及数据展示，MCP 可直接编辑该源码。
+插件继续负责排盘和运限选择，实时传入与原复制按钮相同的完整 `natalText`；紫微还提供
+`horoscopeText`、`viewDate`、`copyHoroscope()`，八字提供 `selectedDaYunIndex`，两者均有 `copyNatal()`。
+修改出生信息或运限后使用当前数据；不传 renderer 时保持原助手，返回 `null` 时仅省略助手。
+
+```tsx
+<ZiWei renderAIHelper={(data) => <section>
+  <h3>我的排盘助手</h3>
+  <button onClick={data.copyNatal}>复制排盘</button>
+  <pre>{data.natalText}</pre>
+</section>} />
+```
+
+这些是浏览器渲染数据，不会自动保存为记录，也不使外部 MCP 能读取用户浏览器内存。
+外部 Agent 需要计算数据时可通过已有托管服务 `bazi.calculate` / `ziwei.calculate`
+以明确出生输入重新计算；页面实时选择和服务请求输入不是同一个持久状态。
 
 ### 直接使用现有业务包
 
@@ -214,7 +234,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 
 区块内比例调整为「左留白 : 详情 : 间隔 : 日历 = 0.3 : 6 : 0.3 : 3.4」，两处留白省出的宽度全部分配给日历。中等宽度仍采用相同比例，必要时为日历保留 280px 最小宽度；不超过 768px 继续单列。可编辑组合、兼容整页和页面模板同步更新，保留 sticky 与独立滚动。
 
-## 后端计算接口（0.1.14）
+## 后端计算接口（0.1.15）
 
 后端通过正式 managed-service 贡献注册，由底座处理发现、安装/授权、调用者权限和进程生命周期。
 插件是 system process_per_call 服务；原有 UI 绑定仍是 declarative_only，**仍须显式分配到目标工作区**且具备对应贡献授权，不因系统启用而对所有工作区显示。

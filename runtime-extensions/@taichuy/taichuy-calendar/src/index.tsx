@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ChartComponentProps, ChartAIHelperRenderer } from '../types';
 import TaichuyCalendarCard from './components/TaichuyCalendarCard';
 import LunarInfoCard from './components/divination/LunarInfoCard';
 import ZiWeiCalculator from './components/divination/ZiWeiCalculator';
@@ -13,11 +14,11 @@ function AlmanacContent() {
   return <LunarInfoCard date={selectedDate} />;
 }
 
-function ChartContent({ kind }: { kind: 'ziwei' | 'bazi' }) {
+function ChartContent({ kind, renderAIHelper }: { kind: 'ziwei' | 'bazi'; renderAIHelper?: ChartAIHelperRenderer }) {
   const { trueSolarDateTime, gender, locationInfo, chartRevision } = usePluginContext();
   const Component = kind === 'ziwei' ? ZiWeiCalculator : BaziCalculator;
   return <Component key={chartRevision} date={trueSolarDateTime.date} time={trueSolarDateTime.time}
-    gender={gender} locationInfo={locationInfo} />;
+    gender={gender} locationInfo={locationInfo} renderAIHelper={renderAIHelper} />;
 }
 
 /** Standalone lunar month/year calendar, including today and session-only sign actions. */
@@ -30,11 +31,11 @@ export function Almanac(props: CalendarComponentProps = {}) {
 export function BirthInfo(props: CalendarComponentProps = {}) {
   return <PluginBoundary {...props}><section data-calendar-component="BirthInfo"><BirthInfoForm /></section></PluginBoundary>;
 }
-export function ZiWei(props: CalendarComponentProps = {}) {
-  return <PluginBoundary {...props}><section data-calendar-component="ZiWei"><ChartContent kind="ziwei" /></section></PluginBoundary>;
+export function ZiWei({ renderAIHelper, ...props }: ChartComponentProps = {}) {
+  return <PluginBoundary {...props}><section data-calendar-component="ZiWei"><ChartContent kind="ziwei" renderAIHelper={renderAIHelper} /></section></PluginBoundary>;
 }
-export function Bazi(props: CalendarComponentProps = {}) {
-  return <PluginBoundary {...props}><section data-calendar-component="Bazi"><ChartContent kind="bazi" /></section></PluginBoundary>;
+export function Bazi({ renderAIHelper, ...props }: ChartComponentProps = {}) {
+  return <PluginBoundary {...props}><section data-calendar-component="Bazi"><ChartContent kind="bazi" renderAIHelper={renderAIHelper} /></section></PluginBoundary>;
 }
 export function CalendarPage(props: CalendarComponentProps = {}) {
   return <PluginBoundary {...props}><CalendarPageContent /></PluginBoundary>;
