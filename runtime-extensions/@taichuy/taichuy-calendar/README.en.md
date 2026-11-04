@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.16** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.18** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.2**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -233,9 +233,9 @@ provider/portal ownership. The native surface must contain the host style hooks.
 
 ## UI registration boundary (0.1.7)
 
-All six `block_contributions` explicitly declare `ui_registration: component`. They are
+The six reusable component contributions explicitly declare `ui_registration: component`. They are
 registered only in `/settings/ui-management/components`, not as official code templates.
-`code_template` remains the complete component mounting source; it does not imply template registration.
+`code_template` remains the component mounting source. A separate `CalendarComposition` contribution declares `ui_registration: code_template`, registering the complete editable block at `/settings/ui-management/code-templates`. Installation creates it when absent and upgrades update the same stable `taichuy-calendar / CalendarComposition` identity; repeated activation does not add duplicates. Its source is `examples/composed-page.tsx`, including the editable assistant and full calendar/almanac/birth/chart composition. Plugin templates and manual copies have separate identities; unrelated manual content is never matched by display name or overwritten.
 The host owns registration, upgrade, read-only provenance and uninstall cleanup. The plugin never writes component tables.
 A host source build supporting this field is required; the previously published 0.6.1 release does not support this contract.
 
@@ -255,7 +255,7 @@ The composition uses Ant Design `Flex` with a leading-space : detail : gap : cal
 
 The block-relative leading-space : detail : gap : calendar ratio is now **0.3 : 6 : 0.3 : 3.4**. Both reduced spaces are reassigned to the calendar. Medium blocks retain this ratio with a 280px minimum calendar width where necessary; blocks at 768px or less remain single-column. Editable composition, compatibility page and portable template stay aligned, with sticky positioning and independent scrolling preserved.
 
-## Embedded computation API (0.1.16)
+## Embedded computation API (0.1.18)
 
 Requires host **0.6.2** (not an older 0.6.1 build). The existing official catalog minimum-host check and exact SDK git SHA pin are distinct: one checks installation compatibility, the other pairs release builds.
 The eight managed-service POST operations are declared in scripts/runtime-contract.mjs; output DTOs in scripts/runtime-schemas.mjs. Node/npm are build-only; the published Rust executable runs the closed _assets/runtime/backend.js using the optional shared SDK JavaScript feature. No node_modules, private HTTP server, runtime package download, or Node compatibility layer.

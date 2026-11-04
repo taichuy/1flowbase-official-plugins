@@ -25,7 +25,8 @@ export async function checkPackage(assetRoot = root,
     ? generatedManifest.replace(/^(\s*entry: bin\/taichuy-calendar)$/gm, '$1.exe') : generatedManifest;
   const manifest = await readFile(resolve(assetRoot, 'manifest.yaml'), 'utf8');
   assert.equal(manifest, expectedManifest, 'Package manifest must match the source contract (including target runtime.entry)');
-  assert.equal(manifest.match(/ui_registration: component/g)?.length, 6, 'Every UI contribution must register only as a component');
+  assert.equal(manifest.match(/ui_registration: component/g)?.length, 6, 'The six reusable UI components stay in component management');
+  assert.equal(manifest.match(/ui_registration: code_template/g)?.length, 1, 'Register exactly one complete editable composition template');
   assert.doesNotMatch(manifest, /^  feature:|^settings_pages:|\/settings\/taichuy-calendar/m,
     'Calendar exposes backend calculations and components without an admin settings page');
 

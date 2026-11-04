@@ -5,6 +5,9 @@ import { resolve } from 'node:path';
 import { root } from './toolchain.mjs';
 import { moduleSource, componentExports, publicExports, hostModules } from './module-contract.mjs';
 
+const templateContributionCode = 'CalendarComposition';
+const frontendContributions = [...componentExports, templateContributionCode];
+
 const titles = {
   Calendar: '太初y 月历 / Lunar Calendar', Almanac: '太初y 黄历 / Almanac',
   BirthInfo: '太初y 出生信息 / Birth Information', ZiWei: '太初y 紫微斗数 / ZiWei',
@@ -24,20 +27,21 @@ export async function manifestText(sha256, businessModules) {
     throw new Error('A real browser.js SHA-256 is required; never publish a placeholder manifest');
   }
   if (!Array.isArray(businessModules) || businessModules.length !== 5) throw new Error('Five built business module contracts are required');
+  const compositionSource = await readFile(resolve(root, 'examples/composed-page.tsx'), 'utf8');
   const typeDeclarations = await readFile(resolve(root, 'types/index.d.ts'), 'utf8');
   const codeModules = [
     ...hostModules.map((module) => ({ ...module, binding: 'host',
       type_declarations: module.exports.map((name) => name === 'default'
         ? 'declare const defaultExport: any; export default defaultExport;'
         : `export declare const ${name}: any;`).join('\n') })),
-    { source: moduleSource, version: '0.1.16', exports: publicExports, binding: 'fetched',
+    { source: moduleSource, version: '0.1.18', exports: publicExports, binding: 'fetched',
       assets: [{ path: '_assets/ui/browser.js', role: 'browser_module', media_type: 'text/javascript; charset=utf-8', sha256 }],
       type_declarations: typeDeclarations },
     ...businessModules,
   ];
   const manifest = {
     manifest_version: 2, schema_version: '1flowbase.plugin.manifest/v2',
-    plugin_id: 'taichuy-calendar', version: '0.1.16', publisher_namespace: '1flowbase', vendor: 'Taichuy',
+    plugin_id: 'taichuy-calendar', version: '0.1.18', publisher_namespace: '1flowbase', vendor: 'Taichuy',
     display_name: '太初y 日历排盘 / Taichuy Calendar',
     description: 'Independent lunar calendar, almanac, birth information, ZiWei and Bazi with local astronomical calculations',
     source_kind: 'official_registry', trust_level: 'verified_official', consumption_kind: 'runtime_extension',
@@ -47,15 +51,15 @@ export async function manifestText(sha256, businessModules) {
     permissions: { network: 'none', secrets: 'none', storage: 'none', mcp: 'none', subprocess: 'deny' },
     runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
     managed: {
-      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.16', module_kind: 'runtime',
-        contributions: [...operations.map(op => ({ contribution_id: operationId(op.name), contributor_module_id: 'taichuy-calendar', point_id: '1flowbase.managed-service.operation', contract_version: '1', required_permissions: ['service.execute'], mode: 'append' })), ...componentExports.map((name) => ({
+      module: { bus_version: 'v1', module_id: 'taichuy-calendar', module_version: '0.1.18', module_kind: 'runtime',
+        contributions: [...operations.map(op => ({ contribution_id: operationId(op.name), contributor_module_id: 'taichuy-calendar', point_id: '1flowbase.managed-service.operation', contract_version: '1', required_permissions: ['service.execute'], mode: 'append' })), ...frontendContributions.map((name) => ({
           contribution_id: `taichuy-calendar.${name}`, contributor_module_id: 'taichuy-calendar',
           point_id: '1flowbase.workspace.frontend-block-contribution', contract_version: '1',
           required_permissions: ['frontend-block.ui-mount.trusted-host'], mode: 'append',
         }))],
       },
       // Frontend payloads stay declarative; backend bindings are explicitly separate.
-      execution_bindings: [...operations.map(op => ({ contribution_id: operationId(op.name), execution_mode: 'process_per_call', runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' }, handler: op.name })), ...componentExports.map((name) => ({
+      execution_bindings: [...operations.map(op => ({ contribution_id: operationId(op.name), execution_mode: 'process_per_call', runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' }, handler: op.name })), ...frontendContributions.map((name) => ({
         contribution_id: `taichuy-calendar.${name}`, execution_mode: 'declarative_only',
         runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
         handler: `taichuy-calendar.render.${name}`,
@@ -66,10 +70,11 @@ export async function manifestText(sha256, businessModules) {
       scope: 'system',
       operations: operations.map(op => ({ interface_id: operationId(op.name), contribution_id: operationId(op.name), method: 'POST', path: route(op.name), summary: interfaceSummaries[op.name], description: interfaceSummaries[op.name] + '; deterministic bundled npm computation; no runtime Node dependency', execution_concurrency: 'parallel', input_schema: object({ path: object({}), query: object({}), body: op.body }), output_schema: outputSchema(dataSchemas[op.name]) })),
     },
-    block_contributions: componentExports.map((name) => ({
-      contribution_code: name, title: titles[name], runtime: 'native_react', entry: 'default', ui_registration: 'component',
-      code_template: `import { ${name} } from '${moduleSource}';\nexport default function Block() { return <${name} />; }\n`,
-      code_template_version: '0.1.16', code_template_language: 'tsx', code_modules: codeModules,
+    block_contributions: frontendContributions.map((name) => ({
+      contribution_code: name, title: name === templateContributionCode ? '太初y 日历排盘 · 可编辑区块 / Editable Calendar Block' : titles[name],
+      runtime: 'native_react', entry: 'default', ui_registration: name === templateContributionCode ? 'code_template' : 'component',
+      code_template: name === templateContributionCode ? compositionSource : `import { ${name} } from '${moduleSource}';\nexport default function Block() { return <${name} />; }\n`,
+      code_template_version: '0.1.18', code_template_language: 'tsx', code_modules: codeModules,
       context_contract: { primitives: [], input_schema: { type: 'object', additionalProperties: false, properties: {} } },
       permissions: { network: 'none', storage: 'none', secrets: 'none' },
       ui_capabilities: ['responsive', 'theming'],

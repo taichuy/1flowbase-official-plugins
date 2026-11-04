@@ -24,7 +24,7 @@ test('portable template ships the same editable source with remappable identitie
   assert.equal(p.pages[0].slug, 'calendar-composition');
   const b = p.pages[0].tabs[0].blocks[0];
   assert.equal(b.source_code, source);
-  assert.equal(b.runtime_descriptor.contribution.code, 'Calendar');
+  assert.equal(b.runtime_descriptor.contribution.code, 'CalendarComposition');
   const { version } = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
   assert.equal(p.plugins[0].plugin_version, version);
   assert.equal(b.runtime_descriptor.contribution.pluginVersion, version);
@@ -55,4 +55,22 @@ export default function Block() { return <CalendarProvider><Custom/></CalendarPr
   // Upstream host declarations may have unrelated diagnostics; include our fixture and public API only.
   const diagnostics=ts.getPreEmitDiagnostics(program).filter(d=>d.file&&(d.file.fileName===filename||d.file.fileName===exampleName||d.file.fileName===declname));
   assert.deepEqual(diagnostics.map(d=>ts.flattenDiagnosticMessageText(d.messageText,'\n')),[]);
+});
+
+test('plugin installs one complete code template with a stable identity alongside the six components', async () => {
+  const { manifestText } = await import('../manifest.mjs');
+  const bundle = JSON.parse(await readFile(resolve(root, 'migration/bundle-contract.json'), 'utf8'));
+  const manifest = await manifestText(bundle.asset.sha256, bundle.businessModules);
+  assert.equal((manifest.match(/^    ui_registration: component$/gm) ?? []).length, 6);
+  assert.equal((manifest.match(/^    ui_registration: code_template$/gm) ?? []).length, 1);
+  const block = manifest.split('  - contribution_code: CalendarComposition\n')[1];
+  assert.ok(block, 'The composition has its own stable template contribution');
+  const code = block.match(/^    code_template: (.+)$/m)?.[1];
+  assert.equal(JSON.parse(code), source, 'Registered source must be the whole current editable block');
+  assert.match(source, /此世必当载于青史，你等悉数应知:/);
+  assert.match(source, /吾等将远迈先人的大功业/);
+  assert.equal((manifest.match(/contribution_id: taichuy-calendar.CalendarComposition/g) ?? []).length, 2,
+    'The template has both a managed declaration and declarative execution binding');
+  assert.ok(!componentExports.includes('CalendarComposition'));
+  assert.ok(!publicExports.includes('CalendarComposition'), 'An editable template is not a bundled component export');
 });
