@@ -58,7 +58,7 @@ const useStyles = createStyles(({ css, prefixCls }) => ({
 const assistantCopy = {
   "zh": {
     "quote": [
-      "此世必当载于青史，你等悉数应知:",
+      "你我悉数应知，此世必当载于青史，",
       "吾等将远迈先人的大功业"
     ],
     "instruction": "以下是生成的客观排盘数据，您可以点击右上角按钮一键复制，然后发送给 AI 进行解读。",

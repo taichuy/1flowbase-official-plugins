@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.18**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.19**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本为 **0.6.2**；宿主旧版 0.6.1 不具备本版本的执行预算和混合贡献契约。
@@ -237,7 +237,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 
 区块内比例调整为「左留白 : 详情 : 间隔 : 日历 = 0.3 : 6 : 0.3 : 3.4」，两处留白省出的宽度全部分配给日历。中等宽度仍采用相同比例，必要时为日历保留 280px 最小宽度；不超过 768px 继续单列。可编辑组合、兼容整页和页面模板同步更新，保留 sticky 与独立滚动。
 
-## 后端计算接口（0.1.18）
+## 后端计算接口（0.1.19）
 
 后端通过正式 managed-service 贡献注册，由底座处理发现、安装/授权、调用者权限和进程生命周期。
 插件是 system process_per_call 服务；原有 UI 绑定仍是 declarative_only，**仍须显式分配到目标工作区**且具备对应贡献授权，不因系统启用而对所有工作区显示。

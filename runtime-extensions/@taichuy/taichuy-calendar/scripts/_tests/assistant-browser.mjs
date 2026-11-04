@@ -74,7 +74,7 @@ try {
       }
       await mount('ComposedPage');
       await page.locator('[data-calendar-ai-helper="ziwei"]').waitFor();
-      assert.equal(await page.getByText('此世必当载于青史，你等悉数应知:', { exact: true }).count(), 1);
+      assert.equal(await page.getByText('你我悉数应知，此世必当载于青史，', { exact: true }).count(), 1);
       await page.getByRole('tab', { name: '八字排盘' }).click();
       await page.locator('[data-calendar-ai-helper="bazi"]').waitFor();
       report.checks.push({ width: viewport.width, templateOwnsBothAssistants: true });

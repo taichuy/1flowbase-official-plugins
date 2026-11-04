@@ -67,7 +67,7 @@ test('plugin installs one complete code template with a stable identity alongsid
   assert.ok(block, 'The composition has its own stable template contribution');
   const code = block.match(/^    code_template: (.+)$/m)?.[1];
   assert.equal(JSON.parse(code), source, 'Registered source must be the whole current editable block');
-  assert.match(source, /此世必当载于青史，你等悉数应知:/);
+  assert.match(source, /你我悉数应知，此世必当载于青史，/);
   assert.match(source, /吾等将远迈先人的大功业/);
   assert.equal((manifest.match(/contribution_id: taichuy-calendar.CalendarComposition/g) ?? []).length, 2,
     'The template has both a managed declaration and declarative execution binding');
