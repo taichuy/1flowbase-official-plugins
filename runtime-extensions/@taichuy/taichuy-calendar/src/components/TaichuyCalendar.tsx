@@ -7,14 +7,12 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { Lunar } from 'lunar-typescript';
 import type { CalendarProps } from 'antd';
-import { CheckOutlined } from '@ant-design/icons';
 import { useDateContext } from '../state/DateContext';
 
 type TaichuyCalendarProps = object;
 
 export type TaichuyCalendarHandles = {
   goToday: () => void;
-  signToday: () => void;
 };
 
 const useStyle = createStyles(({ token, css, cx }) => {
@@ -126,9 +124,6 @@ const useStyle = createStyles(({ token, css, cx }) => {
       line-height: 18px;
     `,
     weekend,
-    checkIcon: css`
-      color: #16a34a;
-    `,
   };
 });
 
@@ -137,15 +132,8 @@ const TaichuyCalendar = forwardRef<TaichuyCalendarHandles, TaichuyCalendarProps>
   const { selectedDate: selectDate, setSelectedDate: setSelectDate } = useDateContext();
   const typeChangeRef = useRef<((t: 'month' | 'year') => void) | undefined>(undefined);
   const panelChangeRef = useRef<((v: Dayjs) => void) | undefined>(undefined);
-  const [signedDates, setSignedDates] = useState<Record<string, boolean>>({});
   const [calendarType, setCalendarType] = useState<'month' | 'year'>('month');
   const [panelDate, setPanelDate] = useState<Dayjs>(() => selectDate);
-
-  const signToday = () => {
-    const d = new Date();
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    setSignedDates((prev) => ({ ...prev, [key]: true }));
-  };
 
   const goToday = () => {
     const now = dayjs();
@@ -159,7 +147,7 @@ const TaichuyCalendar = forwardRef<TaichuyCalendarHandles, TaichuyCalendarProps>
     }, 0);
   };
 
-  useImperativeHandle(ref, () => ({ goToday, signToday }));
+  useImperativeHandle(ref, () => ({ goToday }));
 
   const onPanelChange = (value: Dayjs) => {
     setPanelDate(value);
@@ -182,11 +170,9 @@ const TaichuyCalendar = forwardRef<TaichuyCalendarHandles, TaichuyCalendarProps>
 
     if (info.type === 'date') {
       const key = date.format('YYYY-MM-DD');
-      const checked = !!signedDates[key];
       return (
         <div
           data-calendar-date={key}
-          data-signed={checked ? 'true' : 'false'}
           className={clsx(styles.dateCell, {
             [styles.current]: selectDate.isSame(date, 'date'),
             [styles.today]: date.isSame(dayjs(), 'date'),
@@ -202,12 +188,7 @@ const TaichuyCalendar = forwardRef<TaichuyCalendarHandles, TaichuyCalendarProps>
               {date.get('date')}
             </span>
             <div className={styles.lunar}>{solarTerm || lunarText}</div>
-            {checked && (
-              <CheckOutlined
-                className={styles.checkIcon}
-                style={{ position: 'absolute', right: 4, top: 0, fontSize: 10 }}
-               />
-            )}
+
           </div>
         </div>
       );

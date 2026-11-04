@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Button, Card, Flex, Input, Tabs, Tooltip, theme } from 'antd';
 import { CompassOutlined, CalculatorOutlined, CopyOutlined, FileTextOutlined } from '@ant-design/icons';
 import { createStyles } from 'antd-style';
@@ -103,15 +103,13 @@ function EditableAIHelper({ data, locale }: { data: ChartAIHelperData; locale: '
 
 function CalendarPanels({ locale = 'zh' }: { locale?: 'zh' | 'en' }) {
   const { styles } = useStyles();
-  const almanac = useRef<HTMLDivElement>(null);
-  const goAlmanac = () => almanac.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return (
     <section className={styles.container} data-calendar-composition="editable" data-calendar-component="ComposedPage">
       <Flex align="start" className={styles.layout}>
         <div className={styles.leadingSpace} aria-hidden="true" />
         <main className={styles.main}>
-          <div className={styles.mobileCalendar}><Calendar onAlmanac={goAlmanac} /></div>
-          <div ref={almanac} data-calendar-section="almanac"><Almanac /></div>
+          <div className={styles.mobileCalendar}><Calendar /></div>
+          <div data-calendar-section="almanac"><Almanac /></div>
           <BirthInfo />
           <Tabs defaultActiveKey="ziwei" type="card" size="large" className={styles.tabs} items={[
             { key: 'ziwei', label: <Tooltip title="看具体事：性格、婚姻、事业、财运等细节"><span><CompassOutlined />紫微斗数</span></Tooltip>, children: <ZiWei renderAIHelper={(data) => <EditableAIHelper data={data} locale={locale} />} /> },
@@ -119,7 +117,7 @@ function CalendarPanels({ locale = 'zh' }: { locale?: 'zh' | 'en' }) {
           ]} />
         </main>
         <div className={styles.spacer} aria-hidden="true" />
-        <aside className={styles.aside} aria-label="日历" tabIndex={0}><Calendar onAlmanac={goAlmanac} /></aside>
+        <aside className={styles.aside} aria-label="日历" tabIndex={0}><Calendar /></aside>
       </Flex>
     </section>
   );

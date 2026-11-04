@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Flex, Tabs, Tooltip } from 'antd';
 import { CompassOutlined, CalculatorOutlined } from '@ant-design/icons';
 import { createStyles } from 'antd-style';
@@ -50,8 +50,6 @@ export default function CalendarPageContent() {
   const { styles: layout } = useLayoutStyles();
   const { selectedDate } = useDateContext();
   const { trueSolarDateTime, gender, locationInfo, chartRevision } = usePluginContext();
-  const almanacRef = useRef<HTMLDivElement>(null);
-  const goAlmanac = () => almanacRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const chartProps = { date: trueSolarDateTime.date, time: trueSolarDateTime.time, gender, locationInfo };
   const items = [
     {
@@ -70,13 +68,13 @@ export default function CalendarPageContent() {
       <Flex align="start" className={layout.layout}>
         <div className={layout.leadingSpace} aria-hidden="true" />
         <main className={layout.main}>
-          <div className={styles.mobileCalendar}><TaichuyCalendarCard onAlmanac={goAlmanac} /></div>
-          <div ref={almanacRef} data-calendar-section="almanac"><LunarInfoCard date={selectedDate} /></div>
+          <div className={styles.mobileCalendar}><TaichuyCalendarCard /></div>
+          <div data-calendar-section="almanac"><LunarInfoCard date={selectedDate} /></div>
           <BirthInfoForm />
           <Tabs defaultActiveKey="ziwei" items={items} type="card" size="large" className={styles.tabCard} />
         </main>
         <div className={layout.spacer} aria-hidden="true" />
-        <aside className={layout.aside} aria-label="日历" tabIndex={0}><TaichuyCalendarCard onAlmanac={goAlmanac} /></aside>
+        <aside className={layout.aside} aria-label="日历" tabIndex={0}><TaichuyCalendarCard /></aside>
       </Flex>
     </section>
   );

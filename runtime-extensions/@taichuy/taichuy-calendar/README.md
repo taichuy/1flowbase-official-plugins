@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.15**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.16**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本为 **0.6.2**；宿主旧版 0.6.1 不具备本版本的执行预算和混合贡献契约。
@@ -19,7 +19,7 @@
 
 | Export | 功能 |
 | --- | --- |
-| `Calendar` | 可独立使用的原站月/年历，选择年月、今天、仅内存签到 |
+| `Calendar` | 可独立使用的原站月/年历，选择年月、返回今天 |
 | `Almanac` | 完整黄历：宜忌、纳音、冲煞、值神、时辰、建除、星宿、复制 |
 | `BirthInfo` | 原出生日期/时间/省市区/经纬度/真太阳时/性别表单 |
 | `ZiWei` | 原紫微斗数排盘、宫位交互、三方四正、运限切换、复制 |
@@ -43,7 +43,7 @@ export default function Block() {
 - `useCalendarDate()`：读写日历日期；`useBirthInfo()`：读写出生信息与排盘状态。
 - 更底层的受控组件：`LunarInfoCard({date})`、`ZiWeiCalculator({date,time,gender,locationInfo})`、
   `BaziCalculator`（同上）、`LocationSelector({value,onChange})`。置于 Provider 内以复用主题/语言。
-- `Calendar({onAlmanac})` 可把黄历按钮连接到自定义页面锚点。
+- 月历操作栏仅保留“今天”：返回当前日期与月视图，并联动黄历；不提供签到和重复的黄历跳转。
 - `CalendarPage` 导出及 contribution 暂时保留兼容；不再作为新页面的推荐组合入口。
 - 可选初始值见 `types/index.d.ts`。它们只初始化状态，不是受控 props；出生时间使用浏览器本地
   民用时间语义，不自动转换为出生地时区。`locale` 仅调整原站引语/免责声明，传统术语保留中文。
@@ -191,7 +191,7 @@ node scripts/run-component-fixtures.mjs
 `FunctionalPalace._astrolabe` 指回所属星盘，不是额外业务数据，其余星曜、宫位、运限数据仍完整比较。
 组件 fixture 用实际 factory + 冻结的 namespace 执行，缺少 dayjs 绑定必须拒绝；六入口均真实挂载。
 fixture 不预加载 locale/clipboard，断言 factory 将中文 locale 注册到同一个宿主 dayjs 核心。
-桌面/移动交互覆盖黄历与出生日期分离、日期/时间/性别/经纬与真太阳时联动、月/年/今天/签到、
+桌面/移动交互覆盖黄历与出生日期分离、日期/时间/性别/经纬与真太阳时联动、月/年/返回今天、
 紫微宫位/运限、八字大运/流年展开与全部复制路径，并阻断网络、保存截图/文本/报告。
 QA-only host bundle 不进入安装资产，也不代表插件私带 React。
 浏览器使用可见日历所属 Card 的作用域、Antd 两字按钮空格、黄历 hover 后复制、Cascader 的真实
@@ -234,7 +234,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 
 区块内比例调整为「左留白 : 详情 : 间隔 : 日历 = 0.3 : 6 : 0.3 : 3.4」，两处留白省出的宽度全部分配给日历。中等宽度仍采用相同比例，必要时为日历保留 280px 最小宽度；不超过 768px 继续单列。可编辑组合、兼容整页和页面模板同步更新，保留 sticky 与独立滚动。
 
-## 后端计算接口（0.1.15）
+## 后端计算接口（0.1.16）
 
 后端通过正式 managed-service 贡献注册，由底座处理发现、安装/授权、调用者权限和进程生命周期。
 插件是 system process_per_call 服务；原有 UI 绑定仍是 declarative_only，**仍须显式分配到目标工作区**且具备对应贡献授权，不因系统启用而对所有工作区显示。

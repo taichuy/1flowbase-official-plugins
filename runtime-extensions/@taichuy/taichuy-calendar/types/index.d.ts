@@ -39,7 +39,7 @@ export type ChartAIHelperRenderer = (data: ChartAIHelperData) => ReactNode;
 export interface ChartComponentProps extends CalendarComponentProps {
   renderAIHelper?: ChartAIHelperRenderer;
 }
-export declare function Calendar(props?: CalendarComponentProps & { onAlmanac?: () => void }): ReactElement;
+export declare function Calendar(props?: CalendarComponentProps): ReactElement;
 export declare function Almanac(props?: CalendarComponentProps): ReactElement;
 export declare function BirthInfo(props?: CalendarComponentProps): ReactElement;
 export declare function ZiWei(props?: ChartComponentProps): ReactElement;

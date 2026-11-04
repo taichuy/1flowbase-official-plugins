@@ -23,37 +23,6 @@ const useStyle = createStyles(({ css }) => {
       gap: 8px;
       margin-top: 12px;
     `,
-    signBtn: css`
-      background-color: #f0f9ff;
-      color: #0056d2;
-      border-color: #bae6fd;
-      font-weight: bold;
-      font-size: 12px;
-      &:hover {
-        background-color: #e0f2fe !important;
-        color: #075985 !important;
-      }
-    `,
-    calendarBtn: css`
-      background-color: #fffbe6;
-      color: #d48806;
-      border-color: #ffe58f;
-      font-weight: bold;
-      font-size: 12px;
-      &:hover {
-        background-color: #fff1b8 !important;
-        color: #ad6800 !important;
-        border-color: #ffd666 !important;
-      }
-    `,
-    vipBtn: css`
-      background-color: #0056d2;
-      font-weight: bold;
-      font-size: 12px;
-      &:hover {
-        background-color: #075985 !important;
-      }
-    `,
     todayBtn: css`
       background-color: #f6ffed;
       color: #52c41a;
@@ -70,12 +39,11 @@ const useStyle = createStyles(({ css }) => {
 });
 
 interface TaichuyCalendarCardProps {
-  onAlmanac?: () => void;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export default function TaichuyCalendarCard({ className, style, onAlmanac }: TaichuyCalendarCardProps) {
+export default function TaichuyCalendarCard({ className, style }: TaichuyCalendarCardProps) {
   const { styles, cx } = useStyle();
   const t = useT();
   const calendarRef = useRef<TaichuyCalendarHandles>(null);
@@ -103,12 +71,6 @@ export default function TaichuyCalendarCard({ className, style, onAlmanac }: Tai
       <Text className={styles.subtitle}>{t('rightRail.subtitle')}</Text>
       <TaichuyCalendar ref={calendarRef} />
       <div className={styles.btnGroup}>
-        <Button className={styles.signBtn} onClick={() => calendarRef.current?.signToday()}>
-          签到
-        </Button>
-        {onAlmanac && (
-          <Button className={styles.calendarBtn} onClick={onAlmanac}>黄历</Button>
-        )}
         <Button className={styles.todayBtn} onClick={() => calendarRef.current?.goToday()}>
           今天
         </Button>

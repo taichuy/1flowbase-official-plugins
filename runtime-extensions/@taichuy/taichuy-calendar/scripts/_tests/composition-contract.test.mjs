@@ -12,7 +12,7 @@ test('editable page source owns layout and uses public components instead of ful
   assert.doesNotMatch(source, /\bCalendarPage\b/);
   for (const name of ['CalendarProvider', 'Calendar', 'Almanac', 'BirthInfo', 'ZiWei', 'Bazi']) assert.match(source, new RegExp(`<${name}(?:[ />])`));
   assert.match(source, /<Tabs/);
-  assert.match(source, /onAlmanac=\{goAlmanac\}/);
+  assert.doesNotMatch(source, /onAlmanac|goAlmanac/);
   assert.ok(publicExports.includes('CalendarProvider'));
   assert.ok(!componentExports.includes('CalendarProvider'));
 });
@@ -42,7 +42,7 @@ test('public declarations match actual source types and allow composing hooks an
   const fixture=`import React from 'react'; import dayjs from 'dayjs';
 import { CalendarProvider, Calendar, BirthInfo, useCalendarDate, useBirthInfo, LunarInfoCard, ZiWeiCalculator, BaziCalculator, LocationSelector, ZiWei, Bazi, type ChartAIHelperData } from '@taichuy/taichuy-calendar';
 function Assistant({ data }: { data: ChartAIHelperData }) { if (data.kind === 'ziwei') return <button onClick={data.copyHoroscope}>{data.horoscopeText}{data.viewDate}</button>; return <button onClick={data.copyNatal}>{data.natalText}{data.selectedDaYunIndex}</button>; }
-function Custom() { const calendar=useCalendarDate(); const birth=useBirthInfo(); birth.setBirthDate(dayjs()); birth.setGender('female'); calendar.setSelectedDate(dayjs()); return <><Calendar onAlmanac={()=>{}}/><BirthInfo/><ZiWei renderAIHelper={data=><Assistant data={data}/>}/><Bazi renderAIHelper={()=>null}/><LunarInfoCard date={calendar.selectedDate}/><ZiWeiCalculator date={birth.birthDate} time={birth.time} gender={birth.gender} locationInfo={birth.locationInfo}/><BaziCalculator date={birth.birthDate} time={birth.time} gender={birth.gender}/><LocationSelector onChange={(codes,lng,lat)=>{ codes.join(); lng?.toFixed(); lat?.toFixed(); }}/></>; }
+function Custom() { const calendar=useCalendarDate(); const birth=useBirthInfo(); birth.setBirthDate(dayjs()); birth.setGender('female'); calendar.setSelectedDate(dayjs()); return <><Calendar/><BirthInfo/><ZiWei renderAIHelper={data=><Assistant data={data}/>}/><Bazi renderAIHelper={()=>null}/><LunarInfoCard date={calendar.selectedDate}/><ZiWeiCalculator date={birth.birthDate} time={birth.time} gender={birth.gender} locationInfo={birth.locationInfo}/><BaziCalculator date={birth.birthDate} time={birth.time} gender={birth.gender}/><LocationSelector onChange={(codes,lng,lat)=>{ codes.join(); lng?.toFixed(); lat?.toFixed(); }}/></>; }
 export default function Block() { return <CalendarProvider><Custom/></CalendarProvider>; }`;
   const filename=resolve(hostRoot,'web/app/calendar-composition-type.fixture.tsx');
   const exampleName=resolve(hostRoot,'web/app/calendar-assistant-page.fixture.tsx');

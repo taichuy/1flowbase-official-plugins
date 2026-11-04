@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.15** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.16** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.2**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -19,7 +19,7 @@ The five panels and the legacy compatibility page share source `@taichuy/taichuy
 
 | Export | Original functionality |
 | --- | --- |
-| `Calendar` | Independent lunar month/year calendar, header selection, today, memory-only sign |
+| `Calendar` | Independent lunar month/year calendar, header selection and return to today |
 | `Almanac` | Full almanac, auspicious/inauspicious items, hourly luck, stars and clipboard |
 | `BirthInfo` | Date/time, province/city/district, coordinates, true solar time and gender |
 | `ZiWei` | Twelve palaces, focus/connected palaces, mobile details, horoscope stepping and copy |
@@ -46,7 +46,7 @@ still supply their own boundary when no provider is present.
 Controlled primitives are also available: `LunarInfoCard({date})`, `ZiWeiCalculator`
 and `BaziCalculator` with `{date,time,gender,locationInfo}`, and
 `LocationSelector({value,onChange})`. Put them inside a provider for theme and locale.
-`Calendar({onAlmanac})` connects its almanac button to an editable scroll target.
+The calendar action bar only offers Today: it resets the selected date and month view and updates the almanac. Sign-in and redundant almanac navigation are removed.
 `CalendarPage` and its contribution remain for compatibility, not as the recommended
 new-page entry. Initialization props in `types/index.d.ts` initialize rather than
 control state. Civil times retain browser-local semantics, not birth-location timezone
@@ -255,7 +255,7 @@ The composition uses Ant Design `Flex` with a leading-space : detail : gap : cal
 
 The block-relative leading-space : detail : gap : calendar ratio is now **0.3 : 6 : 0.3 : 3.4**. Both reduced spaces are reassigned to the calendar. Medium blocks retain this ratio with a 280px minimum calendar width where necessary; blocks at 768px or less remain single-column. Editable composition, compatibility page and portable template stay aligned, with sticky positioning and independent scrolling preserved.
 
-## Embedded computation API (0.1.15)
+## Embedded computation API (0.1.16)
 
 Requires host **0.6.2** (not an older 0.6.1 build). The existing official catalog minimum-host check and exact SDK git SHA pin are distinct: one checks installation compatibility, the other pairs release builds.
 The eight managed-service POST operations are declared in scripts/runtime-contract.mjs; output DTOs in scripts/runtime-schemas.mjs. Node/npm are build-only; the published Rust executable runs the closed _assets/runtime/backend.js using the optional shared SDK JavaScript feature. No node_modules, private HTTP server, runtime package download, or Node compatibility layer.

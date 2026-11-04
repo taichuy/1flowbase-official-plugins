@@ -21,9 +21,9 @@ function ChartContent({ kind, renderAIHelper }: { kind: 'ziwei' | 'bazi'; render
     gender={gender} locationInfo={locationInfo} renderAIHelper={renderAIHelper} />;
 }
 
-/** Standalone lunar month/year calendar, including today and session-only sign actions. */
-export function Calendar({ onAlmanac, ...props }: CalendarComponentProps & { onAlmanac?: () => void } = {}) {
-  return <PluginBoundary {...props}><section data-calendar-component="Calendar"><TaichuyCalendarCard onAlmanac={onAlmanac} /></section></PluginBoundary>;
+/** Standalone lunar month/year calendar, including return to today. */
+export function Calendar(props: CalendarComponentProps = {}) {
+  return <PluginBoundary {...props}><section data-calendar-component="Calendar"><TaichuyCalendarCard /></section></PluginBoundary>;
 }
 export function Almanac(props: CalendarComponentProps = {}) {
   return <PluginBoundary {...props}><section data-calendar-component="Almanac"><AlmanacContent /></section></PluginBoundary>;

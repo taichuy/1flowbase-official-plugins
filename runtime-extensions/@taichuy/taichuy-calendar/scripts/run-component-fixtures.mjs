@@ -82,9 +82,9 @@ try {
       const calendarCard = calendar.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-card-body ")][1]');
       // Antd inserts a space into two-character Chinese button names.
       await calendarCard.getByRole('button', { name: /^今\s*天$/ }).click();
-      await calendarCard.getByRole('button', { name: /^签\s*到$/ }).click();
-      assert.equal(await calendar.locator('[data-calendar-date="2026-11-01"]').getAttribute('data-signed'), 'true');
-      report.scenarios.push(`${label}: calendar selection, month/year, today, in-memory sign and birth separation`);
+      assert.equal(await calendarCard.getByRole('button').count(), 1, 'Only Today remains');
+      await waitFor(page, () => document.querySelector('[data-calendar-section="almanac"]')?.textContent.includes('2026年11月01日'), 'Today -> almanac');
+      report.scenarios.push(`${label}: calendar selection, month/year, today and birth separation`);
       // Source styling reveals the copy control only while its almanac card is hovered.
       await page.locator('[data-calendar-section="almanac"]').hover();
       await clipboardCopy(page, () => page.getByLabel('复制黄历信息', { exact: true }).click(), /2026.*11/);
