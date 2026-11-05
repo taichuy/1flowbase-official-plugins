@@ -1,12 +1,134 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-05.3",
+  "catalog_version": "2026-11-05.4",
   "currency_code": "USD",
   "page": 113,
-  "cursor": "YWZ0ZXI6NmU4NmQwNDktZWZhNy00ZWI5LWJkNGQtZjhkNjg3ODExNDdl",
-  "next_cursor": "YWZ0ZXI6YjE1MmJkMzctYzI3Ni00OTZlLTk1MWUtZTE1ODg5MjZmMmQ1",
+  "cursor": "YWZ0ZXI6ZWNmMzFmNDgtZjE4MS00MWE3LWE1MTItOGM2NTAxMmNjMjI5",
+  "next_cursor": "YWZ0ZXI6YzhmNTNjNDctZGU4OS00NTU2LTgxODUtZjBmMDBjY2U2YTQ0",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/114.json",
   "rules": [
+    {
+      "provider_code": "vercel",
+      "upstream_model_id": "alibaba/qwen3.7-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.03",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.13",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.006",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.038",
+      "id": "6e86d049-efa7-4eb9-bd4d-f8d68781147e",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 32000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.1",
+            "output_token_unit_price": "0.4",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.125"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.8",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "alibaba/qwen3.7-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "alibaba/qwen3.7-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "alibaba/qwen3.7-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "alibaba/qwen3.7-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 32000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.1",
+                "output_token_unit_price": "0.4",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.125"
+              }
+            },
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.8",
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6e86d049-efa7-4eb9-bd4d-f8d68781147e",
+      "source_checksum": "sha256:b11e1b856e80f0bafde9493be1fa1d18f442ba0815b201848de612a6a62347bb",
+      "source_version": "2026-11-05.4"
+    },
     {
       "provider_code": "vercel",
       "upstream_model_id": "alibaba/qwen3.7-max",
@@ -69,7 +191,7 @@
       "source_kind": "official",
       "source_catalog_id": "c0fd9ac7-8873-4487-a264-3c39fc905b8c",
       "source_checksum": "sha256:c2e0d15695cce5fea3596a8f52dee4e2ea60554e347fd7b316014a7bd9974f7b",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -163,7 +285,7 @@
       "source_kind": "official",
       "source_catalog_id": "5b9099e6-0d7c-44ed-a3a7-aac33a61b63b",
       "source_checksum": "sha256:c5b32624bf64111c19034edafb6c71fe021f494604b18acc35bd837d0c2e94de",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -227,7 +349,7 @@
       "source_kind": "official",
       "source_catalog_id": "06e96882-f93a-4281-8d67-47646097e317",
       "source_checksum": "sha256:297c2ebbb9ea476a564def61ec870b579d957e68eea8db5a991caf6930bde43f",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -291,7 +413,7 @@
       "source_kind": "official",
       "source_catalog_id": "27faa946-d48d-4f7b-b6a2-294d82a39f2f",
       "source_checksum": "sha256:b29ce8e3177a05d938359c2690cab5850c302cd872e3789b9b2bc92c46f3f2d8",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -355,7 +477,7 @@
       "source_kind": "official",
       "source_catalog_id": "5d89e7d1-92b3-4778-a944-a32f2960536b",
       "source_checksum": "sha256:6c4ebef4378748af37d0770bf39c95845c46179ca6f95ebbe5d81d40f3a495cc",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -419,7 +541,7 @@
       "source_kind": "official",
       "source_catalog_id": "24cce617-0577-4774-93bc-a1da4fa0f2dc",
       "source_checksum": "sha256:c03c5d788f029bb594e79d2930b75f9f0e51f46df846284000f0ff8c29ddd125",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -483,7 +605,7 @@
       "source_kind": "official",
       "source_catalog_id": "72b84cf2-349d-4327-a4e5-fc8a9d4cc6bb",
       "source_checksum": "sha256:550abc32c354ad592cd0130f6a834db228fca613264d508dcf047eee4718c8b4",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -547,7 +669,7 @@
       "source_kind": "official",
       "source_catalog_id": "7f536885-50f0-49b9-876a-cf2e37745915",
       "source_checksum": "sha256:65dfd5fced55338553af7093c0c3c885388b99f1856c7a8aa2a75cf59fcdef3b",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -611,7 +733,7 @@
       "source_kind": "official",
       "source_catalog_id": "44ed48cc-fb29-4fd8-94b4-93c4b7b2dbba",
       "source_checksum": "sha256:1d6fc3b7fb61ce87bc7dcde14067a84378e617845d2a6fda19bc4d71be0d00bc",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -675,7 +797,7 @@
       "source_kind": "official",
       "source_catalog_id": "d5b9ff3e-631f-4db0-9555-bddbece499e8",
       "source_checksum": "sha256:6850ed704cac2292bbbfe30a661fbb452aafa3eff581af40cd7221c5328f8664",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -739,7 +861,7 @@
       "source_kind": "official",
       "source_catalog_id": "33f09dbf-5648-4e48-b0da-43a8ff8017e5",
       "source_checksum": "sha256:37f3fc4105eb6124b9a6077631d15196d08728e20cba740b887766c5ccde878b",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -803,7 +925,7 @@
       "source_kind": "official",
       "source_catalog_id": "4784e2e4-4ff6-40fd-8615-fab6852acc9b",
       "source_checksum": "sha256:f2f7c15563d86350256c321887addd5ef99772f34c25d362c2d0b61d869d94c5",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -897,7 +1019,7 @@
       "source_kind": "official",
       "source_catalog_id": "9fe4c576-fab1-4084-b71c-13b61e2872e3",
       "source_checksum": "sha256:d8067ceee7acee62292920fc153af545457c2117282914455418bc70e9338f36",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -961,7 +1083,7 @@
       "source_kind": "official",
       "source_catalog_id": "44556533-2b65-4bfd-8f31-5823341a208c",
       "source_checksum": "sha256:63709f83a6fa2b0eda54cadf13f308003de2e7cfbf3401f6cde083ebe38dd46e",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -1025,7 +1147,7 @@
       "source_kind": "official",
       "source_catalog_id": "44a2dab9-ed69-4926-8afb-3f0e6e552791",
       "source_checksum": "sha256:8e5673316912626bc563c18bc9f0f9a59d468b795134618acb0730b80ca72fa9",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -1089,7 +1211,7 @@
       "source_kind": "official",
       "source_catalog_id": "77f58b96-55d5-4f74-a22a-653c9ff54269",
       "source_checksum": "sha256:194084d829ce83a8b858033a12410af020b4c7ab193dea7c8a39ff8a24396094",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -1153,7 +1275,7 @@
       "source_kind": "official",
       "source_catalog_id": "e2ecaad9-3de3-4838-9ea4-1273acebf3e8",
       "source_checksum": "sha256:ad6e48c3fa9ab7f57db180befbb19d3397d6216fa360443add83573ae29fa71a",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -1217,7 +1339,7 @@
       "source_kind": "official",
       "source_catalog_id": "3d9f92d5-f733-417a-88da-61898138f661",
       "source_checksum": "sha256:2be5db6d266428d0736576d77e2f33c2899a8e3b4d40ae6baf1966192d30054a",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     },
     {
       "provider_code": "vercel",
@@ -1281,71 +1403,7 @@
       "source_kind": "official",
       "source_catalog_id": "c8f53c47-de89-4556-8185-f0f00cce6a44",
       "source_checksum": "sha256:40c0ceaaaaf050614a9881afaee6189c80a00857f0cadf55f44f81f177c209ef",
-      "source_version": "2026-11-05.3"
-    },
-    {
-      "provider_code": "vercel",
-      "upstream_model_id": "anthropic/claude-opus-5-fast",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "12.5",
-      "id": "b152bd37-c276-496e-951e-e1588926f2d5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "anthropic/claude-opus-5-fast",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "anthropic/claude-opus-5-fast",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "anthropic/claude-opus-5-fast",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "anthropic/claude-opus-5-fast",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b152bd37-c276-496e-951e-e1588926f2d5",
-      "source_checksum": "sha256:35d895b0d7cdcb7417f0da383febc4fa033515b6228f6bdf2377e917ed6d5269",
-      "source_version": "2026-11-05.3"
+      "source_version": "2026-11-05.4"
     }
   ]
 }
