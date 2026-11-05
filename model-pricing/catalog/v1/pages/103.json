@@ -1,12 +1,200 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-05.1",
+  "catalog_version": "2026-11-05.2",
   "currency_code": "USD",
   "page": 103,
-  "cursor": "YWZ0ZXI6YWFjOGZjNTctZTkxZi00ZmRmLWI4ZDUtYTJkNDk3MTY2N2Ni",
-  "next_cursor": "YWZ0ZXI6YjRlOWFhZjEtOGM4Mi00MTM2LWIyZWQtZTAzODlmMjdiNTMx",
+  "cursor": "YWZ0ZXI6N2Q0MDc5NzUtM2IzZC00YzM5LTkwOWEtOTc3OTBmM2IwOTlh",
+  "next_cursor": "YWZ0ZXI6OWZkMDAwZDEtODdlYS00NTk2LTg1YjctNmQ2Yjg1YzJmMTEz",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/104.json",
   "rules": [
+    {
+      "provider_code": "requesty",
+      "upstream_model_id": "gpt-6-luna@eu",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.12",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.012",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.15",
+      "id": "df1245e9-346f-4e2c-9c34-a05337e4184d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.24",
+            "output_token_unit_price": "0.9",
+            "cache_hit_token_unit_price": "0.024",
+            "cache_write_token_unit_price": "0.3"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-luna@eu",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-luna@eu",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-luna@eu",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-luna@eu",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.24",
+                "output_token_unit_price": "0.9",
+                "cache_hit_token_unit_price": "0.024",
+                "cache_write_token_unit_price": "0.3"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "df1245e9-346f-4e2c-9c34-a05337e4184d",
+      "source_checksum": "sha256:45770f4f186127c7c59b7b7db389230900db071e2ecf9e6e812bc3dedd6eefab",
+      "source_version": "2026-11-05.2"
+    },
+    {
+      "provider_code": "requesty",
+      "upstream_model_id": "gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "aac8fc57-e91f-4fdf-b8d5-a2d4971667cb",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "requesty",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "aac8fc57-e91f-4fdf-b8d5-a2d4971667cb",
+      "source_checksum": "sha256:07cd6def4e92537260f4ee303072c3a160a48d63bcfa46ac7493842640069165",
+      "source_version": "2026-11-05.2"
+    },
     {
       "provider_code": "requesty",
       "upstream_model_id": "gpt-6-sol@eu",
@@ -99,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "8154317a-688c-46fd-85a5-d72c26de5a54",
       "source_checksum": "sha256:ddf886c09eedae7c531434e4864bf1c96dc7ddb5407e204642729b3caf4e394e",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -193,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "c7e26704-fb6d-4d1c-9479-bfdd3f703573",
       "source_checksum": "sha256:491ab1e701644d72acfe473ecb448b6633984dfa7480ea6315091d7cf9b3971c",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -287,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "7e75f7ec-b1c7-44f0-bdd2-636e17b0e6a2",
       "source_checksum": "sha256:e58ce32edffe6b74df00d6e3c6e3f280d3ab3c40b60312f4a2d8eac3f5fa86b0",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -381,7 +569,7 @@
       "source_kind": "official",
       "source_catalog_id": "503701f5-e6db-4562-94ca-751087a22d16",
       "source_checksum": "sha256:e24f1e0a15c8b2f66184752ba9675e758fb20ebd17bc8a41249c120888f82200",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -475,7 +663,7 @@
       "source_kind": "official",
       "source_catalog_id": "105492e2-1805-4666-8447-76d55a9396e5",
       "source_checksum": "sha256:1d59dfecadc637bbfc915a2f8ffd92d2a00462411f473ec26e9377e34c5e4486",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -569,7 +757,7 @@
       "source_kind": "official",
       "source_catalog_id": "7efe36df-4d33-4317-b6d1-bfc672e42751",
       "source_checksum": "sha256:a8a02d969b47599d275771c16e08b3c5d312c38900ae9cd3a38573f33b1df337",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -663,7 +851,7 @@
       "source_kind": "official",
       "source_catalog_id": "b5ec1650-52bf-48cd-8d09-75f5b75b153b",
       "source_checksum": "sha256:9761d99398e73dac1d6f51ce50ddfae8a2fad30c6949e231b97bfd5696475cad",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -757,7 +945,7 @@
       "source_kind": "official",
       "source_catalog_id": "8383a5af-8726-4917-b9c6-69d4b134f08f",
       "source_checksum": "sha256:de34601e237bc9319d260e6516ee942bc349a14ff2da1a3dedbdc797e1ad04cd",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -851,7 +1039,7 @@
       "source_kind": "official",
       "source_catalog_id": "123738a6-f826-4689-9609-0f548c074c80",
       "source_checksum": "sha256:34f0127df120980b9f31414a1b7c888f72efda78f39e4a11f52e513d75f643f6",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -915,7 +1103,7 @@
       "source_kind": "official",
       "source_catalog_id": "51ab8831-3606-4199-bcce-057d0ea5794f",
       "source_checksum": "sha256:3562ca59bd2499c4297bba5a5745050e13e6cfff50c6e9db44ea4e6cc54198b8",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -979,7 +1167,7 @@
       "source_kind": "official",
       "source_catalog_id": "0ae9feda-a578-493b-9b79-ba5158b93166",
       "source_checksum": "sha256:c06b5d689741c41cc123d96266ba59e73bbd3b1248c8b6b51d86b37b97696673",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1043,7 +1231,7 @@
       "source_kind": "official",
       "source_catalog_id": "7e2cb79f-66d2-4406-bb69-05775df19877",
       "source_checksum": "sha256:52c553f18fc1f9a1289c67e78930de8e99647ac804dd5dce6ea41928f5ecd533",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1107,7 +1295,7 @@
       "source_kind": "official",
       "source_catalog_id": "dfce0212-ede3-47ca-9760-8613fe22bde3",
       "source_checksum": "sha256:83ad606d7b7493670c135e5194ed1a192847957a7bcde2fd6999fc756a77799b",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1171,7 +1359,7 @@
       "source_kind": "official",
       "source_catalog_id": "35810e06-04a9-405e-b392-841dd426e05d",
       "source_checksum": "sha256:61c8c1578b290095693225c239c4e49437cf548ec88abf49c6e652e067b32afe",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1235,7 +1423,7 @@
       "source_kind": "official",
       "source_catalog_id": "354fa1d0-275b-4a8a-8894-f3928e071fff",
       "source_checksum": "sha256:7378b092d8208e7c445446018653e1e0b3728c14463c661c21197712e1799d44",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1299,7 +1487,7 @@
       "source_kind": "official",
       "source_catalog_id": "148167cc-a145-443e-969b-bf42b7c81b3b",
       "source_checksum": "sha256:e20538e11c15936ac1daf106c7a6dc8839a52186d308d06afc822f0c202c3f4c",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1363,7 +1551,7 @@
       "source_kind": "official",
       "source_catalog_id": "b8b55e8b-ab76-4216-8396-0aae9952c971",
       "source_checksum": "sha256:abc34f17e130b8e00de39d063401a59bcca9dae594c11e0603baccf86041c979",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "requesty",
@@ -1427,135 +1615,7 @@
       "source_kind": "official",
       "source_catalog_id": "9fd000d1-87ea-4596-85b7-6d6b85c2f113",
       "source_checksum": "sha256:65ec465c83b024c7548a24d0dc16d5b4fb274f8686c44e46aabaf74eb4ed9c21",
-      "source_version": "2026-11-05.1"
-    },
-    {
-      "provider_code": "requesty",
-      "upstream_model_id": "qwen3.8-2.4T-A95B@eu",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "6",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.63",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "de463fc1-c6e7-4bf6-beb2-6af0d9504dd1",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-2.4T-A95B@eu",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-2.4T-A95B@eu",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-2.4T-A95B@eu",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-2.4T-A95B@eu",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "de463fc1-c6e7-4bf6-beb2-6af0d9504dd1",
-      "source_checksum": "sha256:2cba3d7e9010e4fc1415ddb8fe0689a3dd8ea944d91995dfcfc568fe5309dfb4",
-      "source_version": "2026-11-05.1"
-    },
-    {
-      "provider_code": "requesty",
-      "upstream_model_id": "qwen3.8-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.16",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.47",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.016",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.2",
-      "id": "b4e9aaf1-8c82-4136-b2ed-e0389f27b531",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "requesty",
-              "model": "qwen3.8-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b4e9aaf1-8c82-4136-b2ed-e0389f27b531",
-      "source_checksum": "sha256:8932ad6577383cd5287ee5baa0029398097e8843d6da21b1ce82cfa27b27b60f",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     }
   ]
 }

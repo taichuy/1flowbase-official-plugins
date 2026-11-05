@@ -1,12 +1,200 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-05.1",
+  "catalog_version": "2026-11-05.2",
   "currency_code": "USD",
   "page": 38,
-  "cursor": "YWZ0ZXI6Zjg3NTUzNTEtODVlOS00MmQzLWE2ZjAtZTZhN2U2NGE1ZTJk",
-  "next_cursor": "YWZ0ZXI6MjNkMDExNzUtZjVlOC00Y2ZkLWFhNWMtZWNiMDViZDJjZTNj",
+  "cursor": "YWZ0ZXI6OWM2ZmQxZjQtNzA4MC00OGMyLWJlMzYtYjQ5YmU5OTg5MmQ5",
+  "next_cursor": "YWZ0ZXI6ZGU3OWY1NmUtYzQzYi00NTlhLTlkOTAtZWExZTVmZDY0MGRl",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/39.json",
   "rules": [
+    {
+      "provider_code": "commandcode",
+      "upstream_model_id": "gpt-6-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "8c044b7c-8ace-4fd0-b3e1-b00a28fb422f",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "20",
+            "output_token_unit_price": "75",
+            "cache_hit_token_unit_price": "2",
+            "cache_write_token_unit_price": "25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "20",
+                "output_token_unit_price": "75",
+                "cache_hit_token_unit_price": "2",
+                "cache_write_token_unit_price": "25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8c044b7c-8ace-4fd0-b3e1-b00a28fb422f",
+      "source_checksum": "sha256:89c81dbe177dbbc53efbcee14934f766d7cf4a8c00bf48f0ce0198358d4062d6",
+      "source_version": "2026-11-05.2"
+    },
+    {
+      "provider_code": "commandcode",
+      "upstream_model_id": "gpt-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "f8755351-85e9-42d3-a6f0-e6a7e64a5e2d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f8755351-85e9-42d3-a6f0-e6a7e64a5e2d",
+      "source_checksum": "sha256:a7321f849fa6964f2d208d88c3c7b39007c8c9444022d9a0dc9f93849af985a5",
+      "source_version": "2026-11-05.2"
+    },
     {
       "provider_code": "commandcode",
       "upstream_model_id": "gpt-6-sol",
@@ -99,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "df060c79-b38b-4d98-819c-bb3c02e67422",
       "source_checksum": "sha256:93a857210da8624693dca44ef491d228b96d1690536705ba69d51c21840aea1f",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "commandcode",
@@ -193,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "2cfb6316-fd23-452f-a5bb-dd7c4f99f780",
       "source_checksum": "sha256:3b344981c64a700f811496079cbf9b8b34a6e1da7f8df0d0603fefd3dc8a2b81",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "commandcode",
@@ -287,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "7a9df8de-7b51-4f60-bd80-60ee9118a5c4",
       "source_checksum": "sha256:66fa05952e1822d50aae3088fb3efbfc249030d7209e63d77fafb1571da72914",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "coralbricks",
@@ -351,7 +539,7 @@
       "source_kind": "official",
       "source_catalog_id": "b9b228bc-0f89-4a92-911b-ce3b772c72ae",
       "source_checksum": "sha256:6e32dd111a180cf3e75a6be1c05d1083ad073a849c2bcbd1f1ad686890dee9ab",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "coralbricks",
@@ -415,7 +603,7 @@
       "source_kind": "official",
       "source_catalog_id": "3cbcfe8e-e927-4014-8dc6-929eb7b69841",
       "source_checksum": "sha256:a48db5081a9f90555b6255225be5a531035a638e47f7dd53661fb6e5c5d4dee3",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "coralbricks",
@@ -479,7 +667,7 @@
       "source_kind": "official",
       "source_catalog_id": "8e698e2b-b3c8-4c02-8940-bacaa5935f74",
       "source_checksum": "sha256:996562038432e8129dce8fe36ccfed554a6bbb3b1267055f55f3ff7b007389fc",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "coralbricks",
@@ -543,7 +731,7 @@
       "source_kind": "official",
       "source_catalog_id": "dfcf61b3-ccdd-4003-a7e9-b5fd12c4be43",
       "source_checksum": "sha256:3d6aa1a12ac84fc65e1fa3a39b0da391c217af2bab09d134bd3e6ee8cb1f2e2f",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "coralbricks",
@@ -607,7 +795,7 @@
       "source_kind": "official",
       "source_catalog_id": "7309845e-6a1e-4636-b2d5-a5264fb3c4b0",
       "source_checksum": "sha256:1590096f3db17ac3c85101e8855ec5e83b5b806f42fbab60a4454a67250d9eb2",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "coralbricks",
@@ -671,7 +859,7 @@
       "source_kind": "official",
       "source_catalog_id": "383b5c6e-0057-4789-824a-1251bc46b1d9",
       "source_checksum": "sha256:355ec4cf8da5ba1a995a90498e28fb7ae7b56edfb6b437f6c404e4d3b614c37e",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -735,7 +923,7 @@
       "source_kind": "official",
       "source_catalog_id": "512ad9cb-4bc1-4ff8-b573-bfb35a2c870b",
       "source_checksum": "sha256:8fa286c8b6a340d628b1fe00267f7aa05b03a0fe625de3fad58f8a18a45fc458",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -799,7 +987,7 @@
       "source_kind": "official",
       "source_catalog_id": "d1851b34-5581-4596-bcc4-990712dce377",
       "source_checksum": "sha256:211f6b9f5ed543d2f23700c70469083dc260dafa5f5cb12e9513fb4ba5dccdf4",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -863,7 +1051,7 @@
       "source_kind": "official",
       "source_catalog_id": "7e3c385c-380f-49a1-b7cc-04f9cd2bee28",
       "source_checksum": "sha256:17ae65f9d003ccff04414cc2999f8f3c847764ce072dd53c68c1621c948882c2",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -927,7 +1115,7 @@
       "source_kind": "official",
       "source_catalog_id": "ddb7bc6d-f155-4a5e-bdb4-b9a5df0f66c4",
       "source_checksum": "sha256:ed42e718260d282dd509f560125438b0dff6522a1e40cc8a4fb92ddf209ebe5f",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -991,7 +1179,7 @@
       "source_kind": "official",
       "source_catalog_id": "112a0018-8c73-4634-9de5-f3a31e6572ce",
       "source_checksum": "sha256:1210eb3c7d1dc44a3f2ee8b7b7539049710fa35fb69965af6b62fc9de8fa44d5",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -1055,7 +1243,7 @@
       "source_kind": "official",
       "source_catalog_id": "77b4c32a-d1cd-4b99-80c3-e845ba29ae73",
       "source_checksum": "sha256:4b01bfa16a91cf4d2a1ca26d6621896a2d62cf6d1cd703773bb3d2a0166295cf",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -1119,7 +1307,7 @@
       "source_kind": "official",
       "source_catalog_id": "a3f63f62-6e4d-4744-987f-2290a047582b",
       "source_checksum": "sha256:47fbb4d6cf880d9cfe36a7ea2cffd615ea0cf7696aecd370b5f150346208de1b",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -1183,7 +1371,7 @@
       "source_kind": "official",
       "source_catalog_id": "2f2e081a-c26f-4977-9b54-89dd7c0f5a2f",
       "source_checksum": "sha256:9afe0a972c6cab929397d86bbd359c0f050ee3b2363d1105f79d6e93c17a2d6d",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     },
     {
       "provider_code": "cortecs",
@@ -1247,135 +1435,7 @@
       "source_kind": "official",
       "source_catalog_id": "de79f56e-c43b-459a-9d90-ea1e5fd640de",
       "source_checksum": "sha256:2a515430e6e554955ff241c24dfc3c1113b49dfdb6a20e1eba322f96c9ad5ffa",
-      "source_version": "2026-11-05.1"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "claude-opus4-8",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5.437",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "27.186",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.544",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.797",
-      "id": "efc988bb-85e1-4ab4-9b00-fd016c514d26",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-opus4-8",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-opus4-8",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-opus4-8",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-opus4-8",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "efc988bb-85e1-4ab4-9b00-fd016c514d26",
-      "source_checksum": "sha256:8b2075e3b8b40de1be98ad9ebfda66ba81e72df0341b3131ca908f214e7202cc",
-      "source_version": "2026-11-05.1"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "claude-sonnet-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.219",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.749",
-      "id": "23d01175-f5e8-4cfd-aa5c-ecb05bd2ce3c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "23d01175-f5e8-4cfd-aa5c-ecb05bd2ce3c",
-      "source_checksum": "sha256:78bab5f194fd0bbbd3ac3d1df1bc230dee4caf667b0e008f189c988ab3fcec2a",
-      "source_version": "2026-11-05.1"
+      "source_version": "2026-11-05.2"
     }
   ]
 }
