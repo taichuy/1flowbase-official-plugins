@@ -22,6 +22,7 @@ pub(crate) fn transport_category(error: &anyhow::Error) -> Option<&str> {
 
 fn safe_reason(category: &str) -> &'static str {
     match category {
+        "continuation_owner_unavailable" => "local continuation owner is unavailable",
         "continuation_unavailable" => "upstream continuation connection is unavailable",
         "previous_response_unavailable" => "previous_response_id is no longer available",
         "proxy_failed" => "upstream websocket proxy failed",

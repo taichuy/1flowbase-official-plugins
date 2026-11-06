@@ -1982,6 +1982,10 @@ impl OpenAiProviderRuntime {
                         if error.semantic_terminal {
                             RecoverySignal::SemanticTerminal
                         } else if error.failure_diagnostics.last().is_some_and(|value| {
+                            value["reason_category"] == "continuation_owner_unavailable"
+                        }) {
+                            RecoverySignal::ContinuationOwnerUnavailable
+                        } else if error.failure_diagnostics.last().is_some_and(|value| {
                             value["reason_category"] == "continuation_unavailable"
                         }) {
                             RecoverySignal::ContinuationUnavailable
@@ -2395,10 +2399,24 @@ impl OpenAiProviderRuntime {
                     ));
                 }
             } else if input.native_transport.is_some() || bound_incarnation.is_some() {
+                // A fresh worker may have lost all local ownership/history. Return this
+                // distinct fact to the host, which must authenticate and reconstruct
+                // durable native material before a new invocation. An explicit physical
+                // binding remains a refusal when its owner cannot be verified.
+                let local_owner_absent =
+                    input.native_transport.is_some() && bound_incarnation.is_none();
                 return Err(WebsocketInvocationError::fallback_blocked(
                     recovery_diagnostics::transport_error(
-                        "owner_rejected",
-                        "continuation_unavailable",
+                        if local_owner_absent {
+                            "owner_unavailable"
+                        } else {
+                            "owner_rejected"
+                        },
+                        if local_owner_absent {
+                            "continuation_owner_unavailable"
+                        } else {
+                            "continuation_unavailable"
+                        },
                         None,
                     ),
                 ));
