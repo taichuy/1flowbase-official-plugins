@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-05.4",
+  "catalog_version": "2026-11-06.1",
   "currency_code": "USD",
   "page": 94,
-  "cursor": "YWZ0ZXI6MTY0MjQwMjQtODM3My00MmE0LThjZTktZDFkNGU0YjQ3Zjgz",
-  "next_cursor": "YWZ0ZXI6MzQ5ODYzOGYtN2NjNC00MWJkLTliZDEtYjk1YTQyZTc3YzVk",
+  "cursor": "YWZ0ZXI6OTJlYzNjYmYtY2U1Ny00NWYyLWE2MWUtNWU5MmRhMDZiYjQy",
+  "next_cursor": "YWZ0ZXI6NDEyNzQ4MDItNmExNi00MWMxLWI0N2ItM2JjZDE5MzkxN2M3",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/95.json",
   "rules": [
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6.1-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "16424024-8373-42a4-8ce9-d1d4e4b47f83",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "16424024-8373-42a4-8ce9-d1d4e4b47f83",
+      "source_checksum": "sha256:f11ac14b1d9141cf94623bbe351114e7375ac4509abb3aa3d0853cce0d02a5b0",
+      "source_version": "2026-11-06.1"
+    },
     {
       "provider_code": "openrouter",
       "upstream_model_id": "openai/gpt-6.1-sol-pro",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "3f92acbd-9e21-4793-80c6-512cba3d2cbe",
       "source_checksum": "sha256:5f857245c161a5a1ff19f2f5b5ae3d14fc529d5a3156e3182a76ea4d6dc27805",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -193,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "85de606f-d862-4a16-b147-c8f3d2795116",
       "source_checksum": "sha256:9b72e7600899ad3e8fcbb2a4b590a710c98cb0869c588157ed7046826fedbe48",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -287,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "03567373-9b93-4fc2-be44-4292a2f205c2",
       "source_checksum": "sha256:2c92fa69158ee93b499578a3a14aeeb6f3a448b58f2731785ccc9da5cdb83449",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -381,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "032bca8e-5752-4567-97bd-9923d504a38a",
       "source_checksum": "sha256:c11d05daa7f1e7cf21de1a6eaf264b9136df9d655428bfcffca0483d5b67349b",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -503,7 +597,7 @@
       "source_kind": "official",
       "source_catalog_id": "d4afc08c-812a-4399-9098-c71b99debe16",
       "source_checksum": "sha256:c35b05c6363773b542cae887834923ebc469d78296c5294fcd57d717a61e1316",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -625,7 +719,7 @@
       "source_kind": "official",
       "source_catalog_id": "4999c988-0b58-4110-ab34-9a2f666dd4cf",
       "source_checksum": "sha256:eb5e81a212b70fef27e6c88baf61c2f78c3f0db47deee71bf0db6af24205b67d",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -689,7 +783,7 @@
       "source_kind": "official",
       "source_catalog_id": "80f12960-40f0-4803-b4d7-ab623b2bb5a4",
       "source_checksum": "sha256:14b233ebf85f385e52a74dc07ca0a384da9e48a9388dc557831c73b2bbd93f53",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -783,7 +877,7 @@
       "source_kind": "official",
       "source_catalog_id": "56f25253-e807-401d-a578-a5385f40ac1d",
       "source_checksum": "sha256:a1c0184f7b8bd493773d76043c082d63f59b5c155b8c792b39f992fa8ba729ad",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -847,7 +941,7 @@
       "source_kind": "official",
       "source_catalog_id": "0c7d7f5b-672d-4ffd-960e-138b3e52a4ad",
       "source_checksum": "sha256:a8576048375cb5875be1421c5d79fcb069139120b1e8d903bc2022091ad4d003",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -941,7 +1035,7 @@
       "source_kind": "official",
       "source_catalog_id": "4f916b74-85fb-439b-b1be-f672f7e4a659",
       "source_checksum": "sha256:80000dd0396ea11edaaccbeffef79ea4b71098775ec963738c7188ead96fc23b",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1005,7 +1099,7 @@
       "source_kind": "official",
       "source_catalog_id": "40b72052-fc0f-4ed1-b985-7ea1a1a01714",
       "source_checksum": "sha256:58c73f75dc0b4a0a8c44f2286cabd86473b96c88671c72a2a4c626724245ea4b",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1069,7 +1163,7 @@
       "source_kind": "official",
       "source_catalog_id": "d9e8d8e9-1c6f-420e-ad0e-4069f21b7c04",
       "source_checksum": "sha256:4ac65575c683b7d92e825cc5efc7cd4ad563a8f74991840aad1740c5d105c7bb",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1133,7 +1227,7 @@
       "source_kind": "official",
       "source_catalog_id": "80252382-4551-4bb0-bef3-fd625a560609",
       "source_checksum": "sha256:023c4fbede5b7f385ab2a584892cc0ef83aff48aa91d4969a7b07abba7ae3bf0",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1225,7 +1319,7 @@
       "source_kind": "official",
       "source_catalog_id": "d670d3a4-d5d5-4e4a-9815-b109677a4178",
       "source_checksum": "sha256:e5d93073ec1509addbf801be4d69bbf0edd7aa50e4b5ef69d2dc059a575013c9",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1319,7 +1413,7 @@
       "source_kind": "official",
       "source_catalog_id": "b028da17-6518-47d3-bdad-692b640ec186",
       "source_checksum": "sha256:b944eb0256bd1cd779caa8a487b42bb8ae887ba58d4159dbd876682546b4e365",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1413,7 +1507,7 @@
       "source_kind": "official",
       "source_catalog_id": "a5da68b8-56f1-4205-abe3-1f5a22857907",
       "source_checksum": "sha256:fb65d5fc9b92a198af4cfe72c46c14f9dbb2929760ab32d86c5e9579e7b82fb8",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1507,7 +1601,7 @@
       "source_kind": "official",
       "source_catalog_id": "31297bc6-74aa-4efc-8e83-315c7dd970e1",
       "source_checksum": "sha256:84ea4b943738189a7bb147c6d6859073e75e663732ff3d1ef5b0b6bf0b5a2959",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1601,7 +1695,7 @@
       "source_kind": "official",
       "source_catalog_id": "3b8685ca-c524-4385-a9db-193e2f07dbe2",
       "source_checksum": "sha256:a73655334eccbd19c0cb675b8c8a1b1b87d7ef8dc66c65867b491ac06edd8ecb",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     },
     {
       "provider_code": "openrouter",
@@ -1695,71 +1789,7 @@
       "source_kind": "official",
       "source_catalog_id": "41274802-6a16-41c1-b47b-3bcd193917c7",
       "source_checksum": "sha256:f1d4fd64a3eef10387a1c67e941d1c9402e19f35a110927c148467f9d65b9b81",
-      "source_version": "2026-11-05.4"
-    },
-    {
-      "provider_code": "opper",
-      "upstream_model_id": "claude-fable-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "12.5",
-      "id": "3498638f-7cc4-41bd-9bd1-b95a42e77c5d",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "opper",
-              "model": "claude-fable-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "opper",
-              "model": "claude-fable-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "opper",
-              "model": "claude-fable-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "opper",
-              "model": "claude-fable-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "3498638f-7cc4-41bd-9bd1-b95a42e77c5d",
-      "source_checksum": "sha256:6fbbc23187f4d7c2f339623cdb86d88ec9f84177c5c50234969051b7bce918e2",
-      "source_version": "2026-11-05.4"
+      "source_version": "2026-11-06.1"
     }
   ]
 }
