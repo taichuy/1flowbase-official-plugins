@@ -1237,3 +1237,152 @@ fn completed_response_does_not_fabricate_done_for_unfinished_or_missing_tool_fie
         )));
     }
 }
+
+// #2791: worker replacement loses local owner/history, not the host's durable native material.
+#[tokio::test]
+async fn native_owner_loss_after_runtime_replacement_requests_host_reconstruction() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut ws =
+            tokio_tungstenite::tungstenite::accept_with_config(stream, Some(Default::default()))
+                .unwrap();
+        let seed: Value = serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
+        assert_eq!(
+            seed["input"],
+            json!([{"role":"user","content":"seed native history"}])
+        );
+        ws.send(Message::Text(json!({"type":"response.completed","response":{"id":"resp_before_replacement","status":"completed","output":[{"id":"reasoning_seed","type":"reasoning","summary":[],"encrypted_content":"opaque-seed"}]}}).to_string().into())).unwrap();
+        done_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        assert!(matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock), "owner loss must return to host before any cursor replay or stripped-context provider request");
+    });
+    let make = |body: Value| {
+        ProviderInvocationInput {
+        provider_instance_id: "fixture".into(), model: "fixture".into(), protocol: "openai_responses".into(),
+        provider_config: json!({"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"}),
+        required_capabilities: [ProviderInvocationCapability::ResponsesNativePassthrough, ProviderInvocationCapability::ResponsesNativeOutputV1].into(),
+        run_context: [
+            (TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-replacement","generation":41,"task_id":"task-replacement","state":"active","physical_deadline_unix_ms":4102444800000_i64})),
+            (recovery::RECOVERY_DIRECTIVE_CONTEXT_KEY.into(), json!({"policy":{"type":"native_opaque","budget":{"max_inner_attempts":4,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":17,"initial_commit_level":"lifecycle_only"})),
+        ].into(),
+        native_transport: Some(ProviderNativeTransport {protocol:"openai_responses".into(),wire_body:body,digest:"fixture".into(),size_bytes:1}),
+        ..Default::default()
+    }
+    };
+    let mut old_runtime = OpenAiProviderRuntime::default();
+    let seed = old_runtime.invoke_response(make(json!({"input":"seed native history","store":false,"include":["reasoning.encrypted_content"]}))).await.unwrap();
+    assert_eq!(
+        seed.result.response_id.as_deref(),
+        Some("resp_before_replacement")
+    );
+    assert!(old_runtime
+        .websocket_response_owners
+        .contains_key("resp_before_replacement"));
+    drop(old_runtime);
+    let mut replacement = OpenAiProviderRuntime::default();
+    assert!(replacement.websocket_response_owners.is_empty());
+    assert!(replacement.websocket_turn_states_by_response_id.is_empty());
+    let mut events = Vec::new();
+    let error = replacement.invoke_response_with_event_sink(make(json!({"previous_response_id":"resp_before_replacement","input":[{"type":"function_call_output","call_id":"call_seed","output":"already committed"}],"store":false,"include":["reasoning.encrypted_content"]})), |event| { events.push(event.clone()); Ok(()) }).await.unwrap_err();
+    done_tx.send(()).unwrap();
+    server.join().unwrap();
+    let error = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+    let receipt =
+        &error.provider_details.as_ref().unwrap()[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+    assert_eq!(receipt["disposition"], "logical_invocation_retry");
+    assert_eq!(receipt["commit_level"], "lifecycle_only");
+    assert_eq!(receipt["reason"], "continuation_owner_unavailable");
+    assert_eq!(receipt["transport_epoch"], 17);
+    assert_eq!(receipt["attempt"], 0);
+    assert!(!events.iter().any(|event| matches!(
+        event,
+        ProviderStreamEvent::ToolCallCommit { .. } | ProviderStreamEvent::Finish { .. }
+    )));
+}
+
+#[tokio::test]
+async fn native_foreign_invalid_or_explicit_bound_owner_loss_stays_terminal() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    for budget in [1, 4] {
+        for case in [
+            "foreign",
+            "invalid",
+            "explicit_bound",
+            "known_missing_socket",
+        ] {
+            let mut runtime = OpenAiProviderRuntime::default();
+            let mut input = ProviderInvocationInput {
+                provider_instance_id: "fixture".into(), model: "fixture".into(), protocol: "openai_responses".into(),
+                provider_config: json!({"base_url":base,"api_key":"fixture","transport_mode":"responses_websocket"}),
+                required_capabilities: [ProviderInvocationCapability::ResponsesNativePassthrough, ProviderInvocationCapability::ResponsesNativeOutputV1].into(),
+                run_context: [
+                    (TRANSPORT_SESSION_CONTEXT_KEY.into(), json!({"logical_session_id":"logical-guard","generation":41,"task_id":"task-guard","state":"active","physical_deadline_unix_ms":4102444800000_i64})),
+                    (recovery::RECOVERY_DIRECTIVE_CONTEXT_KEY.into(), json!({"policy":{"type":"native_opaque","budget":{"max_inner_attempts":budget,"absolute_deadline_unix_ms":4102444800000_i64}},"transport_epoch":17,"initial_commit_level":"lifecycle_only"})),
+                ].into(),
+                native_transport: Some(ProviderNativeTransport {protocol:"openai_responses".into(),wire_body:json!({"previous_response_id":"resp_guard","input":[]}),digest:"fixture".into(),size_bytes:1}),
+                ..Default::default()
+            };
+            match case {
+                "foreign" | "known_missing_socket" => {
+                    let session_key = if case == "foreign" {
+                        "foreign-session".into()
+                    } else {
+                        let config = normalize_provider_config(&input.provider_config).unwrap();
+                        let directive = transport_session_directive(&input).unwrap();
+                        websocket_session_key(&config, &input, directive.as_ref())
+                    };
+                    runtime.websocket_response_owners.insert(
+                        "resp_guard".into(),
+                        WebsocketResponseOwner {
+                            session_key,
+                            generation: 1,
+                        },
+                    );
+                }
+                "invalid" => {
+                    runtime
+                        .websocket_invalid_associations
+                        .insert("resp_guard".into());
+                }
+                "explicit_bound" => {
+                    input
+                        .run_context
+                        .get_mut(recovery::RECOVERY_DIRECTIVE_CONTEXT_KEY)
+                        .unwrap()["cursor_provenance"] = json!({"binding":{"type":"connection_bound","transport_epoch":17,"socket_incarnation":1}});
+                }
+                _ => unreachable!(),
+            }
+            let error = runtime.invoke_response(input).await.unwrap_err();
+            let details = error
+                .downcast_ref::<ProviderRuntimeError>()
+                .unwrap()
+                .provider_details
+                .as_ref()
+                .unwrap();
+            let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+            assert_eq!(
+                receipt["disposition"], "terminal_interruption",
+                "{case}, budget={budget}"
+            );
+            assert_eq!(receipt["commit_level"], "terminal");
+            assert_ne!(receipt["reason"], "continuation_owner_unavailable");
+            assert_eq!(receipt["attempt"], 0);
+            assert_eq!(
+                details[recovery_diagnostics::KEY]["last_failure"]["reason_category"],
+                "continuation_unavailable"
+            );
+            assert!(
+                matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+                "{case} must fail before provider I/O"
+            );
+        }
+    }
+}

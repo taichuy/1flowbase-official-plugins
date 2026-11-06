@@ -194,6 +194,7 @@ pub(crate) enum RecoveryTransport {
 pub(crate) enum RecoveryReason {
     TransportDisconnected,
     TransportRejected,
+    ContinuationOwnerUnavailable,
     ProtocolError,
     DeadlineExceeded,
     FencingRejected,
@@ -243,6 +244,7 @@ pub(crate) enum RecoverySignal {
     TransportRejected,
     PreviousResponseUnavailable,
     ContinuationUnavailable,
+    ContinuationOwnerUnavailable,
     ProxyFailed,
     PolicyRejected,
     ProtocolError,
@@ -384,7 +386,7 @@ impl RecoveryFsm {
                 RecoverySignal::TransportDisconnected
                     | RecoverySignal::TransportRejected
                     | RecoverySignal::PreviousResponseUnavailable
-                    | RecoverySignal::ContinuationUnavailable
+                    | RecoverySignal::ContinuationOwnerUnavailable
                     | RecoverySignal::ProxyFailed
             ) {
                 return RecoveryDisposition::LogicalInvocationRetry;
@@ -441,6 +443,11 @@ impl RecoveryFsm {
                 } => RecoveryDisposition::SameEpochReconnect,
                 _ => RecoveryDisposition::LogicalInvocationRetry,
             },
+            // The host owns durable native reconstruction; local owner absence cannot
+            // authorize a provider replay, cursor removal, or invented history.
+            RecoverySignal::ContinuationOwnerUnavailable => {
+                RecoveryDisposition::LogicalInvocationRetry
+            }
             RecoverySignal::PolicyRejected | RecoverySignal::ContinuationUnavailable => {
                 RecoveryDisposition::TerminalInterruption
             }
@@ -491,6 +498,9 @@ impl RecoveryFsm {
                 | RecoverySignal::PreviousResponseUnavailable
                 | RecoverySignal::ContinuationUnavailable
                 | RecoverySignal::ProxyFailed => RecoveryReason::TransportDisconnected,
+                RecoverySignal::ContinuationOwnerUnavailable => {
+                    RecoveryReason::ContinuationOwnerUnavailable
+                }
                 RecoverySignal::TransportRejected => RecoveryReason::TransportRejected,
                 RecoverySignal::ProtocolError | RecoverySignal::PolicyRejected => {
                     RecoveryReason::ProtocolError
@@ -1229,23 +1239,127 @@ mod continuation_terminal_tests {
                 RecoverySignal::ContinuationUnavailable,
                 RecoverySignal::PolicyRejected,
             ] {
-                let mut machine = RecoveryFsm::new(RecoveryConstraints::standalone(policy));
-                machine.begin_attempt().unwrap();
-                let transition = machine.decide_transition(RecoveryFacts {
-                    signal,
-                    cursor: CursorState::ConnectionBound {
-                        same_epoch: true,
-                        owner_available: true,
-                        turn_state_available: true,
-                    },
-                    full_context_available: true,
-                });
-                assert_eq!(
-                    transition.disposition,
-                    RecoveryDisposition::TerminalInterruption
-                );
-                assert_eq!(machine.consumed_attempts(), 1);
+                for budget in [1, 3] {
+                    let mut constraints = RecoveryConstraints::standalone(policy);
+                    constraints.max_inner_attempts = budget;
+                    let mut machine = RecoveryFsm::new(constraints);
+                    machine.begin_attempt().unwrap();
+                    let transition = machine.decide_transition(RecoveryFacts {
+                        signal,
+                        cursor: CursorState::ConnectionBound {
+                            same_epoch: true,
+                            owner_available: true,
+                            turn_state_available: true,
+                        },
+                        full_context_available: true,
+                    });
+                    assert_eq!(
+                        transition.disposition,
+                        RecoveryDisposition::TerminalInterruption
+                    );
+                    assert_eq!(transition.commit_level, CommitLevel::Terminal);
+                    assert_ne!(
+                        transition.reason,
+                        RecoveryReason::ContinuationOwnerUnavailable
+                    );
+                    assert_eq!(machine.consumed_attempts(), 1);
+                }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod continuation_owner_tests {
+    use super::*;
+
+    #[test]
+    fn local_owner_absence_returns_to_host_without_rebuild_or_budget_reset() {
+        for (budget, initial, expected_disposition, expected_reason) in [
+            (
+                4,
+                CommitLevel::LifecycleOnly,
+                RecoveryDisposition::LogicalInvocationRetry,
+                RecoveryReason::ContinuationOwnerUnavailable,
+            ),
+            (
+                1,
+                CommitLevel::LifecycleOnly,
+                RecoveryDisposition::LogicalInvocationRetry,
+                RecoveryReason::BudgetExhausted,
+            ),
+            (
+                4,
+                CommitLevel::SemanticCommitted,
+                RecoveryDisposition::TerminalInterruption,
+                RecoveryReason::SemanticFailed,
+            ),
+            (
+                4,
+                CommitLevel::Terminal,
+                RecoveryDisposition::TerminalInterruption,
+                RecoveryReason::SemanticFailed,
+            ),
+        ] {
+            let mut machine = RecoveryFsm::new(RecoveryConstraints {
+                policy: RecoveryPolicyKind::NativeOpaque,
+                max_inner_attempts: budget,
+                absolute_deadline_unix_ms: None,
+                initial_commit_level: initial,
+            });
+            machine.begin_attempt().unwrap();
+            let transition = machine.decide_transition(RecoveryFacts {
+                signal: RecoverySignal::ContinuationOwnerUnavailable,
+                cursor: CursorState::OpaqueUnowned,
+                // Even supplied material does not authorize local replay for this signal.
+                full_context_available: true,
+            });
+            assert_eq!(transition.disposition, expected_disposition);
+            assert_eq!(transition.reason, expected_reason);
+            assert_eq!(transition.attempt, 0);
+            assert_eq!(machine.consumed_attempts(), 1);
+            assert_eq!(
+                transition.commit_level,
+                if initial == CommitLevel::LifecycleOnly {
+                    initial
+                } else {
+                    CommitLevel::Terminal
+                }
+            );
+            assert!(!machine.full_context_rebuild_used);
+        }
+    }
+
+    #[test]
+    fn local_owner_absence_cannot_bypass_deadline_or_change_receipt_wire_contract() {
+        let mut machine = RecoveryFsm::new(RecoveryConstraints::standalone(
+            RecoveryPolicyKind::NativeOpaque,
+        ));
+        machine.begin_attempt().unwrap();
+        machine.constraints.absolute_deadline_unix_ms = Some(1);
+        let transition = machine.decide_transition(RecoveryFacts {
+            signal: RecoverySignal::ContinuationOwnerUnavailable,
+            cursor: CursorState::OpaqueUnowned,
+            full_context_available: false,
+        });
+        assert_eq!(
+            transition.disposition,
+            RecoveryDisposition::TerminalInterruption
+        );
+        assert_eq!(transition.commit_level, CommitLevel::Terminal);
+        assert_eq!(transition.reason, RecoveryReason::DeadlineExceeded);
+        let receipt = ProviderRecoveryReceipt {
+            attempt: 2,
+            transport: RecoveryTransport::AiNativeWebSocket,
+            transport_epoch: 17,
+            socket_incarnation: None,
+            commit_level: CommitLevel::LifecycleOnly,
+            disposition: RecoveryDisposition::LogicalInvocationRetry,
+            reason: RecoveryReason::ContinuationOwnerUnavailable,
+        };
+        assert_eq!(
+            serde_json::to_value(receipt).unwrap(),
+            serde_json::json!({"attempt":2,"transport":"ai_native_web_socket","transport_epoch":17,"commit_level":"lifecycle_only","disposition":"logical_invocation_retry","reason":"continuation_owner_unavailable"})
+        );
     }
 }

@@ -165,35 +165,49 @@ async fn explicit_upstream_failure_before_1008_remains_terminal() {
 
 #[tokio::test]
 async fn fixed_continuation_unavailable_1008_remains_terminal() {
-    let (base, server) = start_policy_close(
-        vec![],
-        "upstream continuation connection is unavailable; private-canary",
-    );
-    let error = OpenAiProviderRuntime::default()
-        .invoke_response(visibility_native_input(&base))
-        .await
-        .unwrap_err();
-    let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
-    assert_eq!(
-        typed.kind,
-        ProviderRuntimeErrorKind::ProviderTransportUnavailable
-    );
-    let details = typed.provider_details.as_ref().unwrap();
-    let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
-    assert_eq!(receipt["disposition"], "terminal_interruption");
-    assert_eq!(receipt["commit_level"], "terminal");
-    assert_eq!(receipt["reason"], "transport_disconnected");
-    assert_eq!(receipt["attempt"], 0);
-    let diagnostics = &details[recovery_diagnostics::KEY];
-    assert_eq!(
-        typed.message,
-        "upstream continuation connection is unavailable; private-canary"
-    );
-    assert_eq!(diagnostics["last_failure"]["close_reason"], typed.message);
-    assert_eq!(
-        diagnostics["last_failure"]["reason_category"],
-        "continuation_unavailable"
-    );
-    assert_eq!(diagnostics["association_valid"], false);
-    assert_no_replacement_connection(server);
+    for budget in [1, 3] {
+        let (base, server) = start_policy_close(
+            vec![],
+            "upstream continuation connection is unavailable; private-canary",
+        );
+        let mut input = visibility_native_input(&base);
+        input
+            .run_context
+            .get_mut(recovery::RECOVERY_DIRECTIVE_CONTEXT_KEY)
+            .unwrap()["policy"]["budget"]["max_inner_attempts"] = json!(budget);
+        let error = OpenAiProviderRuntime::default()
+            .invoke_response(input)
+            .await
+            .unwrap_err();
+        let typed = error.downcast_ref::<ProviderRuntimeError>().unwrap();
+        assert_eq!(
+            typed.kind,
+            ProviderRuntimeErrorKind::ProviderTransportUnavailable
+        );
+        let details = typed.provider_details.as_ref().unwrap();
+        let receipt = &details[recovery::RECOVERY_RECEIPT_METADATA_KEY];
+        assert_eq!(receipt["disposition"], "terminal_interruption");
+        assert_eq!(receipt["commit_level"], "terminal");
+        assert_eq!(
+            receipt["reason"],
+            if budget == 1 {
+                "budget_exhausted"
+            } else {
+                "transport_disconnected"
+            }
+        );
+        assert_eq!(receipt["attempt"], 0);
+        let diagnostics = &details[recovery_diagnostics::KEY];
+        assert_eq!(
+            typed.message,
+            "upstream continuation connection is unavailable; private-canary"
+        );
+        assert_eq!(diagnostics["last_failure"]["close_reason"], typed.message);
+        assert_eq!(
+            diagnostics["last_failure"]["reason_category"],
+            "continuation_unavailable"
+        );
+        assert_eq!(diagnostics["association_valid"], false);
+        assert_no_replacement_connection(server);
+    }
 }

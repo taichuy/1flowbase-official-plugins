@@ -579,7 +579,7 @@ fn native_managed_proxy_failure_rebuilds_full_context_on_new_socket() {
 }
 
 #[test]
-fn native_managed_recovery_failure_preserves_the_original_transport_error() {
+fn native_managed_peer_continuation_refusal_is_terminal_and_preserves_original_error() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
@@ -656,10 +656,11 @@ fn native_managed_recovery_failure_preserves_the_original_transport_error() {
     );
     let details = &error["error"]["provider_details"];
     let receipt = &details["1flowbase_provider_recovery"];
-    assert_eq!(receipt["disposition"], json!("logical_invocation_retry"));
+    // A real peer refusal stays terminal even on the final permitted attempt.
+    assert_eq!(receipt["disposition"], json!("terminal_interruption"));
     assert_eq!(receipt["attempt"], 1);
     assert_eq!(receipt["reason"], "budget_exhausted");
-    assert_eq!(receipt["commit_level"], json!("lifecycle_only"));
+    assert_eq!(receipt["commit_level"], json!("terminal"));
     assert!(
         receipt.get("socket_incarnation").is_some(),
         "a stream failure on a real socket reports its incarnation: {receipt}"
