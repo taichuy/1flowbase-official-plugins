@@ -1,0 +1,207 @@
+{
+  "tool_id": "terminal_files_list",
+  "name": "列出本地目录",
+  "short_description": "按调用者页大小列出本地目录，返回文件信息和续页游标。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.list"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "path",
+          "timeout_ms",
+          "cursor",
+          "limit"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cursor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "entries",
+      "next_cursor",
+      "eof"
+    ],
+    "properties": {
+      "eof": {
+        "type": "boolean"
+      },
+      "path": {
+        "type": "string"
+      },
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "name",
+            "path",
+            "kind",
+            "size",
+            "version"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "version": {
+              "type": "string"
+            },
+            "modified_at": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64",
+              "minimum": 0
+            },
+            "permissions": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "next_cursor": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "cursor",
+        "description": "目录分页的next_cursor；首次传0。目录变化时不保证快照。",
+        "default_value": null,
+        "interface_param": "cursor"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "limit",
+        "description": "limit",
+        "default_value": null,
+        "interface_param": "limit"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path",
+        "description": "1flowbase后端机器或容器上的绝对路径；文件发现使用list/stat。",
+        "default_value": null,
+        "interface_param": "path"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "cursor",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "limit",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "path",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,277 @@
+{
+  "tool_id": "terminal_files_search",
+  "name": "搜索本地文本",
+  "short_description": "在指定目录按字面字符串搜索，返回匹配行和预算使用情况。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.search"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "path",
+          "timeout_ms",
+          "pattern",
+          "max_scan_bytes",
+          "max_matches",
+          "max_depth",
+          "max_line_bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "max_depth": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "max_matches": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_line_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_scan_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "matches",
+      "scanned_bytes",
+      "truncated",
+      "skipped_long_lines",
+      "skipped_binary_files",
+      "skipped_special_files",
+      "depth_limited"
+    ],
+    "properties": {
+      "matches": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "path",
+            "line_number",
+            "byte_offset",
+            "text"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "byte_offset": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "line_number": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "depth_limited": {
+        "type": "boolean"
+      },
+      "scanned_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "skipped_long_lines": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "skipped_binary_files": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "skipped_special_files": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_depth",
+        "description": "搜索递归目录深度；0只搜索当前目录，符号链接不递归。",
+        "default_value": null,
+        "interface_param": "max_depth"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_line_bytes",
+        "description": "搜索单行的字节预算；超长行跳过并通过计数和truncated报告。",
+        "default_value": null,
+        "interface_param": "max_line_bytes"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_matches",
+        "description": "本次搜索最多返回的匹配行数。",
+        "default_value": null,
+        "interface_param": "max_matches"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_scan_bytes",
+        "description": "本次搜索允许读取的文件正文总字节数。",
+        "default_value": null,
+        "interface_param": "max_scan_bytes"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path",
+        "description": "1flowbase后端机器或容器上的绝对路径；文件发现使用list/stat。",
+        "default_value": null,
+        "interface_param": "path"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "pattern",
+        "description": "非空单行字面字符串；不是正则表达式或Shell表达式。",
+        "default_value": null,
+        "interface_param": "pattern"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "max_depth",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_line_bytes",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_matches",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_scan_bytes",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "path",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "pattern",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

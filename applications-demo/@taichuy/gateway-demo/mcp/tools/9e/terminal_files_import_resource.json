@@ -1,0 +1,102 @@
+{
+  "tool_id": "terminal_files_import_resource",
+  "name": "保存资源到文件表",
+  "short_description": "将已授权资源引用的内容保存到有权写入的文件表。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.import_resource"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "resource_uri",
+          "file_table_id"
+        ],
+        "properties": {
+          "resource_uri": {
+            "type": "string"
+          },
+          "file_table_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "file_table_id",
+      "storage_id",
+      "record"
+    ],
+    "properties": {
+      "record": {},
+      "storage_id": {
+        "type": "string"
+      },
+      "file_table_id": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "file_table_id",
+        "description": "目标或来源文件表ID；不是页面ID或数据模型ID。",
+        "default_value": null,
+        "interface_param": "file_table_id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "resource_uri",
+        "description": "先前工具返回的flowbase-resource授权定位URI；不可用原始file路径或HTTP下载地址替代。",
+        "default_value": null,
+        "interface_param": "resource_uri"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "file_table_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "resource_uri",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

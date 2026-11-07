@@ -1,0 +1,177 @@
+{
+  "tool_id": "terminal_jobs_get",
+  "name": "查看本地命令任务",
+  "short_description": "获取当前用户任务的状态、退出码和输出计数。",
+  "full_description": "start使用显式请求标识与调用者预算；通过execution_id读取状态和输出。幂等只在声明保留窗口内有效，过期或未知结果不自动重新执行。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.jobs.get"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "execution_id"
+        ],
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "execution_id",
+      "request_id",
+      "state",
+      "cancel_requested",
+      "duration_ms",
+      "output_complete",
+      "cleanup_complete",
+      "truncated",
+      "discarded_bytes",
+      "stdout_bytes",
+      "stderr_bytes",
+      "created_at_unix_ms",
+      "retention_ms",
+      "timeout_ms",
+      "max_output_bytes"
+    ],
+    "properties": {
+      "state": {
+        "enum": [
+          "running",
+          "completed",
+          "failed",
+          "cancelled",
+          "timed_out"
+        ],
+        "type": "string"
+      },
+      "signal": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32"
+      },
+      "exit_code": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int64"
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "request_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "duration_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "execution_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "retention_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "stderr_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "stdout_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "discarded_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "output_complete": {
+        "type": "boolean"
+      },
+      "cancel_requested": {
+        "type": "boolean"
+      },
+      "cleanup_complete": {
+        "type": "boolean"
+      },
+      "max_output_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "created_at_unix_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "expires_at_unix_ms": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int64",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "execution_id",
+        "description": "jobs.start返回的执行ID，只有相同调用者和工作区可访问。",
+        "default_value": null,
+        "interface_param": "execution_id"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "execution_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

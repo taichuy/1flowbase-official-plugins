@@ -1,0 +1,199 @@
+{
+  "tool_id": "terminal_files_read_text",
+  "name": "读取本地文本",
+  "short_description": "按字节预算读取UTF-8文本片段，返回下一偏移及结束状态。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.read_text"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "path",
+          "timeout_ms",
+          "offset",
+          "max_bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "expected_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "path",
+      "offset",
+      "text",
+      "next_offset",
+      "eof",
+      "version"
+    ],
+    "properties": {
+      "eof": {
+        "type": "boolean"
+      },
+      "path": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "version": {
+        "type": "string"
+      },
+      "next_offset": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "expected_version",
+        "description": "可选：从stat或前一次读取取得的弱版本标识，用于检测文件变化，不提供快照保证。",
+        "default_value": null,
+        "interface_param": "expected_version"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_bytes",
+        "description": "本次文本或输出读取的字节预算；不足一个完整字符时明确失败。",
+        "default_value": null,
+        "interface_param": "max_bytes"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "offset",
+        "description": "从0开始的字节偏移；文本读取须位于UTF-8字符边界。",
+        "default_value": null,
+        "interface_param": "offset"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path",
+        "description": "1flowbase后端机器或容器上的绝对路径；文件发现使用list/stat。",
+        "default_value": null,
+        "interface_param": "path"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "expected_version",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_bytes",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "offset",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "path",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

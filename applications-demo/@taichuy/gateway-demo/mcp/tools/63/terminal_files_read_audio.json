@@ -1,0 +1,183 @@
+{
+  "tool_id": "terminal_files_read_audio",
+  "name": "读取本地音频",
+  "short_description": "读取本地音频并以MCP音频内容返回。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.read_audio"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "path",
+          "timeout_ms",
+          "max_file_bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "max_file_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "data",
+      "mime_type",
+      "metadata"
+    ],
+    "properties": {
+      "data": {
+        "type": "string"
+      },
+      "metadata": {
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "kind",
+          "size",
+          "version"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          },
+          "modified_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "permissions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "mime_type": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_file_bytes",
+        "description": "允许整文件读取的最大字节数；大文件改用read_range，不靠增大聊天返回预算绕过。",
+        "default_value": null,
+        "interface_param": "max_file_bytes"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path",
+        "description": "1flowbase后端机器或容器上的绝对路径；文件发现使用list/stat。",
+        "default_value": null,
+        "interface_param": "path"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "max_file_bytes",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "path",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {
+    "mcp_content": [
+      {
+        "type": "audio",
+        "data_path": "/data",
+        "mime_type_path": "/mime_type"
+      }
+    ],
+    "structured_content_path": "/metadata"
+  },
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

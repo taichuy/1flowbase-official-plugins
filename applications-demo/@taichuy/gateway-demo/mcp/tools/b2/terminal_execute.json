@@ -1,0 +1,124 @@
+{
+  "tool_id": "terminal_execute",
+  "name": "执行本地命令",
+  "short_description": "在后端本机执行一次命令，返回退出码和完整输出。",
+  "full_description": "在1flowbase后端机器或容器执行一次性命令；Unix使用sh，Windows使用系统命令解释器。不同调用不保留工作目录或环境。长任务使用jobs；结果未知时不要自动重试。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "execute_local_command"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "One shell command, executed in the API host's environment."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "stdout",
+      "stderr",
+      "duration_ms",
+      "timed_out",
+      "truncated",
+      "discarded_bytes",
+      "encoding_lossy",
+      "output_complete",
+      "cleanup_complete"
+    ],
+    "properties": {
+      "signal": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32"
+      },
+      "stderr": {
+        "type": "string"
+      },
+      "stdout": {
+        "type": "string"
+      },
+      "exit_code": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int64"
+      },
+      "timed_out": {
+        "type": "boolean"
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "duration_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "encoding_lossy": {
+        "type": "boolean"
+      },
+      "discarded_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "output_complete": {
+        "type": "boolean"
+      },
+      "cleanup_complete": {
+        "type": "boolean"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "command",
+        "description": "在后端本机执行的命令；Unix为/bin/sh，Windows为系统cmd.exe，不自动切换到Bash或PowerShell。",
+        "default_value": null,
+        "interface_param": "command"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "command",
+        "schema": {
+          "type": "string",
+          "description": "One shell command, executed in the API host's environment."
+        },
+        "required": true,
+        "field_type": "string",
+        "description": "One shell command, executed in the API host's environment.",
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

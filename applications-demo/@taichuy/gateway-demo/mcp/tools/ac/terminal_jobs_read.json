@@ -1,0 +1,168 @@
+{
+  "tool_id": "terminal_jobs_read",
+  "name": "读取本地命令输出",
+  "short_description": "按流和字节偏移读取任务输出，返回下一游标。",
+  "full_description": "start使用显式请求标识与调用者预算；通过execution_id读取状态和输出。幂等只在声明保留窗口内有效，过期或未知结果不自动重新执行。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.jobs.read"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "execution_id",
+          "stream",
+          "offset",
+          "max_bytes"
+        ],
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "stream": {
+            "enum": [
+              "stdout",
+              "stderr"
+            ],
+            "type": "string"
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "execution_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "text",
+      "next_offset",
+      "eof",
+      "encoding_lossy"
+    ],
+    "properties": {
+      "eof": {
+        "type": "boolean"
+      },
+      "text": {
+        "type": "string"
+      },
+      "next_offset": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "encoding_lossy": {
+        "type": "boolean"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "execution_id",
+        "description": "jobs.start返回的执行ID，只有相同调用者和工作区可访问。",
+        "default_value": null,
+        "interface_param": "execution_id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_bytes",
+        "description": "本次文本或输出读取的字节预算；不足一个完整字符时明确失败。",
+        "default_value": null,
+        "interface_param": "max_bytes"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "offset",
+        "description": "从0开始的字节偏移；文本读取须位于UTF-8字符边界。",
+        "default_value": null,
+        "interface_param": "offset"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "stream",
+        "description": "选择stdout或stderr；两条流的字节偏移独立。",
+        "default_value": null,
+        "interface_param": "stream"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "execution_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_bytes",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "offset",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "stream",
+        "schema": {
+          "enum": [
+            "stdout",
+            "stderr"
+          ],
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

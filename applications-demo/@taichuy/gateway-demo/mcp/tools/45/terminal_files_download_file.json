@@ -1,0 +1,214 @@
+{
+  "tool_id": "terminal_files_download_file",
+  "name": "下载文件表文件到本地",
+  "short_description": "将有权读取的文件表记录下载到后端本机并校验SHA256。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.download_file"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "file_table_id",
+          "record_id",
+          "target_path",
+          "timeout_ms"
+        ],
+        "properties": {
+          "overwrite": {
+            "type": "boolean"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "target_path": {
+            "type": "string"
+          },
+          "file_table_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "file_table_id",
+      "record_id",
+      "target_path",
+      "byte_count",
+      "sha256"
+    ],
+    "properties": {
+      "sha256": {
+        "type": "string"
+      },
+      "record_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "byte_count": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "target_path": {
+        "type": "string"
+      },
+      "file_table_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "expected_sha256",
+        "description": "可选：已知来源内容的64位SHA256十六进制摘要；不匹配时不提交目标文件。",
+        "default_value": null,
+        "interface_param": "expected_sha256"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "file_table_id",
+        "description": "目标或来源文件表ID；不是页面ID或数据模型ID。",
+        "default_value": null,
+        "interface_param": "file_table_id"
+      },
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "overwrite",
+        "description": "是否显式允许覆盖目标文件；默认false。",
+        "default_value": null,
+        "interface_param": "overwrite"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "record_id",
+        "description": "来源文件表内的文件记录ID。",
+        "default_value": null,
+        "interface_param": "record_id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "target_path",
+        "description": "1flowbase后端机器或容器上的目标绝对文件路径，父目录须存在。",
+        "default_value": null,
+        "interface_param": "target_path"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "expected_sha256",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "file_table_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "overwrite",
+        "schema": {
+          "type": "boolean"
+        },
+        "required": false,
+        "field_type": "boolean",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "record_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "target_path",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

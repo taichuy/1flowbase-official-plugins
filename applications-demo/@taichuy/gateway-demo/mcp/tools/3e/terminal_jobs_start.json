@@ -1,0 +1,277 @@
+{
+  "tool_id": "terminal_jobs_start",
+  "name": "启动本地命令任务",
+  "short_description": "按请求标识启动本地命令，返回可继续查询的执行ID。",
+  "full_description": "start使用显式请求标识与调用者预算；通过execution_id读取状态和输出。幂等只在声明保留窗口内有效，过期或未知结果不自动重新执行。",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.jobs.start"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "command",
+          "timeout_ms",
+          "retention_ms",
+          "max_output_bytes"
+        ],
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "retention_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "max_output_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "execution_id",
+      "request_id",
+      "state",
+      "cancel_requested",
+      "duration_ms",
+      "output_complete",
+      "cleanup_complete",
+      "truncated",
+      "discarded_bytes",
+      "stdout_bytes",
+      "stderr_bytes",
+      "created_at_unix_ms",
+      "retention_ms",
+      "timeout_ms",
+      "max_output_bytes"
+    ],
+    "properties": {
+      "state": {
+        "enum": [
+          "running",
+          "completed",
+          "failed",
+          "cancelled",
+          "timed_out"
+        ],
+        "type": "string"
+      },
+      "signal": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int32"
+      },
+      "exit_code": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int64"
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "request_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "duration_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "execution_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "retention_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "stderr_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "stdout_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "discarded_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "output_complete": {
+        "type": "boolean"
+      },
+      "cancel_requested": {
+        "type": "boolean"
+      },
+      "cleanup_complete": {
+        "type": "boolean"
+      },
+      "max_output_bytes": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "created_at_unix_ms": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
+      },
+      "expires_at_unix_ms": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "int64",
+        "minimum": 0
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "command",
+        "description": "在后端本机执行的命令；Unix为/bin/sh，Windows为系统cmd.exe，不自动切换到Bash或PowerShell。",
+        "default_value": null,
+        "interface_param": "command"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "max_output_bytes",
+        "description": "stdout和stderr共享的原始字节预算；超限继续排空并报告丢弃字节数。",
+        "default_value": null,
+        "interface_param": "max_output_bytes"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "request_id",
+        "description": "调用者生成的UUID；保留窗口内同身份同参数重复请求返回同一任务，不同参数拒绝。",
+        "default_value": null,
+        "interface_param": "request_id"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "retention_ms",
+        "description": "任务完成后输出和幂等记录的保留时长，单位毫秒；运行中不按此期限回收。",
+        "default_value": null,
+        "interface_param": "retention_ms"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "command",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "max_output_bytes",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "request_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "retention_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

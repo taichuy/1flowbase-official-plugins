@@ -1,0 +1,216 @@
+{
+  "tool_id": "terminal_files_read_range",
+  "name": "读取本地文件片段",
+  "short_description": "读取指定字节范围并返回Base64数据，支持继续读取。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.files.read_range"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "required": [
+          "path",
+          "timeout_ms",
+          "offset",
+          "length"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "expected_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "data",
+      "mime_type",
+      "metadata"
+    ],
+    "properties": {
+      "data": {
+        "type": "string"
+      },
+      "metadata": {
+        "type": "object",
+        "required": [
+          "path",
+          "offset",
+          "byte_count",
+          "next_offset",
+          "eof",
+          "version"
+        ],
+        "properties": {
+          "eof": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          },
+          "byte_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_offset": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "mime_type": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [
+      {
+        "hidden": false,
+        "required": false,
+        "mcp_param": "expected_version",
+        "description": "可选：从stat或前一次读取取得的弱版本标识，用于检测文件变化，不提供快照保证。",
+        "default_value": null,
+        "interface_param": "expected_version"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "length",
+        "description": "本次二进制范围的最大字节数；通过next_offset/eof继续读取。",
+        "default_value": null,
+        "interface_param": "length"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "offset",
+        "description": "从0开始的字节偏移；文本读取须位于UTF-8字符边界。",
+        "default_value": null,
+        "interface_param": "offset"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "path",
+        "description": "1flowbase后端机器或容器上的绝对路径；文件发现使用list/stat。",
+        "default_value": null,
+        "interface_param": "path"
+      },
+      {
+        "hidden": false,
+        "required": true,
+        "mcp_param": "timeout_ms",
+        "description": "本次操作或命令的截止时长，单位毫秒；超时不自动重试。",
+        "default_value": null,
+        "interface_param": "timeout_ms"
+      }
+    ],
+    "interface_parameters": [
+      {
+        "name": "expected_version",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": false,
+        "field_type": "object",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "length",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "offset",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "path",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "field_type": "string",
+        "description": null,
+        "parameter_type": "json_body"
+      },
+      {
+        "name": "timeout_ms",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        },
+        "required": true,
+        "field_type": "integer",
+        "description": null,
+        "parameter_type": "json_body"
+      }
+    ]
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,63 @@
+{
+  "tool_id": "terminal_info",
+  "name": "查看本地终端能力",
+  "short_description": "获取后端本机的操作系统、命令解释器和可用能力。",
+  "full_description": "",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "terminal.info"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "body"
+    ],
+    "properties": {
+      "body": {
+        "type": "object",
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "required": [
+      "os",
+      "shell",
+      "execution_location",
+      "capabilities",
+      "pty"
+    ],
+    "properties": {
+      "os": {
+        "type": "string"
+      },
+      "pty": {
+        "type": "boolean"
+      },
+      "shell": {
+        "type": "string"
+      },
+      "capabilities": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "execution_location": {
+        "type": "string"
+      }
+    }
+  },
+  "input_mapping": {
+    "mappings": [],
+    "interface_parameters": []
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
