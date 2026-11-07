@@ -1,12 +1,258 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-06.3",
+  "catalog_version": "2026-11-07.1",
   "currency_code": "USD",
   "page": 33,
-  "cursor": "YWZ0ZXI6OWRmZGFmZDgtYmU5MC00NjcxLTg2YjktOGExZGU0OGZlM2Y3",
-  "next_cursor": "YWZ0ZXI6NDdhMDcyN2UtNDA2NS00OGY0LWI1NzctODYwYzRhOGFhODZh",
+  "cursor": "YWZ0ZXI6N2U1NWIwZmMtMzNhMy00NTZiLWE2OGEtYmJiNDU5YjllNTdj",
+  "next_cursor": "YWZ0ZXI6Y2ZmYzNhNTItMTM0YS00ZjYzLWJlZTMtN2RhNzVmMmRkMmJl",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/34.json",
   "rules": [
+    {
+      "provider_code": "bedrock_converse",
+      "upstream_model_id": "us.anthropic.claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "11",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "55",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "13.75",
+      "id": "96b5a32c-0fdc-4752-a76d-d427dff7e05e",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "22"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "22"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "96b5a32c-0fdc-4752-a76d-d427dff7e05e",
+      "source_checksum": "sha256:2248ff3daed047947e324255f1389ace264b10963bc525d1091e7c8df164bf1f",
+      "source_version": "2026-11-07.1"
+    },
+    {
+      "provider_code": "bedrock_converse",
+      "upstream_model_id": "us.anthropic.claude-fable-5-1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "11",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "55",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.275",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "13.75",
+      "id": "3123f917-676b-466f-90e3-0844059acb4d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "22"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5-1",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5-1",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5-1",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-fable-5-1",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "22"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3123f917-676b-466f-90e3-0844059acb4d",
+      "source_checksum": "sha256:dc3fb6f1b54a7e24886edc3fb973282a450a32ea11b08ec94bc1a6a0af4a158e",
+      "source_version": "2026-11-07.1"
+    },
+    {
+      "provider_code": "bedrock_converse",
+      "upstream_model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.11",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.375",
+      "id": "9dfdafd8-be90-4671-86b9-8a1de48fe3f7",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "2.2"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "bedrock_converse",
+              "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "2.2"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9dfdafd8-be90-4671-86b9-8a1de48fe3f7",
+      "source_checksum": "sha256:860b3a9abe5b084babf43024359746fabc06dd48e266c09d62b006f76a180ea0",
+      "source_version": "2026-11-07.1"
+    },
     {
       "provider_code": "bedrock_converse",
       "upstream_model_id": "us.anthropic.claude-haiku-5-5",
@@ -139,7 +385,7 @@
       "source_kind": "official",
       "source_catalog_id": "12cf5175-ab96-4040-9e37-4fafc269f500",
       "source_checksum": "sha256:936ac8dd91ff68d63fd8ab3416094979e3ceca81d6875164969522c5aaa80de6",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -221,7 +467,7 @@
       "source_kind": "official",
       "source_catalog_id": "0b2b61f1-e3b2-42c7-8d4e-131ac354cca1",
       "source_checksum": "sha256:e8fc9bbdd469e6b16d3f7092791d0304042809f20cc3e5dd4e43848c58a2915a",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -303,7 +549,7 @@
       "source_kind": "official",
       "source_catalog_id": "9fe5209d-e9e2-4545-9b0e-f9be30406f8c",
       "source_checksum": "sha256:661e535bba070b7621111ffe86e163de0099d10ec938678bff30299d627802a4",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -385,7 +631,7 @@
       "source_kind": "official",
       "source_catalog_id": "aaafda5e-0e69-4056-957f-d5048c5c6080",
       "source_checksum": "sha256:3abae89f03b8d48ccd2260e44dc756060f21c4d6041de9295e73954ee15a288f",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -449,7 +695,7 @@
       "source_kind": "official",
       "source_catalog_id": "b0a392ce-42cc-4881-84d7-5af844e1b967",
       "source_checksum": "sha256:0e9d2a84728356b3821b0ec7621fc0ccdd6cfeb2e4b08c8d75fbb2eb7813194b",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -513,7 +759,7 @@
       "source_kind": "official",
       "source_catalog_id": "2f6f892f-0eb1-4fc9-a0da-3744f4eae80d",
       "source_checksum": "sha256:6b94b3ffd67364bbe1951c444d8145590a30e619671584207792a5ba89f51051",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -595,7 +841,7 @@
       "source_kind": "official",
       "source_catalog_id": "9b66994c-4275-4b28-9dcc-16ff45071eb2",
       "source_checksum": "sha256:44da9111c39a61ebb1165434406c9d89763a43c6be94966323f70b8bc0322702",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -677,7 +923,7 @@
       "source_kind": "official",
       "source_catalog_id": "986e598d-27c1-45bf-a26e-bceb08370643",
       "source_checksum": "sha256:66656294eba0237106629a2d9309e821ffa1e02cc2d28646384cd2885a120a12",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -759,7 +1005,7 @@
       "source_kind": "official",
       "source_catalog_id": "6ea15094-69df-4c53-b637-32c432f2b529",
       "source_checksum": "sha256:8da6e416e47a1dfdd2f9b2508d439914c2e82b93e34c7ae498faac55138995b0",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -841,7 +1087,7 @@
       "source_kind": "official",
       "source_catalog_id": "57b8d145-a5ff-4c0e-bda7-6f491d75da8b",
       "source_checksum": "sha256:83e091a395ac311f15c9322bfcdaed162db7a0b235ac65a862eb053128a2736b",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -923,7 +1169,7 @@
       "source_kind": "official",
       "source_catalog_id": "f1dcedc2-2263-4bdc-9e15-4e4875051203",
       "source_checksum": "sha256:5f2aa1011dbf75cb43aee644b64fdebc11c50a6e23efc5656e3a9f2349ca55a7",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -1005,7 +1251,7 @@
       "source_kind": "official",
       "source_catalog_id": "52102a09-ca4e-44c1-8db2-a97c86ee55d5",
       "source_checksum": "sha256:6bb62fd0e30973e59f84bffdc09788228d021f6e9dfc8f511d829e3af31c6313",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -1099,7 +1345,7 @@
       "source_kind": "official",
       "source_catalog_id": "0fe5d114-9f2f-4e3f-8a6d-98c97b918ad0",
       "source_checksum": "sha256:9993ffab3e0d31b49b470a74b0394a18432e2ca58e07241c521d2ac9b89c6705",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -1233,7 +1479,7 @@
       "source_kind": "official",
       "source_catalog_id": "6bbf9902-989f-48a3-b8a9-de0459b42834",
       "source_checksum": "sha256:e6fce278e801ead7fe4e29f55277700791eb2d4c95323a5bd2449b1b037b36fd",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -1315,7 +1561,7 @@
       "source_kind": "official",
       "source_catalog_id": "7b2347f4-7445-464f-836d-dad07f7f103b",
       "source_checksum": "sha256:5ab30b4ff6ec93f0d698474a561b4c13794f786511d7bc785228ba86b6974658",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -1397,7 +1643,7 @@
       "source_kind": "official",
       "source_catalog_id": "c33659e3-43bf-4267-9a94-d9647a8725c4",
       "source_checksum": "sha256:d0bb250b4380f6c02f3b38b7282499f8a6712ad0258107f3bccb0811a5e9a1e0",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     },
     {
       "provider_code": "bedrock_converse",
@@ -1479,259 +1725,7 @@
       "source_kind": "official",
       "source_catalog_id": "cffc3a52-134a-4f63-bee3-7da75f2dd2be",
       "source_checksum": "sha256:741551a1d505c6673de181a26327a27417235db1ed0dc0f74b04bfb13efa6625",
-      "source_version": "2026-11-06.3"
-    },
-    {
-      "provider_code": "bedrock_converse",
-      "upstream_model_id": "us.moonshotai.kimi-k3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "16.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.33",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4.125",
-      "id": "02162bd4-3027-4d8f-97bf-fec44c537a50",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.moonshotai.kimi-k3",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.moonshotai.kimi-k3",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.moonshotai.kimi-k3",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.moonshotai.kimi-k3",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "02162bd4-3027-4d8f-97bf-fec44c537a50",
-      "source_checksum": "sha256:dfdac46820c245d02c7893ad4ce80ecc7cb2d6f1ccc813ed82599dc68f8defba",
-      "source_version": "2026-11-06.3"
-    },
-    {
-      "provider_code": "bedrock_converse",
-      "upstream_model_id": "us.openai.gpt-5.6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.22",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.32",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.022",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.275",
-      "id": "21156d0d-d582-443a-9d00-fd7853c932d0",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.44",
-            "output_token_unit_price": "1.98",
-            "cache_hit_token_unit_price": "0.044",
-            "cache_write_token_unit_price": "0.55"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-luna",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-luna",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-luna",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-luna",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.44",
-                "output_token_unit_price": "1.98",
-                "cache_hit_token_unit_price": "0.044",
-                "cache_write_token_unit_price": "0.55"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "21156d0d-d582-443a-9d00-fd7853c932d0",
-      "source_checksum": "sha256:d63b5a48c2d767fec9d0f186573df1c87fd22ff9f1fa31351c20dc6e90a3bb55",
-      "source_version": "2026-11-06.3"
-    },
-    {
-      "provider_code": "bedrock_converse",
-      "upstream_model_id": "us.openai.gpt-5.6-sol",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "22",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.44",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5.5",
-      "id": "47a0727e-4065-48f4-b577-860c4a8aa86a",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "8.8",
-            "output_token_unit_price": "33",
-            "cache_hit_token_unit_price": "0.88",
-            "cache_write_token_unit_price": "11"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-sol",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-sol",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-sol",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "bedrock_converse",
-              "model": "us.openai.gpt-5.6-sol",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "8.8",
-                "output_token_unit_price": "33",
-                "cache_hit_token_unit_price": "0.88",
-                "cache_write_token_unit_price": "11"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "47a0727e-4065-48f4-b577-860c4a8aa86a",
-      "source_checksum": "sha256:2299352c7bd15a8cf39d12e04a07f1372fd19071dab81054b2ad09f461e5c630",
-      "source_version": "2026-11-06.3"
+      "source_version": "2026-11-07.1"
     }
   ]
 }
