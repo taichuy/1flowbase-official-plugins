@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-10.2",
+  "catalog_version": "2026-11-10.3",
   "currency_code": "USD",
   "page": 20,
-  "cursor": "YWZ0ZXI6MGJlYzIyYjMtYWMzMS00NDBlLThlYTgtNWEyOGU4Mzg5MGI4",
-  "next_cursor": "YWZ0ZXI6YzA4YzgyODUtZWI1Yy00YTcyLWJjMzItZDdlNjFmNGZlMzI4",
+  "cursor": "YWZ0ZXI6N2I2Yjc0NmQtNWUwNS00NmFhLWE1Y2QtOTY0ZmNlOTc1MTNj",
+  "next_cursor": "YWZ0ZXI6OTNjOTUwMDMtYzk2NC00MDBhLWEzODEtZjUzYTY4MDZlYTYz",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/21.json",
   "rules": [
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "apac/gpt-6.1-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.06",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.5",
+      "id": "0bec22b3-ac31-440e-8ea8-5a28e83890b8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2.4",
+            "output_token_unit_price": "9",
+            "cache_hit_token_unit_price": "0.12",
+            "cache_write_token_unit_price": "3"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "apac/gpt-6.1-terra",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "apac/gpt-6.1-terra",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "apac/gpt-6.1-terra",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "apac/gpt-6.1-terra",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2.4",
+                "output_token_unit_price": "9",
+                "cache_hit_token_unit_price": "0.12",
+                "cache_write_token_unit_price": "3"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0bec22b3-ac31-440e-8ea8-5a28e83890b8",
+      "source_checksum": "sha256:9bdd0d5d4f96e026b27c982891af0c386cda321e6e0d672a6c5290afa8d867bb",
+      "source_version": "2026-11-10.3"
+    },
     {
       "provider_code": "azure",
       "upstream_model_id": "claude-fable-5",
@@ -69,7 +163,7 @@
       "source_kind": "official",
       "source_catalog_id": "a6a8e48a-4221-4e74-aab4-59c5cd26dbc0",
       "source_checksum": "sha256:ba39f8c7e19f4887f7a25bcf72b30eb4cd40ed5566681e4c9dd26a2e12533167",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -133,7 +227,7 @@
       "source_kind": "official",
       "source_catalog_id": "d0418449-19df-4a71-bbf7-17b396d786b3",
       "source_checksum": "sha256:38f260d8f39996332b22917c5966ffd46ab03dd0dc2821c129975610a03abcaf",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -197,7 +291,7 @@
       "source_kind": "official",
       "source_catalog_id": "4f3351c0-6cd0-4b65-82df-ecae00f72705",
       "source_checksum": "sha256:b658b4087a7563fa04ef35ed00605c4eee533ed2df4f3d23a905b11db4397441",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -261,7 +355,7 @@
       "source_kind": "official",
       "source_catalog_id": "507f7d80-c1e3-4bc1-9014-aab252fdfcdb",
       "source_checksum": "sha256:b5b28ac7b9683e775c411b753f3b6513e3bfa9bf0fbaf8d4bf462ab2f7cff5da",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -355,7 +449,7 @@
       "source_kind": "official",
       "source_catalog_id": "fac82235-a084-4333-8e61-bb97b3155fbd",
       "source_checksum": "sha256:e89d3a8709266603100e7a569d3182d2abc7684058f87cda6727959888947c34",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -419,7 +513,7 @@
       "source_kind": "official",
       "source_catalog_id": "7dfa5ba5-c5d6-476c-9298-195daa642265",
       "source_checksum": "sha256:eacf3c50204150ad675faea75db903a65f8a3c975cc6d7713254b81d3753703f",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -483,7 +577,7 @@
       "source_kind": "official",
       "source_catalog_id": "39df2ea5-9bbb-45a6-9bbe-e874ce3aa46e",
       "source_checksum": "sha256:e2ef6d861bbfc8e8337fb7eedc4b3888433d2850edcb2016f702c33226823450",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -577,7 +671,7 @@
       "source_kind": "official",
       "source_catalog_id": "0ae94e03-bee2-4b35-badc-99f6e9a63561",
       "source_checksum": "sha256:4cd6d1752a003d1714354c634d681a1fce5c30c4565eb0ecea44d70c91777830",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -641,7 +735,7 @@
       "source_kind": "official",
       "source_catalog_id": "29ad1981-6b4e-4ef0-a3d4-2957562e84f2",
       "source_checksum": "sha256:7cf9a45b760257b06eb5346aef16d60fc26df72297d424f640ef390db59b5d61",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -735,7 +829,7 @@
       "source_kind": "official",
       "source_catalog_id": "df61ff9c-0524-4933-a749-6e9d8adbf8d0",
       "source_checksum": "sha256:d56b1f416a75481e490dda4a2a66d3655beda4d214dfaa93954556d2b2fe9a6c",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -799,7 +893,7 @@
       "source_kind": "official",
       "source_catalog_id": "2690af95-8375-4ae0-aba7-97b773055c4b",
       "source_checksum": "sha256:e070f554e41d7d805d108dbb75688951ae9475da26dc31e3efe42b6396260211",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -863,7 +957,7 @@
       "source_kind": "official",
       "source_catalog_id": "deb77230-7dfb-430d-af38-ee46ca483c0e",
       "source_checksum": "sha256:9a7e4ce8da577f3e245ef276589ab73e377b0eae66cc7d557b328de1ac16049b",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -927,7 +1021,7 @@
       "source_kind": "official",
       "source_catalog_id": "a54ce646-c84b-4f2a-8eba-701e5fa09be2",
       "source_checksum": "sha256:71bad562938e3469c80f1b34f9199873a36c04691e198f8921dc6816015a5809",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -991,7 +1085,7 @@
       "source_kind": "official",
       "source_catalog_id": "d1869d7f-b79b-4328-a1ac-be15fb4bd953",
       "source_checksum": "sha256:18a9b3bf4683a93b075b57896dcd247758c6f7cf2fdc1c09d1d45cd671e44f0b",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -1055,7 +1149,7 @@
       "source_kind": "official",
       "source_catalog_id": "d0f1b934-081a-4fa5-8e22-257101a75909",
       "source_checksum": "sha256:9dcdd131ee882d7849f48d6c489ca678474c47dd45836cb8e59248cc2ad6f040",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -1119,7 +1213,7 @@
       "source_kind": "official",
       "source_catalog_id": "8b31639f-c8b9-4add-8600-36c99594291e",
       "source_checksum": "sha256:396d2a92c9b3197f852f0c68029818f6f2bbaa814a2586cd50b2e8db9a924cff",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -1183,7 +1277,7 @@
       "source_kind": "official",
       "source_catalog_id": "1b79b94c-2852-4787-b055-f5643a612012",
       "source_checksum": "sha256:ad14982ad8d73c571bfdbbc440ab1e4df607b528c130073a94ce85ed15343d8c",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -1247,7 +1341,7 @@
       "source_kind": "official",
       "source_catalog_id": "cb293a24-5b60-455c-ad7f-2372e7a49342",
       "source_checksum": "sha256:00e6d600461e35a707e1b1bdbdaa66ef2217195de6dc028b8ead78e97d9270ca",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     },
     {
       "provider_code": "azure",
@@ -1341,101 +1435,7 @@
       "source_kind": "official",
       "source_catalog_id": "93c95003-c964-400a-a381-f53a6806ea63",
       "source_checksum": "sha256:e18def69c67c5d1de39f6b2f531becc614eeb15128355f7d6a9cd4481a6e85db",
-      "source_version": "2026-11-10.2"
-    },
-    {
-      "provider_code": "azure",
-      "upstream_model_id": "eu/gpt-5.6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.22",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.32",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.022",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.275",
-      "id": "c08c8285-eb5c-4a72-bc32-d7e61f4fe328",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.44",
-            "output_token_unit_price": "1.98",
-            "cache_hit_token_unit_price": "0.044",
-            "cache_write_token_unit_price": "0.55"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "eu/gpt-5.6-luna",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "eu/gpt-5.6-luna",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "eu/gpt-5.6-luna",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "eu/gpt-5.6-luna",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.44",
-                "output_token_unit_price": "1.98",
-                "cache_hit_token_unit_price": "0.044",
-                "cache_write_token_unit_price": "0.55"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c08c8285-eb5c-4a72-bc32-d7e61f4fe328",
-      "source_checksum": "sha256:919f82316b276386cea852789d75d2108fe059ee4d382241d36c7567235f00ad",
-      "source_version": "2026-11-10.2"
+      "source_version": "2026-11-10.3"
     }
   ]
 }
