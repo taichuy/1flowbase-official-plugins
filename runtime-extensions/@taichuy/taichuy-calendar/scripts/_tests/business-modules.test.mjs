@@ -21,11 +21,13 @@ assert.ok(Array.isArray(contract.businessModules), 'Root build must write busine
 const modules = contract.businessModules;
 const namespaces = new Map();
 const texts = new Map();
+const moduleDeclarations = new Map();
 for (const descriptor of modules) {
   const asset = descriptor.assets?.[0];
   assert.ok(asset?.path.startsWith('_assets/ui/business/'), 'Only business assets belong in this fixture');
   const path = resolve(root, asset.path);
   texts.set(descriptor.source, await readFile(path, 'utf8'));
+  moduleDeclarations.set(descriptor.source, await readFile(resolve(root, descriptor.type_declarations_file), 'utf8'));
   const { createFrontendModule } = await import(pathToFileURL(path).href);
   assert.equal(typeof createFrontendModule, 'function');
   // A self-contained factory may not even read a host/fetched namespace.
@@ -39,7 +41,8 @@ for (const descriptor of modules) {
 test('five exact sources have closed factory assets, real hashes, and complete actual exports', () => {
   assert.deepEqual(modules.map((item) => item.source).sort(), Object.keys(expectedVersions).sort());
   for (const descriptor of modules) {
-    const { source, version, exports: names, binding, assets, type_declarations: declarations } = descriptor;
+    const { source, version, exports: names, binding, assets } = descriptor;
+    const declarations = moduleDeclarations.get(source);
     assert.equal(version, expectedVersions[source]);
     assert.equal(binding, 'fetched');
     assert.equal(assets.length, 1);
@@ -141,7 +144,7 @@ test('published declarations compile real consumers and reject unavailable field
   const externalEntries = new Map();
   for (const descriptor of modules) {
     const path = resolve(root, `types/business/.qa-virtual/${descriptor.source}.d.ts`);
-    virtualFiles.set(path, descriptor.type_declarations);
+    virtualFiles.set(path, moduleDeclarations.get(descriptor.source));
     roots.push(path);
     if (descriptor.source !== 'iztro') externalEntries.set(descriptor.source, path);
   }
@@ -173,7 +176,7 @@ test('published declarations compile real consumers and reject unavailable field
   assert.equal(diagnostics.length, 0, ts.formatDiagnostics(diagnostics.slice(0, 20), {
     getCanonicalFileName: (path) => path, getCurrentDirectory: () => root, getNewLine: () => '\n',
   }));
-  const iztro = ts.createSourceFile('iztro.d.ts', modules.find((item) => item.source === 'iztro').type_declarations,
+  const iztro = ts.createSourceFile('iztro.d.ts', moduleDeclarations.get('iztro'),
     ts.ScriptTarget.Latest, true);
   assert.ok(iztro.statements.every((node) => ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name)),
     'The iztro declarations must be a script of absolute ambient modules, not an outer external module');

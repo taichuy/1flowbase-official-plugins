@@ -216,7 +216,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 
 六个独立组件贡献显式声明 `ui_registration: component`，只自动注册到
 `/settings/ui-management/components`，不再作为官方条目出现在代码模板列表。
-组件的 `code_template` 仍是挂载源码，不重复注册为模板；另一个 `CalendarComposition` 贡献显式声明
+组件的 `code_template_file` 引用独立挂载源码，不重复注册为模板；另一个 `CalendarComposition` 贡献显式声明
 `ui_registration: code_template`，由底座的安装 / 版本切换事务维护完整组合模板。插件官方模板与手工副本有独立身份；不按展示名覆盖无关手工内容。
 底座负责根据声明进行注册、升级、只读归属和卸载清理；插件不直接写组件表。
 需要支持该字段的底座源码；已发布旧版 0.6.1 不支持此契约。
@@ -266,3 +266,11 @@ Node 参照和真实 Rust 接口须按相同版本包装比较，且独立日期
 ### 接口权限与设置入口
 
 日历插件不注册后台设置页。后端计算接口按稳定插件标识 `taichuy-calendar` 注册到权限管理的「插件」页签，可按角色设置启用、完全访问或自定义接口访问；前端组件继续通过受管接口调用计算能力。
+
+## 注册目标边界
+
+注册边界：这些贡献均声明 `block_registration: false`，只进入组件或代码模板目录，不直接出现在区块管理与创建区块菜单。此字段需要宿主 0.6.3；执行授权和编辑器模块导入仍使用完整的前端贡献目录。
+
+源码声明：manifest 只保留文件引用，六个挂载入口位于 `ui/components/*.tsx`；完整组合模板引用 `ui/templates/calendar-composition.tsx`，由生成器从 `examples/composed-page.tsx` 原样复制。`type_declarations_file` 引用 `ui/types/` 中的公开 API、宿主绑定与业务包声明；公开 API 从 `types/index.d.ts` 复制，业务类型沿用构建时已有的完整声明。`ui/` 由现有打包器随包交付，不需要将整个源码目录发布。
+
+底座 0.6.3 在安装准备阶段读取这些文件并保存源码快照，不把文件路径当成源码，也不改写已签名 manifest。日历的 YAML 不再内联 TSX 或类型声明；注册目标和执行授权保持独立。

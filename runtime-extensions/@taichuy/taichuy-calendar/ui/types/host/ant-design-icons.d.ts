@@ -1,0 +1,9 @@
+export declare const CompassOutlined: any;
+export declare const CalculatorOutlined: any;
+export declare const InfoCircleOutlined: any;
+export declare const CopyOutlined: any;
+export declare const LeftOutlined: any;
+export declare const RightOutlined: any;
+export declare const FileTextOutlined: any;
+export declare const QuestionCircleOutlined: any;
+export declare const ReloadOutlined: any;

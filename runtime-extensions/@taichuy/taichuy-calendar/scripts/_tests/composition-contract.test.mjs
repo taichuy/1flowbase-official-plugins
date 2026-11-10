@@ -65,8 +65,11 @@ test('plugin installs one complete code template with a stable identity alongsid
   assert.equal((manifest.match(/^    ui_registration: code_template$/gm) ?? []).length, 1);
   const block = manifest.split('  - contribution_code: CalendarComposition\n')[1];
   assert.ok(block, 'The composition has its own stable template contribution');
-  const code = block.match(/^    code_template: (.+)$/m)?.[1];
-  assert.equal(JSON.parse(code), source, 'Registered source must be the whole current editable block');
+  const sourceFile = block.match(/^    code_template_file: (.+)$/m)?.[1];
+  assert.equal(sourceFile, 'ui/templates/calendar-composition.tsx');
+  assert.equal(await readFile(resolve(root, sourceFile), 'utf8'), source,
+    'Registered file must contain the whole current editable block');
+  assert.doesNotMatch(manifest, /(?:^\s*code_template:|"type_declarations":)/m);
   assert.match(source, /你我悉数应知，此世必当载于青史，/);
   assert.match(source, /吾等将远迈先人的大功业/);
   assert.equal((manifest.match(/contribution_id: taichuy-calendar.CalendarComposition/g) ?? []).length, 2,

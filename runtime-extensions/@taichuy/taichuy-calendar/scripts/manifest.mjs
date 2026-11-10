@@ -1,6 +1,6 @@
 import { operations, object, operationId, route, outputSchema } from './runtime-contract.mjs';
 import { dataSchemas } from './runtime-schemas.mjs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { root } from './toolchain.mjs';
 import { moduleSource, componentExports, publicExports, hostModules } from './module-contract.mjs';
@@ -27,16 +27,15 @@ export async function manifestText(sha256, businessModules) {
     throw new Error('A real browser.js SHA-256 is required; never publish a placeholder manifest');
   }
   if (!Array.isArray(businessModules) || businessModules.length !== 5) throw new Error('Five built business module contracts are required');
-  const compositionSource = await readFile(resolve(root, 'examples/composed-page.tsx'), 'utf8');
-  const typeDeclarations = await readFile(resolve(root, 'types/index.d.ts'), 'utf8');
+  if (businessModules.some((module) => !module.type_declarations_file || Object.hasOwn(module, 'type_declarations'))) {
+    throw new Error('Business module declarations must reference packaged .d.ts files');
+  }
   const codeModules = [
     ...hostModules.map((module) => ({ ...module, binding: 'host',
-      type_declarations: module.exports.map((name) => name === 'default'
-        ? 'declare const defaultExport: any; export default defaultExport;'
-        : `export declare const ${name}: any;`).join('\n') })),
+      type_declarations_file: `ui/types/host/${module.source.replaceAll('@', '').replaceAll('/', '-')}.d.ts` })),
     { source: moduleSource, version: '0.1.19', exports: publicExports, binding: 'fetched',
       assets: [{ path: '_assets/ui/browser.js', role: 'browser_module', media_type: 'text/javascript; charset=utf-8', sha256 }],
-      type_declarations: typeDeclarations },
+      type_declarations_file: 'ui/types/index.d.ts' },
     ...businessModules,
   ];
   const manifest = {
@@ -46,7 +45,7 @@ export async function manifestText(sha256, businessModules) {
     description: 'Independent lunar calendar, almanac, birth information, ZiWei and Bazi with local astronomical calculations',
     source_kind: 'official_registry', trust_level: 'verified_official', consumption_kind: 'runtime_extension',
     execution_mode: 'process_per_call', slot_codes: [], binding_targets: ['system'],
-    selection_mode: 'assignment_then_select', minimum_host_version: '0.6.2',
+    selection_mode: 'assignment_then_select', minimum_host_version: '0.6.3',
     contract_version: '1flowbase.extension-bus/v1',
     permissions: { network: 'none', secrets: 'none', storage: 'none', mcp: 'none', subprocess: 'deny' },
     runtime: { protocol: 'stdio_json', entry: 'bin/taichuy-calendar' },
@@ -72,8 +71,8 @@ export async function manifestText(sha256, businessModules) {
     },
     block_contributions: frontendContributions.map((name) => ({
       contribution_code: name, title: name === templateContributionCode ? '太初y 日历排盘 · 可编辑区块 / Editable Calendar Block' : titles[name],
-      runtime: 'native_react', entry: 'default', ui_registration: name === templateContributionCode ? 'code_template' : 'component',
-      code_template: name === templateContributionCode ? compositionSource : `import { ${name} } from '${moduleSource}';\nexport default function Block() { return <${name} />; }\n`,
+      runtime: 'native_react', entry: 'default', block_registration: false, ui_registration: name === templateContributionCode ? 'code_template' : 'component',
+      code_template_file: name === templateContributionCode ? 'ui/templates/calendar-composition.tsx' : `ui/components/${name}.tsx`,
       code_template_version: '0.1.19', code_template_language: 'tsx', code_modules: codeModules,
       context_contract: { primitives: [], input_schema: { type: 'object', additionalProperties: false, properties: {} } },
       permissions: { network: 'none', storage: 'none', secrets: 'none' },
@@ -85,6 +84,19 @@ export async function manifestText(sha256, businessModules) {
 }
 
 export async function writeManifest(sha256, businessModules) {
+  // ui/ is shipped by the host packager. Keep the authoring example and public
+  // declarations canonical; publish exact file copies, never YAML string copies.
+  await mkdir(resolve(root, 'ui/templates'), { recursive: true });
+  await mkdir(resolve(root, 'ui/types/host'), { recursive: true });
+  await copyFile(resolve(root, 'examples/composed-page.tsx'), resolve(root, 'ui/templates/calendar-composition.tsx'));
+  await copyFile(resolve(root, 'types/index.d.ts'), resolve(root, 'ui/types/index.d.ts'));
+  for (const module of hostModules) {
+    const declarations = module.exports.map((name) => name === 'default'
+      ? 'declare const defaultExport: any; export default defaultExport;'
+      : `export declare const ${name}: any;`).join('\n') + '\n';
+    const filename = module.source.replaceAll('@', '').replaceAll('/', '-');
+    await writeFile(resolve(root, `ui/types/host/${filename}.d.ts`), declarations);
+  }
   await writeFile(resolve(root, 'manifest.yaml'), await manifestText(sha256, businessModules));
 }
 

@@ -207,10 +207,13 @@ export async function buildBusinessModules(esbuild) {
     const path = `_assets/ui/business/${source}.js`;
     await mkdir(dirname(resolve(root, path)), { recursive: true });
     await writeFile(resolve(root, path), text);
+    const typeFile = `ui/types/business/${source}.d.ts`;
+    await mkdir(dirname(resolve(root, typeFile)), { recursive: true });
+    await writeFile(resolve(root, typeFile), declarations[source].replace(/[\t ]+$/gm, ''));
     modules.push({ source, version, exports: Array.from(names), binding: 'fetched',
       assets: [{ path, role: 'browser_module', media_type: 'text/javascript; charset=utf-8',
         sha256: createHash('sha256').update(text).digest('hex') }],
-      type_declarations: declarations[source] });
+      type_declarations_file: typeFile });
     // Match esbuild's inputs shape for the existing license collector.
     for (const [path, input] of Object.entries(result.metafile.inputs)) {
       if (!path.startsWith('business-entry:')) inputs[path] = input;

@@ -235,7 +235,7 @@ provider/portal ownership. The native surface must contain the host style hooks.
 
 The six reusable component contributions explicitly declare `ui_registration: component`. They are
 registered only in `/settings/ui-management/components`, not as official code templates.
-`code_template` remains the component mounting source. A separate `CalendarComposition` contribution declares `ui_registration: code_template`, registering the complete editable block at `/settings/ui-management/code-templates`. Installation creates it when absent and upgrades update the same stable `taichuy-calendar / CalendarComposition` identity; repeated activation does not add duplicates. Its source is `examples/composed-page.tsx`, including the editable assistant and full calendar/almanac/birth/chart composition. Plugin templates and manual copies have separate identities; unrelated manual content is never matched by display name or overwritten.
+`code_template_file` references a separate component mounting entry. A separate `CalendarComposition` contribution declares `ui_registration: code_template`, registering the complete editable block at `/settings/ui-management/code-templates`. Installation creates it when absent and upgrades update the same stable `taichuy-calendar / CalendarComposition` identity; repeated activation does not add duplicates. Its source is `examples/composed-page.tsx`, including the editable assistant and full calendar/almanac/birth/chart composition. Plugin templates and manual copies have separate identities; unrelated manual content is never matched by display name or overwritten.
 The host owns registration, upgrade, read-only provenance and uninstall cleanup. The plugin never writes component tables.
 A host source build supporting this field is required; the previously published 0.6.1 release does not support this contract.
 
@@ -272,3 +272,11 @@ The calendar plugin does not register an admin settings page. Its backend calcul
 `ZiWei`, `Bazi`, and their Calculator primitives accept `renderAIHelper(data)` to replace the entire assistant. The editable page in `examples/composed-page.tsx` owns its copy, buttons, layout, and data display, so MCP can edit the block source directly. The plugin keeps chart calculation and navigation and passes the complete `natalText` used by the original copy action, plus `copyNatal()`. Ziwei also provides `horoscopeText`, `viewDate`, and `copyHoroscope()`; Bazi provides `selectedDaYunIndex`. Birth and horoscope changes supply current data. Omit the prop for the original assistant, or return `null` to omit only the assistant.
 
 These values are browser render data, not automatically persisted records or external MCP access to browser memory. An external agent can calculate chart data through the existing `bazi.calculate` / `ziwei.calculate` managed services with explicit birth inputs; that request does not share the browser's live selection.
+
+## UI registration targets
+
+Registration boundary: all these contributions declare `block_registration: false`. They appear only as components or code templates, not as directly creatable blocks. This field requires host 0.6.3; runtime authorization and editor imports continue to use the complete frontend contribution catalog.
+
+Source declarations: the manifest contains file references. The six mounting entries live in `ui/components/*.tsx`; the complete composition references `ui/templates/calendar-composition.tsx`, copied unchanged from `examples/composed-page.tsx` by the generator. `type_declarations_file` references public API, host-binding and business-package declarations under `ui/types/`. The public API is copied from `types/index.d.ts`; business declarations retain their complete existing build output. The existing packager includes `ui/`, so the full authoring source tree need not be published.
+
+Host 0.6.3 reads these files during installation preparation and persists source snapshots. It does not interpret file paths as source or rewrite the signed manifest. The calendar YAML no longer embeds TSX or declaration text; registration targets and execution authority remain separate.

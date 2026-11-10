@@ -9,7 +9,8 @@ import { publicExports, hostModules, businessDependencies, bundledSupportDepende
 
 // Release readiness only: this does NOT claim host installation or UI acceptance.
 // Contracts, metadata and manifest generation always come from this trusted source
-// root: published archives intentionally do not contain migration/, scripts/ or types/.
+// root: published archives omit migration/, scripts/ and authoring types/;
+// all registered source/type files are published under ui/.
 // null is used only by the pre-cargo asset check; the default still requires bin/.
 export async function checkPackage(assetRoot = root,
   runtimeBinary = resolve(assetRoot, `bin/taichuy-calendar${process.platform === 'win32' ? '.exe' : ''}`)) {
@@ -27,6 +28,24 @@ export async function checkPackage(assetRoot = root,
   assert.equal(manifest, expectedManifest, 'Package manifest must match the source contract (including target runtime.entry)');
   assert.equal(manifest.match(/ui_registration: component/g)?.length, 6, 'The six reusable UI components stay in component management');
   assert.equal(manifest.match(/ui_registration: code_template/g)?.length, 1, 'Register exactly one complete editable composition template');
+  assert.doesNotMatch(manifest, /(?:^\s*(?:code_template|type_declarations):|"type_declarations":)/m,
+    'Published registration declarations must reference files, never inline source');
+  const templateFiles = [...manifest.matchAll(/^    code_template_file: (.+)$/gm)].map((match) => match[1]);
+  assert.equal(templateFiles.length, 7);
+  for (const path of templateFiles) {
+    assert.ok((await readFile(resolve(assetRoot, path), 'utf8')).trim(), `Missing packaged template ${path}`);
+  }
+  assert.equal(await readFile(resolve(assetRoot, 'ui/templates/calendar-composition.tsx'), 'utf8'),
+    await readFile(resolve(root, 'examples/composed-page.tsx'), 'utf8'), 'Publish the complete editable source');
+  assert.equal(await readFile(resolve(assetRoot, 'ui/types/index.d.ts'), 'utf8'),
+    await readFile(resolve(root, 'types/index.d.ts'), 'utf8'), 'Publish the complete public API declarations');
+  for (const module of hostModules) {
+    const filename = module.source.replaceAll('@', '').replaceAll('/', '-');
+    const expectedTypes = module.exports.map((name) => name === 'default'
+      ? 'declare const defaultExport: any; export default defaultExport;'
+      : `export declare const ${name}: any;`).join('\n') + '\n';
+    assert.equal(await readFile(resolve(assetRoot, `ui/types/host/${filename}.d.ts`), 'utf8'), expectedTypes);
+  }
   assert.doesNotMatch(manifest, /^  feature:|^settings_pages:|\/settings\/taichuy-calendar/m,
     'Calendar exposes backend calculations and components without an admin settings page');
 
@@ -64,7 +83,10 @@ export async function checkPackage(assetRoot = root,
   assert.equal(contract.businessModules.length, 5);
   for (const module of contract.businessModules) {
     assert.equal(module.version, businessDependencies[module.source]);
-    assert.ok(module.type_declarations.trim());
+    assert.equal(Object.hasOwn(module, 'type_declarations'), false);
+    const declarations = await readFile(resolve(assetRoot, module.type_declarations_file), 'utf8');
+    assert.ok(declarations.trim());
+    assert.equal(declarations, await readFile(resolve(root, module.type_declarations_file), 'utf8'));
     for (const asset of module.assets) {
       const bytes = await readFile(resolve(assetRoot, asset.path));
       assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256);
@@ -86,7 +108,7 @@ export async function checkPackage(assetRoot = root,
   for (const [name, version] of Object.entries(businessDependencies)) assert.equal(backendContract.packages[name], version);
   assert.ok(backendContract.inputs.length > 0);
   assert.ok(!backendContract.inputs.some(input => input.startsWith('/home/')), 'No build-machine absolute source paths in release metadata');
-  assert.match(manifest, /minimum_host_version: 0\.6\.2(?:\n|$)/);
+  assert.match(manifest, /minimum_host_version: 0\.6\.3(?:\n|$)/);
   return {
     frontend: { status: 'release_files_ready', sha256: digest, exports: publicExports,
       note: 'Host schema/loader installation and component behavior still require centralized QA.' },
