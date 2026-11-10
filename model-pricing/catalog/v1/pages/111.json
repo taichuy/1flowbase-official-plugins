@@ -1,12 +1,234 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-10.3",
+  "catalog_version": "2026-11-10.4",
   "currency_code": "USD",
   "page": 111,
-  "cursor": "YWZ0ZXI6OWQ1NGFkNjAtOTg5Yy00NzRmLWIxZDEtYWVkMmQ3MjYzMjJi",
-  "next_cursor": "YWZ0ZXI6M2MwNzVkMTQtZmY2NC00NDdmLTg4MDEtYzI2MzhmMDNhY2Uy",
+  "cursor": "YWZ0ZXI6NWZiN2JlMTQtMjJkZi00N2M4LWExNDctYWZmMTc1Njc1ZTFi",
+  "next_cursor": "YWZ0ZXI6MTYyNzIyZmEtMTlkNi00MjYwLTgwYTQtYTA1NDBkYTUzYzc4",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/112.json",
   "rules": [
+    {
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.7-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.475",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.425",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.295",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.84375",
+      "id": "dbefd16d-d8f5-4779-858c-5f1884e1c9e3",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "dbefd16d-d8f5-4779-858c-5f1884e1c9e3",
+      "source_checksum": "sha256:f5bffaa2183ac2320b46a2843f34e30779457886e2c104736dee5b224d8ee4e7",
+      "source_version": "2026-11-10.4"
+    },
+    {
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.7-plus",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.32",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.28",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.064",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.4",
+      "id": "f34507ba-ea65-4144-9545-d4150d707452",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.96",
+            "output_token_unit_price": "3.84",
+            "cache_hit_token_unit_price": "0.192",
+            "cache_write_token_unit_price": "1.2"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.96",
+                "output_token_unit_price": "3.84",
+                "cache_hit_token_unit_price": "0.192",
+                "cache_write_token_unit_price": "1.2"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f34507ba-ea65-4144-9545-d4150d707452",
+      "source_checksum": "sha256:aa4af046870eabfc78cf8b56ad966287e5edb642bac88545b6315303d2dbb010",
+      "source_version": "2026-11-10.4"
+    },
+    {
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.8-27b",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.425",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2.55",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.085",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.53125",
+      "id": "9d54ad60-989c-474f-b1d1-aed2d726322b",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9d54ad60-989c-474f-b1d1-aed2d726322b",
+      "source_checksum": "sha256:b963d7cdbc35f0ced3cdac10a0ab0adecab209429754104274c7bb15fb5b2cd6",
+      "source_version": "2026-11-10.4"
+    },
     {
       "provider_code": "standardcompute",
       "upstream_model_id": "qwen/qwen3.8-flash",
@@ -69,7 +291,7 @@
       "source_kind": "official",
       "source_catalog_id": "f368934e-0281-41ac-9554-27c1e77d63c8",
       "source_checksum": "sha256:54ce571d2f840b9766731c0fed5b76f50c3b7845178c5e50b1677020c51d9c91",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "standardcompute",
@@ -133,7 +355,7 @@
       "source_kind": "official",
       "source_catalog_id": "24b2a18d-69dd-48f2-a454-e6091693a0b1",
       "source_checksum": "sha256:a53fb8657009f2d33884ea4c3fce9903829658fe79a8526b3e3e2f61d664f4f9",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "streamlake",
@@ -197,7 +419,7 @@
       "source_kind": "official",
       "source_catalog_id": "1b4b94b6-2aa3-4f1d-8022-f727141020af",
       "source_checksum": "sha256:5ed1c26f05697c1648b8eb00b1b4c98d50bbb14a75364eeaf6f4f31f2bad7ff6",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "streamlake",
@@ -261,7 +483,7 @@
       "source_kind": "official",
       "source_catalog_id": "2a06d451-4dcb-4afd-94a1-50fd75755b0e",
       "source_checksum": "sha256:db919acf537c94670c90d1e9c9a7cdfeb4f19c9eb0b488942e6fde283549fc9f",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "streamlake",
@@ -325,7 +547,7 @@
       "source_kind": "official",
       "source_catalog_id": "bb29f84c-1f62-4f4a-8f40-a4a7ab7f61eb",
       "source_checksum": "sha256:09ef74235da3820143037c3953cafc693f2bc5270c8688fbf6d7e6d7c600a3e7",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -389,7 +611,7 @@
       "source_kind": "official",
       "source_catalog_id": "4e0158ce-fb50-40b3-9612-7c0050efc457",
       "source_checksum": "sha256:791cc6a286c380f43976618f84d20d365bed60f1dc97e2f1eb2f6fbe22d1cd37",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -453,7 +675,7 @@
       "source_kind": "official",
       "source_catalog_id": "000bca04-b851-480a-9d76-457a3b336863",
       "source_checksum": "sha256:a2fd89fde81c2b5622c3017ace4ab0bd18bdd767a78cb57a6cfa60994e69fc20",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -517,7 +739,7 @@
       "source_kind": "official",
       "source_catalog_id": "e38421f1-bbad-4807-bd54-3fcdb84648f1",
       "source_checksum": "sha256:9d3cdf6ec14d01db7884b1225a5f6827f30329f397cf61ec034eb4b0e4433986",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -581,7 +803,7 @@
       "source_kind": "official",
       "source_catalog_id": "7a152354-f6ca-4bb8-bf82-64f5c149c0f2",
       "source_checksum": "sha256:38fc3999dc3d6237d81e25bc156228b2f2d90b2d08be9a68a4768a79cc4c7947",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -645,7 +867,7 @@
       "source_kind": "official",
       "source_catalog_id": "5eba9c73-2419-4dfc-a4ab-8e29cf6f5700",
       "source_checksum": "sha256:315bb24c4a8050a120a3bbbe704f486bc0b5b73bd9858d52f389de640b816936",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -709,7 +931,7 @@
       "source_kind": "official",
       "source_catalog_id": "d16d5a82-71be-49a0-ba1c-4b7ce50c9705",
       "source_checksum": "sha256:f61b6b21e5958b0e574b9c598be5d7f0a6db2e208907611a31d495d60b3e6db5",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -773,7 +995,7 @@
       "source_kind": "official",
       "source_catalog_id": "165bb755-ac17-408c-8215-16f1de97857b",
       "source_checksum": "sha256:3cbb565f2ebd7ca46d9f73fe488e758beb27d35b99cd586adbf7086ff211e659",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -837,7 +1059,7 @@
       "source_kind": "official",
       "source_catalog_id": "73ff4e1b-9c47-4a78-8b61-6dce24c6c95c",
       "source_checksum": "sha256:444f9c102a58c4e48dbff05b9837d528285af0734626e3b299ae9a5257cbba1e",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -901,7 +1123,7 @@
       "source_kind": "official",
       "source_catalog_id": "34d640a7-8eea-40fe-9ebe-b45996d98d76",
       "source_checksum": "sha256:d9a34ff120f076db6bfe3fecfa812fee9963b27752325c971b767b5c0d13e9b2",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -965,7 +1187,7 @@
       "source_kind": "official",
       "source_catalog_id": "a4989ea0-4e21-42b5-a878-7e678eda3a88",
       "source_checksum": "sha256:f186119b30e4449471c2c0f7031f9028e424bbfe0163a8fd88dca1eec741725c",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -1029,7 +1251,7 @@
       "source_kind": "official",
       "source_catalog_id": "cf864838-47ba-4e71-8cac-6b8a0bc053f9",
       "source_checksum": "sha256:252b1e80f8ed8804bf6969c212a4ea65cb4ced3be5d08938c4d9c9cc53a999c4",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     },
     {
       "provider_code": "tempr",
@@ -1093,199 +1315,7 @@
       "source_kind": "official",
       "source_catalog_id": "162722fa-19d6-4260-80a4-a0540da53c78",
       "source_checksum": "sha256:2ff89b7195e1cd5173347c4d7878922e6a06e2ac62a2ba4c11cbd892c8ce7575",
-      "source_version": "2026-11-10.3"
-    },
-    {
-      "provider_code": "tempr",
-      "upstream_model_id": "anthropic/claude-sonnet-4-6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "bb4b6cbd-bd54-46de-b739-91dccf182e3d",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-4-6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-4-6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-4-6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-4-6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "bb4b6cbd-bd54-46de-b739-91dccf182e3d",
-      "source_checksum": "sha256:1e6877656c4fdba3a67c7bb1f45b5cb2e1b2aa34c5932ff16e526b1ddfafdf10",
-      "source_version": "2026-11-10.3"
-    },
-    {
-      "provider_code": "tempr",
-      "upstream_model_id": "anthropic/claude-sonnet-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "18f38868-2743-4075-acfb-d545e75c2cbb",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "18f38868-2743-4075-acfb-d545e75c2cbb",
-      "source_checksum": "sha256:e6ef7980754c7f0ebc40d049128d843fb1001aad182a496d2863478c6bad7406",
-      "source_version": "2026-11-10.3"
-    },
-    {
-      "provider_code": "tempr",
-      "upstream_model_id": "minimax/MiniMax-M2.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "3c075d14-ff64-447f-8801-c2638f03ace2",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "minimax/MiniMax-M2.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "minimax/MiniMax-M2.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "minimax/MiniMax-M2.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "tempr",
-              "model": "minimax/MiniMax-M2.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "3c075d14-ff64-447f-8801-c2638f03ace2",
-      "source_checksum": "sha256:d9a3ce84efc58a11c624596db8f61c6549b5edb83a5ac35a195baf8a0d207767",
-      "source_version": "2026-11-10.3"
+      "source_version": "2026-11-10.4"
     }
   ]
 }
