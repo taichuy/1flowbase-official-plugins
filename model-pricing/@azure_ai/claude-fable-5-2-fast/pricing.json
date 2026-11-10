@@ -1,0 +1,79 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "azure_ai",
+  "upstream_model_id": "claude-fable-5-2-fast",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "16",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "80",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.4",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "20",
+  "id": "496b01d0-9418-42c0-9044-17088a92671a",
+  "effective_from": "2026-11-10T02:14:33.756Z",
+  "rules": [
+    {
+      "when": {
+        "cache_write_ttl_seconds": 3600
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "32"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-11-10T02:14:33.756Z",
+      "meters": {
+        "input": {
+          "source": "litellm",
+          "provider": "azure_ai",
+          "model": "claude-fable-5-2-fast",
+          "field": "input_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "output": {
+          "source": "litellm",
+          "provider": "azure_ai",
+          "model": "claude-fable-5-2-fast",
+          "field": "output_cost_per_token",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_hit": {
+          "source": "litellm",
+          "provider": "azure_ai",
+          "model": "claude-fable-5-2-fast",
+          "field": "cache_read_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        },
+        "cache_write": {
+          "source": "litellm",
+          "provider": "azure_ai",
+          "model": "claude-fable-5-2-fast",
+          "field": "cache_creation_input_token_cost",
+          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "32"
+          }
+        }
+      ]
+    }
+  }
+}

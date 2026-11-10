@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-09.3",
+  "catalog_version": "2026-11-10.1",
   "currency_code": "USD",
   "page": 120,
-  "cursor": "YWZ0ZXI6MDgwMGIxMTAtMmE1Zi00NWY2LWFjZmItMzNhZDA2MDgzMzky",
-  "next_cursor": "YWZ0ZXI6MjJiODQ2YTMtMDRjOS00MWM5LTkxM2YtZWUzMmExZjY3MzEz",
+  "cursor": "YWZ0ZXI6MmFhYTc4YzEtZTczNC00NGI2LTg2OTEtY2ZhMWZlZGNhMDYz",
+  "next_cursor": "YWZ0ZXI6ZDY2YmQwZDEtMmNjOS00M2NkLWJmOTUtYzc2ZjQ4Zjc1ZjE4",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/121.json",
   "rules": [
     {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-4.6",
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-4-6@default",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,464 +19,25 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.2",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "51ca284e-94bb-400f-8cb1-a3604e34462c",
+      "cache_write_token_unit_price": "6.25",
+      "id": "fd0e63c8-b9bd-4209-86b9-53f479fb6bd1",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
           },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "51ca284e-94bb-400f-8cb1-a3604e34462c",
-      "source_checksum": "sha256:6cafec32b0784ea41cb74811b9ccffa5b36a3b09b1d2ae460787c3a0e31b6188",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-4.6v",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.9",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "d887146a-4516-4a3c-87b3-569abc8f45eb",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d887146a-4516-4a3c-87b3-569abc8f45eb",
-      "source_checksum": "sha256:a9e84b98e273e47abd5283a762863c27cc9a8878f3d046c0ea77a11783614baa",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-4.6v-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "72c55777-4f10-4259-b65c-937304164dad",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "72c55777-4f10-4259-b65c-937304164dad",
-      "source_checksum": "sha256:ffed855183f4202ca324964e6cc640192d8a5a19c008bee3e534a08b329b9902",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-4.7",
-      "currency_code": "USD",
-      "id": "6f778c7d-38cf-49f5-abf9-00c19e4984c6",
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
-      "effective_from": "2026-10-14T04:54:44.855Z",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "extensions": {
-        "price_type": "standard_api",
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-14T04:54:44.855Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
+          "overrides": {
+            "cache_write_token_unit_price": "10"
           }
         }
-      },
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "rules": [],
-      "source_kind": "official",
-      "source_catalog_id": "6f778c7d-38cf-49f5-abf9-00c19e4984c6",
-      "source_checksum": "sha256:5c034fdb63bf0fd8098af0d71370fe5cb1301f4b0683c44b321e09181a5ae2c0",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-4.7-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "809380f4-d2ff-4365-a079-13cd898d5276",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "809380f4-d2ff-4365-a079-13cd898d5276",
-      "source_checksum": "sha256:2792b79141b1ead19cccabc70fbb975018d38f315cf8b8029612d4a006642c68",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-4.7-flashx",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.07",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "cde606cc-3041-4a77-9c37-a8755e35dcb8",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "cde606cc-3041-4a77-9c37-a8755e35dcb8",
-      "source_checksum": "sha256:6074ad6445458edf0f2d62af3f857d098e6f7247b9da367ab75f4b31c00c534f",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "d0916c1d-34ae-4419-a10d-5d3fc18e722e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d0916c1d-34ae-4419-a10d-5d3fc18e722e",
-      "source_checksum": "sha256:d7f036609de931f4cc55382d508d154f2394b9d8745ed990878b7a02ff356e5d",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5-code",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "dbadac66-cda9-443c-b574-7b91091e8558",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -484,53 +45,54 @@
           "meters": {
             "input": {
               "source": "litellm",
-              "provider": "zai",
-              "model": "glm-5-code",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-6@default",
               "field": "input_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
               "source": "litellm",
-              "provider": "zai",
-              "model": "glm-5-code",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-6@default",
               "field": "output_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
               "source": "litellm",
-              "provider": "zai",
-              "model": "glm-5-code",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-6@default",
               "field": "cache_read_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
               "source": "litellm",
-              "provider": "zai",
-              "model": "glm-5-code",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-6@default",
               "field": "cache_creation_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "dbadac66-cda9-443c-b574-7b91091e8558",
-      "source_checksum": "sha256:a402d07c7fe334696d2824f84f80f182b2c7525ba944b5b374924ce58aeeb8ce",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "fd0e63c8-b9bd-4209-86b9-53f479fb6bd1",
+      "source_checksum": "sha256:c6b2b26895fa7eb92d503f3fcead56ad489a3f8d1cd7cf112d74c6c6e5722bf2",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5-turbo",
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-4-7",
       "currency_code": "USD",
-      "id": "a5efbe90-bbbc-4608-b4f2-15379a93f6e1",
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.24",
-      "effective_from": "2026-10-14T04:54:44.855Z",
       "effective_to": null,
       "timezone": "UTC",
       "weekday_mask": 127,
@@ -538,54 +100,80 @@
       "local_time_end": null,
       "priority": 0,
       "enabled": true,
-      "extensions": {
-        "price_type": "standard_api",
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-14T04:54:44.855Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5-turbo",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5-turbo",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5-turbo",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5-turbo",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "faaad814-ee70-49fa-ad92-b6a348fe2440",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
           }
         }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
       },
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "rules": [],
       "source_kind": "official",
-      "source_catalog_id": "a5efbe90-bbbc-4608-b4f2-15379a93f6e1",
-      "source_checksum": "sha256:a2a1870723c89524fe2cc1835583eb0d2e391d0297d6a18f0f9e67fbdad01406",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "faaad814-ee70-49fa-ad92-b6a348fe2440",
+      "source_checksum": "sha256:f1d94d59032a0a073a9b107805247661286df626938f1bd3df44c3632874c2d9",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5.1",
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-4-7@default",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -595,14 +183,1348 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "f795076d-020b-4561-b3e3-2c15e50e3cc6",
+      "cache_write_token_unit_price": "6.25",
+      "id": "9310cdad-a36b-41d2-9337-6becca7756cd",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-7@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9310cdad-a36b-41d2-9337-6becca7756cd",
+      "source_checksum": "sha256:6e1af6173cdf6b4378916bd722a8cd9f51d4184bb6a69bbc92cf93b1ff8e1fdf",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-4-8",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "538fba8b-65fc-413d-a3f4-6fa135598c46",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "538fba8b-65fc-413d-a3f4-6fa135598c46",
+      "source_checksum": "sha256:bbdc64995bed8db03bcb3575b11454c1ad924d7c4108b77310bb4dc38fbccc6a",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-4-8@default",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "712b102f-4486-4e61-b6eb-dd397626d409",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-4-8@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "712b102f-4486-4e61-b6eb-dd397626d409",
+      "source_checksum": "sha256:4f7430b8ec54391a7443674d5f1adc3a13e8a44279cf799e3446bde9b24735a1",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "fdec8692-fdd3-4913-a4f9-19a52202ed43",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "fdec8692-fdd3-4913-a4f9-19a52202ed43",
+      "source_checksum": "sha256:745824b55761afa23c15982a7ac865c7c41c7fb4cc1257ffcad0b3473d1a6176",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "1c38fabe-af60-4b46-b1dc-708cf6cc0880",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "8"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "8"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "1c38fabe-af60-4b46-b1dc-708cf6cc0880",
+      "source_checksum": "sha256:f61ca3dc790a1f263cae1d6ff16e0366c57c33f7402d6bcd0eaea1c469ca33a5",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-5-5@default",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "78d50525-9b95-4677-a12d-e5f3d377145a",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "8"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5-5@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "8"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "78d50525-9b95-4677-a12d-e5f3d377145a",
+      "source_checksum": "sha256:03aab2a0a9290cb52294166484bcaa75075eaaebda1cf6504aab4dfc26637dea",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-opus-5@default",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "60c6fa73-26f5-44a9-af4f-5a3bd97dc619",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-opus-5@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "60c6fa73-26f5-44a9-af4f-5a3bd97dc619",
+      "source_checksum": "sha256:f86017705bd25e5d20497062af25614ead7bf44b5d2e389e4cacac027d039ead",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-4-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "c88df193-97cc-4fe5-b804-4608f72c715e",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "6",
+            "output_token_unit_price": "22.5",
+            "cache_hit_token_unit_price": "0.6",
+            "cache_write_token_unit_price": "7.5"
+          }
+        },
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "6"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            },
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "12"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "6",
+                "output_token_unit_price": "22.5",
+                "cache_hit_token_unit_price": "0.6",
+                "cache_write_token_unit_price": "7.5"
+              }
+            },
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "6"
+              }
+            },
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                },
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "12"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "c88df193-97cc-4fe5-b804-4608f72c715e",
+      "source_checksum": "sha256:f5550b7a495dca07bc22b1aff61cff425ebd4aed689dceaac286a97b8e4baf50",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-4-5@20250929",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "3830adf9-33c4-4acc-91ea-54b513531471",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "6",
+            "output_token_unit_price": "22.5",
+            "cache_hit_token_unit_price": "0.6",
+            "cache_write_token_unit_price": "7.5"
+          }
+        },
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "6"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            },
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "12"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5@20250929",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5@20250929",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5@20250929",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-5@20250929",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "6",
+                "output_token_unit_price": "22.5",
+                "cache_hit_token_unit_price": "0.6",
+                "cache_write_token_unit_price": "7.5"
+              }
+            },
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "6"
+              }
+            },
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                },
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "12"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3830adf9-33c4-4acc-91ea-54b513531471",
+      "source_checksum": "sha256:613fd55b7e70c6af70db0b4a77cc1be32c343fe2f86dcb0c8f0405cba11afcca",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "20baca52-5bdd-4168-89c4-70f0d663b854",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "6"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "6"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "20baca52-5bdd-4168-89c4-70f0d663b854",
+      "source_checksum": "sha256:da6482a92d19b3befdf74256f07b9a51033c48ec0098bd65791784d378fd1677",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-4-6@default",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "75b0c6bb-5ed5-4d66-9104-842f2c9b85e1",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "6"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-4-6@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "6"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "75b0c6bb-5ed5-4d66-9104-842f2c9b85e1",
+      "source_checksum": "sha256:8c4305f4a2bd97d60ddde91cb74bfe5e8ed794b5c973b7518a1d76d9c77843fe",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "7edaf5be-7566-444b-9e88-be2196ddfe73",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7edaf5be-7566-444b-9e88-be2196ddfe73",
+      "source_checksum": "sha256:5dce8422c7441639b75cb1ad9231d3594317854a1f1ec80b23933b396aa47ff5",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "42e18fdf-c201-470a-b918-fe83566773b7",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "42e18fdf-c201-470a-b918-fe83566773b7",
+      "source_checksum": "sha256:13cf1b467870ba06ce109553d6e474462b1996aeac10bfd98038047d36c7e4a3",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-5-5@default",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "d5c1646c-4404-467f-b3e2-5a7d81769fa0",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5-5@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d5c1646c-4404-467f-b3e2-5a7d81769fa0",
+      "source_checksum": "sha256:5a220c38712e6e5bfbedc193b11041e1cdd2d1d98c15a46f114be139498c98d9",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vertex_ai-anthropic_models",
+      "upstream_model_id": "vertex_ai/claude-sonnet-5@default",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "252d3411-0ecf-4538-b442-4e9f744ea794",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5@default",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5@default",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5@default",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "vertex_ai-anthropic_models",
+              "model": "vertex_ai/claude-sonnet-5@default",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "252d3411-0ecf-4538-b442-4e9f744ea794",
+      "source_checksum": "sha256:f06a4cbc20d34aaabdd0de2aeb23b57645797b560a4af8960e8ee0c62be82e7b",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "vivgrid",
+      "upstream_model_id": "claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "96972b1f-9f02-44e8-8a65-de5c3016a5b2",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -612,29 +1534,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.1",
+              "provider": "vivgrid",
+              "model": "claude-fable-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.1",
+              "provider": "vivgrid",
+              "model": "claude-fable-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.1",
+              "provider": "vivgrid",
+              "model": "claude-fable-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.1",
+              "provider": "vivgrid",
+              "model": "claude-fable-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -643,77 +1565,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "f795076d-020b-4561-b3e3-2c15e50e3cc6",
-      "source_checksum": "sha256:0e5f38071f773a3baf52c4ae2091ffbba7cf4b55883a3e5f4054f4f9e6754f5b",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "96972b1f-9f02-44e8-8a65-de5c3016a5b2",
+      "source_checksum": "sha256:d771aa78843acfd3cd7d1058ea2b394df8df1d6b4233ce26add63fc93fc77e35",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5.2",
-      "currency_code": "USD",
-      "id": "e16fc52a-262b-423a-871b-5538e7ac7213",
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
-      "effective_from": "2026-10-14T04:54:44.855Z",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "extensions": {
-        "price_type": "standard_api",
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-14T04:54:44.855Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.2",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          }
-        }
-      },
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "rules": [],
-      "source_kind": "official",
-      "source_catalog_id": "e16fc52a-262b-423a-871b-5538e7ac7213",
-      "source_checksum": "sha256:42afedbb5d66d964098b645b59f73295457f827076b1b585c2e94932f61fedc1",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5.3",
+      "provider_code": "vivgrid",
+      "upstream_model_id": "claude-fable-5-1",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -723,14 +1581,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
+      "input_token_unit_price": "10",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
+      "output_token_unit_price": "50",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "a0284086-9a82-4762-b415-780eb3dd031a",
+      "cache_write_token_unit_price": "12.5",
+      "id": "5d49e03a-a959-421d-8aa9-3a4df1c47087",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -740,29 +1598,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3",
+              "provider": "vivgrid",
+              "model": "claude-fable-5-1",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3",
+              "provider": "vivgrid",
+              "model": "claude-fable-5-1",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3",
+              "provider": "vivgrid",
+              "model": "claude-fable-5-1",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3",
+              "provider": "vivgrid",
+              "model": "claude-fable-5-1",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -771,13 +1629,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "a0284086-9a82-4762-b415-780eb3dd031a",
-      "source_checksum": "sha256:4b08bbcc50d03ae6fc1d2ef1e414f52d99f3ee6e05def2732686bf99c2cffb65",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "5d49e03a-a959-421d-8aa9-3a4df1c47087",
+      "source_checksum": "sha256:1831739ba3728e9cae60d588d046a6b95c1900424093c09d5320416e9d5a9194",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5.3-flash",
+      "provider_code": "vivgrid",
+      "upstream_model_id": "claude-haiku-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -787,16 +1645,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.15",
+      "input_token_unit_price": "0.1",
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "0.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
+      "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "c3b9ce99-47f7-4eba-9628-1da0900ffcfa",
+      "cache_write_token_unit_price": "0.125",
+      "id": "d66bd0d1-2cc9-43cd-bf95-c76f48f75f18",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 100000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.5",
+            "output_token_unit_price": "2.5",
+            "cache_hit_token_unit_price": "0.05",
+            "cache_write_token_unit_price": "0.625"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -804,488 +1677,55 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flash",
+              "provider": "vivgrid",
+              "model": "claude-haiku-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flash",
+              "provider": "vivgrid",
+              "model": "claude-haiku-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flash",
+              "provider": "vivgrid",
+              "model": "claude-haiku-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flash",
+              "provider": "vivgrid",
+              "model": "claude-haiku-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c3b9ce99-47f7-4eba-9628-1da0900ffcfa",
-      "source_checksum": "sha256:d239545e16037d3d5890b7526674a8329a247dc91023b803ffd1ec828968ff98",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5.3-flashx",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.37",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "9f719a01-2982-45fe-80f7-4ba05cdc586b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flashx",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flashx",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flashx",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5.3-flashx",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 100000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.5",
+                "output_token_unit_price": "2.5",
+                "cache_hit_token_unit_price": "0.05",
+                "cache_write_token_unit_price": "0.625"
+              }
             }
-          },
-          "rules": []
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "9f719a01-2982-45fe-80f7-4ba05cdc586b",
-      "source_checksum": "sha256:da3f7f013dd3f29733021de2fc7b9952c7b3924679991e24a34533a704319009",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai",
-      "upstream_model_id": "glm-5v-turbo",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.24",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "24cded02-7296-40c1-b367-ccc0dc16bed7",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5v-turbo",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5v-turbo",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5v-turbo",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai",
-              "model": "glm-5v-turbo",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "24cded02-7296-40c1-b367-ccc0dc16bed7",
-      "source_checksum": "sha256:d9382dae996fd0376ad821cc859195c4fa25b56950480d8520052c3c393034b5",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai-coding-plan",
-      "upstream_model_id": "glm-4.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "e587c7eb-e2b3-4784-8af6-17bb1435cf13",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-4.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-4.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-4.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-4.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e587c7eb-e2b3-4784-8af6-17bb1435cf13",
-      "source_checksum": "sha256:efa79bbd3b11493aa7ec8ad4f9d63c6fb7808da0eac82a3535ccdbbb55065c4c",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai-coding-plan",
-      "upstream_model_id": "glm-5-turbo",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "d00b61f0-50f6-4c36-ba28-b68c63d33301",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5-turbo",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5-turbo",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5-turbo",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5-turbo",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d00b61f0-50f6-4c36-ba28-b68c63d33301",
-      "source_checksum": "sha256:bb47a106b7a8683da042afce7d6d927356df5bd7a0b66361e573e05e31c3b0e1",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai-coding-plan",
-      "upstream_model_id": "glm-5.2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "7ea3803d-c8a8-4a24-ab27-d53676c58bde",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "7ea3803d-c8a8-4a24-ab27-d53676c58bde",
-      "source_checksum": "sha256:82cc72990fb6480190b7e4809756789fcd627f29387c7119289e6c9693d41b15",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai-coding-plan",
-      "upstream_model_id": "glm-5.2-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "b3c0111a-349f-4fcd-ac9c-a29be643295f",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.2-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b3c0111a-349f-4fcd-ac9c-a29be643295f",
-      "source_checksum": "sha256:4e108294fa1864dad2d7487ad420454878dcb4a74b7b115e64a22aa3cf127b45",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "zai-coding-plan",
-      "upstream_model_id": "glm-5.3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "22b846a3-04c9-41c9-913f-ee32a1f67313",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.3",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.3",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.3",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zai-coding-plan",
-              "model": "glm-5.3",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "22b846a3-04c9-41c9-913f-ee32a1f67313",
-      "source_checksum": "sha256:9645e8753ccf7ba49f6d45b7fb83d439036132db2ea032647cb0c709dc58431e",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "d66bd0d1-2cc9-43cd-bf95-c76f48f75f18",
+      "source_checksum": "sha256:81c09ff3da555cf4ff38f331ce39b0be9c1f5d8296765bae36df944a04aabeb0",
+      "source_version": "2026-11-10.1"
     }
   ]
 }

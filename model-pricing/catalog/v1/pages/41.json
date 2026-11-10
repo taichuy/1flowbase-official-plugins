@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-09.3",
+  "catalog_version": "2026-11-10.1",
   "currency_code": "USD",
   "page": 41,
-  "cursor": "YWZ0ZXI6NDk1Yjg3ZjgtYjJmNC00OWRkLTlkMWUtNTdhYzk2ZjFiOGEw",
-  "next_cursor": "YWZ0ZXI6MGRhZTFlZGEtNGZkNC00NmNhLWEyYTItYzYwYzA0ZmZhMmE0",
+  "cursor": "YWZ0ZXI6MTQ1YjdkN2UtMDM4Yi00ZjA2LWE1ODYtMDU1Y2U2YzkxZDUy",
+  "next_cursor": "YWZ0ZXI6ZjRmYzhmMWQtZjVhMi00NTAyLTljZjAtMDkwOTllNTJlMDg5",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/42.json",
   "rules": [
     {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-2.5-pro",
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-5.6-luna",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,31 +19,16 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.25",
+      "input_token_unit_price": "0.219",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
+      "output_token_unit_price": "1.32",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.125",
+      "cache_hit_token_unit_price": "0.022",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "8469f7a0-a94f-42e9-9526-a02d5510139c",
+      "cache_write_token_unit_price": "0.275",
+      "id": "5dd9e619-1fb5-4c61-a1ed-b50e8c3d3ff9",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 200000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "2.5",
-            "output_token_unit_price": "15",
-            "cache_hit_token_unit_price": "0.25",
-            "cache_write_token_unit_price": "2.5"
-          }
-        }
-      ],
+      "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -51,59 +36,44 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-2.5-pro",
+              "provider": "cortecs",
+              "model": "gpt-5.6-luna",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-2.5-pro",
+              "provider": "cortecs",
+              "model": "gpt-5.6-luna",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-2.5-pro",
+              "provider": "cortecs",
+              "model": "gpt-5.6-luna",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-2.5-pro",
+              "provider": "cortecs",
+              "model": "gpt-5.6-luna",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 200000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "2.5",
-                "output_token_unit_price": "15",
-                "cache_hit_token_unit_price": "0.25",
-                "cache_write_token_unit_price": "2.5"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "8469f7a0-a94f-42e9-9526-a02d5510139c",
-      "source_checksum": "sha256:8eda818b0c79124fd2d9fd278e091a28f73f783bf581ddeb2d0cafdabcc97d68",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "5dd9e619-1fb5-4c61-a1ed-b50e8c3d3ff9",
+      "source_checksum": "sha256:0d31377f7c314bf1ddf582bd262a1693a23f7a70cafd5562c0422af9506a9c4b",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3-flash-preview",
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-5.6-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -113,14 +83,462 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.5",
+      "input_token_unit_price": "4.399",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3",
+      "output_token_unit_price": "21.998",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
+      "cache_hit_token_unit_price": "0.44",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.5",
-      "id": "c9d1baf8-b226-47f1-a6d7-6499e23c32f1",
+      "cache_write_token_unit_price": "5.5",
+      "id": "68e21880-0ee3-4785-9ec9-1b11399f5e25",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "68e21880-0ee3-4785-9ec9-1b11399f5e25",
+      "source_checksum": "sha256:d147e3a348bb744a2bda665c7ebc4dd3d8b50cf539490cc6fca1277dc86aabf7",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-5.6-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "13.199",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.219",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.749",
+      "id": "64bec2c5-a551-4cc4-b5c0-89c65bb224a2",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-5.6-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "64bec2c5-a551-4cc4-b5c0-89c65bb224a2",
+      "source_checksum": "sha256:6b778678a1429844833dc252cfe29c09b2f1294e30aa2f11900100bd9a8aa9cb",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-6-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "12.272",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "61.359",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1.228",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "15.34",
+      "id": "dec3fb99-6dba-454d-add7-e1351d00660c",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "dec3fb99-6dba-454d-add7-e1351d00660c",
+      "source_checksum": "sha256:5c4bcd09fa0de76a99735977ea6e7f3ff0619988c6eb419ecca818d9383267d7",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.12",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.012",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.15",
+      "id": "b7b5611c-5cfe-4371-845e-e8784b1f85dd",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b7b5611c-5cfe-4371-845e-e8784b1f85dd",
+      "source_checksum": "sha256:0fa2f75e8be288be9d33d0e0747ade3bba8eaf3826a8225de64d146c81cef8ac",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "11.999",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.24",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3",
+      "id": "1b48ac70-a9e3-4f5d-94c0-735dfc213974",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "1b48ac70-a9e3-4f5d-94c0-735dfc213974",
+      "source_checksum": "sha256:5ab56b6b6b695e71cffcabf413f272ee43daf2b4d66be27dc4243b513491c4c0",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-6.1-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "11.999",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.12",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3",
+      "id": "d6e748dc-016a-44f2-b68d-e8ca6c62110b",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d6e748dc-016a-44f2-b68d-e8ca6c62110b",
+      "source_checksum": "sha256:316f67db7b05a85aa23d6d23b035b664d1587534cd05943fc330c7176cd83f45",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "cortecs",
+      "upstream_model_id": "gpt-6.1-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.176",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5.882",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.059",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.47",
+      "id": "1399c499-5715-43d5-9e22-c64ddbd5b6a8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cortecs",
+              "model": "gpt-6.1-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "1399c499-5715-43d5-9e22-c64ddbd5b6a8",
+      "source_checksum": "sha256:7631f3371dea80e11fd996d836f51841586af11e2e9c560fdf24491535a2e428",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "anthropic/claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "e53b9bf6-2124-4fcb-abf7-da921f6eacee",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -131,28 +549,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3-flash-preview",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3-flash-preview",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3-flash-preview",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3-flash-preview",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -161,13 +579,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "c9d1baf8-b226-47f1-a6d7-6499e23c32f1",
-      "source_checksum": "sha256:ac719e3665611123c4c56331a99147e460cafeff5ca90d96f490e5a3f8b405d0",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "e53b9bf6-2124-4fcb-abf7-da921f6eacee",
+      "source_checksum": "sha256:f2a7565d2c069722a1f188c964011fc8a6cfe20ab43d77c2b4886e6fbbd7c49d",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3.1-pro-preview",
+      "upstream_model_id": "anthropic/claude-fable-5-1",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -177,108 +595,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
+      "input_token_unit_price": "10",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12",
+      "output_token_unit_price": "50",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
+      "cache_hit_token_unit_price": "0.25",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2",
-      "id": "b2f4a633-9b9d-4a50-956f-ee82ec7cfdeb",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 200000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "4",
-            "output_token_unit_price": "18",
-            "cache_hit_token_unit_price": "0.4",
-            "cache_write_token_unit_price": "4"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.1-pro-preview",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.1-pro-preview",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.1-pro-preview",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.1-pro-preview",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 200000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "4",
-                "output_token_unit_price": "18",
-                "cache_hit_token_unit_price": "0.4",
-                "cache_write_token_unit_price": "4"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b2f4a633-9b9d-4a50-956f-ee82ec7cfdeb",
-      "source_checksum": "sha256:350457193de4d770d48877cebeba123ebda075f243fff0fea694757ac2140b90",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3.5-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "9",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.15",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.5",
-      "id": "65d90c31-0ea3-4232-b8eb-1cf5035216b4",
+      "cache_write_token_unit_price": "12.5",
+      "id": "9ade42d5-b185-42cc-9e55-be8c0ee7188c",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -289,28 +613,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -319,13 +643,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "65d90c31-0ea3-4232-b8eb-1cf5035216b4",
-      "source_checksum": "sha256:36382c077430bc4baa73b19cd044b05e9c195b1bbfb5909940caea40cbf210c5",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "9ade42d5-b185-42cc-9e55-be8c0ee7188c",
+      "source_checksum": "sha256:ae981a91373ecfc71c82eae7fa2ec03df463b83e3bd01e4704addfc72b2dca11",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3.5-flash-lite",
+      "upstream_model_id": "anthropic/claude-haiku-4-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -335,270 +659,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
+      "input_token_unit_price": "1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3",
-      "id": "8336d968-e23b-4544-b91a-f6c423d5b826",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash-lite",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash-lite",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash-lite",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.5-flash-lite",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "8336d968-e23b-4544-b91a-f6c423d5b826",
-      "source_checksum": "sha256:3da69224915e2e799348b4d70ac5fa4dfdf0856111d721fd217656d7c5079a5c",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3.6-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.75",
-      "id": "529bcd4f-4fc9-473c-8fb4-742b6c55c788",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.6-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.6-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.6-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.6-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "529bcd4f-4fc9-473c-8fb4-742b6c55c788",
-      "source_checksum": "sha256:119a7997203feb4457d5f4877b1fa71ab7801db5b00f353e16d9f6306f3137fe",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3.7-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.75",
-      "id": "224c9885-97d7-4343-b044-76fa19cf00eb",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.7-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.7-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.7-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.7-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "224c9885-97d7-4343-b044-76fa19cf00eb",
-      "source_checksum": "sha256:d4ce0a0de8b2393b57a32e9d2fc7c3b8f60aa5cbf45291d4e339a1ca66343306",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-3.8-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.75",
-      "id": "98d67e34-34c1-4131-8162-6fcbc5b637bf",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.8-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.8-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.8-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "gemini/gemini-3.8-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "98d67e34-34c1-4131-8162-6fcbc5b637bf",
-      "source_checksum": "sha256:a7a72d94c5d82ba4fb864cb1653c1abdd921067f2fbe2ed7ba3d58e52ddbdbc4",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "gemini/gemini-4-argon",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
+      "output_token_unit_price": "5",
       "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2",
-      "id": "4f4d70df-5ac5-4a5a-af24-92c80109d1aa",
+      "cache_write_token_unit_price": "1.25",
+      "id": "9f72be33-f92b-4637-88c4-26bf1351c2ec",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -609,28 +677,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-4-argon",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-4-argon",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-4-argon",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "gemini/gemini-4-argon",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -639,13 +707,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "4f4d70df-5ac5-4a5a-af24-92c80109d1aa",
-      "source_checksum": "sha256:b8111093665efdca1ec945473349633553ad25f93d973f70a84f09545280130f",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "9f72be33-f92b-4637-88c4-26bf1351c2ec",
+      "source_checksum": "sha256:6e0f629617ea45dc8257ca0dc98a4cdc9083814293809b761d580fea26536257",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "minimax/minimax-m2.7",
+      "upstream_model_id": "anthropic/claude-haiku-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -655,92 +723,28 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.33",
+      "input_token_unit_price": "0.1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.32",
+      "output_token_unit_price": "0.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.066",
+      "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.42",
-      "id": "da7a025c-2bdc-4bd8-aa0a-e1924110edb5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "da7a025c-2bdc-4bd8-aa0a-e1924110edb5",
-      "source_checksum": "sha256:9710e67c542d43c9f168984a563ae764f58671af908f7b6aa81358d4ff1ba661",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "minimax/minimax-m3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.33",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.32",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.066",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.33",
-      "id": "cb2ff771-2306-4d91-a658-d68863f1ce04",
+      "cache_write_token_unit_price": "0.125",
+      "id": "e3b4f18e-4cb6-4caf-8440-2df5bb2c2a44",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
           "when": {
             "input_tokens": {
               "operator": "gt",
-              "value": 512000
+              "value": 100000
             }
           },
           "overrides": {
-            "input_token_unit_price": "0.66",
-            "output_token_unit_price": "2.63",
-            "cache_hit_token_unit_price": "0.132",
-            "cache_write_token_unit_price": "0.66"
+            "input_token_unit_price": "0.5",
+            "output_token_unit_price": "2.5",
+            "cache_hit_token_unit_price": "0.05",
+            "cache_write_token_unit_price": "0.625"
           }
         }
       ],
@@ -752,28 +756,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "minimax/minimax-m3",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "minimax/minimax-m3",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "minimax/minimax-m3",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "minimax/minimax-m3",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -783,27 +787,27 @@
               "when": {
                 "input_tokens": {
                   "operator": "gt",
-                  "value": 512000
+                  "value": 100000
                 }
               },
               "overrides": {
-                "input_token_unit_price": "0.66",
-                "output_token_unit_price": "2.63",
-                "cache_hit_token_unit_price": "0.132",
-                "cache_write_token_unit_price": "0.66"
+                "input_token_unit_price": "0.5",
+                "output_token_unit_price": "2.5",
+                "cache_hit_token_unit_price": "0.05",
+                "cache_write_token_unit_price": "0.625"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "cb2ff771-2306-4d91-a658-d68863f1ce04",
-      "source_checksum": "sha256:c44c592c4862f9cdbbb0cbd60e6ade2dbf6fb026b3405bcdd8056fa7073619f3",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "e3b4f18e-4cb6-4caf-8440-2df5bb2c2a44",
+      "source_checksum": "sha256:aa49a2a872682539346a66d9aefd2766684f98bd820dc3aeb19790cd043fc289",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "moonshot/kimi-k2.6",
+      "upstream_model_id": "anthropic/claude-opus-4-7",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -813,14 +817,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.16",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.18",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1",
-      "id": "f9cb5308-ab18-4c59-8acf-2cd7055457a4",
+      "cache_write_token_unit_price": "6.25",
+      "id": "d0a6c04a-92cd-4c59-b5e8-c5d23c39d219",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -831,28 +835,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.6",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.6",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.6",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.6",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -861,13 +865,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "f9cb5308-ab18-4c59-8acf-2cd7055457a4",
-      "source_checksum": "sha256:7d7d29ae1a00e1d406441b8021d5e78f7b522f167a2c20d29b56835973d21817",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "d0a6c04a-92cd-4c59-b5e8-c5d23c39d219",
+      "source_checksum": "sha256:93891e48e056509402d74a9f75ddc3ccabf0fdc8a3d68f7397f57e60d4ebbf10",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "moonshot/kimi-k2.7-code",
+      "upstream_model_id": "anthropic/claude-opus-4-8",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -877,14 +881,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.16",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.18",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1",
-      "id": "d8035fb0-67c6-48f4-9e6f-531876096658",
+      "cache_write_token_unit_price": "6.25",
+      "id": "af91b515-a3ae-46b1-914a-d28ee905ad31",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -895,28 +899,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.7-code",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.7-code",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.7-code",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k2.7-code",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -925,13 +929,141 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "d8035fb0-67c6-48f4-9e6f-531876096658",
-      "source_checksum": "sha256:1386c3c8b415716ffd4cb2c727605222675f3d6b8e3d26588a0572ba503f360c",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "af91b515-a3ae-46b1-914a-d28ee905ad31",
+      "source_checksum": "sha256:50e5c4d8c601e5bcafa4c84675402882440c81674414a0accf1410342960dad7",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "moonshot/kimi-k3",
+      "upstream_model_id": "anthropic/claude-opus-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "3feaa195-9498-4aed-8ab8-09fb13dc7df6",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3feaa195-9498-4aed-8ab8-09fb13dc7df6",
+      "source_checksum": "sha256:9c443cec82aa7279d354aea8c09d8b2dbf553c3396d073711b69887c974db719",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "anthropic/claude-opus-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "b8786e28-454e-4692-be56-ebf24aba4e45",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "anthropic/claude-opus-5-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b8786e28-454e-4692-be56-ebf24aba4e45",
+      "source_checksum": "sha256:e17ba6abb10205a1de481f467020ebc9b7bfb568f8e84fd36da92b61756274c7",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "anthropic/claude-sonnet-4-6",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -947,8 +1079,8 @@
       "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3",
-      "id": "97cf748e-6bbe-4b2d-8bc1-da54420631b2",
+      "cache_write_token_unit_price": "3.75",
+      "id": "3c57c90e-e428-41b8-b60c-bf91f354f619",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -959,28 +1091,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k3",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k3",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k3",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "moonshot/kimi-k3",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -989,13 +1121,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "97cf748e-6bbe-4b2d-8bc1-da54420631b2",
-      "source_checksum": "sha256:5348a0221f686d4c2900e27b480b8cbfa4b6e9006898219e41a074c22b09651d",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "3c57c90e-e428-41b8-b60c-bf91f354f619",
+      "source_checksum": "sha256:0c901d5d5c59070e755a1b6f4c6ebd84d128ca6cee0f29b39eb8ef2a6ed87024",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "openai/gpt-4o-mini",
+      "upstream_model_id": "anthropic/claude-sonnet-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1005,172 +1137,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.15",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.6",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.15",
-      "id": "5645317b-d6a3-4f10-97d5-e3ecc3a6dd47",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-4o-mini",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-4o-mini",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-4o-mini",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-4o-mini",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5645317b-d6a3-4f10-97d5-e3ecc3a6dd47",
-      "source_checksum": "sha256:d71874dfa0e9f95632f306f7fcda03b4fffb776a3537e7ab8090ca5a440d6de1",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "openai/gpt-5.4",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "2.5",
-      "id": "0dd23867-f3c3-4a8a-b330-c5a6a3724e7d",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "5",
-            "output_token_unit_price": "22.5",
-            "cache_hit_token_unit_price": "0.5",
-            "cache_write_token_unit_price": "5"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.4",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.4",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.4",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.4",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "5",
-                "output_token_unit_price": "22.5",
-                "cache_hit_token_unit_price": "0.5",
-                "cache_write_token_unit_price": "5"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0dd23867-f3c3-4a8a-b330-c5a6a3724e7d",
-      "source_checksum": "sha256:9468f629eba21667c81e69f9a7560602db37d40a9efef55c5482c20239b61ea6",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "openai/gpt-5.4-mini",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.75",
-      "id": "a35b4508-0a14-485a-94be-a6053f5f6f64",
+      "id": "7d0ea4d5-ae58-496a-a8c0-75239148e8df",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1181,28 +1155,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-mini",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-mini",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-mini",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-mini",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1211,13 +1185,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "a35b4508-0a14-485a-94be-a6053f5f6f64",
-      "source_checksum": "sha256:596fe724e369058e6d62dd44cf81a5bf02d9d26192258324b946b809563f3232",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "7d0ea4d5-ae58-496a-a8c0-75239148e8df",
+      "source_checksum": "sha256:925ac2448e228ae58f686132fbbc1b6fce67996b4a311b57d304cc56b90ce330",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "openai/gpt-5.4-nano",
+      "upstream_model_id": "anthropic/claude-sonnet-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1227,14 +1201,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.25",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.2",
-      "id": "95078a55-6b07-4afc-a7b8-4ee1b39241a1",
+      "cache_write_token_unit_price": "2.5",
+      "id": "bfd43bd1-36be-455d-a402-575a48f00b3f",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1245,28 +1219,28 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-nano",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-nano",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-nano",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.4-nano",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1275,13 +1249,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "95078a55-6b07-4afc-a7b8-4ee1b39241a1",
-      "source_checksum": "sha256:b22ab9d4adc9388df9386a30a09788966ac35e92d8d7024f63d630a8bff0e2e1",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "bfd43bd1-36be-455d-a402-575a48f00b3f",
+      "source_checksum": "sha256:997e57b08e278d2ad6b7503558fdba24b9c10042b5ee3c53cbe17d4cbe7f6bfd",
+      "source_version": "2026-11-10.1"
     },
     {
       "provider_code": "crossmodel",
-      "upstream_model_id": "openai/gpt-5.5",
+      "upstream_model_id": "deepseek/deepseek-v4-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1291,125 +1265,16 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "30",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5",
-      "id": "a089aa3d-c47f-4601-a545-11e022a579a6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "10",
-            "output_token_unit_price": "45",
-            "cache_hit_token_unit_price": "1",
-            "cache_write_token_unit_price": "10"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "openai/gpt-5.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "10",
-                "output_token_unit_price": "45",
-                "cache_hit_token_unit_price": "1",
-                "cache_write_token_unit_price": "10"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "a089aa3d-c47f-4601-a545-11e022a579a6",
-      "source_checksum": "sha256:2c7e352509f0161524dd7fe1990fba43ec2f4f10264ba2b03dea4816a7455eab",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "openai/gpt-5.6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
+      "input_token_unit_price": "0.3",
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "1.2",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
+      "cache_hit_token_unit_price": "0.006",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.25",
-      "id": "0dae1eda-4fd4-46ca-a2a2-c60c04ffa2a4",
+      "cache_write_token_unit_price": "0.3",
+      "id": "f4fc8f1d-f5a2-4502-9cf0-09099e52e089",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.4",
-            "output_token_unit_price": "1.8",
-            "cache_hit_token_unit_price": "0.04",
-            "cache_write_token_unit_price": "0.5"
-          }
-        }
-      ],
+      "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -1418,54 +1283,39 @@
             "input": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.6-luna",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.6-luna",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.6-luna",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "crossmodel",
-              "model": "openai/gpt-5.6-luna",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.4",
-                "output_token_unit_price": "1.8",
-                "cache_hit_token_unit_price": "0.04",
-                "cache_write_token_unit_price": "0.5"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "0dae1eda-4fd4-46ca-a2a2-c60c04ffa2a4",
-      "source_checksum": "sha256:cbf2d8ee27d5e51756441af1a5fc5505cc0a34356e525ec63b22bf418ef0eabe",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "f4fc8f1d-f5a2-4502-9cf0-09099e52e089",
+      "source_checksum": "sha256:5c0b868f34baba21fd719e1802db0af8414e9e6223eaee18d7dcce75446590cc",
+      "source_version": "2026-11-10.1"
     }
   ]
 }

@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-09.3",
+  "catalog_version": "2026-11-10.1",
   "currency_code": "USD",
   "page": 96,
-  "cursor": "YWZ0ZXI6MDJhN2QwODItMTVmMi00MjczLThkMDYtNWFiMDEyODcwZGVm",
-  "next_cursor": "YWZ0ZXI6NTlmYWE4YmUtZGVjZS00YWI5LTlmNmQtYmI1Mzk1OGFkMzc0",
+  "cursor": "YWZ0ZXI6OWFhOThiMzYtZTk4MS00MDdhLWEyZjctMmVjMzY2N2Y3NDlm",
+  "next_cursor": "YWZ0ZXI6YTVkYTY4YjgtNTZmMS00MjA1LWFiZTMtMWY1YTIyODU3OTA3",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/97.json",
   "rules": [
     {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-haiku-4.5",
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6-luna-pro",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,16 +19,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
+      "input_token_unit_price": "0.1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
+      "output_token_unit_price": "0.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
+      "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "0f1b86fc-48d8-4c5f-80a8-195e1ff2531a",
+      "cache_write_token_unit_price": "0.125",
+      "id": "64fc763f-dfc8-4b0d-a8f8-74523f1d3c93",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -36,492 +51,59 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-haiku-4.5",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-luna-pro",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-haiku-4.5",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-luna-pro",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-haiku-4.5",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-luna-pro",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-haiku-4.5",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-luna-pro",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0f1b86fc-48d8-4c5f-80a8-195e1ff2531a",
-      "source_checksum": "sha256:3f36fd010eae00c37a206bf26828fb23971674bd5c50920bb92d25f0506bbaa1",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-opus-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "086692a9-00dc-4e2d-9209-8b6edf047abb",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
             }
-          },
-          "rules": []
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "086692a9-00dc-4e2d-9209-8b6edf047abb",
-      "source_checksum": "sha256:573b2d73c07db0153611d3ca948342e6669999e5dac127332a877c1d72cf4ad2",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "64fc763f-dfc8-4b0d-a8f8-74523f1d3c93",
+      "source_checksum": "sha256:54f8f644bb1f07308990207cbff0a2729c30ed4782b4c619e684ec623cb1a70d",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-opus-4.6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "ec0617e0-6609-44dc-bec2-0d40749ff542",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ec0617e0-6609-44dc-bec2-0d40749ff542",
-      "source_checksum": "sha256:0b6e6e841b73b9612421f38eb415eb7723038f903b8050b1ff22872755e3bedc",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-opus-4.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "bd404f4e-2d0a-420a-9420-2b82b835488c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "bd404f4e-2d0a-420a-9420-2b82b835488c",
-      "source_checksum": "sha256:0169558296e3b651b5b2c2ae4c5306010bdcb3663d5ec12faf33585cbab36f6e",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-opus-4.8",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "15c3eb4d-69ed-4ff3-81f6-b67b74b229fd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.8",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.8",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.8",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-4.8",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "15c3eb4d-69ed-4ff3-81f6-b67b74b229fd",
-      "source_checksum": "sha256:4fac27dbc0ba7c82459c46ee20d372c5a5840f5b33374ddc68ad681f120b33a8",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-opus-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "10",
-      "id": "348b5477-e906-45e0-858f-6b1724a117ee",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-opus-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "348b5477-e906-45e0-858f-6b1724a117ee",
-      "source_checksum": "sha256:63dcc882c1d6a44cb7f993d176438bc1aebba22a0727ca314e01b7d8faada426",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-sonnet-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "d5e027d6-fa4e-4558-bdde-12a41b15613e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d5e027d6-fa4e-4558-bdde-12a41b15613e",
-      "source_checksum": "sha256:48b11e17e39027a862e5e5d9d81ad2b68bcd276d63442d2d3b78425003c4fd6a",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-sonnet-4.6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "1ef19d53-fdfb-476f-9b3e-1afd356f1efd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "1ef19d53-fdfb-476f-9b3e-1afd356f1efd",
-      "source_checksum": "sha256:e62eb6fca0bcf6c0466b6154b35101cb60b1f65aad1a77d2587992f319fba755",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "anthropic/claude-sonnet-5",
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -538,639 +120,7 @@
       "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "2.5",
-      "id": "c3c3cf66-8cae-4298-bae8-1ccd4cd24315",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "anthropic/claude-sonnet-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c3c3cf66-8cae-4298-bae8-1ccd4cd24315",
-      "source_checksum": "sha256:07625faa2c0d79c6fa9a5b2b55e2a2ae21d10e0b8cffaee4800d5c238f7edcd5",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "google/gemini-3.5-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "9",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.15",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.08333",
-      "id": "d3108ed5-6339-4597-8f63-79d61a31a314",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "google/gemini-3.5-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "google/gemini-3.5-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "google/gemini-3.5-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "google/gemini-3.5-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d3108ed5-6339-4597-8f63-79d61a31a314",
-      "source_checksum": "sha256:b2d48a240dd01c9a779ab9156b544022580d1e52c9f106176ddc91313792d8ad",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "kimi/kimi-k2.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "7765ddcf-27a7-4117-8195-1aba1fa15267",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "kimi/kimi-k2.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "kimi/kimi-k2.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "kimi/kimi-k2.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "kimi/kimi-k2.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "7765ddcf-27a7-4117-8195-1aba1fa15267",
-      "source_checksum": "sha256:d084913144343fa58f1cbde4e6c0889425ded4e1d6719012f1be5a51cb75c189",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "minimax/minimax-m2.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "67f48767-56df-49d9-9c64-60b6fa6c919c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "67f48767-56df-49d9-9c64-60b6fa6c919c",
-      "source_checksum": "sha256:51a20f6d8b0ddb7b724c8a4b365bc8973bee33e9463cde400dc732ee5cc7e2d4",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "minimax/minimax-m2.5-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "b2e574e3-d35f-4591-8d3a-3c700128331e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.5-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b2e574e3-d35f-4591-8d3a-3c700128331e",
-      "source_checksum": "sha256:ab4fdff124d40be31f679def9af12f52484a0c49ef13a247e8f858915c3a630c",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "minimax/minimax-m2.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "c7303cfe-74e4-41e1-bb94-d62b7b80c9f2",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c7303cfe-74e4-41e1-bb94-d62b7b80c9f2",
-      "source_checksum": "sha256:de773f7d0454381ade98053672f9afcbbfc977a07a48ffc71c4d071ffd843fbf",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "minimax/minimax-m2.7-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "9da295a6-76bd-4984-b42f-2284fb21c76c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "minimax/minimax-m2.7-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "9da295a6-76bd-4984-b42f-2284fb21c76c",
-      "source_checksum": "sha256:379d58933deb4fb74668967c741455202ebc09b278edc9e29ec7106b8aba0076",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "openai/gpt-5.6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.25",
-      "id": "e849df46-42c5-44fd-b595-0248aec1be34",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.4",
-            "output_token_unit_price": "1.8",
-            "cache_hit_token_unit_price": "0.04"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.4",
-                "output_token_unit_price": "1.8",
-                "cache_hit_token_unit_price": "0.04"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e849df46-42c5-44fd-b595-0248aec1be34",
-      "source_checksum": "sha256:8bd6ba52deaf65970b29ede49c34474ffeac575c29ae6463affdd53e809aef88",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "openai/gpt-5.6-sol",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "20",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.4",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5",
-      "id": "eaec49b1-bd86-4522-8271-d88fc9d68f84",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "8",
-            "output_token_unit_price": "30",
-            "cache_hit_token_unit_price": "0.8"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-sol",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-sol",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-sol",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-sol",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "8",
-                "output_token_unit_price": "30",
-                "cache_hit_token_unit_price": "0.8"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "eaec49b1-bd86-4522-8271-d88fc9d68f84",
-      "source_checksum": "sha256:02300303308a3554e08bb27f720fb2875a2c0c6494c46a2b030be376ffefba0b",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "openai/gpt-5.6-terra",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "303c29f7-517d-4bc7-ac10-4a20baba2bc0",
+      "id": "59ec2328-bbeb-42f9-a4ee-98d4228999dc",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
@@ -1182,8 +132,9 @@
           },
           "overrides": {
             "input_token_unit_price": "4",
-            "output_token_unit_price": "18",
-            "cache_hit_token_unit_price": "0.4"
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
           }
         }
       ],
@@ -1194,29 +145,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-terra",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-terra",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-terra",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "openai/gpt-5.6-terra",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1231,21 +182,22 @@
               },
               "overrides": {
                 "input_token_unit_price": "4",
-                "output_token_unit_price": "18",
-                "cache_hit_token_unit_price": "0.4"
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "303c29f7-517d-4bc7-ac10-4a20baba2bc0",
-      "source_checksum": "sha256:69728e7fb5e45ed999037c08c29e066f3b7e505210fb53ed64c436a6f995c969",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "59ec2328-bbeb-42f9-a4ee-98d4228999dc",
+      "source_checksum": "sha256:fac42350ec131bfbfda8a0b84cc244b18b6fee986f24496352fdbc6dd149bfbb",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "orcarouter",
-      "upstream_model_id": "qwen/qwen3.6-plus",
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6-sol-pro",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1255,28 +207,28 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.276",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.651",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0276",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.345",
-      "id": "848884c4-8696-4c7e-9cdf-56d21b39c0fc",
+      "cache_write_token_unit_price": "2.5",
+      "id": "92ec3cbf-ce57-45f2-a61e-5e92da06bb42",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
           "when": {
             "input_tokens": {
               "operator": "gt",
-              "value": 256000
+              "value": 272000
             }
           },
           "overrides": {
-            "input_token_unit_price": "1.101",
-            "output_token_unit_price": "6.602",
-            "cache_hit_token_unit_price": "0.1101",
-            "cache_write_token_unit_price": "1.37625"
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
           }
         }
       ],
@@ -1287,29 +239,499 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "qwen/qwen3.6-plus",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol-pro",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "qwen/qwen3.6-plus",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol-pro",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "qwen/qwen3.6-plus",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol-pro",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "orcarouter",
-              "model": "qwen/qwen3.6-plus",
+              "provider": "openrouter",
+              "model": "openai/gpt-6-sol-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "92ec3cbf-ce57-45f2-a61e-5e92da06bb42",
+      "source_checksum": "sha256:07e3524e78f86ae0224756954d34884f5c85c87db946954a351f6cf7383165ea",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6.1-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "16424024-8373-42a4-8ce9-d1d4e4b47f83",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "16424024-8373-42a4-8ce9-d1d4e4b47f83",
+      "source_checksum": "sha256:f11ac14b1d9141cf94623bbe351114e7375ac4509abb3aa3d0853cce0d02a5b0",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6.1-sol-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "3f92acbd-9e21-4793-80c6-512cba3d2cbe",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-sol-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3f92acbd-9e21-4793-80c6-512cba3d2cbe",
+      "source_checksum": "sha256:5f857245c161a5a1ff19f2f5b5ae3d14fc529d5a3156e3182a76ea4d6dc27805",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6.1-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.05",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "85de606f-d862-4a16-b147-c8f3d2795116",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "7.5",
+            "cache_hit_token_unit_price": "0.1",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "7.5",
+                "cache_hit_token_unit_price": "0.1",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "85de606f-d862-4a16-b147-c8f3d2795116",
+      "source_checksum": "sha256:9b72e7600899ad3e8fcbb2a4b590a710c98cb0869c588157ed7046826fedbe48",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "openai/gpt-6.1-terra-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.05",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "03567373-9b93-4fc2-be44-4292a2f205c2",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "7.5",
+            "cache_hit_token_unit_price": "0.1",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "7.5",
+                "cache_hit_token_unit_price": "0.1",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "03567373-9b93-4fc2-be44-4292a2f205c2",
+      "source_checksum": "sha256:2c92fa69158ee93b499578a3a14aeeb6f3a448b58f2731785ccc9da5cdb83449",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "qwen/qwen-plus",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.26",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.78",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.052",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.325",
+      "id": "032bca8e-5752-4567-97bd-9923d504a38a",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.78",
+            "output_token_unit_price": "2.34",
+            "cache_hit_token_unit_price": "0.156",
+            "cache_write_token_unit_price": "0.975"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen-plus",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen-plus",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen-plus",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen-plus",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1323,22 +745,144 @@
                 }
               },
               "overrides": {
-                "input_token_unit_price": "1.101",
-                "output_token_unit_price": "6.602",
-                "cache_hit_token_unit_price": "0.1101",
-                "cache_write_token_unit_price": "1.37625"
+                "input_token_unit_price": "0.78",
+                "output_token_unit_price": "2.34",
+                "cache_hit_token_unit_price": "0.156",
+                "cache_write_token_unit_price": "0.975"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "848884c4-8696-4c7e-9cdf-56d21b39c0fc",
-      "source_checksum": "sha256:246d6115b6624c489b520d5495b02bc71b1d73e363d116ebed5c2fca7bd1835e",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "032bca8e-5752-4567-97bd-9923d504a38a",
+      "source_checksum": "sha256:c11d05daa7f1e7cf21de1a6eaf264b9136df9d655428bfcffca0483d5b67349b",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "orcarouter",
+      "provider_code": "openrouter",
+      "upstream_model_id": "qwen/qwen3-coder-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.195",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.975",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.039",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.24375",
+      "id": "d4afc08c-812a-4399-9098-c71b99debe16",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 32000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.325",
+            "output_token_unit_price": "1.625",
+            "cache_hit_token_unit_price": "0.065",
+            "cache_write_token_unit_price": "0.40625"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 128000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.52",
+            "output_token_unit_price": "2.6",
+            "cache_hit_token_unit_price": "0.104",
+            "cache_write_token_unit_price": "0.65"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3-coder-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3-coder-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3-coder-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3-coder-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 32000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.325",
+                "output_token_unit_price": "1.625",
+                "cache_hit_token_unit_price": "0.065",
+                "cache_write_token_unit_price": "0.40625"
+              }
+            },
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 128000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.52",
+                "output_token_unit_price": "2.6",
+                "cache_hit_token_unit_price": "0.104",
+                "cache_write_token_unit_price": "0.65"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d4afc08c-812a-4399-9098-c71b99debe16",
+      "source_checksum": "sha256:c35b05c6363773b542cae887834923ebc469d78296c5294fcd57d717a61e1316",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
       "upstream_model_id": "qwen/qwen3.7-flash",
       "currency_code": "USD",
       "effective_to": null,
@@ -1356,7 +900,7 @@
       "cache_hit_token_unit_price": "0.006",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0.038",
-      "id": "59faa8be-dece-4ab9-9f6d-bb53958ad374",
+      "id": "4999c988-0b58-4110-ab34-9a2f666dd4cf",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
@@ -1369,7 +913,8 @@
           "overrides": {
             "input_token_unit_price": "0.1",
             "output_token_unit_price": "0.4",
-            "cache_hit_token_unit_price": "0.02"
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.125"
           }
         },
         {
@@ -1382,7 +927,8 @@
           "overrides": {
             "input_token_unit_price": "0.2",
             "output_token_unit_price": "0.8",
-            "cache_hit_token_unit_price": "0.04"
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.25"
           }
         }
       ],
@@ -1393,28 +939,28 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "orcarouter",
+              "provider": "openrouter",
               "model": "qwen/qwen3.7-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "orcarouter",
+              "provider": "openrouter",
               "model": "qwen/qwen3.7-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "orcarouter",
+              "provider": "openrouter",
               "model": "qwen/qwen3.7-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "orcarouter",
+              "provider": "openrouter",
               "model": "qwen/qwen3.7-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -1431,7 +977,8 @@
               "overrides": {
                 "input_token_unit_price": "0.1",
                 "output_token_unit_price": "0.4",
-                "cache_hit_token_unit_price": "0.02"
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.125"
               }
             },
             {
@@ -1444,16 +991,805 @@
               "overrides": {
                 "input_token_unit_price": "0.2",
                 "output_token_unit_price": "0.8",
-                "cache_hit_token_unit_price": "0.04"
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.25"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "59faa8be-dece-4ab9-9f6d-bb53958ad374",
-      "source_checksum": "sha256:c107bd9bf090cfd1251acda6364ea2f9b53fc7615e14bad95f1cfbefa6698557",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "4999c988-0b58-4110-ab34-9a2f666dd4cf",
+      "source_checksum": "sha256:eb5e81a212b70fef27e6c88baf61c2f78c3f0db47deee71bf0db6af24205b67d",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "qwen/qwen3.7-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.475",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.425",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.295",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.84375",
+      "id": "80f12960-40f0-4803-b4d7-ab623b2bb5a4",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "80f12960-40f0-4803-b4d7-ab623b2bb5a4",
+      "source_checksum": "sha256:14b233ebf85f385e52a74dc07ca0a384da9e48a9388dc557831c73b2bbd93f53",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "qwen/qwen3.7-plus",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.32",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.28",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.064",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.4",
+      "id": "56f25253-e807-401d-a578-a5385f40ac1d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.96",
+            "output_token_unit_price": "3.84",
+            "cache_hit_token_unit_price": "0.192",
+            "cache_write_token_unit_price": "1.2"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.96",
+                "output_token_unit_price": "3.84",
+                "cache_hit_token_unit_price": "0.192",
+                "cache_write_token_unit_price": "1.2"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "56f25253-e807-401d-a578-a5385f40ac1d",
+      "source_checksum": "sha256:a1c0184f7b8bd493773d76043c082d63f59b5c155b8c792b39f992fa8ba729ad",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~anthropic/claude-fable-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "8",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "40",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "10",
+      "id": "f7517ba7-66d8-4317-8eef-8886bacfeb65",
+      "effective_from": "2026-11-10T02:14:33.756Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-10T02:14:33.756Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-fable-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-fable-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-fable-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-fable-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f7517ba7-66d8-4317-8eef-8886bacfeb65",
+      "source_checksum": "sha256:72e925c8302ede7c1b108d276792b04a5863459e7d006fd11da7dc2f4ed622e4",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~anthropic/claude-haiku-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "4f916b74-85fb-439b-b1be-f672f7e4a659",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 100000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.5",
+            "output_token_unit_price": "2.5",
+            "cache_hit_token_unit_price": "0.05",
+            "cache_write_token_unit_price": "0.625"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-haiku-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-haiku-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-haiku-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-haiku-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 100000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.5",
+                "output_token_unit_price": "2.5",
+                "cache_hit_token_unit_price": "0.05",
+                "cache_write_token_unit_price": "0.625"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "4f916b74-85fb-439b-b1be-f672f7e4a659",
+      "source_checksum": "sha256:80000dd0396ea11edaaccbeffef79ea4b71098775ec963738c7188ead96fc23b",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~anthropic/claude-opus-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "40b72052-fc0f-4ed1-b985-7ea1a1a01714",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-opus-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-opus-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-opus-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-opus-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "40b72052-fc0f-4ed1-b985-7ea1a1a01714",
+      "source_checksum": "sha256:58c73f75dc0b4a0a8c44f2286cabd86473b96c88671c72a2a4c626724245ea4b",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~anthropic/claude-sonnet-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "d9e8d8e9-1c6f-420e-ad0e-4069f21b7c04",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-sonnet-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-sonnet-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-sonnet-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~anthropic/claude-sonnet-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d9e8d8e9-1c6f-420e-ad0e-4069f21b7c04",
+      "source_checksum": "sha256:4ac65575c683b7d92e825cc5efc7cd4ad563a8f74991840aad1740c5d105c7bb",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~google/gemini-flash-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.75",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "3.75",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.075",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.041667",
+      "id": "80252382-4551-4bb0-bef3-fd625a560609",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-flash-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-flash-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-flash-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-flash-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "80252382-4551-4bb0-bef3-fd625a560609",
+      "source_checksum": "sha256:023c4fbede5b7f385ab2a584892cc0ef83aff48aa91d4969a7b07abba7ae3bf0",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~google/gemini-pro-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.1875",
+      "id": "d670d3a4-d5d5-4e4a-9815-b109677a4178",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-pro-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-pro-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-pro-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~google/gemini-pro-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d670d3a4-d5d5-4e4a-9815-b109677a4178",
+      "source_checksum": "sha256:e5d93073ec1509addbf801be4d69bbf0edd7aa50e4b5ef69d2dc059a575013c9",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~openai/gpt-astra-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "b028da17-6518-47d3-bdad-692b640ec186",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "20",
+            "output_token_unit_price": "75",
+            "cache_hit_token_unit_price": "2",
+            "cache_write_token_unit_price": "25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-astra-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-astra-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-astra-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-astra-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "20",
+                "output_token_unit_price": "75",
+                "cache_hit_token_unit_price": "2",
+                "cache_write_token_unit_price": "25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b028da17-6518-47d3-bdad-692b640ec186",
+      "source_checksum": "sha256:b944eb0256bd1cd779caa8a487b42bb8ae887ba58d4159dbd876682546b4e365",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "openrouter",
+      "upstream_model_id": "~openai/gpt-luna-latest",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "a5da68b8-56f1-4205-abe3-1f5a22857907",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-luna-latest",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-luna-latest",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-luna-latest",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "openrouter",
+              "model": "~openai/gpt-luna-latest",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a5da68b8-56f1-4205-abe3-1f5a22857907",
+      "source_checksum": "sha256:fb65d5fc9b92a198af4cfe72c46c14f9dbb2929760ab32d86c5e9579e7b82fb8",
+      "source_version": "2026-11-10.1"
     }
   ]
 }

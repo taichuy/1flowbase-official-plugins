@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-09.3",
+  "catalog_version": "2026-11-10.1",
   "currency_code": "USD",
   "page": 109,
-  "cursor": "YWZ0ZXI6MzM2NWFkMGQtMDllNS00OGIyLThhZjktZTJhZTA1MWI2OWFk",
-  "next_cursor": "YWZ0ZXI6NDAzOWY4NjMtYjRjZS00NjhlLWEzMjEtZWFkNWRlOWEzOTU5",
+  "cursor": "YWZ0ZXI6NWZiN2JlMTQtMjJkZi00N2M4LWExNDctYWZmMTc1Njc1ZTFi",
+  "next_cursor": "YWZ0ZXI6MTYyNzIyZmEtMTlkNi00MjYwLTgwYTQtYTA1NDBkYTUzYzc4",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/110.json",
   "rules": [
     {
-      "provider_code": "tempr",
-      "upstream_model_id": "zai/glm-5.3-flashx",
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.7-max",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,14 +19,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.37",
+      "input_token_unit_price": "1.475",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.25",
+      "output_token_unit_price": "4.425",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
+      "cache_hit_token_unit_price": "0.295",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "675bbe86-6b69-4cfb-ad4c-e4c09f6e72aa",
+      "cache_write_token_unit_price": "1.84375",
+      "id": "dbefd16d-d8f5-4779-858c-5f1884e1c9e3",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -36,29 +36,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5.3-flashx",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5.3-flashx",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5.3-flashx",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5.3-flashx",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-max",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -67,13 +67,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "675bbe86-6b69-4cfb-ad4c-e4c09f6e72aa",
-      "source_checksum": "sha256:6021ecddbe98898a3a8fd63fb3ef018fd0f32b6b6e8e645708b5e127e01dcdaa",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "dbefd16d-d8f5-4779-858c-5f1884e1c9e3",
+      "source_checksum": "sha256:f5bffaa2183ac2320b46a2843f34e30779457886e2c104736dee5b224d8ee4e7",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tempr",
-      "upstream_model_id": "zai/glm-5v-turbo",
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.7-plus",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -83,14 +83,108 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.2",
+      "input_token_unit_price": "0.32",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
+      "output_token_unit_price": "1.28",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.24",
+      "cache_hit_token_unit_price": "0.064",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "51fb4ffb-b7f9-4fa5-9a45-3c8edfef2e0e",
+      "cache_write_token_unit_price": "0.4",
+      "id": "f34507ba-ea65-4144-9545-d4150d707452",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.96",
+            "output_token_unit_price": "3.84",
+            "cache_hit_token_unit_price": "0.192",
+            "cache_write_token_unit_price": "1.2"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.96",
+                "output_token_unit_price": "3.84",
+                "cache_hit_token_unit_price": "0.192",
+                "cache_write_token_unit_price": "1.2"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f34507ba-ea65-4144-9545-d4150d707452",
+      "source_checksum": "sha256:aa4af046870eabfc78cf8b56ad966287e5edb642bac88545b6315303d2dbb010",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.8-27b",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.425",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2.55",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.085",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.53125",
+      "id": "9d54ad60-989c-474f-b1d1-aed2d726322b",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -100,29 +194,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5v-turbo",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5v-turbo",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5v-turbo",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "tempr",
-              "model": "zai/glm-5v-turbo",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-27b",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -131,13 +225,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "51fb4ffb-b7f9-4fa5-9a45-3c8edfef2e0e",
-      "source_checksum": "sha256:4d118599913c970cb1f9cb490cbd919a6de598c8fe002f769b1bf472c6e1fa7d",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "9d54ad60-989c-474f-b1d1-aed2d726322b",
+      "source_checksum": "sha256:b963d7cdbc35f0ced3cdac10a0ab0adecab209429754104274c7bb15fb5b2cd6",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "deepseek-v4-flash",
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.8-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -147,14 +241,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.14",
+      "input_token_unit_price": "0.15",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.28",
+      "output_token_unit_price": "0.47",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0028",
+      "cache_hit_token_unit_price": "0.016",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "265240ec-7804-4c96-86ae-94f5417f720d",
+      "cache_write_token_unit_price": "0.2",
+      "id": "f368934e-0281-41ac-9554-27c1e77d63c8",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -163,45 +257,45 @@
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-flash",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
             },
             "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-flash",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
             },
             "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-flash",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-flash",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "265240ec-7804-4c96-86ae-94f5417f720d",
-      "source_checksum": "sha256:ea53660fa38bb589e9ed95bcbdc9da2504acb74e96c8ac849b24eeee52a3ea34",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "f368934e-0281-41ac-9554-27c1e77d63c8",
+      "source_checksum": "sha256:54ce571d2f840b9766731c0fed5b76f50c3b7845178c5e50b1677020c51d9c91",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "deepseek-v4-pro",
+      "provider_code": "standardcompute",
+      "upstream_model_id": "qwen/qwen3.8-max-0902",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -211,14 +305,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.74",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.48",
+      "output_token_unit_price": "6",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.145",
+      "cache_hit_token_unit_price": "0.25",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "50f57938-dc79-4822-a64c-5057c5b3b1f3",
+      "cache_write_token_unit_price": "2.5",
+      "id": "24b2a18d-69dd-48f2-a454-e6091693a0b1",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -227,109 +321,45 @@
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-max-0902",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
             },
             "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-max-0902",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
             },
             "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-max-0902",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "standardcompute",
+              "model": "qwen/qwen3.8-max-0902",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "50f57938-dc79-4822-a64c-5057c5b3b1f3",
-      "source_checksum": "sha256:72138e66fc41fa1179ba899042a9a48d6c3d17182e138d8cb93124dc791e04b5",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "24b2a18d-69dd-48f2-a454-e6091693a0b1",
+      "source_checksum": "sha256:a53fb8657009f2d33884ea4c3fce9903829658fe79a8526b3e3e2f61d664f4f9",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "deepseek-v4-pro-0813",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.32",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.96",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.044",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "9b3cec92-08a2-4900-9ac9-1949cd83a8ea",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro-0813",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro-0813",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro-0813",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4-pro-0813",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "9b3cec92-08a2-4900-9ac9-1949cd83a8ea",
-      "source_checksum": "sha256:37194fa0d85b5d2f2aa05b9ed90b0f46e88a3968e195f8a7c62a8d5d04bfee1a",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent",
-      "upstream_model_id": "deepseek-v4.1-flash",
+      "provider_code": "streamlake",
+      "upstream_model_id": "minimax-m2.5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -343,202 +373,10 @@
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "1.2",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.006",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "ed64b5d9-65dd-48f6-be83-a6d97befd6db",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4.1-flash",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4.1-flash",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4.1-flash",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "deepseek-v4.1-flash",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ed64b5d9-65dd-48f6-be83-a6d97befd6db",
-      "source_checksum": "sha256:a363a24747210642e63703a0a0038b9c8e393dc19df1250632bec44eed9cbf0c",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent",
-      "upstream_model_id": "glm-5.2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "baa5edd4-fdfd-4c69-b950-4b3a607bf04c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.2",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.2",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.2",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.2",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "baa5edd4-fdfd-4c69-b950-4b3a607bf04c",
-      "source_checksum": "sha256:f84232711649f36286f525617bbf2538d6655eb22fc444cf4a505f2d98e6a53e",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent",
-      "upstream_model_id": "glm-5.3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "c87f6e29-e28e-489e-8720-71768f0be7aa",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c87f6e29-e28e-489e-8720-71768f0be7aa",
-      "source_checksum": "sha256:350a57a9c1af180032544b84d6b6fd5e9c5d15a82beac9f9326cc44ed9c5f6bc",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent",
-      "upstream_model_id": "glm-5.3-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.5",
-      "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.03",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "8a1e68cf-8dba-4278-9190-362538c473c8",
+      "cache_write_token_unit_price": "0.375",
+      "id": "1b4b94b6-2aa3-4f1d-8022-f727141020af",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -548,29 +386,29 @@
           "meters": {
             "input": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flash",
+              "provider": "streamlake",
+              "model": "minimax-m2.5",
               "field": "input_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flash",
+              "provider": "streamlake",
+              "model": "minimax-m2.5",
               "field": "output_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flash",
+              "provider": "streamlake",
+              "model": "minimax-m2.5",
               "field": "cache_read_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flash",
+              "provider": "streamlake",
+              "model": "minimax-m2.5",
               "field": "cache_creation_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
@@ -579,13 +417,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "8a1e68cf-8dba-4278-9190-362538c473c8",
-      "source_checksum": "sha256:e641d2bfde83ff3491d06ecb550e25e9d7485bb37071733a078e161009ab74dd",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "1b4b94b6-2aa3-4f1d-8022-f727141020af",
+      "source_checksum": "sha256:5ed1c26f05697c1648b8eb00b1b4c98d50bbb14a75364eeaf6f4f31f2bad7ff6",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "glm-5.3-flashx",
+      "provider_code": "streamlake",
+      "upstream_model_id": "qwen3.8-2.4t-a95b",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -595,14 +433,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.37",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.25",
+      "output_token_unit_price": "6",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
+      "cache_hit_token_unit_price": "0.25",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "38aada61-e8db-496e-b28d-8bc746e1f742",
+      "cache_write_token_unit_price": "2.5",
+      "id": "2a06d451-4dcb-4afd-94a1-50fd75755b0e",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -612,29 +450,29 @@
           "meters": {
             "input": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flashx",
+              "provider": "streamlake",
+              "model": "qwen3.8-2.4t-a95b",
               "field": "input_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flashx",
+              "provider": "streamlake",
+              "model": "qwen3.8-2.4t-a95b",
               "field": "output_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flashx",
+              "provider": "streamlake",
+              "model": "qwen3.8-2.4t-a95b",
               "field": "cache_read_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "glm-5.3-flashx",
+              "provider": "streamlake",
+              "model": "qwen3.8-2.4t-a95b",
               "field": "cache_creation_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
@@ -643,13 +481,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "38aada61-e8db-496e-b28d-8bc746e1f742",
-      "source_checksum": "sha256:0932cfbd91d1d5d2d25b2ac441f4bdc5ff70c1da6a5d031eaa2092cc3ffd5b82",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "2a06d451-4dcb-4afd-94a1-50fd75755b0e",
+      "source_checksum": "sha256:db919acf537c94670c90d1e9c9a7cdfeb4f19c9eb0b488942e6fde283549fc9f",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "kimi-k2.7-code",
+      "provider_code": "streamlake",
+      "upstream_model_id": "qwen3.8-27b",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -659,14 +497,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.95",
+      "input_token_unit_price": "0.5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
+      "output_token_unit_price": "3",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.19",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "bcbe1e92-5f5b-452b-a85b-edaf3ecc3efd",
+      "cache_write_token_unit_price": "0.625",
+      "id": "bb29f84c-1f62-4f4a-8f40-a4a7ab7f61eb",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -676,29 +514,29 @@
           "meters": {
             "input": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code",
+              "provider": "streamlake",
+              "model": "qwen3.8-27b",
               "field": "input_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code",
+              "provider": "streamlake",
+              "model": "qwen3.8-27b",
               "field": "output_cost_per_token",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code",
+              "provider": "streamlake",
+              "model": "qwen3.8-27b",
               "field": "cache_read_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
               "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code",
+              "provider": "streamlake",
+              "model": "qwen3.8-27b",
               "field": "cache_creation_input_token_cost",
               "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
@@ -707,13 +545,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "bcbe1e92-5f5b-452b-a85b-edaf3ecc3efd",
-      "source_checksum": "sha256:1a9b198019df79a50c9865b19bcb621c203246e4d435954e0fc93cd679e549c6",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "bb29f84c-1f62-4f4a-8f40-a4a7ab7f61eb",
+      "source_checksum": "sha256:09ef74235da3820143037c3953cafc693f2bc5270c8688fbf6d7e6d7c600a3e7",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "kimi-k2.7-code-highspeed",
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-fable-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -723,14 +561,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.9",
+      "input_token_unit_price": "10",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "8",
+      "output_token_unit_price": "50",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.38",
+      "cache_hit_token_unit_price": "1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "1e1b08de-f63e-4cf2-803d-8180c2037e1a",
+      "cache_write_token_unit_price": "12.5",
+      "id": "4e0158ce-fb50-40b3-9612-7c0050efc457",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -739,45 +577,109 @@
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code-highspeed",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
             },
             "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code-highspeed",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
             },
             "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code-highspeed",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.7-code-highspeed",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "1e1b08de-f63e-4cf2-803d-8180c2037e1a",
-      "source_checksum": "sha256:da5a0b89a0f7c88eb3752ca4fce7f3e9b26c25798f862150f4263cfc985e6e9c",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "4e0158ce-fb50-40b3-9612-7c0050efc457",
+      "source_checksum": "sha256:791cc6a286c380f43976618f84d20d365bed60f1dc97e2f1eb2f6fbe22d1cd37",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "kimi-k2.8-preview",
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-fable-5-1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "000bca04-b851-480a-9d76-457a3b336863",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "000bca04-b851-480a-9d76-457a3b336863",
+      "source_checksum": "sha256:a2fd89fde81c2b5622c3017ace4ab0bd18bdd767a78cb57a6cfa60994e69fc20",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-haiku-4-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -789,12 +691,12 @@
       "input_token_unit_size": 1000000,
       "input_token_unit_price": "1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
+      "output_token_unit_price": "5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "ae74bbf7-5f82-4307-8c06-7f21067a9b46",
+      "cache_write_token_unit_price": "1.25",
+      "id": "e38421f1-bbad-4807-bd54-3fcdb84648f1",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -803,45 +705,493 @@
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.8-preview",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
             },
             "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.8-preview",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
             },
             "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.8-preview",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k2.8-preview",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ae74bbf7-5f82-4307-8c06-7f21067a9b46",
-      "source_checksum": "sha256:7bfe69b585e3a4c62897ac7a53cd15fefb8c97e6142a53d1a8361daa8c9664cc",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "e38421f1-bbad-4807-bd54-3fcdb84648f1",
+      "source_checksum": "sha256:9d3cdf6ec14d01db7884b1225a5f6827f30329f397cf61ec034eb4b0e4433986",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent",
-      "upstream_model_id": "kimi-k3",
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-haiku-4-5-20251001",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "7a152354-f6ca-4bb8-bf82-64f5c149c0f2",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7a152354-f6ca-4bb8-bf82-64f5c149c0f2",
+      "source_checksum": "sha256:38fc3999dc3d6237d81e25bc156228b2f2d90b2d08be9a68a4768a79cc4c7947",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-opus-4-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "5eba9c73-2419-4dfc-a4ab-8e29cf6f5700",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5eba9c73-2419-4dfc-a4ab-8e29cf6f5700",
+      "source_checksum": "sha256:315bb24c4a8050a120a3bbbe704f486bc0b5b73bd9858d52f389de640b816936",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-opus-4-5-20251101",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "d16d5a82-71be-49a0-ba1c-4b7ce50c9705",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d16d5a82-71be-49a0-ba1c-4b7ce50c9705",
+      "source_checksum": "sha256:f61b6b21e5958b0e574b9c598be5d7f0a6db2e208907611a31d495d60b3e6db5",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-opus-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "165bb755-ac17-408c-8215-16f1de97857b",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "165bb755-ac17-408c-8215-16f1de97857b",
+      "source_checksum": "sha256:3cbb565f2ebd7ca46d9f73fe488e758beb27d35b99cd586adbf7086ff211e659",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-opus-4-7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "73ff4e1b-9c47-4a78-8b61-6dce24c6c95c",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "73ff4e1b-9c47-4a78-8b61-6dce24c6c95c",
+      "source_checksum": "sha256:444f9c102a58c4e48dbff05b9837d528285af0734626e3b299ae9a5257cbba1e",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-opus-4-8",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "34d640a7-8eea-40fe-9ebe-b45996d98d76",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "34d640a7-8eea-40fe-9ebe-b45996d98d76",
+      "source_checksum": "sha256:d9a34ff120f076db6bfe3fecfa812fee9963b27752325c971b767b5c0d13e9b2",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-opus-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "a4989ea0-4e21-42b5-a878-7e678eda3a88",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "tempr",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a4989ea0-4e21-42b5-a878-7e678eda3a88",
+      "source_checksum": "sha256:f186119b30e4449471c2c0f7031f9028e424bbfe0163a8fd88dca1eec741725c",
+      "source_version": "2026-11-10.1"
+    },
+    {
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-sonnet-4-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -857,136 +1207,8 @@
       "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "03b4d7c0-7d85-4fed-b601-bbdebb74ebd2",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k3",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k3",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k3",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "kimi-k3",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "03b4d7c0-7d85-4fed-b601-bbdebb74ebd2",
-      "source_checksum": "sha256:5d2227362b208404d3069b56ee98ea64d69db71ef91032acdd3e32dadf52c1a8",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent",
-      "upstream_model_id": "minimax-m3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "3a97829b-5efd-454d-80a8-2ac981cf85c4",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "minimax-m3",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "minimax-m3",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "minimax-m3",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "tencent",
-              "model": "minimax-m3",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "3a97829b-5efd-454d-80a8-2ac981cf85c4",
-      "source_checksum": "sha256:1cbd5609fe07ccfa48e9bc4f8b735ee892990807e59a48f5e93864d5dcaa36d4",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent-coding-plan",
-      "upstream_model_id": "glm-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "66056864-2b77-4b6e-a447-650370fd8730",
+      "cache_write_token_unit_price": "3.75",
+      "id": "cf864838-47ba-4e71-8cac-6b8a0bc053f9",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -996,29 +1218,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "glm-5",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "glm-5",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "glm-5",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "glm-5",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1027,13 +1249,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "66056864-2b77-4b6e-a447-650370fd8730",
-      "source_checksum": "sha256:351ad551fa43a7427663376f8f89e0044aaca10138eda0e985186e5330f7f30b",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "cf864838-47ba-4e71-8cac-6b8a0bc053f9",
+      "source_checksum": "sha256:252b1e80f8ed8804bf6969c212a4ea65cb4ced3be5d08938c4d9c9cc53a999c4",
+      "source_version": "2026-11-10.1"
     },
     {
-      "provider_code": "tencent-coding-plan",
-      "upstream_model_id": "hunyuan-2.0-instruct",
+      "provider_code": "tempr",
+      "upstream_model_id": "anthropic/claude-sonnet-4-5-20250929",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1043,14 +1265,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "3",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "15",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "05e00278-474d-4b7c-8bce-bd34aa5ffb41",
+      "cache_write_token_unit_price": "3.75",
+      "id": "162722fa-19d6-4260-80a4-a0540da53c78",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1060,29 +1282,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-instruct",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-instruct",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-instruct",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-instruct",
+              "provider": "tempr",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1091,201 +1313,9 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "05e00278-474d-4b7c-8bce-bd34aa5ffb41",
-      "source_checksum": "sha256:b45a0daad369e43f0235b7470778e194bb6d4ec91da862e304ee81da65c6a77d",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent-coding-plan",
-      "upstream_model_id": "hunyuan-2.0-thinking",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "93d8de78-d1fb-4aca-b678-19a87e1ae0b0",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-thinking",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-thinking",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-thinking",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-2.0-thinking",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "93d8de78-d1fb-4aca-b678-19a87e1ae0b0",
-      "source_checksum": "sha256:fa93c54718b680c6c9ed52fce206ba9f3d7266648b5b87415bfd595b3b305519",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent-coding-plan",
-      "upstream_model_id": "hunyuan-t1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "58a50b5f-e77c-47b6-ba92-d60d374522f5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-t1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-t1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-t1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-t1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "58a50b5f-e77c-47b6-ba92-d60d374522f5",
-      "source_checksum": "sha256:e49d908047c3d15371579d5100accda5f729510f86fc1202f35e557c321db177",
-      "source_version": "2026-11-09.3"
-    },
-    {
-      "provider_code": "tencent-coding-plan",
-      "upstream_model_id": "hunyuan-turbos",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "4039f863-b4ce-468e-a321-ead5de9a3959",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-turbos",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-turbos",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-turbos",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "tencent-coding-plan",
-              "model": "hunyuan-turbos",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4039f863-b4ce-468e-a321-ead5de9a3959",
-      "source_checksum": "sha256:423190b871fc6c0a713d3fd26aa30d119eaf7b6013f28aac1040e78111814971",
-      "source_version": "2026-11-09.3"
+      "source_catalog_id": "162722fa-19d6-4260-80a4-a0540da53c78",
+      "source_checksum": "sha256:2ff89b7195e1cd5173347c4d7878922e6a06e2ac62a2ba4c11cbd892c8ce7575",
+      "source_version": "2026-11-10.1"
     }
   ]
 }
