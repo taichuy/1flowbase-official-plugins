@@ -1,12 +1,294 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-11.2",
+  "catalog_version": "2026-11-11.3",
   "currency_code": "USD",
   "page": 120,
-  "cursor": "YWZ0ZXI6NjIyM2RkZTMtMzRhMS00NGNjLWE2MDUtYjJlOTc5Y2RmMjc1",
-  "next_cursor": "YWZ0ZXI6NGRkNzhlM2YtMTEzOS00ODI2LWE5YWItMzMwNTRhYzNkMGQ2",
+  "cursor": "YWZ0ZXI6YWFkYzBmMzMtMWZhNy00MzY5LWFiNGMtOGIxMTJlMDNkZTE1",
+  "next_cursor": "YWZ0ZXI6MjEwMmNkMDktY2VlNC00NTkyLWI3YzgtNjEyNGYzODM2ZDhh",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/121.json",
   "rules": [
+    {
+      "provider_code": "vercel",
+      "upstream_model_id": "openai/gpt-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "bae5f6b7-62e6-4b2d-98eb-95b8510fe7e4",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272001
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272001
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "bae5f6b7-62e6-4b2d-98eb-95b8510fe7e4",
+      "source_checksum": "sha256:8853aff1357a1fb6f26a2e8254cb8a94fff9cbc33c8334b727cbe9e118ec3b2c",
+      "source_version": "2026-11-11.3"
+    },
+    {
+      "provider_code": "vercel",
+      "upstream_model_id": "openai/gpt-6-luna-fast",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.02",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.25",
+      "id": "316a4df0-cf78-41f6-b3bb-838b6421567d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272001
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.4",
+            "output_token_unit_price": "1.5",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna-fast",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna-fast",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna-fast",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-luna-fast",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272001
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.4",
+                "output_token_unit_price": "1.5",
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "316a4df0-cf78-41f6-b3bb-838b6421567d",
+      "source_checksum": "sha256:a1904ce453c01fa52833fe02f96f64b8f350896f96e31c7e54c8bd66a56dba4a",
+      "source_version": "2026-11-11.3"
+    },
+    {
+      "provider_code": "vercel",
+      "upstream_model_id": "openai/gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "6223dde3-34a1-44cc-a605-b2e979cdf275",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272001
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "vercel",
+              "model": "openai/gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272001
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6223dde3-34a1-44cc-a605-b2e979cdf275",
+      "source_checksum": "sha256:7db12d9d6d8036de870b5f2b103b23c529e51b7f9b5f2bd70eee4a768ebc34cc",
+      "source_version": "2026-11-11.3"
+    },
     {
       "provider_code": "vercel",
       "upstream_model_id": "openai/gpt-6-sol-fast",
@@ -99,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "1c831e68-19a6-4088-a4d3-40cfd00c1c87",
       "source_checksum": "sha256:f3080acc034c2f7d3e397b1def1e551b765bc7256a40def48de8028331dff015",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel",
@@ -193,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "cc44c221-a6bc-4476-bdf7-8469d56522d4",
       "source_checksum": "sha256:adf3fd80283fcd59b2087f78cd201fdd1b3d16fe5d684b5f02e4133406290e43",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel",
@@ -287,7 +569,7 @@
       "source_kind": "official",
       "source_catalog_id": "ab34477a-9615-400a-a681-564cf9317f5b",
       "source_checksum": "sha256:dcd81f1ef8ed4ab1d5213fbe5006709497198c4a72c26172314e0344bea506cd",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel",
@@ -381,7 +663,7 @@
       "source_kind": "official",
       "source_catalog_id": "ec63de24-2351-4bb1-a6c4-edd5c269bb82",
       "source_checksum": "sha256:04944dc22fef11a57db56d45187bbc6c87d4a2bd5f5ae5d05c76a51b6aab85ce",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel",
@@ -475,7 +757,7 @@
       "source_kind": "official",
       "source_catalog_id": "cef43390-d892-4d9f-bd51-fd9733c47454",
       "source_checksum": "sha256:1c4a89bd00aba8de173eed09a1c8335136af805198604e1a520d5f8ad8beff96",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel",
@@ -539,7 +821,7 @@
       "source_kind": "official",
       "source_catalog_id": "5bfd439b-6362-4093-b1c3-8dd178c58020",
       "source_checksum": "sha256:4b6e2f9ed80ee4355a52bb2725624d8a09f3e730fe9f23fbed99c6b00d94487d",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel",
@@ -603,7 +885,7 @@
       "source_kind": "official",
       "source_catalog_id": "f749fd70-31d5-4b80-8b84-234873d5a584",
       "source_checksum": "sha256:1a1bf314da8a1148386267d5137397349ff98a3dc03030381f4f95531ab21dfc",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -667,7 +949,7 @@
       "source_kind": "official",
       "source_catalog_id": "df0e6906-96f0-447c-a471-15ffacaff426",
       "source_checksum": "sha256:ca37227be581809900b3b69ddb9987a6a6a1cf54bf6728c7097e01c53dd19006",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -731,7 +1013,7 @@
       "source_kind": "official",
       "source_catalog_id": "57721231-dfd0-4f9b-8356-d225b6522f7d",
       "source_checksum": "sha256:a88b95580a837b6c72fb32dbf9ed2496191fb7550c35de4d67e8303875202127",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -795,7 +1077,7 @@
       "source_kind": "official",
       "source_catalog_id": "8e5882c7-13fe-4989-a552-c2cf54683437",
       "source_checksum": "sha256:9fb5a99991c3e967536e36d424218df9a3086f6b903e065005e04334bae5a2da",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -859,7 +1141,7 @@
       "source_kind": "official",
       "source_catalog_id": "7cfba703-e038-4491-bc00-5ecc3836c091",
       "source_checksum": "sha256:541c9b5df84d9f0c913f09e54e0944a7d526f5584db1ed0bd943f06a57b07afc",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -923,7 +1205,7 @@
       "source_kind": "official",
       "source_catalog_id": "6ed4fd64-2603-4ecb-894d-afa34b15af3b",
       "source_checksum": "sha256:6e69dd9b792c25a7725ef42501ea0c3d9010bdc89edacaea57fc98f9adcf4b4c",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -987,7 +1269,7 @@
       "source_kind": "official",
       "source_catalog_id": "23217a6c-68cb-48ac-9a2b-c5b0eefdaed4",
       "source_checksum": "sha256:474a543cdd951dcc2f3a072cb318472e470b8092c106909c2621ebe1efd925d7",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -1051,7 +1333,7 @@
       "source_kind": "official",
       "source_catalog_id": "b11ce3e2-cb93-4c17-925e-f78826d2e98e",
       "source_checksum": "sha256:8a072e79bc15f6b15b29f7b3feada2425b8cf84c9fbc0f4f019c0bcb45aa6ab0",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -1115,7 +1397,7 @@
       "source_kind": "official",
       "source_catalog_id": "c79f9f2a-fe4e-4bfa-91dc-912b64683d36",
       "source_checksum": "sha256:19c3b929bfa5889a844fcc9b1cd5c0377365b9269595f0da647a74a850ea7dd3",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -1179,7 +1461,7 @@
       "source_kind": "official",
       "source_catalog_id": "8bd3e923-90a5-48a7-9684-1623cd57109a",
       "source_checksum": "sha256:ee27efcd27f7b6b2130b36167d05ff64db24c98cd8d53305a05bf3b34dcc702b",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     },
     {
       "provider_code": "vercel_ai_gateway",
@@ -1243,199 +1525,7 @@
       "source_kind": "official",
       "source_catalog_id": "2102cd09-cee4-4592-b7c8-6124f3836d8a",
       "source_checksum": "sha256:d67ff20c3b094bafe21fd55f598312b35c797175b91a8ca7d622aec6c3a82e6c",
-      "source_version": "2026-11-11.2"
-    },
-    {
-      "provider_code": "vercel_ai_gateway",
-      "upstream_model_id": "anthropic/claude-haiku-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "1dfc916b-2520-4f18-9cf2-c53e2993141b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "1dfc916b-2520-4f18-9cf2-c53e2993141b",
-      "source_checksum": "sha256:6ef0f2124fca0802609ebfebce61dd012ae8c6b32d4fce3e1bc127bb876530d9",
-      "source_version": "2026-11-11.2"
-    },
-    {
-      "provider_code": "vercel_ai_gateway",
-      "upstream_model_id": "anthropic/claude-opus-4",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "18.75",
-      "id": "cc8f66b3-4978-4aaf-87d1-825b6306f8d6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "cc8f66b3-4978-4aaf-87d1-825b6306f8d6",
-      "source_checksum": "sha256:875e998c09dae9d05e457f5bc9c53539b157eb74ab1a33a865932bfa07bdf8f9",
-      "source_version": "2026-11-11.2"
-    },
-    {
-      "provider_code": "vercel_ai_gateway",
-      "upstream_model_id": "anthropic/claude-opus-4.1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "18.75",
-      "id": "4dd78e3f-1139-4826-a9ab-33054ac3d0d6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4.1",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4.1",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4.1",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "vercel_ai_gateway",
-              "model": "anthropic/claude-opus-4.1",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4dd78e3f-1139-4826-a9ab-33054ac3d0d6",
-      "source_checksum": "sha256:ffe6a9a5981b03617db1d4062c8a24d6624820d8f014ab029d7e4b9f76495325",
-      "source_version": "2026-11-11.2"
+      "source_version": "2026-11-11.3"
     }
   ]
 }
