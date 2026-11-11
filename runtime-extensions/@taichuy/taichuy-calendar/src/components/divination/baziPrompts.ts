@@ -1,10 +1,11 @@
 import { BaziResult } from './types';
 import { LunarYear } from 'tyme4ts';
-import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { Solar } from 'lunar-typescript';
 
 export const generateBaziAIDescription = (
   baziResult: BaziResult | null,
+  selectedDateTime: Dayjs,
   locationInfo?: {
     location?: string;
     longitude: number;
@@ -15,15 +16,14 @@ export const generateBaziAIDescription = (
 ) => {
   if (!baziResult) return '';
 
-  const now = dayjs();
-  const solar = Solar.fromYmd(now.year(), now.month() + 1, now.date());
+  const solar = Solar.fromYmd(selectedDateTime.year(), selectedDateTime.month() + 1, selectedDateTime.date());
   const lunar = solar.getLunar();
 
   let text = `【八字命盘客观数据】\n\n`;
   text += `基本信息：\n`;
 
-  // Current Time Info
-  text += `- 当前时间：${now.format('YYYY年MM月DD日 HH:mm:ss')}\n`;
+  // Use the selected civil birth time; true solar time is reported separately.
+  text += `- 当前时间：${selectedDateTime.format('YYYY年MM月DD日 HH:mm:ss')}\n`;
   text += `- 当前农历：${lunar.getYearInChinese()}年 ${lunar.getMonthInChinese()}月 ${lunar.getDayInChinese()}\n`;
 
   if (locationInfo) {

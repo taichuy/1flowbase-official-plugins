@@ -91,7 +91,31 @@ test('captured source-site 2026-11-01 evidence is retained, including full Bazi 
     assert.equal(ziwei[key], expected.ziwei[key]);
   }
   assert.equal(ziwei.palaces.length, expected.ziwei.palaceCount);
-  assert.match(generateBaziAIDescription(result), /丙午/);
-  assert.match(generateZiWeiAIDescription(ziwei, undefined, undefined, 'male'), /紫微/);
-  assert.match(generateZiWeiAIDescriptionWithHoroscope(ziwei, ziwei.horoscope(dayjs(expected.clock).toDate()), undefined, undefined, 'male'), /紫微/);
+  const civilDateTime = date.hour(time.hour()).minute(time.minute()).second(time.second());
+  const selectedTimeLine = `- 当前时间：${civilDateTime.format('YYYY年MM月DD日 HH:mm:ss')}`;
+  const baziText = generateBaziAIDescription(result, civilDateTime);
+  const ziweiText = generateZiWeiAIDescription(ziwei, civilDateTime, undefined, undefined, 'male');
+  const horoscopeText = generateZiWeiAIDescriptionWithHoroscope(ziwei, ziwei.horoscope(dayjs(expected.clock).toDate()), civilDateTime, undefined, undefined, 'male');
+  for (const text of [baziText, ziweiText, horoscopeText]) assert.ok(text.includes(selectedTimeLine));
+  assert.match(baziText, /丙午/);
+  assert.match(ziweiText, /紫微/);
+  assert.match(horoscopeText, /紫微/);
+});
+
+test('AI helper headers use the selected civil date rather than the system or corrected date', () => {
+  const selected = dayjs('2025-11-26T22:30:00');
+  const corrected = dayjs('2025-11-27T00:01:00');
+  const location = { longitude: 116.4, latitude: 39.9, useTrueSolarTime: true, trueSolarTimeStr: corrected.format('YYYY-MM-DD HH:mm:ss') };
+  const { result } = calculateBazi(corrected, corrected, 'male', dayjs(expected.clock));
+  const ziwei = calculateZiWei(corrected, corrected, 'male');
+  const texts = [
+    generateBaziAIDescription(result, selected, location),
+    generateZiWeiAIDescription(ziwei, selected, location),
+    generateZiWeiAIDescriptionWithHoroscope(ziwei, ziwei.horoscope(dayjs(expected.clock).toDate()), selected, location),
+  ];
+  for (const text of texts) {
+    assert.ok(text.includes('- 当前时间：2025年11月26日 22:30:00'));
+    assert.ok(text.includes('- 当前农历：二〇二五年 十月 初七'));
+    assert.ok(text.includes('- 真太阳时时间：2025-11-27 00:01:00'));
+  }
 });

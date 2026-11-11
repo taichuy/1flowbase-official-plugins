@@ -1,10 +1,11 @@
 import type { IFunctionalAstrolabe } from 'iztro/lib/astro/FunctionalAstrolabe';
 import type { IFunctionalHoroscope } from 'iztro/lib/astro/FunctionalHoroscope';
-import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { Solar } from 'lunar-typescript';
 
 export const generateZiWeiAIDescription = (
   astrolabe: IFunctionalAstrolabe | null,
+  selectedDateTime: Dayjs,
   locationInfo?: {
     location?: string;
     longitude: number;
@@ -20,14 +21,13 @@ export const generateZiWeiAIDescription = (
 ) => {
   if (!astrolabe) return '';
 
-  const now = dayjs();
-  const solar = Solar.fromYmd(now.year(), now.month() + 1, now.date());
+  const solar = Solar.fromYmd(selectedDateTime.year(), selectedDateTime.month() + 1, selectedDateTime.date());
   const lunar = solar.getLunar();
 
   let text = `### 【基础信息】\n\n`;
 
-  // Current Time Info
-  text += `- 当前时间：${now.format('YYYY年MM月DD日 HH:mm:ss')}\n`;
+  // Use the selected civil birth time; true solar time is reported separately.
+  text += `- 当前时间：${selectedDateTime.format('YYYY年MM月DD日 HH:mm:ss')}\n`;
   text += `- 当前农历：${lunar.getYearInChinese()}年 ${lunar.getMonthInChinese()}月 ${lunar.getDayInChinese()}\n`;
 
   if (locationInfo) {
@@ -73,6 +73,7 @@ export const generateZiWeiAIDescription = (
 export const generateZiWeiAIDescriptionWithHoroscope = (
   astrolabe: IFunctionalAstrolabe | null,
   horoscope: IFunctionalHoroscope | null,
+  selectedDateTime: Dayjs,
   locationInfo?: {
     location?: string;
     longitude: number;
@@ -88,7 +89,7 @@ export const generateZiWeiAIDescriptionWithHoroscope = (
 ) => {
   if (!astrolabe) return '';
 
-  let text = generateZiWeiAIDescription(astrolabe, locationInfo, ageInfo, gender);
+  let text = generateZiWeiAIDescription(astrolabe, selectedDateTime, locationInfo, ageInfo, gender);
 
   // Remove the default closing to append horoscope info
   text = text.replace('\n请基于以上客观数据，进行详细的紫微斗数解读。', '');

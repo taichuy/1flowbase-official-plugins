@@ -49,8 +49,9 @@ export default function CalendarPageContent() {
   const { styles } = usePageStyles();
   const { styles: layout } = useLayoutStyles();
   const { selectedDate } = useDateContext();
-  const { trueSolarDateTime, gender, locationInfo, chartRevision } = usePluginContext();
-  const chartProps = { date: trueSolarDateTime.date, time: trueSolarDateTime.time, gender, locationInfo };
+  const { birthDate, time, trueSolarDateTime, gender, locationInfo, chartRevision } = usePluginContext();
+  const civilDateTime = birthDate.hour(time.hour()).minute(time.minute()).second(time.second());
+  const chartProps = { date: trueSolarDateTime.date, time: trueSolarDateTime.time, civilDateTime, gender, locationInfo };
   const items = [
     {
       key: 'ziwei',

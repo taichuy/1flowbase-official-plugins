@@ -1,6 +1,6 @@
 # 太初y 日历排盘 · Taichuy Calendar
 
-独立 runtime extension，版本 **0.1.19**，manifest v2。中文说明见本文；
+独立 runtime extension，版本 **0.1.20**，manifest v2。中文说明见本文；
 [English documentation](README.en.md)。
 
 最低宿主版本为 **0.6.2**；宿主旧版 0.6.1 不具备本版本的执行预算和混合贡献契约。
@@ -237,7 +237,7 @@ Ant Design 局部覆写使用当前 `createStyles` 的 `prefixCls`，不再假�
 
 区块内比例调整为「左留白 : 详情 : 间隔 : 日历 = 0.3 : 6 : 0.3 : 3.4」，两处留白省出的宽度全部分配给日历。中等宽度仍采用相同比例，必要时为日历保留 280px 最小宽度；不超过 768px 继续单列。可编辑组合、兼容整页和页面模板同步更新，保留 sticky 与独立滚动。
 
-## 后端计算接口（0.1.19）
+## 后端计算接口（0.1.20）
 
 后端通过正式 managed-service 贡献注册，由底座处理发现、安装/授权、调用者权限和进程生命周期。
 插件是 system process_per_call 服务；原有 UI 绑定仍是 declarative_only，**仍须显式分配到目标工作区**且具备对应贡献授权，不因系统启用而对所有工作区显示。
@@ -274,3 +274,7 @@ Node 参照和真实 Rust 接口须按相同版本包装比较，且独立日期
 源码声明：manifest 只保留文件引用，六个挂载入口位于 `ui/components/*.tsx`；完整组合模板引用 `ui/templates/calendar-composition.tsx`，由生成器从 `examples/composed-page.tsx` 原样复制。`type_declarations_file` 引用 `ui/types/` 中的公开 API、宿主绑定与业务包声明；公开 API 从 `types/index.d.ts` 复制，业务类型沿用构建时已有的完整声明。`ui/` 由现有打包器随包交付，不需要将整个源码目录发布。
 
 底座 0.6.3 在安装准备阶段读取这些文件并保存源码快照，不把文件路径当成源码，也不改写已签名 manifest。日历的 YAML 不再内联 TSX 或类型声明；注册目标和执行授权保持独立。
+
+### 0.1.20：助手时间联动
+
+紫微、八字助手及复制文本中的“当前时间／当前农历”取出生表单选定的民用日期与时间；真太阳时单独显示校正结果。右侧月历仍只控制黄历，运限选择仍控制运限数据。

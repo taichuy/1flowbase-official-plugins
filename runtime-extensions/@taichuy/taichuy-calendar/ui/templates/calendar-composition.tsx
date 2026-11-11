@@ -55,6 +55,7 @@ const useStyles = createStyles(({ css, prefixCls }) => ({
 
 // The assistant UI and copy live in this editable block. MCP can change them here.
 // Runtime chart data arrives from the plugin on each render; it is not sample data.
+// Helper time/lunar fields follow the selected civil birth date and time.
 const assistantCopy = {
   "zh": {
     "quote": [

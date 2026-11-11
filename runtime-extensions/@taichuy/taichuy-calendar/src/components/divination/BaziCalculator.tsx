@@ -105,6 +105,7 @@ interface BaziCalculatorProps {
   renderAIHelper?: ChartAIHelperRenderer;
   date: Dayjs;
   time: Dayjs;
+  civilDateTime?: Dayjs;
   gender: 'male' | 'female';
   locationInfo?: {
     location?: string;
@@ -114,7 +115,7 @@ interface BaziCalculatorProps {
   };
 }
 
-export default function BaziCalculator({ date, time, gender, locationInfo, renderAIHelper }: BaziCalculatorProps) {
+export default function BaziCalculator({ date, time, civilDateTime, gender, locationInfo, renderAIHelper }: BaziCalculatorProps) {
   const { styles } = useStyle();
   const { token } = theme.useToken();
   const { message } = App.useApp();
@@ -156,6 +157,7 @@ export default function BaziCalculator({ date, time, gender, locationInfo, rende
 
   const natalText = generateBaziAIDescription(
     baziResult,
+    civilDateTime ?? date.hour(time.hour()).minute(time.minute()).second(time.second()),
     locationInfo ? { ...locationInfo, trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss') } : undefined
   );
 

@@ -15,10 +15,11 @@ function AlmanacContent() {
 }
 
 function ChartContent({ kind, renderAIHelper }: { kind: 'ziwei' | 'bazi'; renderAIHelper?: ChartAIHelperRenderer }) {
-  const { trueSolarDateTime, gender, locationInfo, chartRevision } = usePluginContext();
+  const { birthDate, time, trueSolarDateTime, gender, locationInfo, chartRevision } = usePluginContext();
+  const civilDateTime = birthDate.hour(time.hour()).minute(time.minute()).second(time.second());
   const Component = kind === 'ziwei' ? ZiWeiCalculator : BaziCalculator;
   return <Component key={chartRevision} date={trueSolarDateTime.date} time={trueSolarDateTime.time}
-    gender={gender} locationInfo={locationInfo} renderAIHelper={renderAIHelper} />;
+    civilDateTime={civilDateTime} gender={gender} locationInfo={locationInfo} renderAIHelper={renderAIHelper} />;
 }
 
 /** Standalone lunar month/year calendar, including return to today. */

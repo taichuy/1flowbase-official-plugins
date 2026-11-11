@@ -24,6 +24,7 @@ interface ZiWeiCalculatorProps {
   renderAIHelper?: ChartAIHelperRenderer;
   date: Dayjs;
   time: Dayjs;
+  civilDateTime?: Dayjs;
   gender: 'male' | 'female';
   locationInfo?: {
     location?: string;
@@ -36,6 +37,7 @@ interface ZiWeiCalculatorProps {
 export default function ZiWeiCalculator({
   date,
   time,
+  civilDateTime,
   gender,
   locationInfo,
   renderAIHelper,
@@ -486,13 +488,16 @@ export default function ZiWeiCalculator({
 
   if (!astrolabe) return null;
 
+  const selectedDateTime = civilDateTime ?? date.hour(time.hour()).minute(time.minute()).second(time.second());
   const natalText = generateZiWeiAIDescription(
     astrolabe,
+    selectedDateTime,
     locationInfo ? { ...locationInfo, trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss') } : undefined,
     { age, chineseAge }, gender
   );
   const horoscopeText = generateZiWeiAIDescriptionWithHoroscope(
     astrolabe, horoscope,
+    selectedDateTime,
     locationInfo ? { ...locationInfo, trueSolarTimeStr: date.format('YYYY-MM-DD HH:mm:ss') } : undefined,
     { age, chineseAge }, gender
   );

@@ -82,7 +82,17 @@ export interface BirthInfoState {
   requestChart: () => void;
 }
 export declare function useBirthInfo(): BirthInfoState;
-export interface ChartProps { date: Dayjs; time: Dayjs; gender: 'male' | 'female'; locationInfo?: ChartLocationInfo; renderAIHelper?: ChartAIHelperRenderer; }
+export interface ChartProps {
+  date: Dayjs;
+  time: Dayjs;
+  /** Selected civil birth timestamp for helper text, before true solar correction.
+   * Omit when date/time already represent the selected civil input.
+   */
+  civilDateTime?: Dayjs;
+  gender: 'male' | 'female';
+  locationInfo?: ChartLocationInfo;
+  renderAIHelper?: ChartAIHelperRenderer;
+}
 export declare function LunarInfoCard(props: { date: Dayjs }): ReactElement;
 export declare function ZiWeiCalculator(props: ChartProps): ReactElement;
 export declare function BaziCalculator(props: ChartProps): ReactElement;

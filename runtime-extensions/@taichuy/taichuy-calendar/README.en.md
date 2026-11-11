@@ -1,6 +1,6 @@
 # Taichuy Calendar · 太初y 日历排盘
 
-Independent **0.1.19** runtime extension, manifest v2. [中文说明](README.md).
+Independent **0.1.20** runtime extension, manifest v2. [中文说明](README.md).
 Minimum host version is **0.6.2**, **with a build containing the new contracts**:
 H1 component projection plus factory/host-binding/deduplication support. An older
 published 0.6.1 build without those changes is NOT sufficient; upgrade the host
@@ -255,7 +255,7 @@ The composition uses Ant Design `Flex` with a leading-space : detail : gap : cal
 
 The block-relative leading-space : detail : gap : calendar ratio is now **0.3 : 6 : 0.3 : 3.4**. Both reduced spaces are reassigned to the calendar. Medium blocks retain this ratio with a 280px minimum calendar width where necessary; blocks at 768px or less remain single-column. Editable composition, compatibility page and portable template stay aligned, with sticky positioning and independent scrolling preserved.
 
-## Embedded computation API (0.1.19)
+## Embedded computation API (0.1.20)
 
 Requires host **0.6.2** (not an older 0.6.1 build). The existing official catalog minimum-host check and exact SDK git SHA pin are distinct: one checks installation compatibility, the other pairs release builds.
 The eight managed-service POST operations are declared in scripts/runtime-contract.mjs; output DTOs in scripts/runtime-schemas.mjs. Node/npm are build-only; the published Rust executable runs the closed _assets/runtime/backend.js using the optional shared SDK JavaScript feature. No node_modules, private HTTP server, runtime package download, or Node compatibility layer.
@@ -280,3 +280,7 @@ Registration boundary: all these contributions declare `block_registration: fals
 Source declarations: the manifest contains file references. The six mounting entries live in `ui/components/*.tsx`; the complete composition references `ui/templates/calendar-composition.tsx`, copied unchanged from `examples/composed-page.tsx` by the generator. `type_declarations_file` references public API, host-binding and business-package declarations under `ui/types/`. The public API is copied from `types/index.d.ts`; business declarations retain their complete existing build output. The existing packager includes `ui/`, so the full authoring source tree need not be published.
 
 Host 0.6.3 reads these files during installation preparation and persists source snapshots. It does not interpret file paths as source or rewrite the signed manifest. The calendar YAML no longer embeds TSX or declaration text; registration targets and execution authority remain separate.
+
+### 0.1.20: Selected timestamps in AI helpers
+
+ZiWei and Bazi helper text and copy actions derive the time and lunar date from the selected civil birth date and time. True solar time remains a separate corrected value. The side calendar continues to control the almanac, and horoscope navigation controls horoscope data.
