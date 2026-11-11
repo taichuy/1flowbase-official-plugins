@@ -1,12 +1,452 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-10.4",
+  "catalog_version": "2026-11-11.1",
   "currency_code": "USD",
   "page": 88,
-  "cursor": "YWZ0ZXI6NGEzOTg2OGItOTljYy00YzcxLWFhOGQtYjlhNGMyMGE3MDRk",
-  "next_cursor": "YWZ0ZXI6OTRjODYxZjUtMDI0Zi00OGE2LTljZDMtODdjMDcxZmY0NzFj",
+  "cursor": "YWZ0ZXI6MTg3MTE3ODAtYzVkOS00Mjk5LWI3YzMtYWFkZjJiZTA3MWE5",
+  "next_cursor": "YWZ0ZXI6N2UxNTM3MzgtMjNiOS00MGM3LTk0ZWEtYTczMjY4NmFjM2My",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/89.json",
   "rules": [
+    {
+      "provider_code": "neon",
+      "upstream_model_id": "claude-sonnet-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "ee621529-bd5d-4864-9cfd-08d29b8f8f53",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "claude-sonnet-5-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "claude-sonnet-5-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "claude-sonnet-5-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "claude-sonnet-5-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "ee621529-bd5d-4864-9cfd-08d29b8f8f53",
+      "source_checksum": "sha256:db0a6c1ea2d719976a4313ea09dbc36de395c6477483be8b9a944977f75783ff",
+      "source_version": "2026-11-11.1"
+    },
+    {
+      "provider_code": "neon",
+      "upstream_model_id": "gpt-5-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.02",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.25",
+      "id": "bb3aded8-e518-481d-93db-53fe56736ca8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.4",
+            "output_token_unit_price": "1.8",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.4",
+                "output_token_unit_price": "1.8",
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "bb3aded8-e518-481d-93db-53fe56736ca8",
+      "source_checksum": "sha256:59e3a7f338ab0b941b2874c93d26a50893a80837ef942770ed75886ab74201da",
+      "source_version": "2026-11-11.1"
+    },
+    {
+      "provider_code": "neon",
+      "upstream_model_id": "gpt-5-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "30",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "5887e83e-4925-47a6-b3d8-d630502a8de2",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "10",
+            "output_token_unit_price": "45",
+            "cache_hit_token_unit_price": "1",
+            "cache_write_token_unit_price": "12.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "10",
+                "output_token_unit_price": "45",
+                "cache_hit_token_unit_price": "1",
+                "cache_write_token_unit_price": "12.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5887e83e-4925-47a6-b3d8-d630502a8de2",
+      "source_checksum": "sha256:9dd8130a400ea2a7c941f0e7bb9039bcdacc8573dbd4ae1944e88651bf7ab7c7",
+      "source_version": "2026-11-11.1"
+    },
+    {
+      "provider_code": "neon",
+      "upstream_model_id": "gpt-5-6-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "e0ae0fb4-5806-4fb3-8ea8-82f43bf8a5bf",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-5-6-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e0ae0fb4-5806-4fb3-8ea8-82f43bf8a5bf",
+      "source_checksum": "sha256:841103ac2955a0e4456ccc880a93860270083624d974a478d611fa4ee3fb9810",
+      "source_version": "2026-11-11.1"
+    },
+    {
+      "provider_code": "neon",
+      "upstream_model_id": "gpt-6-1-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "4a39868b-99cc-4c71-aa8d-b9a4c20a704d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-6-1-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-6-1-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-6-1-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "neon",
+              "model": "gpt-6-1-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "4a39868b-99cc-4c71-aa8d-b9a4c20a704d",
+      "source_checksum": "sha256:355889a81f96978dc8342299eb902f315fca04dc2444fc54ff338e944c8d4a97",
+      "source_version": "2026-11-11.1"
+    },
     {
       "provider_code": "neon",
       "upstream_model_id": "gpt-6-astra",
@@ -99,7 +539,7 @@
       "source_kind": "official",
       "source_catalog_id": "1d271ea6-80ae-42f0-bbed-1da7e5d881dc",
       "source_checksum": "sha256:6fa236e9e65baac4edb3e76ddaa8186c70271845e5e2cfdc2550469033c5b790",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "neon",
@@ -193,7 +633,7 @@
       "source_kind": "official",
       "source_catalog_id": "70dddf20-73b1-4c5a-b363-9afc2599bfe3",
       "source_checksum": "sha256:7394cd8b83f069b94abaf0e8803b5978189f9c683d6225880db345113b1e3ba9",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "neon",
@@ -287,7 +727,7 @@
       "source_kind": "official",
       "source_catalog_id": "a6d4c3fc-ae23-4cde-bc12-989693ccdb2e",
       "source_checksum": "sha256:97869687be50f019c67c13ca0f85b5f712871de2e8fe78693968d6ee408f3e21",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "neosmith",
@@ -351,7 +791,7 @@
       "source_kind": "official",
       "source_catalog_id": "45ccc863-d3f8-49df-908b-243e8dbfe87d",
       "source_checksum": "sha256:94726e45b737307cc3584610275b9ac24a295bec89672ef5704242113a983851",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "neosmith",
@@ -415,7 +855,7 @@
       "source_kind": "official",
       "source_catalog_id": "662e6a18-9752-4985-843d-3afa3ef05563",
       "source_checksum": "sha256:b1136b1a6119a74579213f6b6acc635765f073b0f535c7313b2a1ac0878b4542",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "neosmith",
@@ -479,7 +919,7 @@
       "source_kind": "official",
       "source_catalog_id": "818f8ce8-2f01-4818-aaf6-22cdde6529c2",
       "source_checksum": "sha256:887cccaa38f7d24edd3596c38dbe5704adfb38f7342a11f914c9bc4a77911b94",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "neosmith",
@@ -543,7 +983,7 @@
       "source_kind": "official",
       "source_catalog_id": "e3db32c1-50a3-4dde-a916-fdfb353b2e82",
       "source_checksum": "sha256:7112995ecd2d93964a80d596a5bc6bb7594aefd97457ba175e1095c0050a469b",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "novita-ai",
@@ -607,7 +1047,7 @@
       "source_kind": "official",
       "source_catalog_id": "3999dbf6-64c7-4a17-8e30-839d0c0304ae",
       "source_checksum": "sha256:a793fa0a6ba35edcaca4ddfc40e139f4a60613671f669da4b33613e2fb422d8d",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "novita-ai",
@@ -671,7 +1111,7 @@
       "source_kind": "official",
       "source_catalog_id": "5889a866-9195-45f5-b3e0-86534d131289",
       "source_checksum": "sha256:3fd0e328752631ff18e9fb7d4560a4640f55f5854715f76ded3ee7477705ee6f",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "novita-ai",
@@ -735,7 +1175,7 @@
       "source_kind": "official",
       "source_catalog_id": "91fe6136-19fe-41ae-83cd-1f9e9afff589",
       "source_checksum": "sha256:cb4a5ad4b456dcfaabe38318e9e2205d7e123850186e6fe4ad5bf26261a55287",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "novita-ai",
@@ -799,7 +1239,7 @@
       "source_kind": "official",
       "source_catalog_id": "6a454df7-6245-4c67-b075-351a70393ad8",
       "source_checksum": "sha256:ea0d8868bb803a4695a6e2d45044e570d463b4aa078370698456415728075e30",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "novita-ai",
@@ -863,7 +1303,7 @@
       "source_kind": "official",
       "source_catalog_id": "643cdf3b-fb86-4d39-9ee6-815270b9ca62",
       "source_checksum": "sha256:d914c16ef6cd55ae91e8d8cf50acfc54f2b9d637e4017d233a5e324242cdea89",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "novita-ai",
@@ -927,7 +1367,7 @@
       "source_kind": "official",
       "source_catalog_id": "ed6bfb5b-fa08-423f-ba13-8a7e047ba7a0",
       "source_checksum": "sha256:d2fbfaa173bdd39ef11241794f48956e66a6db84bf4f807a57b595630ea00d8d",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "ofox",
@@ -991,7 +1431,7 @@
       "source_kind": "official",
       "source_catalog_id": "cdeae409-c5d1-41bf-86c7-f2169f2a8045",
       "source_checksum": "sha256:f0c1066ad910483be118aba2c4f53cbed4234ef37e9b76c87d6e98e3b9559115",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     },
     {
       "provider_code": "ofox",
@@ -1055,357 +1495,7 @@
       "source_kind": "official",
       "source_catalog_id": "7e153738-23b9-40c7-94ea-a732686ac3c2",
       "source_checksum": "sha256:d7dae4b5704758beaa70f988247b1fd7b2c492fd7a4f90099df1d916bf02a183",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "ofox",
-      "upstream_model_id": "anthropic/claude-haiku-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "7a99dfd0-2ed9-4c8a-a935-96b5effbf9bd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-4.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "7a99dfd0-2ed9-4c8a-a935-96b5effbf9bd",
-      "source_checksum": "sha256:34ed3e80eb704aa63145340146920f0cd702e2c673ed4feae4f516c311c6e284",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "ofox",
-      "upstream_model_id": "anthropic/claude-haiku-5.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.125",
-      "id": "69035ae6-7c2b-49fc-aec0-1478a0c8fe68",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 100000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.5",
-            "output_token_unit_price": "2.5",
-            "cache_hit_token_unit_price": "0.05",
-            "cache_write_token_unit_price": "0.625"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-5.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-5.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-5.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-haiku-5.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 100000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.5",
-                "output_token_unit_price": "2.5",
-                "cache_hit_token_unit_price": "0.05",
-                "cache_write_token_unit_price": "0.625"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "69035ae6-7c2b-49fc-aec0-1478a0c8fe68",
-      "source_checksum": "sha256:ea084986623b66a37829cb2a140d33c193642c3bb84e2cfce5072d9fcb54280e",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "ofox",
-      "upstream_model_id": "anthropic/claude-opus-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "b39024fe-597f-49ff-8236-e323956c4801",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b39024fe-597f-49ff-8236-e323956c4801",
-      "source_checksum": "sha256:2e6b665ddb95d0037d476fb7857e87f5044bd618b4d3580317a1577f4c2cf0ce",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "ofox",
-      "upstream_model_id": "anthropic/claude-opus-4.6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "78a2553d-e2b1-4ca6-947b-6d566b58744c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "78a2553d-e2b1-4ca6-947b-6d566b58744c",
-      "source_checksum": "sha256:599be1821a28ee7f8743e3557cf1579631335b4dbb18b19d70fe20098d60cfdb",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "ofox",
-      "upstream_model_id": "anthropic/claude-opus-4.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "94c861f5-024f-48a6-9cd3-87c071ff471c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "ofox",
-              "model": "anthropic/claude-opus-4.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "94c861f5-024f-48a6-9cd3-87c071ff471c",
-      "source_checksum": "sha256:9ab9477ec31e8b5c81bfc497b56f2577695463d51e3ee24355d93cf88f7a20f5",
-      "source_version": "2026-11-10.4"
+      "source_version": "2026-11-11.1"
     }
   ]
 }
