@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-12.2",
+  "catalog_version": "2026-11-12.3",
   "currency_code": "USD",
   "page": 71,
-  "cursor": "YWZ0ZXI6MmRiNWE1MWItOTRmZi00M2ZhLWJiMjMtZGQwNjI4OGNiNjhh",
-  "next_cursor": "YWZ0ZXI6YjQyMTczNWYtYzFjYy00OTY0LTk1MzEtZWI0ZDQ1NDdmNjRk",
+  "cursor": "YWZ0ZXI6NmQ4NmE5YjQtYTEzZi00NWM2LTg3ZmQtOTBhODJlMjFhNjQ5",
+  "next_cursor": "YWZ0ZXI6YmU5NDZkYTQtZTE3OS00M2Y5LWFkNWItZTEzM2QyZjg5ZmEy",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/72.json",
   "rules": [
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "gpt-6-astra",
+      "upstream_model_id": "claude-fable-5-2",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,14 +19,78 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
+      "input_token_unit_price": "8",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
+      "output_token_unit_price": "40",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "12.5",
-      "id": "90da8f74-f780-4307-897c-6c2e2ddf8375",
+      "cache_write_token_unit_price": "10",
+      "id": "27ccb68f-23c6-47dc-846d-1da90424bee5",
+      "effective_from": "2026-11-10T02:14:33.756Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-10T02:14:33.756Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-fable-5-2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-fable-5-2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-fable-5-2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-fable-5-2",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "27ccb68f-23c6-47dc-846d-1da90424bee5",
+      "source_checksum": "sha256:cad06f87d47eebfbac2c9a47f449e692f728a0e4bcd94031a713779f0861d963",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-haiku-4-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "5ca92a63-68c1-460b-9164-2ba307c099d1",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -37,28 +101,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-astra",
+              "model": "claude-haiku-4-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-astra",
+              "model": "claude-haiku-4-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-astra",
+              "model": "claude-haiku-4-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-astra",
+              "model": "claude-haiku-4-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -67,13 +131,77 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "90da8f74-f780-4307-897c-6c2e2ddf8375",
-      "source_checksum": "sha256:32fad95aa861ca215f8dd52db018ef49ee3594e0fe1ce807ed538ba6a3ad90eb",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "5ca92a63-68c1-460b-9164-2ba307c099d1",
+      "source_checksum": "sha256:ddbabc789e8739bbe568fd292cf3800da1fc82eeafce96fd8369adf349c34944",
+      "source_version": "2026-11-12.3"
     },
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "gpt-6-luna",
+      "upstream_model_id": "claude-haiku-4-5-20251001",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "72b23bc9-daa0-4a99-a1fa-60385c370b45",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "72b23bc9-daa0-4a99-a1fa-60385c370b45",
+      "source_checksum": "sha256:d95a00f8d736c8d22495a8eddeecf912ebe6fd4912f5b737b0118bf8e66cfa47",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-haiku-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -90,7 +218,7 @@
       "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0.125",
-      "id": "b73dc740-c139-4f6e-9366-67783ff33bc9",
+      "id": "3da661a4-1dba-48b4-ab26-06b4131c0599",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -101,28 +229,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-luna",
+              "model": "claude-haiku-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-luna",
+              "model": "claude-haiku-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-luna",
+              "model": "claude-haiku-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-luna",
+              "model": "claude-haiku-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -131,13 +259,589 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "b73dc740-c139-4f6e-9366-67783ff33bc9",
-      "source_checksum": "sha256:d9d3c3b3567700abc407b78164b0790f741ec1b7a918bb692b90ff433de929af",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "3da661a4-1dba-48b4-ab26-06b4131c0599",
+      "source_checksum": "sha256:b964893862ad5b605bbffa6a5940358bf715b42a72d83c5ee2e94c2a0f5d1d86",
+      "source_version": "2026-11-12.3"
     },
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "gpt-6-sol",
+      "upstream_model_id": "claude-opus-4-5-20251101",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "3a0044d2-97be-49da-9adc-30638b73065f",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-5-20251101",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-5-20251101",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-5-20251101",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-5-20251101",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3a0044d2-97be-49da-9adc-30638b73065f",
+      "source_checksum": "sha256:38040a54ec69726844417e539a7733711b45f2fd4dd90e24e4811e0764b78efd",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-opus-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "fb5cd8ac-12ae-4386-9cc4-8ba05027ebd6",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "fb5cd8ac-12ae-4386-9cc4-8ba05027ebd6",
+      "source_checksum": "sha256:e85d8e0398d59f0ae8c52a87e88ffa512450f3d8ec18086bcac2422b217d2e3a",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-opus-4-7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "5ac4bbd1-b252-49c8-ac86-19646f3fcbc9",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5ac4bbd1-b252-49c8-ac86-19646f3fcbc9",
+      "source_checksum": "sha256:72067d8125a68a10e214fd31be802412dafbb536a85eea4682828a4a26d06a27",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-opus-4-8",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "c5bf32db-384a-439c-a71c-d4623a8161cf",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-8",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-8",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-8",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-4-8",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "c5bf32db-384a-439c-a71c-d4623a8161cf",
+      "source_checksum": "sha256:6acc8bdaf58410bba021b5d0d00c7c53c306878d95cd712aaec8a540b374c1e2",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-opus-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "031bfceb-e577-4f90-bc77-1c6185db7fe8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "031bfceb-e577-4f90-bc77-1c6185db7fe8",
+      "source_checksum": "sha256:dfedcb88e459aa2609b36e9f13ccd1cf5189ac0275b1d87950c0d38fbe3ad263",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-opus-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "fd8a8132-4b30-40c2-aeb5-38e2efff48a0",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-opus-5-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "fd8a8132-4b30-40c2-aeb5-38e2efff48a0",
+      "source_checksum": "sha256:a185d6cf3f659599c35f3a36b333f6a828e8838b41459d64828670a822d51e6b",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-sonnet-4-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "a5c64f07-d241-40e0-8380-dbd48b8aabba",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a5c64f07-d241-40e0-8380-dbd48b8aabba",
+      "source_checksum": "sha256:0cc3bcd6aba73fc8be20a4d8c1625052888339f60411d3a53473d147545d6eea",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-sonnet-4-5-20250929",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "0343e632-cf7a-4aa0-b3f5-52950c3c00d8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0343e632-cf7a-4aa0-b3f5-52950c3c00d8",
+      "source_checksum": "sha256:a1578cc971dce5074a40d48560f144b02a55f5d221ee40a787cbefa043e55b37",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-sonnet-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "5b2bf6d4-717e-4e4c-b805-a56e6cbc8cb8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "claude-sonnet-4-6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5b2bf6d4-717e-4e4c-b805-a56e6cbc8cb8",
+      "source_checksum": "sha256:c592c79d74abf08f49dda0a88fbff7d8b1e965ebdfc1c577ae0e47a9c9357ac6",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "claude-sonnet-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -154,7 +858,7 @@
       "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "2.5",
-      "id": "b943c588-3e5b-45ca-9a1f-7603d2d4f0f5",
+      "id": "ba6887fe-3783-450b-b0cc-05e16c7f22b3",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -165,28 +869,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-sol",
+              "model": "claude-sonnet-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-sol",
+              "model": "claude-sonnet-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-sol",
+              "model": "claude-sonnet-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6-sol",
+              "model": "claude-sonnet-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -195,13 +899,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "b943c588-3e5b-45ca-9a1f-7603d2d4f0f5",
-      "source_checksum": "sha256:330242348b924797a9fa1b695ebd9c84543b62059e77d7d7a501f3663344e1b7",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "ba6887fe-3783-450b-b0cc-05e16c7f22b3",
+      "source_checksum": "sha256:53a058736e365de7267e3ad6e57833d5158bc8a9be0817435aec298d8e8bca82",
+      "source_version": "2026-11-12.3"
     },
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "gpt-6.1-sol",
+      "upstream_model_id": "claude-sonnet-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -218,7 +922,7 @@
       "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "2.5",
-      "id": "a797c71a-dbb5-4c3a-b5f7-3e0be24b1096",
+      "id": "4dba8e05-05bb-407e-aaaf-29fe4cf036cf",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -229,28 +933,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6.1-sol",
+              "model": "claude-sonnet-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6.1-sol",
+              "model": "claude-sonnet-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6.1-sol",
+              "model": "claude-sonnet-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "gpt-6.1-sol",
+              "model": "claude-sonnet-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -259,781 +963,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "a797c71a-dbb5-4c3a-b5f7-3e0be24b1096",
-      "source_checksum": "sha256:dda2cd60f4fd4a190adf5f2823cb0f070c1011dbc0d6b9d87534c7d92882fb8e",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "4dba8e05-05bb-407e-aaaf-29fe4cf036cf",
+      "source_checksum": "sha256:112bfe5bdb10ffc2dc91f1dbf2e3a46558d233b3bbf81240f7475f12389f8e4e",
+      "source_version": "2026-11-12.3"
     },
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "gpt-6.1-terra",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "94c459b2-6687-4e86-a536-5fb4ec7b482c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "gpt-6.1-terra",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "gpt-6.1-terra",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "gpt-6.1-terra",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "gpt-6.1-terra",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "94c459b2-6687-4e86-a536-5fb4ec7b482c",
-      "source_checksum": "sha256:c283c2d59d06012014d0360537bb9a793ca5c55eb6ebd3c486c05e51f819cf4b",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "kimi-k3.1-pro",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.9",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "9.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.19",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2",
-      "id": "684a3935-c11d-4abd-a4b3-6eb6a7e31b80",
-      "effective_from": "2026-11-05T07:57:00.499Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-05T07:57:00.499Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "684a3935-c11d-4abd-a4b3-6eb6a7e31b80",
-      "source_checksum": "sha256:a8bc0b2fd48b72323c27f94a31fb618537a34c2d122ae6db5cf731a40727894a",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "kimi-k3.1-pro-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "20",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4",
-      "id": "b421f4c8-b409-4361-a2d9-6b5692aa4e43",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "kimi-k3.1-pro-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b421f4c8-b409-4361-a2d9-6b5692aa4e43",
-      "source_checksum": "sha256:899a6e67e3a537975df172b73b35f3d51b8fd5c1c68018fa9cc4a312aead38f4",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "minimax-m2.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "875c4fc3-fd08-4a3a-93b5-fea17b8ac5bd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "875c4fc3-fd08-4a3a-93b5-fea17b8ac5bd",
-      "source_checksum": "sha256:9c53be10affc79577339b3ac5ed02e25b377d75802866019a732db97425f8c79",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "minimax-m2.5-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "0b2d3915-0c55-4c8d-8ddb-85997c3df9c7",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.5-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0b2d3915-0c55-4c8d-8ddb-85997c3df9c7",
-      "source_checksum": "sha256:3dc1ea38770678c2744c808847dca094dfe6b8ffdce8376065824c568dad8e76",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "minimax-m2.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "f15254df-ecdf-4c89-b319-930526d158d5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "f15254df-ecdf-4c89-b319-930526d158d5",
-      "source_checksum": "sha256:491766be42c9dd3ed28097e3695719f7ef75c8fcfc245b040d604ad8cc915ad0",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "minimax-m2.7-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "fcceaefe-3fdb-437e-8b4c-52814d824219",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "minimax-m2.7-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "fcceaefe-3fdb-437e-8b4c-52814d824219",
-      "source_checksum": "sha256:5fc80a57c6e36b20b6f3448057f0179f9a17e42b9d6e92d1cc4264e928f6a379",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.05",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0625",
-      "id": "be0951d4-0d06-429c-adc3-77a7823a9081",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "be0951d4-0d06-429c-adc3-77a7823a9081",
-      "source_checksum": "sha256:b61153fee97e1026a79ba28e7d5ffbb2e6617e50c5114d490777ec0ad49eda9e",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen-plus",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.08",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.5",
-      "id": "fde03d09-837f-4010-9f26-36332e928d4a",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "fde03d09-837f-4010-9f26-36332e928d4a",
-      "source_checksum": "sha256:0971c09167c6f1d070210c438ebdefb5510cb880208582b8ac3e57660dc6b005",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen-plus-latest",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.08",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.5",
-      "id": "e9889dac-e7ef-4113-8d4c-244f7eaf314b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus-latest",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus-latest",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus-latest",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen-plus-latest",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e9889dac-e7ef-4113-8d4c-244f7eaf314b",
-      "source_checksum": "sha256:e3956d7376835bcf46b430dcadb18aefa14946f7ca4d1f1965248cea08c668d7",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen3-coder-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "b3ebb0b1-1ece-4803-af81-83069bb429cf",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-coder-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-coder-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-coder-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-coder-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b3ebb0b1-1ece-4803-af81-83069bb429cf",
-      "source_checksum": "sha256:e2aea0cebe93d5b48f0076f0c72cabf7bfc1ea24ca285b9bc5e1873a8f760cee",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen3-vl-plus",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.6",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.04",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.25",
-      "id": "f6e8980b-ed01-40a6-ae65-b77aa8e90a55",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-vl-plus",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-vl-plus",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-vl-plus",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3-vl-plus",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "f6e8980b-ed01-40a6-ae65-b77aa8e90a55",
-      "source_checksum": "sha256:27f5646dd605e41a32a4a458c5092474d5197c5386845d4029e14a44abc5168e",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen3.6-flash",
+      "upstream_model_id": "gemini-3.1-flash-lite",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1047,10 +983,10 @@
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "1.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
+      "cache_hit_token_unit_price": "0.025",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3125",
-      "id": "758097fb-916f-4c28-8dd3-3eeca5928fa6",
+      "cache_write_token_unit_price": "0.08333",
+      "id": "eba8d9f5-0a7a-44b4-8493-d02731d307af",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1061,28 +997,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.6-flash",
+              "model": "gemini-3.1-flash-lite",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.6-flash",
+              "model": "gemini-3.1-flash-lite",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.6-flash",
+              "model": "gemini-3.1-flash-lite",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.6-flash",
+              "model": "gemini-3.1-flash-lite",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1091,13 +1027,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "758097fb-916f-4c28-8dd3-3eeca5928fa6",
-      "source_checksum": "sha256:52230827d7e04c81a25008f00b1104b0eda333248d0f30038ed50c421d959ddd",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "eba8d9f5-0a7a-44b4-8493-d02731d307af",
+      "source_checksum": "sha256:aeb7951eb20d39440c734289c8b4dc4c187c1bc892a72aa2eefce77356013adc",
+      "source_version": "2026-11-12.3"
     },
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "qwen3.6-plus",
+      "upstream_model_id": "gemini-3.5-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1107,108 +1043,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.5",
+      "input_token_unit_price": "1.5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3",
+      "output_token_unit_price": "9",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
+      "cache_hit_token_unit_price": "0.15",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.625",
-      "id": "e68a8dab-211c-426a-bd36-202ac5f3fa22",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 256000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "2",
-            "output_token_unit_price": "6",
-            "cache_hit_token_unit_price": "0.2",
-            "cache_write_token_unit_price": "2.5"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3.6-plus",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3.6-plus",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3.6-plus",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "llmgateway",
-              "model": "qwen3.6-plus",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 256000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "2",
-                "output_token_unit_price": "6",
-                "cache_hit_token_unit_price": "0.2",
-                "cache_write_token_unit_price": "2.5"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e68a8dab-211c-426a-bd36-202ac5f3fa22",
-      "source_checksum": "sha256:96c079846a4240d694cbd0f963f9aab5dc39388368cddb172ff6ed81e31ac702",
-      "source_version": "2026-11-12.2"
-    },
-    {
-      "provider_code": "llmgateway",
-      "upstream_model_id": "qwen3.7-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.03",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.13",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.006",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0375",
-      "id": "bd8e94c2-2e5c-4c9a-8265-1f68cf6a1e21",
+      "cache_write_token_unit_price": "0.08333",
+      "id": "53002311-554d-4636-b5c8-86eb628abb0f",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1219,28 +1061,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-flash",
+              "model": "gemini-3.5-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-flash",
+              "model": "gemini-3.5-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-flash",
+              "model": "gemini-3.5-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-flash",
+              "model": "gemini-3.5-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1249,13 +1091,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "bd8e94c2-2e5c-4c9a-8265-1f68cf6a1e21",
-      "source_checksum": "sha256:c7b95d1dbb9a6ad325101a5bcd459dc8cd63fd297b186cdd5b91dd967941cd7d",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "53002311-554d-4636-b5c8-86eb628abb0f",
+      "source_checksum": "sha256:443d51b7078f1e4f497fb956be117fbf2e07511e5c38cc0d02371d8bb3058d77",
+      "source_version": "2026-11-12.3"
     },
     {
       "provider_code": "llmgateway",
-      "upstream_model_id": "qwen3.7-max",
+      "upstream_model_id": "gemini-3.5-flash-lite",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1265,14 +1107,78 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.25",
+      "input_token_unit_price": "0.3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.03",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.08333",
+      "id": "7ed1f86e-2443-45f5-bd14-c90d9e29ba19",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.5-flash-lite",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.5-flash-lite",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.5-flash-lite",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.5-flash-lite",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7ed1f86e-2443-45f5-bd14-c90d9e29ba19",
+      "source_checksum": "sha256:2da67ad0698fa9e136543f64b644880da998c40f7609f8a5416dbb23284a373f",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "gemini-3.6-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.75",
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "3.75",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
+      "cache_hit_token_unit_price": "0.075",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.125",
-      "id": "b421735f-c1cc-4964-9531-eb4d4547f64d",
+      "cache_write_token_unit_price": "0.08333",
+      "id": "ea59f3d5-5a56-478e-96a4-67a8439e489c",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1283,28 +1189,28 @@
             "input": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-max",
+              "model": "gemini-3.6-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-max",
+              "model": "gemini-3.6-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-max",
+              "model": "gemini-3.6-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "llmgateway",
-              "model": "qwen3.7-max",
+              "model": "gemini-3.6-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1313,9 +1219,73 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "b421735f-c1cc-4964-9531-eb4d4547f64d",
-      "source_checksum": "sha256:a2f0ad8b0208c94aebc23a43c609f204491afddbe8c000d2ffed02e782201eda",
-      "source_version": "2026-11-12.2"
+      "source_catalog_id": "ea59f3d5-5a56-478e-96a4-67a8439e489c",
+      "source_checksum": "sha256:e227bea8e8729527919f5271415abe388a8391deacd0fbc1f9309a9af64eec8f",
+      "source_version": "2026-11-12.3"
+    },
+    {
+      "provider_code": "llmgateway",
+      "upstream_model_id": "gemini-3.7-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.75",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "3.75",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.075",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.08333",
+      "id": "be946da4-e179-43f9-ad5b-e133d2f89fa2",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.7-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.7-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.7-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway",
+              "model": "gemini-3.7-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "be946da4-e179-43f9-ad5b-e133d2f89fa2",
+      "source_checksum": "sha256:e8e5c27e876bddbed5815f29f2f4f25e8dd3e29d267724d3e5b559f625156faf",
+      "source_version": "2026-11-12.3"
     }
   ]
 }
