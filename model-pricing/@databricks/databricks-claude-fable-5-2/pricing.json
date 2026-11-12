@@ -11,20 +11,29 @@
   "priority": 0,
   "enabled": true,
   "input_token_unit_size": 1000000,
-  "input_token_unit_price": "8",
+  "input_token_unit_price": "8.00002",
   "output_token_unit_size": 1000000,
-  "output_token_unit_price": "40",
+  "output_token_unit_price": "40.00003",
   "cache_hit_token_unit_size": 1000000,
-  "cache_hit_token_unit_price": "8",
+  "cache_hit_token_unit_price": "0.19999",
   "cache_write_token_unit_size": 1000000,
-  "cache_write_token_unit_price": "8",
-  "id": "9ce693b1-9efc-4214-b552-d6386932afe2",
-  "effective_from": "2026-11-11T06:41:25.017Z",
-  "rules": [],
+  "cache_write_token_unit_price": "9.99999",
+  "id": "2746ddb0-dbbb-4473-a1a8-a6daabadc0d4",
+  "effective_from": "2026-11-12T03:53:27.067Z",
+  "rules": [
+    {
+      "when": {
+        "cache_write_ttl_seconds": 3600
+      },
+      "overrides": {
+        "cache_write_token_unit_price": "15.99997"
+      }
+    }
+  ],
   "extensions": {
     "source": "community_pricing",
     "price_sync": {
-      "synced_at": "2026-11-11T06:41:25.017Z",
+      "synced_at": "2026-11-12T03:53:27.067Z",
       "meters": {
         "input": {
           "source": "litellm",
@@ -55,7 +64,16 @@
           "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
         }
       },
-      "rules": []
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "15.99997"
+          }
+        }
+      ]
     }
   }
 }
