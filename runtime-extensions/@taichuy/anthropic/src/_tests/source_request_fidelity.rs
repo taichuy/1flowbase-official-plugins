@@ -445,17 +445,13 @@ fn claude_code_dynamic_tools_restore_inline_system_and_deferred_tools_exactly() 
     );
     let mut changed_query = typed.clone();
     changed_query["messages"][0]["content"][0]["text"] = json!("Native query edit");
-    let mut changed_system = typed;
-    changed_system["system"] = json!([{"type":"text","text":"configured application instruction"}]);
-    for changed in [changed_query, changed_system] {
-        assert!(
-            restore_protocol_context_body_with_receipt(changed, Some(&envelope))
-                .err()
-                .unwrap()
-                .to_string()
-                .contains("cannot preserve Anthropic tool_addition")
-        );
-    }
+    assert!(
+        restore_protocol_context_body_with_receipt(changed_query, Some(&envelope))
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("cannot preserve Anthropic tool_addition")
+    );
 }
 
 #[test]
@@ -555,4 +551,137 @@ fn source_tool_description_whitespace_restores_exact_original_after_native_proje
             .to_string()
             .contains("cannot preserve Anthropic defer_loading"));
     }
+}
+
+fn projected_source_system(body: &Value) -> Vec<Value> {
+    let mut system = body
+        .get("system")
+        .map(|value| anthropic_system_blocks(value, true).unwrap())
+        .unwrap_or_default();
+    let messages = body["messages"].as_array().unwrap();
+    let last_user = messages
+        .iter()
+        .rposition(|message| message["role"] == "user")
+        .unwrap();
+    native_source_messages(messages, last_user, &mut system).unwrap();
+    system
+}
+
+#[test]
+fn appended_native_system_preserves_source_messages_effort_cache_and_projection() {
+    for has_root in [false, true] {
+        for tail_count in [1, 2] {
+            let mut source = json!({"model":"source-model", "output_config":{"effort":"max"}, "messages":[
+                {"role":"user","content":"question"},
+                {"role":"system","content":"historical instruction","output_config":{"effort":"medium"}},
+                {"role":"system","content":[
+                    {"type":"text","text":"current instruction"},
+                    {"type":"tool_addition","tool":{"type":"tool_reference","name":"Glob"},"cache_control":{"type":"ephemeral"}}
+                ],"output_config":{"effort":"max"}}
+            ]});
+            if has_root {
+                source["system"] = json!([{"type":"text","text":"client root","cache_control":{"type":"ephemeral"}}]);
+            }
+            let mut typed_system = projected_source_system(&source);
+            // The second appended block intentionally repeats a client text.
+            // Ownership is positional; equal text must never trigger removal.
+            let tail = vec![
+                json!({"type":"text","text":"application instruction","cache_control":{"type":"ephemeral"}}),
+                json!({"type":"text","text":"current instruction"}),
+            ];
+            typed_system.extend(tail[..tail_count].iter().cloned());
+            let typed = json!({"model":"provider-model", "output_config":{"effort":"max"},
+                "system":typed_system,"messages":[{"role":"user","content":[{"type":"text","text":"question"}]}]});
+            let result = restore(source.clone(), typed.clone());
+            let original_messages = source["messages"].as_array().unwrap();
+            let restored_messages = result.body["messages"].as_array().unwrap();
+            assert_eq!(
+                &restored_messages[..original_messages.len()],
+                original_messages
+            );
+            assert_eq!(
+                restored_messages.len(),
+                original_messages.len() + tail_count
+            );
+            for (message, block) in restored_messages[original_messages.len()..]
+                .iter()
+                .zip(&tail)
+            {
+                assert_eq!(message, &json!({"role":"system","content":[block]}));
+                assert!(message.get("output_config").is_none());
+            }
+            assert_eq!(result.body.get("system"), source.get("system"));
+            assert_eq!(result.body["output_config"], typed["output_config"]);
+            assert_eq!(
+                projected_source_system(&result.body),
+                anthropic_system_blocks(&typed["system"], false).unwrap()
+            );
+            let last_user = restored_messages
+                .iter()
+                .rposition(|message| message["role"] == "user")
+                .unwrap();
+            let projected =
+                native_source_messages(restored_messages, last_user, &mut Vec::new()).unwrap();
+            assert_eq!(
+                Value::Array(build_anthropic_messages(&projected)),
+                typed["messages"]
+            );
+            assert!(result.receipt.semantic_delta_fields.contains("messages"));
+            assert!(result.receipt.semantic_delta_fields.contains("system"));
+            assert!(!result
+                .receipt
+                .reconstructed_source_fields
+                .contains("messages"));
+            assert!(!result
+                .receipt
+                .reconstructed_source_fields
+                .contains("system"));
+        }
+    }
+}
+
+#[test]
+fn appended_native_system_requires_exact_source_prefix_and_messages() {
+    let source = json!({"model":"source-model", "system":[{"type":"text","text":"client root"}],
+        "messages":[{"role":"user","content":"question"},
+            {"role":"system","content":[{"type":"text","text":"client inline"},
+                {"type":"tool_addition","tool":{"type":"tool_reference","name":"Glob"}}]}]});
+    let typed = json!({"model":"provider-model","system":[
+        {"type":"text","text":"client root"},{"type":"text","text":"client inline"},
+        {"type":"text","text":"application addition"}],
+        "messages":[{"role":"user","content":[{"type":"text","text":"question"}]}]});
+    let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+        "source_protocol":ANTHROPIC_MESSAGES_PROTOCOL,"source_request":{"body":source}
+    }))
+    .unwrap();
+    let mut rewrite = typed.clone();
+    rewrite["system"][0]["text"] = json!("Native rewrite");
+    let mut remove = typed.clone();
+    remove["system"].as_array_mut().unwrap().remove(0);
+    let mut reorder = typed.clone();
+    reorder["system"].as_array_mut().unwrap().swap(0, 1);
+    let mut message_edit = typed;
+    message_edit["messages"][0]["content"][0]["text"] = json!("Native question edit");
+    for changed in [rewrite, remove, reorder, message_edit] {
+        let error = restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+            .err()
+            .unwrap();
+        assert!(error
+            .to_string()
+            .contains("cannot preserve Anthropic tool_addition"));
+    }
+}
+
+#[test]
+fn no_inline_system_keeps_native_root_additions_in_root() {
+    let source = json!({"model":"source-model","system":[{"type":"text","text":"client root"}],
+        "messages":[{"role":"user","content":"question"}]});
+    let typed = json!({"model":"provider-model","system":[{"type":"text","text":"client root"},
+        {"type":"text","text":"Native addition"}],
+        "messages":[{"role":"user","content":[{"type":"text","text":"question"}]}]});
+    let result = restore(source.clone(), typed.clone());
+    assert_eq!(result.body["system"], typed["system"]);
+    assert_eq!(result.body["messages"], source["messages"]);
+    assert!(result.receipt.semantic_delta_fields.contains("system"));
+    assert!(!result.receipt.semantic_delta_fields.contains("messages"));
 }

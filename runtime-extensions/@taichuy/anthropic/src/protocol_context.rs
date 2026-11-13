@@ -81,12 +81,19 @@ pub(super) fn restore_protocol_context_body_with_receipt(
         // The Native ingress extracts every system message into the system blocks
         // and appends the latest user query after history. Restore the original
         // ordering only when that exact projection still matches. Inline system
-        // messages require the joint system guard; an independent root-system
-        // edit must remain intact while unchanged messages can still be restored.
+        // messages require the joint system guard; an exact Native system suffix
+        // is represented by additional inline messages without editing originals.
         let message_restoration = restore_source_message_order(body, source_body);
         let restored_order = message_restoration.is_some();
-        let restored_system = message_restoration == Some(true);
-        if restored_order {
+        let restored_system = matches!(
+            message_restoration,
+            Some(SourceMessageRestoration::ExactSystem | SourceMessageRestoration::AppendedSystem)
+        );
+        if message_restoration == Some(SourceMessageRestoration::AppendedSystem) {
+            receipt
+                .semantic_delta_fields
+                .extend(["messages".to_string(), "system".to_string()]);
+        } else if restored_order {
             receipt
                 .reconstructed_source_fields
                 .insert("messages".to_string());
@@ -224,10 +231,17 @@ fn canonical_anthropic_thinking(value: &Value) -> Value {
     value
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SourceMessageRestoration {
+    ExactSystem,
+    MessagesOnly,
+    AppendedSystem,
+}
+
 fn restore_source_message_order(
     typed: &mut Map<String, Value>,
     source: &Map<String, Value>,
-) -> Option<bool> {
+) -> Option<SourceMessageRestoration> {
     let Some(messages) = source.get("messages").and_then(Value::as_array) else {
         return None;
     };
@@ -263,22 +277,41 @@ fn restore_source_message_order(
     };
     let system_matches = expected_system == typed_system;
     let has_inline_system = messages.iter().any(|message| message["role"] == "system");
-    if (has_inline_system && !system_matches)
+    let appended_system = has_inline_system
+        && typed_system.len() > expected_system.len()
+        && typed_system.starts_with(&expected_system);
+    if (has_inline_system && !system_matches && !appended_system)
         || projected_messages_without_cache_hints(&Value::Array(build_anthropic_messages(
             &projected,
         ))) != projected_messages_without_cache_hints(typed_messages)
     {
         return None;
     }
-    typed.insert("messages".to_string(), Value::Array(messages.clone()));
-    if system_matches {
+    let mut restored_messages = messages.clone();
+    if appended_system {
+        // Keep every source message, including per-turn configuration, intact.
+        // Each Native tail block needs its own inline system message because
+        // ingress joins text blocks within one inline message into one block.
+        let raw_system = typed.get("system")?.as_array()?;
+        for block in &raw_system[expected_system.len()..] {
+            restored_messages.push(json!({"role":"system", "content":[block.clone()]}));
+        }
+    }
+    typed.insert("messages".to_string(), Value::Array(restored_messages));
+    if system_matches || appended_system {
         if let Some(system) = source.get("system") {
             typed.insert("system".to_string(), system.clone());
         } else {
             typed.remove("system");
         }
     }
-    Some(system_matches)
+    Some(if appended_system {
+        SourceMessageRestoration::AppendedSystem
+    } else if system_matches {
+        SourceMessageRestoration::ExactSystem
+    } else {
+        SourceMessageRestoration::MessagesOnly
+    })
 }
 
 // Mirror the closed Anthropic ingress -> Native prompt context transformation,
