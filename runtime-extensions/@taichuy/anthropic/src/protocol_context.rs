@@ -125,6 +125,37 @@ pub(super) fn restore_protocol_context_body_with_receipt(
                 receipt.semantic_delta_fields.insert(name.clone());
             }
         }
+        // These extensions have no equivalent Native field. A changed Native
+        // projection cannot silently discard semantics accepted at ingress.
+        let has_tool_addition = source_body
+            .get("messages")
+            .and_then(Value::as_array)
+            .is_some_and(|messages| {
+                messages.iter().any(|message| {
+                    message
+                        .get("content")
+                        .and_then(Value::as_array)
+                        .is_some_and(|blocks| {
+                            blocks.iter().any(|block| {
+                                block.get("type").and_then(Value::as_str) == Some("tool_addition")
+                            })
+                        })
+                })
+            });
+        if has_tool_addition && !restored_order {
+            bail!("cannot preserve Anthropic tool_addition after Native message or system changes");
+        }
+        let has_deferred_tools = source_body
+            .get("tools")
+            .and_then(Value::as_array)
+            .is_some_and(|tools| {
+                tools
+                    .iter()
+                    .any(|tool| tool.get("defer_loading").and_then(Value::as_bool) == Some(true))
+            });
+        if has_deferred_tools && !receipt.reconstructed_source_fields.contains("tools") {
+            bail!("cannot preserve Anthropic defer_loading after Native tool changes");
+        }
     }
 
     Ok(RestoredProtocolContextBody {

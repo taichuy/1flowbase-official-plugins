@@ -419,20 +419,43 @@ fn claude_code_dynamic_tools_restore_inline_system_and_deferred_tools_exactly() 
     assert_eq!(restored.body["tools"], source["tools"]);
     assert_eq!(restored.body["model"], "provider-model");
     assert!(restored.body.get("system").is_none());
+    let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+        "source_protocol":ANTHROPIC_MESSAGES_PROTOCOL,
+        "source_request":{"body":source}
+    }))
+    .unwrap();
     for field in ["description", "input_schema"] {
         let mut changed = typed.clone();
         changed["tools"][0][field] = json!("Native edit");
-        assert_eq!(
-            restore(source.clone(), changed.clone()).body["tools"],
-            changed["tools"]
+        let error = restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+            .err()
+            .unwrap();
+        assert!(error
+            .to_string()
+            .contains("cannot preserve Anthropic defer_loading"));
+    }
+    let mut missing_tools = typed.clone();
+    missing_tools.as_object_mut().unwrap().remove("tools");
+    assert!(
+        restore_protocol_context_body_with_receipt(missing_tools, Some(&envelope))
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("cannot preserve Anthropic defer_loading")
+    );
+    let mut changed_query = typed.clone();
+    changed_query["messages"][0]["content"][0]["text"] = json!("Native query edit");
+    let mut changed_system = typed;
+    changed_system["system"] = json!([{"type":"text","text":"configured application instruction"}]);
+    for changed in [changed_query, changed_system] {
+        assert!(
+            restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("cannot preserve Anthropic tool_addition")
         );
     }
-    let mut changed = typed;
-    changed["messages"][0]["content"][0]["text"] = json!("Native query edit");
-    assert_eq!(
-        restore(source, changed.clone()).body["messages"],
-        changed["messages"]
-    );
 }
 
 #[test]
@@ -469,4 +492,15 @@ fn canonical_named_function_choice_produces_anthropic_tool_request_body() {
         restore(source, changed.clone()).body["tool_choice"],
         changed["tool_choice"]
     );
+}
+
+#[test]
+fn false_defer_loading_retains_harmless_native_tool_edit_fallback() {
+    let source = json!({"model":"source-model","tools":[{"name":"Read",
+        "input_schema":{"type":"object"},"defer_loading":false}]});
+    let typed = json!({"model":"provider-model","tools":[{"name":"Read",
+        "input_schema":{"type":"object","properties":{"path":{"type":"string"}}}}]});
+    let result = restore(source, typed.clone());
+    assert_eq!(result.body["tools"], typed["tools"]);
+    assert!(result.receipt.semantic_delta_fields.contains("tools"));
 }
