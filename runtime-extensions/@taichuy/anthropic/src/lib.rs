@@ -1618,7 +1618,10 @@ fn build_count_tokens_body(input: &ProviderCountTokensInput) -> Result<Value> {
         );
     }
     if let Some(tool_choice) = input.model_parameters.get("tool_choice") {
-        body.insert("tool_choice".to_string(), tool_choice.clone());
+        body.insert(
+            "tool_choice".to_string(),
+            normalize_anthropic_parameter("tool_choice", tool_choice.clone()),
+        );
     }
     if let Some(end_user_reference) = input
         .request_context
@@ -1981,8 +1984,18 @@ fn normalize_scalar_parameter(value: Value) -> Option<Value> {
     }
 }
 
-fn normalize_anthropic_parameter(key: &str, value: Value) -> Value {
+fn normalize_anthropic_parameter(key: &str, mut value: Value) -> Value {
     if key == "tool_choice" {
+        if let Some(choice) = value.as_object_mut() {
+            if choice.get("type").and_then(Value::as_str) == Some("function")
+                && choice
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| !name.is_empty())
+            {
+                choice.insert("type".to_string(), json!("tool"));
+            }
+        }
         match value.as_str() {
             Some("required") | Some("any") => json!({ "type": "any" }),
             Some("none") => json!({ "type": "none" }),

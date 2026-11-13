@@ -434,3 +434,39 @@ fn claude_code_dynamic_tools_restore_inline_system_and_deferred_tools_exactly() 
         changed["messages"]
     );
 }
+
+#[test]
+fn canonical_named_function_choice_produces_anthropic_tool_request_body() {
+    let input = ProviderInvocationInput {
+        model: "provider-model".into(),
+        model_parameters: BTreeMap::from([(
+            "tool_choice".into(),
+            json!({"type":"function","name":"Read"}),
+        )]),
+        tools: vec![
+            json!({"type":"function","function":{"name":"Read","parameters":{"type":"object"}}}),
+        ],
+        ..Default::default()
+    };
+    let typed = build_messages_body(&input).unwrap();
+    assert_eq!(typed["tool_choice"], json!({"type":"tool","name":"Read"}));
+    assert_eq!(typed["tools"][0]["name"], "Read");
+    let count_input: ProviderCountTokensInput = serde_json::from_value(json!({
+        "operation":"count_tokens", "contract_version":"1flowbase.provider/v2",
+        "provider_instance_id":"fixture", "provider_code":"anthropic", "protocol":"anthropic_messages",
+        "model":input.model, "tools":input.tools, "model_parameters":input.model_parameters
+    })).unwrap();
+    assert_eq!(
+        build_count_tokens_body(&count_input).unwrap()["tool_choice"],
+        typed["tool_choice"]
+    );
+    let source = json!({"model":"source-model","tool_choice":{"type":"tool","name":"Read"}});
+    let restored = restore(source.clone(), typed.clone());
+    assert_eq!(restored.body["tool_choice"], source["tool_choice"]);
+    let mut changed = typed;
+    changed["tool_choice"]["name"] = json!("Write");
+    assert_eq!(
+        restore(source, changed.clone()).body["tool_choice"],
+        changed["tool_choice"]
+    );
+}
