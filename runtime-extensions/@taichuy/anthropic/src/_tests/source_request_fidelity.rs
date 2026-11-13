@@ -401,3 +401,352 @@ fn nested_tool_result_text_block_merge_is_not_source_equivalence() {
     assert_eq!(result.body["messages"], changed["messages"]);
     assert!(result.receipt.semantic_delta_fields.contains("messages"));
 }
+
+#[test]
+fn claude_code_dynamic_tools_restore_inline_system_and_deferred_tools_exactly() {
+    let source = json!({"model":"claude", "messages":[
+        {"role":"user","content":"inspect project"},
+        {"role":"system","content":[
+            {"type":"tool_addition","tool":{"type":"tool_reference","name":"Glob"}},
+            {"type":"tool_addition","tool":{"type":"tool_reference","name":"Grep"}}
+        ]}
+    ],"tools":[{"name":"Glob","description":"find files","input_schema":{"type":"object"},"defer_loading":true}]});
+    let typed = json!({"model":"provider-model", "messages":[
+        {"role":"user","content":[{"type":"text","text":"inspect project"}]}
+    ],"tools":[{"name":"Glob","description":"find files","input_schema":{"type":"object"}}]});
+    let restored = restore(source.clone(), typed.clone());
+    assert_eq!(restored.body["messages"], source["messages"]);
+    assert_eq!(restored.body["tools"], source["tools"]);
+    assert_eq!(restored.body["model"], "provider-model");
+    assert!(restored.body.get("system").is_none());
+    let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+        "source_protocol":ANTHROPIC_MESSAGES_PROTOCOL,
+        "source_request":{"body":source}
+    }))
+    .unwrap();
+    for field in ["description", "input_schema"] {
+        let mut changed = typed.clone();
+        changed["tools"][0][field] = json!("Native edit");
+        let error = restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+            .err()
+            .unwrap();
+        assert!(error
+            .to_string()
+            .contains("cannot preserve Anthropic defer_loading"));
+    }
+    let mut missing_tools = typed.clone();
+    missing_tools.as_object_mut().unwrap().remove("tools");
+    assert!(
+        restore_protocol_context_body_with_receipt(missing_tools, Some(&envelope))
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("cannot preserve Anthropic defer_loading")
+    );
+    let mut changed_query = typed.clone();
+    changed_query["messages"][0]["content"][0]["text"] = json!("Native query edit");
+    assert!(
+        restore_protocol_context_body_with_receipt(changed_query, Some(&envelope))
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("cannot preserve Anthropic tool_addition")
+    );
+}
+
+#[test]
+fn canonical_named_function_choice_produces_anthropic_tool_request_body() {
+    let input = ProviderInvocationInput {
+        model: "provider-model".into(),
+        model_parameters: BTreeMap::from([(
+            "tool_choice".into(),
+            json!({"type":"function","name":"Read"}),
+        )]),
+        tools: vec![
+            json!({"type":"function","function":{"name":"Read","parameters":{"type":"object"}}}),
+        ],
+        ..Default::default()
+    };
+    let typed = build_messages_body(&input).unwrap();
+    assert_eq!(typed["tool_choice"], json!({"type":"tool","name":"Read"}));
+    assert_eq!(typed["tools"][0]["name"], "Read");
+    let count_input: ProviderCountTokensInput = serde_json::from_value(json!({
+        "operation":"count_tokens", "contract_version":"1flowbase.provider/v2",
+        "provider_instance_id":"fixture", "provider_code":"anthropic", "protocol":"anthropic_messages",
+        "model":input.model, "tools":input.tools, "model_parameters":input.model_parameters
+    })).unwrap();
+    assert_eq!(
+        build_count_tokens_body(&count_input).unwrap()["tool_choice"],
+        typed["tool_choice"]
+    );
+    let source = json!({"model":"source-model","tool_choice":{"type":"tool","name":"Read"}});
+    let restored = restore(source.clone(), typed.clone());
+    assert_eq!(restored.body["tool_choice"], source["tool_choice"]);
+    let mut changed = typed;
+    changed["tool_choice"]["name"] = json!("Write");
+    assert_eq!(
+        restore(source, changed.clone()).body["tool_choice"],
+        changed["tool_choice"]
+    );
+}
+
+#[test]
+fn false_defer_loading_retains_harmless_native_tool_edit_fallback() {
+    let source = json!({"model":"source-model","tools":[{"name":"Read",
+        "input_schema":{"type":"object"},"defer_loading":false}]});
+    let typed = json!({"model":"provider-model","tools":[{"name":"Read",
+        "input_schema":{"type":"object","properties":{"path":{"type":"string"}}}}]});
+    let result = restore(source, typed.clone());
+    assert_eq!(result.body["tools"], typed["tools"]);
+    assert!(result.receipt.semantic_delta_fields.contains("tools"));
+}
+
+#[test]
+fn source_tool_description_whitespace_restores_exact_original_after_native_projection() {
+    let source = json!({"model":"source-model","tools":[
+        {"name":"Read","description":"  Read a file.\n","input_schema":{"type":"object"},"defer_loading":true},
+        {"name":"Glob","description":" \n\t","input_schema":{"type":"object"}}
+    ]});
+    let typed = json!({"model":"provider-model","tools":[
+        {"name":"Read","description":"Read a file.","input_schema":{"type":"object"}},
+        {"name":"Glob","input_schema":{"type":"object"}}
+    ]});
+    let restored = restore(source.clone(), typed.clone());
+    assert_eq!(restored.body["tools"], source["tools"]);
+    assert!(restored
+        .receipt
+        .reconstructed_source_fields
+        .contains("tools"));
+    assert!(!restored.receipt.semantic_delta_fields.contains("tools"));
+    assert_eq!(restored.body["model"], "provider-model");
+
+    let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+        "source_protocol":ANTHROPIC_MESSAGES_PROTOCOL,"source_request":{"body":source}
+    }))
+    .unwrap();
+    let mut whitespace_edit = typed.clone();
+    whitespace_edit["tools"][0]["description"] = json!("Read a file. ");
+    let mut empty_edit = typed.clone();
+    empty_edit["tools"][1]["description"] = json!(" ");
+    let mut description_edit = typed.clone();
+    description_edit["tools"][0]["description"] = json!("Native replacement");
+    let mut name_edit = typed.clone();
+    name_edit["tools"][0]["name"] = json!("Write");
+    let mut schema_edit = typed.clone();
+    schema_edit["tools"][0]["input_schema"] = json!({"type":"object","required":["path"]});
+    let mut order_edit = typed;
+    order_edit["tools"].as_array_mut().unwrap().reverse();
+    for changed in [
+        whitespace_edit,
+        empty_edit,
+        description_edit,
+        name_edit,
+        schema_edit,
+        order_edit,
+    ] {
+        let error = restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+            .err()
+            .unwrap();
+        assert!(error
+            .to_string()
+            .contains("cannot preserve Anthropic defer_loading"));
+    }
+}
+
+fn projected_source_system(body: &Value) -> Vec<Value> {
+    let mut system = body
+        .get("system")
+        .map(|value| anthropic_system_blocks(value, true).unwrap())
+        .unwrap_or_default();
+    let messages = body["messages"].as_array().unwrap();
+    let last_user = messages
+        .iter()
+        .rposition(|message| message["role"] == "user")
+        .unwrap();
+    native_source_messages(messages, last_user, &mut system).unwrap();
+    system
+}
+
+#[test]
+fn appended_native_system_preserves_source_messages_effort_cache_and_projection() {
+    for has_root in [false, true] {
+        for tail_count in [1, 2] {
+            let mut source = json!({"model":"source-model", "output_config":{"effort":"max"}, "messages":[
+                {"role":"user","content":"question"},
+                {"role":"system","content":"historical instruction","output_config":{"effort":"medium"}},
+                {"role":"system","content":[
+                    {"type":"text","text":"current instruction"},
+                    {"type":"tool_addition","tool":{"type":"tool_reference","name":"Glob"},"cache_control":{"type":"ephemeral"}}
+                ],"output_config":{"effort":"max"}}
+            ]});
+            if has_root {
+                source["system"] = json!([{"type":"text","text":"client root","cache_control":{"type":"ephemeral"}}]);
+            }
+            let mut typed_system = projected_source_system(&source);
+            // The second appended block intentionally repeats a client text.
+            // Ownership is positional; equal text must never trigger removal.
+            let tail = vec![
+                json!({"type":"text","text":"application instruction","cache_control":{"type":"ephemeral"}}),
+                json!({"type":"text","text":"current instruction"}),
+            ];
+            typed_system.extend(tail[..tail_count].iter().cloned());
+            let typed = json!({"model":"provider-model", "output_config":{"effort":"max"},
+                "system":typed_system,"messages":[{"role":"user","content":[{"type":"text","text":"question"}]}]});
+            let result = restore(source.clone(), typed.clone());
+            let original_messages = source["messages"].as_array().unwrap();
+            let restored_messages = result.body["messages"].as_array().unwrap();
+            assert_eq!(
+                &restored_messages[..original_messages.len()],
+                original_messages
+            );
+            assert_eq!(
+                restored_messages.len(),
+                original_messages.len() + tail_count
+            );
+            for (message, block) in restored_messages[original_messages.len()..]
+                .iter()
+                .zip(&tail)
+            {
+                assert_eq!(message, &json!({"role":"system","content":[block]}));
+                assert!(message.get("output_config").is_none());
+            }
+            assert_eq!(result.body.get("system"), source.get("system"));
+            assert_eq!(result.body["output_config"], typed["output_config"]);
+            assert_eq!(
+                projected_source_system(&result.body),
+                anthropic_system_blocks(&typed["system"], false).unwrap()
+            );
+            let last_user = restored_messages
+                .iter()
+                .rposition(|message| message["role"] == "user")
+                .unwrap();
+            let projected =
+                native_source_messages(restored_messages, last_user, &mut Vec::new()).unwrap();
+            assert_eq!(
+                Value::Array(build_anthropic_messages(&projected)),
+                typed["messages"]
+            );
+            assert!(result.receipt.semantic_delta_fields.contains("messages"));
+            assert!(result.receipt.semantic_delta_fields.contains("system"));
+            assert!(!result
+                .receipt
+                .reconstructed_source_fields
+                .contains("messages"));
+            assert!(!result
+                .receipt
+                .reconstructed_source_fields
+                .contains("system"));
+        }
+    }
+}
+
+#[test]
+fn appended_native_system_requires_exact_source_prefix_and_messages() {
+    let source = json!({"model":"source-model", "system":[{"type":"text","text":"client root"}],
+        "messages":[{"role":"user","content":"question"},
+            {"role":"system","content":[{"type":"text","text":"client inline"},
+                {"type":"tool_addition","tool":{"type":"tool_reference","name":"Glob"}}]}]});
+    let typed = json!({"model":"provider-model","system":[
+        {"type":"text","text":"client root"},{"type":"text","text":"client inline"},
+        {"type":"text","text":"application addition"}],
+        "messages":[{"role":"user","content":[{"type":"text","text":"question"}]}]});
+    let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+        "source_protocol":ANTHROPIC_MESSAGES_PROTOCOL,"source_request":{"body":source}
+    }))
+    .unwrap();
+    let mut rewrite = typed.clone();
+    rewrite["system"][0]["text"] = json!("Native rewrite");
+    let mut remove = typed.clone();
+    remove["system"].as_array_mut().unwrap().remove(0);
+    let mut reorder = typed.clone();
+    reorder["system"].as_array_mut().unwrap().swap(0, 1);
+    let mut message_edit = typed;
+    message_edit["messages"][0]["content"][0]["text"] = json!("Native question edit");
+    for changed in [rewrite, remove, reorder, message_edit] {
+        let error = restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+            .err()
+            .unwrap();
+        assert!(error
+            .to_string()
+            .contains("cannot preserve Anthropic tool_addition"));
+    }
+}
+
+#[test]
+fn no_inline_system_keeps_native_root_additions_in_root() {
+    let source = json!({"model":"source-model","system":[{"type":"text","text":"client root"}],
+        "messages":[{"role":"user","content":"question"}]});
+    let typed = json!({"model":"provider-model","system":[{"type":"text","text":"client root"},
+        {"type":"text","text":"Native addition"}],
+        "messages":[{"role":"user","content":[{"type":"text","text":"question"}]}]});
+    let result = restore(source.clone(), typed.clone());
+    assert_eq!(result.body["system"], typed["system"]);
+    assert_eq!(result.body["messages"], source["messages"]);
+    assert!(result.receipt.semantic_delta_fields.contains("system"));
+    assert!(!result.receipt.semantic_delta_fields.contains("messages"));
+}
+
+#[test]
+fn appended_native_system_preserves_final_user_and_assistant_roles() {
+    for final_role in ["user", "assistant"] {
+        let mut source = json!({"model":"source-model","output_config":{"effort":"max"},
+            "system":[{"type":"text","text":"root"}],"messages":[
+            {"role":"user","content":"earlier question"},
+            {"role":"system","output_config":{"effort":"medium"},"content":[
+                {"type":"text","text":"client inline"},
+                {"type":"tool_addition","tool":{"type":"tool_reference","name":"Read"}}]},
+            {"role":"user","content":"latest question"}
+        ]});
+        if final_role == "assistant" {
+            source["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"assistant","content":"historical answer"}));
+        }
+        let source_messages = source["messages"].as_array().unwrap();
+        let last_user = source_messages
+            .iter()
+            .rposition(|message| message["role"] == "user")
+            .unwrap();
+        let mut typed_system = anthropic_system_blocks(&source["system"], true).unwrap();
+        let projected =
+            native_source_messages(source_messages, last_user, &mut typed_system).unwrap();
+        let tail = vec![
+            json!({"type":"text","text":"application A","cache_control":{"type":"ephemeral"}}),
+            json!({"type":"text","text":"application B"}),
+        ];
+        typed_system.extend(tail.iter().cloned());
+        let typed = json!({"model":"provider-model","output_config":{"effort":"max"},
+            "system":typed_system,"messages":build_anthropic_messages(&projected)});
+        let result = restore(source.clone(), typed.clone());
+        let restored = result.body["messages"].as_array().unwrap();
+        assert_eq!(restored.last().unwrap()["role"], final_role);
+        let mut expected = source_messages.clone();
+        expected.splice(
+            2..2,
+            tail.iter()
+                .map(|block| json!({"role":"system","content":[block]})),
+        );
+        assert_eq!(
+            restored, &expected,
+            "all original messages remain an exact ordered subsequence"
+        );
+        assert_eq!(
+            projected_source_system(&result.body),
+            anthropic_system_blocks(&typed["system"], false).unwrap()
+        );
+        let last_user = restored
+            .iter()
+            .rposition(|message| message["role"] == "user")
+            .unwrap();
+        let reprojected = native_source_messages(restored, last_user, &mut Vec::new()).unwrap();
+        assert_eq!(
+            Value::Array(build_anthropic_messages(&reprojected)),
+            typed["messages"]
+        );
+        assert_eq!(result.body["system"], source["system"]);
+        assert_eq!(result.body["output_config"], source["output_config"]);
+        assert!(result.receipt.semantic_delta_fields.contains("messages"));
+        assert!(result.receipt.semantic_delta_fields.contains("system"));
+    }
+}

@@ -81,12 +81,19 @@ pub(super) fn restore_protocol_context_body_with_receipt(
         // The Native ingress extracts every system message into the system blocks
         // and appends the latest user query after history. Restore the original
         // ordering only when that exact projection still matches. Inline system
-        // messages require the joint system guard; an independent root-system
-        // edit must remain intact while unchanged messages can still be restored.
+        // messages require the joint system guard; an exact Native system suffix
+        // is represented by additional inline messages without editing originals.
         let message_restoration = restore_source_message_order(body, source_body);
         let restored_order = message_restoration.is_some();
-        let restored_system = message_restoration == Some(true);
-        if restored_order {
+        let restored_system = matches!(
+            message_restoration,
+            Some(SourceMessageRestoration::ExactSystem | SourceMessageRestoration::AppendedSystem)
+        );
+        if message_restoration == Some(SourceMessageRestoration::AppendedSystem) {
+            receipt
+                .semantic_delta_fields
+                .extend(["messages".to_string(), "system".to_string()]);
+        } else if restored_order {
             receipt
                 .reconstructed_source_fields
                 .insert("messages".to_string());
@@ -125,6 +132,37 @@ pub(super) fn restore_protocol_context_body_with_receipt(
                 receipt.semantic_delta_fields.insert(name.clone());
             }
         }
+        // These extensions have no equivalent Native field. A changed Native
+        // projection cannot silently discard semantics accepted at ingress.
+        let has_tool_addition = source_body
+            .get("messages")
+            .and_then(Value::as_array)
+            .is_some_and(|messages| {
+                messages.iter().any(|message| {
+                    message
+                        .get("content")
+                        .and_then(Value::as_array)
+                        .is_some_and(|blocks| {
+                            blocks.iter().any(|block| {
+                                block.get("type").and_then(Value::as_str) == Some("tool_addition")
+                            })
+                        })
+                })
+            });
+        if has_tool_addition && !restored_order {
+            bail!("cannot preserve Anthropic tool_addition after Native message or system changes");
+        }
+        let has_deferred_tools = source_body
+            .get("tools")
+            .and_then(Value::as_array)
+            .is_some_and(|tools| {
+                tools
+                    .iter()
+                    .any(|tool| tool.get("defer_loading").and_then(Value::as_bool) == Some(true))
+            });
+        if has_deferred_tools && !receipt.reconstructed_source_fields.contains("tools") {
+            bail!("cannot preserve Anthropic defer_loading after Native tool changes");
+        }
     }
 
     Ok(RestoredProtocolContextBody {
@@ -138,7 +176,9 @@ fn anthropic_source_field_matches_typed(name: &str, source: &Value, typed: &Valu
         "system" => anthropic_system_blocks(source, true).is_some_and(|source_blocks| {
             Some(source_blocks) == anthropic_system_blocks(typed, false)
         }),
-        "tools" => canonical_anthropic_tools(source) == canonical_anthropic_tools(typed),
+        "tools" => {
+            canonical_anthropic_tools(source, true) == canonical_anthropic_tools(typed, false)
+        }
         "thinking" => canonical_anthropic_thinking(source) == canonical_anthropic_thinking(typed),
         _ => source == typed,
     }
@@ -191,10 +231,17 @@ fn canonical_anthropic_thinking(value: &Value) -> Value {
     value
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SourceMessageRestoration {
+    ExactSystem,
+    MessagesOnly,
+    AppendedSystem,
+}
+
 fn restore_source_message_order(
     typed: &mut Map<String, Value>,
     source: &Map<String, Value>,
-) -> Option<bool> {
+) -> Option<SourceMessageRestoration> {
     let Some(messages) = source.get("messages").and_then(Value::as_array) else {
         return None;
     };
@@ -230,22 +277,48 @@ fn restore_source_message_order(
     };
     let system_matches = expected_system == typed_system;
     let has_inline_system = messages.iter().any(|message| message["role"] == "system");
-    if (has_inline_system && !system_matches)
+    let appended_system = has_inline_system
+        && typed_system.len() > expected_system.len()
+        && typed_system.starts_with(&expected_system);
+    if (has_inline_system && !system_matches && !appended_system)
         || projected_messages_without_cache_hints(&Value::Array(build_anthropic_messages(
             &projected,
         ))) != projected_messages_without_cache_hints(typed_messages)
     {
         return None;
     }
-    typed.insert("messages".to_string(), Value::Array(messages.clone()));
-    if system_matches {
+    let mut restored_messages = messages.clone();
+    if appended_system {
+        // Keep every source message, including per-turn configuration, intact.
+        // Each Native tail block needs its own inline system message because
+        // ingress joins text blocks within one inline message into one block.
+        let raw_system = typed.get("system")?.as_array()?;
+        let insertion_index = messages
+            .iter()
+            .rposition(|message| message["role"] == "system")?
+            + 1;
+        let additions = raw_system[expected_system.len()..]
+            .iter()
+            .map(|block| json!({"role":"system", "content":[block.clone()]}));
+        // Place the additional instructions after the final source system so
+        // the system projection gains a suffix without changing the final role.
+        restored_messages.splice(insertion_index..insertion_index, additions);
+    }
+    typed.insert("messages".to_string(), Value::Array(restored_messages));
+    if system_matches || appended_system {
         if let Some(system) = source.get("system") {
             typed.insert("system".to_string(), system.clone());
         } else {
             typed.remove("system");
         }
     }
-    Some(system_matches)
+    Some(if appended_system {
+        SourceMessageRestoration::AppendedSystem
+    } else if system_matches {
+        SourceMessageRestoration::ExactSystem
+    } else {
+        SourceMessageRestoration::MessagesOnly
+    })
 }
 
 // Mirror the closed Anthropic ingress -> Native prompt context transformation,
@@ -496,7 +569,7 @@ fn remove_content_cache_hints(content: &mut Value) {
     }
 }
 
-fn canonical_anthropic_tools(value: &Value) -> Value {
+fn canonical_anthropic_tools(value: &Value, source: bool) -> Value {
     let Value::Array(tools) = value else {
         return value.clone();
     };
@@ -510,6 +583,21 @@ fn canonical_anthropic_tools(value: &Value) -> Value {
                 let mut canonical = object.clone();
                 canonical.remove("cache_control");
                 canonical.remove("eager_input_streaming");
+                canonical.remove("defer_loading");
+                // Mirror only the source -> Native provider_tool_payload
+                // description projection. Typed values stay byte-exact so a
+                // Native edit, including whitespace, cannot be overwritten.
+                if source {
+                    if let Some(description) = canonical.get("description").and_then(Value::as_str)
+                    {
+                        let description = description.trim().to_owned();
+                        if description.is_empty() {
+                            canonical.remove("description");
+                        } else {
+                            canonical.insert("description".to_string(), Value::String(description));
+                        }
+                    }
+                }
                 Value::Object(canonical)
             })
             .collect(),

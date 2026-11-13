@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-10.4",
+  "catalog_version": "2026-11-13.1",
   "currency_code": "USD",
   "page": 127,
-  "cursor": "YWZ0ZXI6Zjc3NWQxNTItNDNmZC00YmFlLTlhNTYtOWM0ZjI2MjQ3ZWI1",
-  "next_cursor": "YWZ0ZXI6Njc2YWM1ZmUtNzEzYy00NzhlLThiY2MtZDFkZjlhOGE5MjY5",
+  "cursor": "YWZ0ZXI6ZDA5MTZjMWQtMzRhZS00NDE5LWExMGQtNWQzZmMxOGU3MjJl",
+  "next_cursor": "YWZ0ZXI6NmM4YWQwNzQtODZmMy00MDE4LWJlMzItODlkNDBkZmRmMTI1",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/128.json",
   "rules": [
     {
-      "provider_code": "zenmux",
-      "upstream_model_id": "volcengine/doubao-seed-2.0-mini",
+      "provider_code": "zai",
+      "upstream_model_id": "glm-5-code",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,14 +19,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.03",
+      "input_token_unit_price": "1.2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.28",
+      "output_token_unit_price": "5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
+      "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0024",
-      "id": "167273b8-dd45-4c81-808a-99e84b8ff8ba",
+      "cache_write_token_unit_price": "0",
+      "id": "dbadac66-cda9-443c-b574-7b91091e8558",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -35,46 +35,54 @@
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-mini",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "zai",
+              "model": "glm-5-code",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
-              "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-mini",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "zai",
+              "model": "glm-5-code",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
-              "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-mini",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "zai",
+              "model": "glm-5-code",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
-              "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-mini",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "zai",
+              "model": "glm-5-code",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
           },
           "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "167273b8-dd45-4c81-808a-99e84b8ff8ba",
-      "source_checksum": "sha256:68f003b0a430d0557cdd1196615d4a8d8e040690eec88a7bb3138a3f674b06e5",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "dbadac66-cda9-443c-b574-7b91091e8558",
+      "source_checksum": "sha256:a402d07c7fe334696d2824f84f80f182b2c7525ba944b5b374924ce58aeeb8ce",
+      "source_version": "2026-11-13.1"
     },
     {
-      "provider_code": "zenmux",
-      "upstream_model_id": "volcengine/doubao-seed-2.0-pro",
+      "provider_code": "zai",
+      "upstream_model_id": "glm-5-turbo",
       "currency_code": "USD",
+      "id": "a5efbe90-bbbc-4608-b4f2-15379a93f6e1",
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.24",
+      "effective_from": "2026-10-14T04:54:44.855Z",
       "effective_to": null,
       "timezone": "UTC",
       "weekday_mask": 127,
@@ -82,946 +90,53 @@
       "local_time_end": null,
       "priority": 0,
       "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.45",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.24",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.09",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0024",
-      "id": "91c54dce-508d-4f2f-aa81-242ca78b66ae",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
       "extensions": {
+        "price_type": "standard_api",
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-10-14T04:54:44.855Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-pro",
+              "provider": "zai",
+              "model": "glm-5-turbo",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-pro",
+              "provider": "zai",
+              "model": "glm-5-turbo",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-pro",
+              "provider": "zai",
+              "model": "glm-5-turbo",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zenmux",
-              "model": "volcengine/doubao-seed-2.0-pro",
+              "provider": "zai",
+              "model": "glm-5-turbo",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "91c54dce-508d-4f2f-aa81-242ca78b66ae",
-      "source_checksum": "sha256:77f7e97c1cdcfaf239923c9d6a7c95a9f1b097d9309c150505aff7dfa9803653",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zero",
-      "upstream_model_id": "any",
-      "currency_code": "USD",
-      "id": "10000000-0000-4000-8000-000000000001",
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "effective_from": "2026-08-17T00:00:00Z",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "extensions": {
-        "pricing_policy": "global_zero_fallback",
-        "owner": "model_pricing_catalog"
-      },
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "rules": [],
-      "source_kind": "official",
-      "source_catalog_id": "10000000-0000-4000-8000-000000000001",
-      "source_checksum": "sha256:5108b9957b2f5267fd36a6570c6735fe67dc9da2bff2fa0ddec6797c0408f9df",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "74bd0ecb-8922-437e-9197-ab34c23e3c5b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "74bd0ecb-8922-437e-9197-ab34c23e3c5b",
-      "source_checksum": "sha256:adcde077061520b98d8000899a9cbcb5f86886b5deee1c33169453826c0cfc6c",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.5-air",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.11952",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.89637",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0239",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "b825db88-9a3b-4086-ab8a-53a06935fe08",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.17927",
-            "output_token_unit_price": "1.19516",
-            "cache_hit_token_unit_price": "0.03585",
-            "cache_write_token_unit_price": "0"
           }
         }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-air",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-air",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-air",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-air",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.17927",
-                "output_token_unit_price": "1.19516",
-                "cache_hit_token_unit_price": "0.03585",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
-        }
       },
-      "source_kind": "official",
-      "source_catalog_id": "b825db88-9a3b-4086-ab8a-53a06935fe08",
-      "source_checksum": "sha256:755ad0898f0ea5624cfe6020322e3dbecefbec736b4699907f1cb2131171dd30",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.5-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0",
-      "id": "3d4c17dc-a61c-4a03-824d-63227b79ecdd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
       "source_kind": "official",
-      "source_catalog_id": "3d4c17dc-a61c-4a03-824d-63227b79ecdd",
-      "source_checksum": "sha256:3a5ac485ff2f66e2673707b705fdd0e5a4b80df11c687be0a19af632279fe14a",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "a5efbe90-bbbc-4608-b4f2-15379a93f6e1",
+      "source_checksum": "sha256:a2a1870723c89524fe2cc1835583eb0d2e391d0297d6a18f0f9e67fbdad01406",
+      "source_version": "2026-11-13.1"
     },
     {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.5v",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.29879",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.89637",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05976",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "a80df283-a14b-44f1-8d4a-842670ca40cc",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.59758",
-            "output_token_unit_price": "1.79274",
-            "cache_hit_token_unit_price": "0.11952",
-            "cache_write_token_unit_price": "0"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5v",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5v",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5v",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.5v",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.59758",
-                "output_token_unit_price": "1.79274",
-                "cache_hit_token_unit_price": "0.11952",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "a80df283-a14b-44f1-8d4a-842670ca40cc",
-      "source_checksum": "sha256:a00d9e8f95b52159ad7b00dd8db80711995b4f93d529803c95a010118f4a409d",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "c89ad694-7c8b-41af-82a3-faf60ac2d3bf",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c89ad694-7c8b-41af-82a3-faf60ac2d3bf",
-      "source_checksum": "sha256:e237721635edd10a896d37569dc2c2f71fc97055f844a5586b6396e62f1cf767",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.6v",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.1494",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.44819",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02988",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "9dee0cb1-5955-4fbd-b5fa-149900e54653",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.29879",
-            "output_token_unit_price": "0.89637",
-            "cache_hit_token_unit_price": "0.05976",
-            "cache_write_token_unit_price": "0"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.29879",
-                "output_token_unit_price": "0.89637",
-                "cache_hit_token_unit_price": "0.05976",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "9dee0cb1-5955-4fbd-b5fa-149900e54653",
-      "source_checksum": "sha256:b23751cd8569fabf6bb3d86d98b4881e445ebdb1e88160b1ce4f9b49b82ad3e7",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.6v-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "d1f459a9-183c-41af-b803-e397e8ebcea0",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.6v-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d1f459a9-183c-41af-b803-e397e8ebcea0",
-      "source_checksum": "sha256:ca2000b0e654817154744c3aa4d41e909fbbc4a9acece241d8fb0d5353e2ea49",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.44819",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.09153",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.08964",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "81f65183-601c-4d11-9980-75b050c36d45",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.59758",
-            "output_token_unit_price": "2.39032",
-            "cache_hit_token_unit_price": "0.11952",
-            "cache_write_token_unit_price": "0"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.59758",
-                "output_token_unit_price": "2.39032",
-                "cache_hit_token_unit_price": "0.11952",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "81f65183-601c-4d11-9980-75b050c36d45",
-      "source_checksum": "sha256:86ed6f4c5e58b7e311e9559a8714a53058b89efc7c302cfc6b145c9797e28914",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.7-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "e6917bac-fe0b-4d7b-bad2-dad90ff0b42b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e6917bac-fe0b-4d7b-bad2-dad90ff0b42b",
-      "source_checksum": "sha256:31916461f399c79bf002faeaf1a3a3ad21614efdf2d7438ade272ab1f8c023d4",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-4.7-flashx",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.0747",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.44819",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01494",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "d2748845-4e3a-42fe-a6d2-e915a78778a8",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-4.7-flashx",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d2748845-4e3a-42fe-a6d2-e915a78778a8",
-      "source_checksum": "sha256:aa17695cb6e1ba8c2af3891029dd08b7eaea49df198ada835a2580eed1410302",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.59758",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.68911",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1494",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "9deac56a-4417-48dc-8e38-94a85f2d0074",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.89637",
-            "output_token_unit_price": "3.28669",
-            "cache_hit_token_unit_price": "0.22409",
-            "cache_write_token_unit_price": "0"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.89637",
-                "output_token_unit_price": "3.28669",
-                "cache_hit_token_unit_price": "0.22409",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "9deac56a-4417-48dc-8e38-94a85f2d0074",
-      "source_checksum": "sha256:b7c5bf755c2d69e5d4d28fd50c14bde83499d7f77980ca0432dfab646e7e8399",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
+      "provider_code": "zai",
       "upstream_model_id": "glm-5.1",
       "currency_code": "USD",
       "effective_to": null,
@@ -1032,108 +147,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.89637",
+      "input_token_unit_price": "1.4",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.58548",
+      "output_token_unit_price": "4.4",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.19421",
+      "cache_hit_token_unit_price": "0.26",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0",
-      "id": "2eac7669-4366-437b-a318-965d8d411737",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "1.19516",
-            "output_token_unit_price": "4.18306",
-            "cache_hit_token_unit_price": "0.29879",
-            "cache_write_token_unit_price": "0"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "1.19516",
-                "output_token_unit_price": "4.18306",
-                "cache_hit_token_unit_price": "0.29879",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "2eac7669-4366-437b-a318-965d8d411737",
-      "source_checksum": "sha256:04076ebf061296376052555a0f66d366c55263007e8eb328475e57afe80124af",
-      "source_version": "2026-11-10.4"
-    },
-    {
-      "provider_code": "zhipuai",
-      "upstream_model_id": "glm-5.2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.19516",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.18306",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.29879",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "37aff914-d41d-4d0b-8d80-b9892f119f43",
+      "id": "f795076d-020b-4561-b3e3-2c15e50e3cc6",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1143,29 +164,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.2",
+              "provider": "zai",
+              "model": "glm-5.1",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.2",
+              "provider": "zai",
+              "model": "glm-5.1",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.2",
+              "provider": "zai",
+              "model": "glm-5.1",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zhipuai",
-              "model": "glm-5.2",
+              "provider": "zai",
+              "model": "glm-5.1",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1174,12 +195,76 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "37aff914-d41d-4d0b-8d80-b9892f119f43",
-      "source_checksum": "sha256:566a8eed86e39b99d5414b0a1326d7fd0bad533120f37f9f037866a7f36e5973",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "f795076d-020b-4561-b3e3-2c15e50e3cc6",
+      "source_checksum": "sha256:0e5f38071f773a3baf52c4ae2091ffbba7cf4b55883a3e5f4054f4f9e6754f5b",
+      "source_version": "2026-11-13.1"
     },
     {
-      "provider_code": "zhipuai",
+      "provider_code": "zai",
+      "upstream_model_id": "glm-5.2",
+      "currency_code": "USD",
+      "id": "e16fc52a-262b-423a-871b-5538e7ac7213",
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.4",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.26",
+      "effective_from": "2026-10-14T04:54:44.855Z",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "extensions": {
+        "price_type": "standard_api",
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-14T04:54:44.855Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai",
+              "model": "glm-5.2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai",
+              "model": "glm-5.2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai",
+              "model": "glm-5.2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai",
+              "model": "glm-5.2",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          }
+        }
+      },
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "rules": [],
+      "source_kind": "official",
+      "source_catalog_id": "e16fc52a-262b-423a-871b-5538e7ac7213",
+      "source_checksum": "sha256:42afedbb5d66d964098b645b59f73295457f827076b1b585c2e94932f61fedc1",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai",
       "upstream_model_id": "glm-5.3",
       "currency_code": "USD",
       "effective_to": null,
@@ -1190,14 +275,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.19516",
+      "input_token_unit_price": "1.4",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.18306",
+      "output_token_unit_price": "4.4",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.29879",
+      "cache_hit_token_unit_price": "0.26",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0",
-      "id": "5aa214a8-353b-4a96-a396-cae77058ca61",
+      "id": "a0284086-9a82-4762-b415-780eb3dd031a",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1207,28 +292,28 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -1238,12 +323,12 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "5aa214a8-353b-4a96-a396-cae77058ca61",
-      "source_checksum": "sha256:875f887f23c50f29d35640444507e9bd33b4149b3de2246403490d2df9fd5102",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "a0284086-9a82-4762-b415-780eb3dd031a",
+      "source_checksum": "sha256:4b08bbcc50d03ae6fc1d2ef1e414f52d99f3ee6e05def2732686bf99c2cffb65",
+      "source_version": "2026-11-13.1"
     },
     {
-      "provider_code": "zhipuai",
+      "provider_code": "zai",
       "upstream_model_id": "glm-5.3-flash",
       "currency_code": "USD",
       "effective_to": null,
@@ -1254,14 +339,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.11952",
+      "input_token_unit_price": "0.15",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.41831",
+      "output_token_unit_price": "0.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03436",
+      "cache_hit_token_unit_price": "0.03",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0",
-      "id": "af60f2cd-d2b2-4a46-b7c6-2ba962820d7c",
+      "id": "c3b9ce99-47f7-4eba-9628-1da0900ffcfa",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1271,28 +356,28 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -1302,12 +387,12 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "af60f2cd-d2b2-4a46-b7c6-2ba962820d7c",
-      "source_checksum": "sha256:2dfbadc637c87c8357e7bb0eb45f3b982061b4fae2d29c44124455d013443cf7",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "c3b9ce99-47f7-4eba-9628-1da0900ffcfa",
+      "source_checksum": "sha256:d239545e16037d3d5890b7526674a8329a247dc91023b803ffd1ec828968ff98",
+      "source_version": "2026-11-13.1"
     },
     {
-      "provider_code": "zhipuai",
+      "provider_code": "zai",
       "upstream_model_id": "glm-5.3-flashx",
       "currency_code": "USD",
       "effective_to": null,
@@ -1318,14 +403,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.29879",
+      "input_token_unit_price": "0.37",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.04577",
+      "output_token_unit_price": "1.25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.08516",
+      "cache_hit_token_unit_price": "0.075",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0",
-      "id": "3845dd31-0a61-4cc9-be9a-253b6e753ac7",
+      "id": "9f719a01-2982-45fe-80f7-4ba05cdc586b",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1335,28 +420,28 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flashx",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flashx",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flashx",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5.3-flashx",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -1366,12 +451,12 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "3845dd31-0a61-4cc9-be9a-253b6e753ac7",
-      "source_checksum": "sha256:b19992ace0117868fb6d07d3e1501708ea455b35aca54ba43b0757f33ad46962",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "9f719a01-2982-45fe-80f7-4ba05cdc586b",
+      "source_checksum": "sha256:da3f7f013dd3f29733021de2fc7b9952c7b3924679991e24a34533a704319009",
+      "source_version": "2026-11-13.1"
     },
     {
-      "provider_code": "zhipuai",
+      "provider_code": "zai",
       "upstream_model_id": "glm-5v-turbo",
       "currency_code": "USD",
       "effective_to": null,
@@ -1382,31 +467,16 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.74698",
+      "input_token_unit_price": "1.2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.28669",
+      "output_token_unit_price": "4",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.17927",
+      "cache_hit_token_unit_price": "0.24",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "0",
-      "id": "676ac5fe-713c-478e-8bcc-d1df9a8a9269",
+      "id": "24cded02-7296-40c1-b367-ccc0dc16bed7",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 32000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "1.04577",
-            "output_token_unit_price": "3.88427",
-            "cache_hit_token_unit_price": "0.26891",
-            "cache_write_token_unit_price": "0"
-          }
-        }
-      ],
+      "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -1414,55 +484,808 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5v-turbo",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5v-turbo",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5v-turbo",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "zhipuai",
+              "provider": "zai",
               "model": "glm-5v-turbo",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 32000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "1.04577",
-                "output_token_unit_price": "3.88427",
-                "cache_hit_token_unit_price": "0.26891",
-                "cache_write_token_unit_price": "0"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "676ac5fe-713c-478e-8bcc-d1df9a8a9269",
-      "source_checksum": "sha256:64597ed3f659a6bec56c7f627ee305f1aae40ee7bd712005290d55af09cd44bf",
-      "source_version": "2026-11-10.4"
+      "source_catalog_id": "24cded02-7296-40c1-b367-ccc0dc16bed7",
+      "source_checksum": "sha256:d9382dae996fd0376ad821cc859195c4fa25b56950480d8520052c3c393034b5",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-4.7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "e587c7eb-e2b3-4784-8af6-17bb1435cf13",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-4.7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-4.7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-4.7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-4.7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e587c7eb-e2b3-4784-8af6-17bb1435cf13",
+      "source_checksum": "sha256:efa79bbd3b11493aa7ec8ad4f9d63c6fb7808da0eac82a3535ccdbbb55065c4c",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-5-turbo",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "d00b61f0-50f6-4c36-ba28-b68c63d33301",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5-turbo",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5-turbo",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5-turbo",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5-turbo",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d00b61f0-50f6-4c36-ba28-b68c63d33301",
+      "source_checksum": "sha256:bb47a106b7a8683da042afce7d6d927356df5bd7a0b66361e573e05e31c3b0e1",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-5.2",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "7ea3803d-c8a8-4a24-ab27-d53676c58bde",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7ea3803d-c8a8-4a24-ab27-d53676c58bde",
+      "source_checksum": "sha256:82cc72990fb6480190b7e4809756789fcd627f29387c7119289e6c9693d41b15",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-5.2-highspeed",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "b3c0111a-349f-4fcd-ac9c-a29be643295f",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2-highspeed",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2-highspeed",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2-highspeed",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.2-highspeed",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b3c0111a-349f-4fcd-ac9c-a29be643295f",
+      "source_checksum": "sha256:4e108294fa1864dad2d7487ad420454878dcb4a74b7b115e64a22aa3cf127b45",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-5.3",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "22b846a3-04c9-41c9-913f-ee32a1f67313",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "22b846a3-04c9-41c9-913f-ee32a1f67313",
+      "source_checksum": "sha256:9645e8753ccf7ba49f6d45b7fb83d439036132db2ea032647cb0c709dc58431e",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-5.3-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "9822e8d4-8d09-4b5a-bbb1-192dfb8f7161",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9822e8d4-8d09-4b5a-bbb1-192dfb8f7161",
+      "source_checksum": "sha256:932bb785889e64850d1aa91506eafa6d78d89bf5ccf7633a64db01999278b9be",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zai-coding-plan",
+      "upstream_model_id": "glm-5.3-highspeed",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "7b7597fe-d696-4d10-b243-0ab55753985c",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-highspeed",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-highspeed",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-highspeed",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zai-coding-plan",
+              "model": "glm-5.3-highspeed",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7b7597fe-d696-4d10-b243-0ab55753985c",
+      "source_checksum": "sha256:9d8cc851d95dac68c0436b3525e4d3c37afc55aa63c0410e7853730437ba6bcb",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zenmux",
+      "upstream_model_id": "anthropic/claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "ae35444f-5637-48c2-a6c6-4f143aa5ddce",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "ae35444f-5637-48c2-a6c6-4f143aa5ddce",
+      "source_checksum": "sha256:da16254c3822f307edb58b30e00424925861cca003ccc64f6116cb80d9a6a930",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zenmux",
+      "upstream_model_id": "anthropic/claude-fable-5.1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "5273dfc9-f8fa-4ceb-81da-e4830ee49035",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5273dfc9-f8fa-4ceb-81da-e4830ee49035",
+      "source_checksum": "sha256:104539ae4922026d002cfd9c55770b93d25d1260d6d028f6a4575270808f9ec3",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zenmux",
+      "upstream_model_id": "anthropic/claude-haiku-4.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "e6944aaa-dd04-4e52-b5af-406f4a4664f5",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e6944aaa-dd04-4e52-b5af-406f4a4664f5",
+      "source_checksum": "sha256:210e9ba4c01d59978b0e682eecdc3546a938e1d599b3f8c7f0514ec409a08040",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zenmux",
+      "upstream_model_id": "anthropic/claude-opus-4.1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "15",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "75",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "18.75",
+      "id": "a8328525-b3ca-4eee-a19b-ed1f3e435da1",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a8328525-b3ca-4eee-a19b-ed1f3e435da1",
+      "source_checksum": "sha256:4ed5e28c610cd7acda1418972c6232d4781b65b8d86e64a1d9fc766530d453c7",
+      "source_version": "2026-11-13.1"
+    },
+    {
+      "provider_code": "zenmux",
+      "upstream_model_id": "anthropic/claude-opus-4.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "6c8ad074-86f3-4018-be32-89d40dfdf125",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "zenmux",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6c8ad074-86f3-4018-be32-89d40dfdf125",
+      "source_checksum": "sha256:dc98a0cbaa8414dbb67a7cea648d1a328644c0eb98f283d761c88c89979587d0",
+      "source_version": "2026-11-13.1"
     }
   ]
 }
