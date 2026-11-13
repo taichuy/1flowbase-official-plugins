@@ -1,7 +1,8 @@
 //! Tencent iLink notification supplier. Host owns all persistence and trusted call scope.
 use base64::{engine::general_purpose::STANDARD, Engine};
 use runtime_extension_sdk::{
-    execute_communication, CapabilityStdioRequest, NotificationAuthorizationActionKind,
+    execute_communication, notification_send_receipt, CapabilityStdioRequest,
+    NotificationActivityState, NotificationAuthorizationActionKind,
     NotificationAuthorizationOperation, NotificationAuthorizationStatus,
     NotificationAuthorizationUserAction, NotificationAuthorizationView,
     NotificationDeliveryWindowStatus, NotificationDeliveryWindowView, NotificationFailureCode,
@@ -16,6 +17,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+mod activity;
 mod media;
 mod receive;
 mod subscription;
@@ -31,6 +33,8 @@ const SECRET_KEYS: &[&str] = &[
     "bound_user_id",
     "context_token",
     "authorization_invalid",
+    "typing_ticket",
+    "typing_ticket_expires_at_ms",
 ];
 type Secrets = BTreeMap<String, Value>;
 type ProviderFuture<'a> = Pin<Box<dyn Future<Output = Result<Value, ProviderError>> + 'a>>;
@@ -282,6 +286,7 @@ fn send_result(
 ) -> NotificationRuntimeResult {
     NotificationRuntimeResult::Send {
         outcome,
+        receipt: None,
         authorization: Some(plain_view(state)),
         managed_secret_patch: patch,
     }
@@ -305,7 +310,8 @@ fn with_window(
         NotificationRuntimeResult::Authorization { authorization, .. } => Some(authorization),
         NotificationRuntimeResult::Send { authorization, .. }
         | NotificationRuntimeResult::Receive { authorization, .. } => authorization.as_mut(),
-        NotificationRuntimeResult::DownloadAttachment { .. } => None,
+        NotificationRuntimeResult::DownloadAttachment { .. }
+        | NotificationRuntimeResult::Activity { .. } => None,
     };
     if let Some(view) =
         view.filter(|view| view.status == NotificationAuthorizationStatus::Authorized)
@@ -496,6 +502,7 @@ async fn send_notification(
     secrets: Secrets,
     input: Value,
     target: Option<NotificationSendTarget>,
+    request_id: Option<String>,
     delivery_window: Option<NotificationDeliveryWindowView>,
     clock: &impl Fn() -> u64,
 ) -> Result<NotificationRuntimeResult, ProviderError> {
@@ -537,7 +544,18 @@ async fn send_notification(
             window,
         ));
     }
-    let client_id = format!("1flowbase-{}", uuid::Uuid::new_v4());
+    let client_id = match request_id.as_deref() {
+        Some(request_id) => format!("1flowbase-{request_id}"),
+        None => format!("1flowbase-{}", uuid::Uuid::new_v4()),
+    };
+    let receipt = notification_send_receipt(
+        request_id.as_deref(),
+        recipient,
+        recipient,
+        None,
+        Some(client_id.clone()),
+    )
+    .map_err(|_| ProviderError::Malformed)?;
     let mut message = json!({"from_user_id":"", "to_user_id":recipient,
         "client_id":client_id, "message_type":2, "message_state":2,
         "item_list":[{"type":1,"text_item":{"text":input["text"]}}]});
@@ -561,13 +579,14 @@ async fn send_notification(
         Err(_) => ProviderCode::Unknown,
     };
     let result = match code {
-        ProviderCode::Success => send_result(
-            NotificationSendOutcome::Succeeded {
+        ProviderCode::Success => NotificationRuntimeResult::Send {
+            outcome: NotificationSendOutcome::Succeeded {
                 result: json!({"accepted":true,"delivery_id":client_id}),
             },
-            NotificationAuthorizationStatus::Authorized,
-            patch,
-        ),
+            receipt,
+            authorization: Some(plain_view(NotificationAuthorizationStatus::Authorized)),
+            managed_secret_patch: patch,
+        },
         ProviderCode::Failure(NotificationFailureCode::AuthorizationInvalid) => {
             patch.extend(invalid_patch());
             failed(
@@ -593,6 +612,9 @@ async fn run_with_clock(
     clock: &impl Fn() -> u64,
 ) -> Result<NotificationRuntimeResult, ProviderError> {
     match input.operation {
+        NotificationOperation::SetActivity { target, state } => {
+            activity::set(client, &input.managed_secrets, target, state, clock).await
+        }
         NotificationOperation::Authorize { operation } => {
             authorize(
                 client,
@@ -636,12 +658,14 @@ async fn run_with_clock(
         NotificationOperation::Send {
             input_payload,
             target,
+            request_id,
         } => {
             send_notification(
                 client,
                 input.managed_secrets,
                 input_payload,
                 target,
+                request_id,
                 input.delivery_window,
                 clock,
             )

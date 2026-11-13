@@ -23,6 +23,22 @@ fn batch(result: &NotificationRuntimeResult) -> &runtime_extension_sdk::Notifica
         _ => panic!("expected successful receive"),
     }
 }
+
+#[tokio::test]
+async fn received_quotation_preserves_body_and_keeps_quote_separate_from_command_arguments() {
+    let mut message = text_message("quoted", "帮我解读一下这个");
+    message["item_list"][0]["ref_msg"] = json!({"title":"Hermes", "message_item":{
+        "type":1, "text_item":{"text":"【八字命盘客观数据】生日：2026-11-11"}
+    }});
+    let mock = Mock::new(vec![Ok(json!({"msgs":[message],"get_updates_buf":"quoted-next"}))]);
+    let result = run_with_clock(&mock, receive_input(None, 100), &|| NOW).await.unwrap();
+    let received = &batch(&result).messages[0];
+    assert_eq!(received.text.as_deref(), Some("帮我解读一下这个"));
+    let quote = received.reply_to.as_ref().unwrap();
+    assert_eq!(quote.title.as_deref(), Some("Hermes"));
+    assert!(quote.text.as_deref().unwrap().contains("2026-11-11"));
+    assert!(quote.provider_message_id.is_none());
+}
 #[tokio::test]
 async fn receive_retains_overflow_and_only_host_owns_cursor_commit() {
     let mock = Mock::new(vec![Ok(
@@ -354,7 +370,8 @@ fn receive_descriptor_declares_progressive_host_tools_and_no_secret_cursor() {
     descriptor.validate().unwrap();
     let receive = descriptor.receive.unwrap();
     assert!(receive.default_system_prompt.contains("final reply"));
-    assert_eq!(receive.mcp_tools.len(), 3);
+    assert_eq!(receive.mcp_instance_id.as_deref(), Some("wechat-chat-channels"));
+    assert_eq!(receive.mcp_tools.len(), 6);
     for instruction in [
         "file message.id as message_id",
         "at most 5 real messages",
@@ -472,4 +489,88 @@ async fn targeted_reply_rejects_wrong_sender_or_conversation_before_provider_io(
         assert!(mock.requests.borrow().is_empty());
         result.validate_for(&request, &descriptor()).unwrap();
     }
+}
+
+#[tokio::test]
+async fn send_receipt_matches_actual_provider_recipient_and_stable_client_id() {
+    const REQUEST_ID: &str = "926926b7-a099-4e69-bbd7-0f91d3721ff8";
+    assert!(descriptor().receive.unwrap().supports_send_receipts);
+    for targeted in [false, true] {
+        let mut request = send(secrets());
+        if let NotificationOperation::Send {
+            request_id, target, ..
+        } = &mut request.operation
+        {
+            *request_id = Some(REQUEST_ID.into());
+            if targeted {
+                *target = Some(NotificationSendTarget {
+                    sender_id: "scanner".into(),
+                    conversation_id: "scanner".into(),
+                    provider_message_id: "inbound-id".into(),
+                });
+            }
+        }
+        let mock = Mock::new(vec![Ok(json!({"ret":0}))]);
+        let result = run(&mock, request.clone()).await.unwrap();
+        result.validate_for(&request, &descriptor()).unwrap();
+        let NotificationRuntimeResult::Send {
+            receipt: Some(receipt),
+            outcome: NotificationSendOutcome::Succeeded { result },
+            ..
+        } = result
+        else {
+            panic!("expected correlated acceptance")
+        };
+        let requests = mock.requests.borrow();
+        assert_eq!(requests.len(), 1);
+        let message = &requests[0].body.as_ref().unwrap()["msg"];
+        assert_eq!(message["client_id"], format!("1flowbase-{REQUEST_ID}"));
+        assert_eq!(receipt.request_id, REQUEST_ID);
+        assert_eq!(
+            receipt.recipient_id,
+            message["to_user_id"].as_str().unwrap()
+        );
+        assert_eq!(receipt.conversation_id, "scanner");
+        assert_eq!(
+            receipt.client_message_id.as_deref(),
+            message["client_id"].as_str()
+        );
+        assert_eq!(result["delivery_id"], message["client_id"]);
+        assert_eq!(result["accepted"], true);
+        assert!(receipt.provider_message_id.is_none());
+    }
+}
+
+#[tokio::test]
+async fn send_receipt_keeps_legacy_wire_and_never_retries_unknown() {
+    let mock = Mock::new(vec![Ok(json!({"ret":0})), Ok(json!({"ret":0}))]);
+    let first = run(&mock, send(secrets())).await.unwrap();
+    let second = run(&mock, send(secrets())).await.unwrap();
+    for result in [first, second] {
+        let wire = serde_json::to_value(result).unwrap();
+        assert!(wire.get("receipt").is_none());
+        assert_eq!(wire["outcome"]["status"], "succeeded");
+    }
+    let requests = mock.requests.borrow();
+    assert_ne!(
+        requests[0].body.as_ref().unwrap()["msg"]["client_id"],
+        requests[1].body.as_ref().unwrap()["msg"]["client_id"]
+    );
+    drop(requests);
+    let mut request = send(secrets());
+    if let NotificationOperation::Send { request_id, .. } = &mut request.operation {
+        *request_id = Some("926926b7-a099-4e69-bbd7-0f91d3721ff8".into());
+    }
+    let mock = Mock::new(vec![Err(ProviderError::Timeout)]);
+    let result = run(&mock, request.clone()).await.unwrap();
+    result.validate_for(&request, &descriptor()).unwrap();
+    assert!(matches!(
+        result,
+        NotificationRuntimeResult::Send {
+            outcome: NotificationSendOutcome::Unknown { .. },
+            receipt: None,
+            ..
+        }
+    ));
+    assert_eq!(mock.requests.borrow().len(), 1);
 }

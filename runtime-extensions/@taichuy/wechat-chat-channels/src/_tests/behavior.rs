@@ -44,6 +44,7 @@ fn auth(
 fn send(secrets: Secrets) -> NotificationRuntimeInput {
     let mut input = input(
         NotificationOperation::Send {
+            request_id: None,
             input_payload: json!({"text":"你好"}),
             target: None,
         },
@@ -71,6 +72,10 @@ fn apply(secrets: &mut Secrets, result: &NotificationRuntimeResult) {
             managed_secret_patch,
             ..
         }
+        | NotificationRuntimeResult::Activity {
+            managed_secret_patch,
+            ..
+        }
         | NotificationRuntimeResult::Receive {
             managed_secret_patch,
             ..
@@ -92,8 +97,9 @@ fn view(result: &NotificationRuntimeResult) -> NotificationAuthorizationStatus {
         | NotificationRuntimeResult::Receive { authorization, .. } => {
             authorization.as_ref().unwrap().status
         }
-        NotificationRuntimeResult::DownloadAttachment { .. } => {
-            panic!("no authorization in download result")
+        NotificationRuntimeResult::DownloadAttachment { .. }
+        | NotificationRuntimeResult::Activity { .. } => {
+            panic!("no authorization in non-authorization result")
         }
     }
 }
@@ -332,4 +338,143 @@ fn send_log_mapping_preserves_text_and_only_exposes_business_receipt() {
         ),
         json!({"accepted":true,"delivery_id":"delivery-1"})
     );
+}
+
+#[tokio::test]
+async fn typing_status_caches_ticket_and_refreshes_for_expired_stop() {
+    let client = Mock::new(vec![
+        Ok(json!({"typing_ticket":"private-ticket"})),
+        Ok(json!({})),
+        Ok(json!({"ret":0})),
+        Ok(json!({"typing_ticket":"fresh-ticket"})),
+        Ok(json!({"ret":0})),
+    ]);
+    let mut state = secrets();
+    state.insert("context_token".into(), json!("private-context"));
+    let target = NotificationSendTarget {
+        sender_id: "scanner".into(),
+        conversation_id: "scanner".into(),
+        provider_message_id: "input".into(),
+    };
+    let first = activity::set(
+        &client,
+        &state,
+        target.clone(),
+        NotificationActivityState::Replying,
+        &|| 1000,
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        first,
+        NotificationRuntimeResult::Activity { applied: true, .. }
+    ));
+    first
+        .validate_for(
+            &input(
+                NotificationOperation::SetActivity {
+                    target: target.clone(),
+                    state: NotificationActivityState::Replying,
+                },
+                state.clone(),
+            ),
+            &descriptor(),
+        )
+        .unwrap();
+    apply(&mut state, &first);
+    let stopped = activity::set(
+        &client,
+        &state,
+        target.clone(),
+        NotificationActivityState::Idle,
+        &|| 2000,
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        stopped,
+        NotificationRuntimeResult::Activity { applied: true, .. }
+    ));
+    let expired = activity::set(
+        &client,
+        &state,
+        target,
+        NotificationActivityState::Idle,
+        &|| 602000,
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        expired,
+        NotificationRuntimeResult::Activity { applied: true, .. }
+    ));
+    let requests = client.requests.borrow();
+    assert_eq!(
+        requests.iter().map(|r| r.endpoint).collect::<Vec<_>>(),
+        vec![
+            "ilink/bot/getconfig",
+            "ilink/bot/sendtyping",
+            "ilink/bot/sendtyping",
+            "ilink/bot/getconfig",
+            "ilink/bot/sendtyping"
+        ]
+    );
+    assert_eq!(
+        requests[0].body.as_ref().unwrap()["context_token"],
+        "private-context"
+    );
+    assert_eq!(requests[1].body.as_ref().unwrap()["status"], 1);
+    assert_eq!(requests[2].body.as_ref().unwrap()["status"], 2);
+    assert_eq!(
+        requests[4].body.as_ref().unwrap()["typing_ticket"],
+        "fresh-ticket"
+    );
+}
+
+#[tokio::test]
+async fn typing_status_rejects_unbound_recipient_and_never_falls_back_to_a_message() {
+    let client = Mock::new(vec![]);
+    let target = NotificationSendTarget {
+        sender_id: "other".into(),
+        conversation_id: "other".into(),
+        provider_message_id: "input".into(),
+    };
+    let result = activity::set(
+        &client,
+        &secrets(),
+        target.clone(),
+        NotificationActivityState::Replying,
+        &|| 1000,
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        result,
+        NotificationRuntimeResult::Activity { applied: false, .. }
+    ));
+    assert!(client.requests.borrow().is_empty());
+    let client = Mock::new(vec![Err(ProviderError::Timeout)]);
+    let target = NotificationSendTarget {
+        sender_id: "scanner".into(),
+        conversation_id: "scanner".into(),
+        ..target
+    };
+    let result = activity::set(
+        &client,
+        &secrets(),
+        target,
+        NotificationActivityState::Replying,
+        &|| 1000,
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        result,
+        NotificationRuntimeResult::Activity { applied: false, .. }
+    ));
+    assert!(client
+        .requests
+        .borrow()
+        .iter()
+        .all(|r| r.endpoint != "ilink/bot/sendmessage"));
 }

@@ -4,9 +4,14 @@
 
 3.0.0 是不兼容升级：`read_file` 改为接收文件消息的 `message_id`，历史工具默认且每页最多返回 5 条真实消息。请先升级到统一通讯时间线契约的 Host。同一位扫码绑定的微信用户可以发送文本和文件，并收到 Agent Flow 的最终文本回复。插件分别贡献 `1flowbase.notification.send` 与 `1flowbase.notification.receive`，负责腾讯 iLink 协议适配；Host 负责持续轮询、持久收件箱去重、游标提交、导入选定文件表、执行 Agent Flow 和发送最终回复。
 
+
+3.1.3 将 `bound_user_id` 声明为加密保存的账号身份（`authorization.managed_identity_keys`）。支持该声明的 Host 仅允许它出现在已校验关联的标准发送回执身份字段，避免发送成功后被凭据检查误记为 unknown；bot_token、context_token 等令牌及其他输出位置仍执行完整保护。需要匹配此契约的 Host/SDK。
+
 ## 发送日志
 
 3.1.0 通过类型描述的 `log` 声明接入宿主统一发送日志，需要支持该声明的 Host（本次 SDK 固定源码提交见 Cargo.toml）。正文来自业务输入 `/text`，完整保存；没有独立标题时由 Host 取正文前 255 个 Unicode 字符。业务结果 `/accepted` 和 `/delivery_id` 写入 JSON 附属信息。Host 在调用供应商前持久化经校验且不含凭据的消息快照，发送失败仍保留该快照；授权密钥、secret patch 和内部协议不进入日志。旧日志没有保存过的正文不会自动回填。
+
+3.1.2 声明 `receive.supports_send_receipts`，支持 Host 统一关联各入口的发送历史。Host 提供发送日志 UUID `request_id` 时，插件以 `1flowbase-{request_id}` 作为实际发包的稳定 `client_id`，成功后在 typed `receipt` 中原样回传 `request_id`、实际微信收件人/会话和 `client_message_id`。供应商未提供消息 ID，`provider_message_id` 保持空缺；业务结果仍为 `{accepted:true, delivery_id:client_id}`。accepted 仅代表供应商接受提交，不表示送达或已读。旧 Host 未传 `request_id` 时继续生成随机 client_id 并省略 receipt；网络超时或结果不明不自动重发。需要包含发送收据契约的 Host/SDK，安装包由发布流程构建。
 
 ## 配置
 
@@ -14,7 +19,7 @@
 2. 创建类型为 `1flowbase/wechat-chat-channels/private` 的频道，选择 Agent Flow 和文件表。插件供应商配置为空，凭证由 Host 管理。
 3. 使用 `qr` 操作开始授权，微信扫码并确认。Host 轮询到 `authorized`；二维码过期后重新开始。收件和回复始终限定扫码用户，其他发送者不能改变私聊绑定。
 4. 启用频道。即使关闭设置页，Host 也持续发起有界 Receive 调用。文本、图片、语音、文档和视频附件进入持久收件箱；Host 把附件下载到选定文件表后再调用所选 Agent Flow，仅发送最终回复。
-5. Host 为每个频道创建独立 MCP 实例。插件声明 `history_messages`、`history_files`、`read_file`，提供解释渐进查询历史和文件的默认可编辑系统提示词；历史工具传入会话消息中的 conversation_id，继续查询时将 next_cursor 原样传为 cursor，历史从新到旧分页，每页默认且最多 5 条真实消息；history_messages 返回文本和文件消息，history_files 返回文件消息，均包含 `id`、`type`（text/file）和 `direction`（inbound/outbound）。read_file 使用文件消息的 `id` 作为 `message_id`，返回 typed `message` 及文件内容。ID 为不透明标识；Host 固定当前会话和发送者作用域。用户可以为 Agent Flow 添加其他 MCP。
+5. 插件内置 MCP 实例固定为 `wechat-chat-channels`（ID 和名称一致）。Host 在插件启用、重新激活和升级时创建或强制覆盖完整内置定义，并删除旧插件工具；已有通道选择中的旧内置实例迁移为该实例，保留用户添加的其他 MCP。每次工具调用传 `instance_id=Host session.channel_id`；Host 固定工作区和发送者权限。工具包括 `history_messages`、`history_files`（每页默认/最多 5 条，按 next_cursor 向前查询）、`search_messages`（消息/文件名的字面关键词查询）、`file_info`（真实文件 ID、MIME、大小与授权地址）、`read_file`（分块文字/原始数据）及 `view_image`（显式调用返回 MCP image）。底座不自动注入图片。处理文件时 AI 可以探索用户额外授权的终端 MCP，先调用 `/terminal/terminal_info`，再使用 file_table_id 和 file_record_id（传入终端 record_id）下载至临时绝对路径并处理。图片预览沿用文件管理的授权及预览策略，不自动创建公开链接。
 
 ## 游标与回复窗口
 
@@ -45,3 +50,21 @@ Mock fixture 覆盖扫码绑定、私聊隔离、重复与重放身份、游标�
 协议参考 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent/blob/0e427d788d253630d38a3a51cd76849e73cd6925/gateway/platforms/weixin.py)（MIT，Python；2026-10-25 观察到 256,843 Stars、56,194 forks）。其消息类型映射、AES 密钥编码和 CDN locator 与本任务吻合。本实现适配其协议模式，持久化由 Host 负责，下载使用有界 typed chunk，不复制其整文件下载与游标持久化方式。
 
 SDK 固定为 `a29f82200efbb3e3b37afc60c9d6a24009d6a9ad`，包含统一发送日志声明；不提交本地依赖路径。
+
+
+### 微信原生输入状态
+
+Host 可通过接收描述中的 `supports_activity` 发现临时状态能力，使用 `set_activity`
+操作传入已提交消息的目标与 `replying` / `idle`。插件通过 iLink `getconfig` 获取票据，
+在 Host 托管的私密字段中缓存 600 秒，再调用 `sendtyping`（1 开始、2 停止）。
+停止时同样刷新过期票据。状态失败返回 `applied: false`，不产生普通消息、不影响报告发送。
+本候选需要包含 `NotificationActivityState` 的同步 Host / SDK；本地构建使用该候选 SDK 的路径覆盖，正式发布须更新 SDK revision。
+
+
+## 接收引用与历史检索
+
+`NotificationReceivedMessage.reply_to` 是可选 `NotificationMessageReference`，含可选的供应商 `provider_message_id`、`title` 与引用 `text`。至少一项非空，身份使用原有1024字节限制，标题最多1024字节，正文最多65536字节，仍受整批接收512KiB约束。省略时保持原接收格式；不能携带Host的message_id、角色、凭据或私有下载描述符。插件负责提取供应商引用，不把引用正文拼进用户原指令。
+
+Host在接收事务保存引用，只在同workspace/channel/sender/conversation内按原入站供应商ID或已保存发送收据的provider/client ID解析唯一原消息；可验证时补Host message_id及原正文，否则保留供应商引用快照，不根据标题或正文猜测关联。后续用户消息把引用作为用户数据提供给模型，不提升为system指令，不伪造文件附件。统一历史返回同名reply_to，控制台可展示引用。
+
+历史工具每页最多5条；查找较早报告时，应沿next_cursor继续，直到找到目标或历史结束，不能仅因第一页没有就断言不存在。接收记录的send_status投影关联同一input对应的实际通道发送；指令处理状态仍表示接收/指令处理结果，和报告发送状态独立。没有真实回执的旧unknown保持不变。

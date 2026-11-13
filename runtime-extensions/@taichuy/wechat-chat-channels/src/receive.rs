@@ -1,8 +1,8 @@
 //! The only getupdates consumer. Cursor candidates become committed only in Host's inbox transaction.
 use super::*;
 use runtime_extension_sdk::{
-    NotificationReceiveBatch, NotificationReceiveOutcome, NotificationReceivedMessage,
-    NotificationSender,
+    NotificationMessageReference, NotificationReceiveBatch, NotificationReceiveOutcome,
+    NotificationReceivedMessage, NotificationSender,
 };
 use std::collections::BTreeSet;
 
@@ -157,12 +157,16 @@ pub(super) async fn receive(
             .ok_or(ProviderError::Malformed)?;
         let mut texts = Vec::new();
         let mut attachments = Vec::new();
+        let mut reply_to = None;
         for (index, item) in message["item_list"]
             .as_array()
             .into_iter()
             .flatten()
             .enumerate()
         {
+            if reply_to.is_none() {
+                reply_to = quoted_message(item)?;
+            }
             if item["type"] == 1 {
                 if let Some(text) = item["text_item"]["text"]
                     .as_str()
@@ -205,6 +209,7 @@ pub(super) async fn receive(
             } else {
                 Some(texts.join("\n"))
             },
+            reply_to,
             attachments,
         });
     }
@@ -231,4 +236,25 @@ pub(super) async fn receive(
         },
         window,
     ))
+}
+
+fn quoted_message(item: &Value) -> Result<Option<NotificationMessageReference>, ProviderError> {
+    let Some(reference) = item.get("ref_msg").filter(|v| v.is_object()) else {
+        return Ok(None);
+    };
+    let value = |v: &Value| {
+        v.as_str()
+            .filter(|s| !s.trim().is_empty())
+            .map(str::to_owned)
+    };
+    let quote = NotificationMessageReference {
+        provider_message_id: value(&reference["message_id"]),
+        title: value(&reference["title"]),
+        text: value(&reference["message_item"]["text_item"]["text"]),
+    };
+    if quote.provider_message_id.is_none() && quote.title.is_none() && quote.text.is_none() {
+        return Ok(None);
+    }
+    quote.validate().map_err(|_| ProviderError::Malformed)?;
+    Ok(Some(quote))
 }
