@@ -685,3 +685,68 @@ fn no_inline_system_keeps_native_root_additions_in_root() {
     assert!(result.receipt.semantic_delta_fields.contains("system"));
     assert!(!result.receipt.semantic_delta_fields.contains("messages"));
 }
+
+#[test]
+fn appended_native_system_preserves_final_user_and_assistant_roles() {
+    for final_role in ["user", "assistant"] {
+        let mut source = json!({"model":"source-model","output_config":{"effort":"max"},
+            "system":[{"type":"text","text":"root"}],"messages":[
+            {"role":"user","content":"earlier question"},
+            {"role":"system","output_config":{"effort":"medium"},"content":[
+                {"type":"text","text":"client inline"},
+                {"type":"tool_addition","tool":{"type":"tool_reference","name":"Read"}}]},
+            {"role":"user","content":"latest question"}
+        ]});
+        if final_role == "assistant" {
+            source["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"assistant","content":"historical answer"}));
+        }
+        let source_messages = source["messages"].as_array().unwrap();
+        let last_user = source_messages
+            .iter()
+            .rposition(|message| message["role"] == "user")
+            .unwrap();
+        let mut typed_system = anthropic_system_blocks(&source["system"], true).unwrap();
+        let projected =
+            native_source_messages(source_messages, last_user, &mut typed_system).unwrap();
+        let tail = vec![
+            json!({"type":"text","text":"application A","cache_control":{"type":"ephemeral"}}),
+            json!({"type":"text","text":"application B"}),
+        ];
+        typed_system.extend(tail.iter().cloned());
+        let typed = json!({"model":"provider-model","output_config":{"effort":"max"},
+            "system":typed_system,"messages":build_anthropic_messages(&projected)});
+        let result = restore(source.clone(), typed.clone());
+        let restored = result.body["messages"].as_array().unwrap();
+        assert_eq!(restored.last().unwrap()["role"], final_role);
+        let mut expected = source_messages.clone();
+        expected.splice(
+            2..2,
+            tail.iter()
+                .map(|block| json!({"role":"system","content":[block]})),
+        );
+        assert_eq!(
+            restored, &expected,
+            "all original messages remain an exact ordered subsequence"
+        );
+        assert_eq!(
+            projected_source_system(&result.body),
+            anthropic_system_blocks(&typed["system"], false).unwrap()
+        );
+        let last_user = restored
+            .iter()
+            .rposition(|message| message["role"] == "user")
+            .unwrap();
+        let reprojected = native_source_messages(restored, last_user, &mut Vec::new()).unwrap();
+        assert_eq!(
+            Value::Array(build_anthropic_messages(&reprojected)),
+            typed["messages"]
+        );
+        assert_eq!(result.body["system"], source["system"]);
+        assert_eq!(result.body["output_config"], source["output_config"]);
+        assert!(result.receipt.semantic_delta_fields.contains("messages"));
+        assert!(result.receipt.semantic_delta_fields.contains("system"));
+    }
+}

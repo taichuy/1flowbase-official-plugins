@@ -293,9 +293,16 @@ fn restore_source_message_order(
         // Each Native tail block needs its own inline system message because
         // ingress joins text blocks within one inline message into one block.
         let raw_system = typed.get("system")?.as_array()?;
-        for block in &raw_system[expected_system.len()..] {
-            restored_messages.push(json!({"role":"system", "content":[block.clone()]}));
-        }
+        let insertion_index = messages
+            .iter()
+            .rposition(|message| message["role"] == "system")?
+            + 1;
+        let additions = raw_system[expected_system.len()..]
+            .iter()
+            .map(|block| json!({"role":"system", "content":[block.clone()]}));
+        // Place the additional instructions after the final source system so
+        // the system projection gains a suffix without changing the final role.
+        restored_messages.splice(insertion_index..insertion_index, additions);
     }
     typed.insert("messages".to_string(), Value::Array(restored_messages));
     if system_matches || appended_system {
