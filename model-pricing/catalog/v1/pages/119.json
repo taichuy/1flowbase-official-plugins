@@ -1,12 +1,200 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-13.2",
+  "catalog_version": "2026-11-13.3",
   "currency_code": "USD",
   "page": 119,
-  "cursor": "YWZ0ZXI6MDE4NmQ0YmMtOWZjYi00Mjk2LThhMzAtYzU3ODhkOGE5YWEz",
-  "next_cursor": "YWZ0ZXI6MjRjY2U2MTctMDU3Ny00Nzc0LTkzYmMtYTFkYTRmYTBmMmRj",
+  "cursor": "YWZ0ZXI6MDFiMGZlYzAtZWM2NC00Yjc1LThiMzMtNjUwZGRlYjdlOTU5",
+  "next_cursor": "YWZ0ZXI6MjdmYWE5NDYtZDQ4ZC00ZjdiLWI2YTItMjk0ZDgyYTM5ZjJm",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/120.json",
   "rules": [
+    {
+      "provider_code": "venice",
+      "upstream_model_id": "openai-gpt-56-terra-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "4241f6a6-f61a-47a7-8c0a-578588880720",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-56-terra-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-56-terra-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-56-terra-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-56-terra-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "4241f6a6-f61a-47a7-8c0a-578588880720",
+      "source_checksum": "sha256:04ae0ccd5fcc0ea4bd5e6e1af4abd673a10e278f85b295b6978f717061e108a1",
+      "source_version": "2026-11-13.3"
+    },
+    {
+      "provider_code": "venice",
+      "upstream_model_id": "openai-gpt-6-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "0186d4bc-9fcb-4296-8a30-c5788d8a9aa3",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "20",
+            "output_token_unit_price": "75",
+            "cache_hit_token_unit_price": "2",
+            "cache_write_token_unit_price": "25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-6-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-6-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-6-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "venice",
+              "model": "openai-gpt-6-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "20",
+                "output_token_unit_price": "75",
+                "cache_hit_token_unit_price": "2",
+                "cache_write_token_unit_price": "25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0186d4bc-9fcb-4296-8a30-c5788d8a9aa3",
+      "source_checksum": "sha256:34a83d6d9a697edcb6995eb6c930dbac51ad7675a2e7c793ec25a6618edd0074",
+      "source_version": "2026-11-13.3"
+    },
     {
       "provider_code": "venice",
       "upstream_model_id": "openai-gpt-6-astra-pro",
@@ -99,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "f1f73e8e-b987-470e-8de8-435c9dba97ce",
       "source_checksum": "sha256:ead9f4bffae8043f4963bfe61a649549185932243a27c60eb6c6a195d3d8ec03",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -193,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "1b558fd2-a07a-4331-a1b3-042c550f9ccb",
       "source_checksum": "sha256:599f1bd9a5ba367fd05cec598b2b74be35229374cf04bf05cb96c7011580c35c",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -287,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "25e43794-be78-4468-9bbf-0f4c3ff656c1",
       "source_checksum": "sha256:6a56857e58e6332784a81a579afac263f8cdb3f05ab45e7480de491a13f60dc1",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -381,7 +569,7 @@
       "source_kind": "official",
       "source_catalog_id": "3cffa3da-e4bc-43e7-a51b-adf10be5e974",
       "source_checksum": "sha256:217b446f434d163306af3ce0bbdbfded9cbdb6852bb2356746b6eb5895035743",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -475,7 +663,7 @@
       "source_kind": "official",
       "source_catalog_id": "818b9e19-233f-4684-81b0-ceedc7d9e666",
       "source_checksum": "sha256:9db9645d9ad2b2a14dd081fb26f285b4e8d366ace5b5a33dbfaefe732f027df1",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -569,7 +757,7 @@
       "source_kind": "official",
       "source_catalog_id": "875a7387-dfbb-479a-9137-999fbde10462",
       "source_checksum": "sha256:086707bef904f1fd92480e361272d5671c6c116d7404e939135bb5fc59c14c52",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -663,7 +851,7 @@
       "source_kind": "official",
       "source_catalog_id": "0098b119-ba45-4bea-968c-9912c249fb6b",
       "source_checksum": "sha256:4ad9124aeda9cceb2546d41d6e14b861e6a8596f83ff1aa46b80506aade71777",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -727,7 +915,7 @@
       "source_kind": "official",
       "source_catalog_id": "d4516e88-1a38-41b9-935c-52a66675033c",
       "source_checksum": "sha256:b7d1820ef2631abdabc2ca698a20fdbcb500771dc832acb69871161a7af2100b",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -821,7 +1009,7 @@
       "source_kind": "official",
       "source_catalog_id": "18dbd45f-7b7a-4804-b028-f6403cd8db06",
       "source_checksum": "sha256:6f6eb4d295e2875cf9ec0bba3fe90d32f02cd45db0355c395ad1b4d7c790613e",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "venice",
@@ -885,7 +1073,7 @@
       "source_kind": "official",
       "source_catalog_id": "0024087e-682e-4b63-bdf8-4b0c04abde6a",
       "source_checksum": "sha256:ff4626a02fdb54abaf674a48298c1dce5e1b76057eae9d369c9bc6932b81a1c7",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -949,7 +1137,7 @@
       "source_kind": "official",
       "source_catalog_id": "a03836c2-eb31-48c3-bc17-b9058a60cd15",
       "source_checksum": "sha256:ca607dc94029d0997122df427d866402d8bef467984cc78833f1f1a7e57cbc23",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1043,7 +1231,7 @@
       "source_kind": "official",
       "source_catalog_id": "52c031ae-9a5c-4b87-b27d-fd1233e6e88c",
       "source_checksum": "sha256:d1d63aa16d4efbd34fe5668cae2ca87693a4564290b7e5417e2ea431abcca93e",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1137,7 +1325,7 @@
       "source_kind": "official",
       "source_catalog_id": "ecf31f48-f181-41a7-a512-8c65012cc229",
       "source_checksum": "sha256:34fec04cdb053019bd0dde6e999bee72e65671df1c4fe8a18fc2bfeeeadeb1cf",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1259,7 +1447,7 @@
       "source_kind": "official",
       "source_catalog_id": "6e86d049-efa7-4eb9-bd4d-f8d68781147e",
       "source_checksum": "sha256:b11e1b856e80f0bafde9493be1fa1d18f442ba0815b201848de612a6a62347bb",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1323,7 +1511,7 @@
       "source_kind": "official",
       "source_catalog_id": "c0fd9ac7-8873-4487-a264-3c39fc905b8c",
       "source_checksum": "sha256:c2e0d15695cce5fea3596a8f52dee4e2ea60554e347fd7b316014a7bd9974f7b",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1417,7 +1605,7 @@
       "source_kind": "official",
       "source_catalog_id": "5b9099e6-0d7c-44ed-a3a7-aac33a61b63b",
       "source_checksum": "sha256:c5b32624bf64111c19034edafb6c71fe021f494604b18acc35bd837d0c2e94de",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1481,7 +1669,7 @@
       "source_kind": "official",
       "source_catalog_id": "06e96882-f93a-4281-8d67-47646097e317",
       "source_checksum": "sha256:297c2ebbb9ea476a564def61ec870b579d957e68eea8db5a991caf6930bde43f",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     },
     {
       "provider_code": "vercel",
@@ -1545,135 +1733,7 @@
       "source_kind": "official",
       "source_catalog_id": "27faa946-d48d-4f7b-b6a2-294d82a39f2f",
       "source_checksum": "sha256:b29ce8e3177a05d938359c2690cab5850c302cd872e3789b9b2bc92c46f3f2d8",
-      "source_version": "2026-11-13.2"
-    },
-    {
-      "provider_code": "vercel",
-      "upstream_model_id": "alibaba/qwen3.8-max-0902",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "6",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "5d89e7d1-92b3-4778-a944-a32f2960536b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-0902",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-0902",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-0902",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-0902",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5d89e7d1-92b3-4778-a944-a32f2960536b",
-      "source_checksum": "sha256:6c4ebef4378748af37d0770bf39c95845c46179ca6f95ebbe5d81d40f3a495cc",
-      "source_version": "2026-11-13.2"
-    },
-    {
-      "provider_code": "vercel",
-      "upstream_model_id": "alibaba/qwen3.8-max-prime",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5",
-      "id": "24cce617-0577-4774-93bc-a1da4fa0f2dc",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-prime",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-prime",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-prime",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "vercel",
-              "model": "alibaba/qwen3.8-max-prime",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "24cce617-0577-4774-93bc-a1da4fa0f2dc",
-      "source_checksum": "sha256:c03c5d788f029bb594e79d2930b75f9f0e51f46df846284000f0ff8c29ddd125",
-      "source_version": "2026-11-13.2"
+      "source_version": "2026-11-13.3"
     }
   ]
 }
