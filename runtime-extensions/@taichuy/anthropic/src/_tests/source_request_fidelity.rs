@@ -504,3 +504,55 @@ fn false_defer_loading_retains_harmless_native_tool_edit_fallback() {
     assert_eq!(result.body["tools"], typed["tools"]);
     assert!(result.receipt.semantic_delta_fields.contains("tools"));
 }
+
+#[test]
+fn source_tool_description_whitespace_restores_exact_original_after_native_projection() {
+    let source = json!({"model":"source-model","tools":[
+        {"name":"Read","description":"  Read a file.\n","input_schema":{"type":"object"},"defer_loading":true},
+        {"name":"Glob","description":" \n\t","input_schema":{"type":"object"}}
+    ]});
+    let typed = json!({"model":"provider-model","tools":[
+        {"name":"Read","description":"Read a file.","input_schema":{"type":"object"}},
+        {"name":"Glob","input_schema":{"type":"object"}}
+    ]});
+    let restored = restore(source.clone(), typed.clone());
+    assert_eq!(restored.body["tools"], source["tools"]);
+    assert!(restored
+        .receipt
+        .reconstructed_source_fields
+        .contains("tools"));
+    assert!(!restored.receipt.semantic_delta_fields.contains("tools"));
+    assert_eq!(restored.body["model"], "provider-model");
+
+    let envelope: ProtocolContextEnvelope = serde_json::from_value(json!({
+        "source_protocol":ANTHROPIC_MESSAGES_PROTOCOL,"source_request":{"body":source}
+    }))
+    .unwrap();
+    let mut whitespace_edit = typed.clone();
+    whitespace_edit["tools"][0]["description"] = json!("Read a file. ");
+    let mut empty_edit = typed.clone();
+    empty_edit["tools"][1]["description"] = json!(" ");
+    let mut description_edit = typed.clone();
+    description_edit["tools"][0]["description"] = json!("Native replacement");
+    let mut name_edit = typed.clone();
+    name_edit["tools"][0]["name"] = json!("Write");
+    let mut schema_edit = typed.clone();
+    schema_edit["tools"][0]["input_schema"] = json!({"type":"object","required":["path"]});
+    let mut order_edit = typed;
+    order_edit["tools"].as_array_mut().unwrap().reverse();
+    for changed in [
+        whitespace_edit,
+        empty_edit,
+        description_edit,
+        name_edit,
+        schema_edit,
+        order_edit,
+    ] {
+        let error = restore_protocol_context_body_with_receipt(changed, Some(&envelope))
+            .err()
+            .unwrap();
+        assert!(error
+            .to_string()
+            .contains("cannot preserve Anthropic defer_loading"));
+    }
+}

@@ -169,7 +169,9 @@ fn anthropic_source_field_matches_typed(name: &str, source: &Value, typed: &Valu
         "system" => anthropic_system_blocks(source, true).is_some_and(|source_blocks| {
             Some(source_blocks) == anthropic_system_blocks(typed, false)
         }),
-        "tools" => canonical_anthropic_tools(source) == canonical_anthropic_tools(typed),
+        "tools" => {
+            canonical_anthropic_tools(source, true) == canonical_anthropic_tools(typed, false)
+        }
         "thinking" => canonical_anthropic_thinking(source) == canonical_anthropic_thinking(typed),
         _ => source == typed,
     }
@@ -527,7 +529,7 @@ fn remove_content_cache_hints(content: &mut Value) {
     }
 }
 
-fn canonical_anthropic_tools(value: &Value) -> Value {
+fn canonical_anthropic_tools(value: &Value, source: bool) -> Value {
     let Value::Array(tools) = value else {
         return value.clone();
     };
@@ -542,6 +544,20 @@ fn canonical_anthropic_tools(value: &Value) -> Value {
                 canonical.remove("cache_control");
                 canonical.remove("eager_input_streaming");
                 canonical.remove("defer_loading");
+                // Mirror only the source -> Native provider_tool_payload
+                // description projection. Typed values stay byte-exact so a
+                // Native edit, including whitespace, cannot be overwritten.
+                if source {
+                    if let Some(description) = canonical.get("description").and_then(Value::as_str)
+                    {
+                        let description = description.trim().to_owned();
+                        if description.is_empty() {
+                            canonical.remove("description");
+                        } else {
+                            canonical.insert("description".to_string(), Value::String(description));
+                        }
+                    }
+                }
                 Value::Object(canonical)
             })
             .collect(),
