@@ -30,8 +30,12 @@ async fn received_quotation_preserves_body_and_keeps_quote_separate_from_command
     message["item_list"][0]["ref_msg"] = json!({"title":"Hermes", "message_item":{
         "type":1, "text_item":{"text":"【八字命盘客观数据】生日：2026-11-11"}
     }});
-    let mock = Mock::new(vec![Ok(json!({"msgs":[message],"get_updates_buf":"quoted-next"}))]);
-    let result = run_with_clock(&mock, receive_input(None, 100), &|| NOW).await.unwrap();
+    let mock = Mock::new(vec![Ok(
+        json!({"msgs":[message],"get_updates_buf":"quoted-next"}),
+    )]);
+    let result = run_with_clock(&mock, receive_input(None, 100), &|| NOW)
+        .await
+        .unwrap();
     let received = &batch(&result).messages[0];
     assert_eq!(received.text.as_deref(), Some("帮我解读一下这个"));
     let quote = received.reply_to.as_ref().unwrap();
@@ -370,7 +374,10 @@ fn receive_descriptor_declares_progressive_host_tools_and_no_secret_cursor() {
     descriptor.validate().unwrap();
     let receive = descriptor.receive.unwrap();
     assert!(receive.default_system_prompt.contains("final reply"));
-    assert_eq!(receive.mcp_instance_id.as_deref(), Some("wechat-chat-channels"));
+    assert_eq!(
+        receive.mcp_instance_id.as_deref(),
+        Some("wechat-chat-channels")
+    );
     assert_eq!(receive.mcp_tools.len(), 6);
     for instruction in [
         "file message.id as message_id",
