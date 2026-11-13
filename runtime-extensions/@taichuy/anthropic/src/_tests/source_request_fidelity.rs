@@ -401,3 +401,36 @@ fn nested_tool_result_text_block_merge_is_not_source_equivalence() {
     assert_eq!(result.body["messages"], changed["messages"]);
     assert!(result.receipt.semantic_delta_fields.contains("messages"));
 }
+
+#[test]
+fn claude_code_dynamic_tools_restore_inline_system_and_deferred_tools_exactly() {
+    let source = json!({"model":"claude", "messages":[
+        {"role":"user","content":"inspect project"},
+        {"role":"system","content":[
+            {"type":"tool_addition","tool":{"type":"tool_reference","name":"Glob"}},
+            {"type":"tool_addition","tool":{"type":"tool_reference","name":"Grep"}}
+        ]}
+    ],"tools":[{"name":"Glob","description":"find files","input_schema":{"type":"object"},"defer_loading":true}]});
+    let typed = json!({"model":"provider-model", "messages":[
+        {"role":"user","content":[{"type":"text","text":"inspect project"}]}
+    ],"tools":[{"name":"Glob","description":"find files","input_schema":{"type":"object"}}]});
+    let restored = restore(source.clone(), typed.clone());
+    assert_eq!(restored.body["messages"], source["messages"]);
+    assert_eq!(restored.body["tools"], source["tools"]);
+    assert_eq!(restored.body["model"], "provider-model");
+    assert!(restored.body.get("system").is_none());
+    for field in ["description", "input_schema"] {
+        let mut changed = typed.clone();
+        changed["tools"][0][field] = json!("Native edit");
+        assert_eq!(
+            restore(source.clone(), changed.clone()).body["tools"],
+            changed["tools"]
+        );
+    }
+    let mut changed = typed;
+    changed["messages"][0]["content"][0]["text"] = json!("Native query edit");
+    assert_eq!(
+        restore(source, changed.clone()).body["messages"],
+        changed["messages"]
+    );
+}

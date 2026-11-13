@@ -510,6 +510,7 @@ fn canonical_anthropic_tools(value: &Value) -> Value {
                 let mut canonical = object.clone();
                 canonical.remove("cache_control");
                 canonical.remove("eager_input_streaming");
+                canonical.remove("defer_loading");
                 Value::Object(canonical)
             })
             .collect(),

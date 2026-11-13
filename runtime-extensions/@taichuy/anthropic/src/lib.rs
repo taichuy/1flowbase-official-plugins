@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 mod protocol_context;
+mod recovery;
 #[cfg(test)]
 #[path = "_tests/sse_codec.rs"]
 mod sse_codec;
@@ -1397,6 +1398,7 @@ where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
 {
     let config = normalize_provider_config(&input.provider_config)?;
+    let recovery = recovery::HttpRecovery::from_context(&input.run_context)?;
     let typed_request = build_typed_messages_body(&input)?;
     let effective_max_output_tokens = typed_request
         .body
@@ -1425,12 +1427,23 @@ where
         .json(&restoration.body)
         .send_observed()
         .await
-        .map_err(|error| sanitize_reqwest_error(error, &config))?;
-    let mut output = read_streaming_message(
+        .map_err(|error| {
+            let transport_failure = !error.is_builder()
+                && !error.is_decode()
+                && (error.is_connect() || error.is_timeout() || error.is_request());
+            let original = sanitize_reqwest_error(error, &config);
+            if transport_failure {
+                recovery.disconnected(original)
+            } else {
+                original
+            }
+        })?;
+    let mut output = read_streaming_message_with_recovery(
         response,
         input.model.clone(),
         effective_max_output_tokens,
         &mut on_event,
+        recovery,
     )
     .await?;
     attach_foreign_protocol_context_decision(
@@ -1981,11 +1994,32 @@ fn normalize_anthropic_parameter(key: &str, value: Value) -> Value {
     }
 }
 
+#[cfg(test)]
 async fn read_streaming_message<F>(
     response: reqwest::Response,
     request_model: String,
     effective_max_output_tokens: u64,
     on_event: &mut F,
+) -> Result<RuntimeInvocationEnvelope>
+where
+    F: FnMut(&ProviderStreamEvent) -> Result<()>,
+{
+    read_streaming_message_with_recovery(
+        response,
+        request_model,
+        effective_max_output_tokens,
+        on_event,
+        recovery::HttpRecovery::default(),
+    )
+    .await
+}
+
+async fn read_streaming_message_with_recovery<F>(
+    response: reqwest::Response,
+    request_model: String,
+    effective_max_output_tokens: u64,
+    on_event: &mut F,
+    mut recovery: recovery::HttpRecovery,
 ) -> Result<RuntimeInvocationEnvelope>
 where
     F: FnMut(&ProviderStreamEvent) -> Result<()>,
@@ -2014,7 +2048,16 @@ where
         });
     let mut stream = raw_stream.eventsource();
     while let Some(event) = stream.next().await {
-        let event = event.map_err(|error| anyhow!("invalid Anthropic SSE stream: {error}"))?;
+        let event = event.map_err(|error| {
+            let transport_failure =
+                matches!(&error, eventsource_stream::EventStreamError::Transport(_));
+            let original = anyhow!("invalid Anthropic SSE stream: {error}");
+            if transport_failure {
+                recovery.disconnected(original)
+            } else {
+                original
+            }
+        })?;
         if event.event == "error" {
             return Err(upstream_error::from_parts(None, &response_headers, event.data).into());
         }
@@ -2038,10 +2081,14 @@ where
             }
             return Err(error);
         }
+        recovery.observe_data(&event.data)?;
         emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
     }
-    if !saw_message_stop || matches!(finish_reason, ProviderFinishReason::Unknown) {
+    if !saw_message_stop {
+        return Err(recovery.disconnected(anyhow!("Anthropic stream closed before message_stop")));
+    }
+    if matches!(finish_reason, ProviderFinishReason::Unknown) {
         bail!("Anthropic stream closed before message_stop");
     }
     let tool_calls = tool_builders
