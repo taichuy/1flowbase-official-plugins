@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-14.1",
+  "catalog_version": "2026-11-14.2",
   "currency_code": "USD",
   "page": 82,
-  "cursor": "YWZ0ZXI6YjVlYTQzYzMtN2UxMy00NGFkLTk1NDMtN2ZmZmJiZmRkMzVj",
-  "next_cursor": "YWZ0ZXI6ZjQzMzhhYzgtN2U5MC00NjQyLWE0MTItZDhlOTNlMThiNzQy",
+  "cursor": "YWZ0ZXI6YmExOGU2MGEtYzEwMi00MmIwLTk1ZGYtOWZiZmM2NjJjMGQ0",
+  "next_cursor": "YWZ0ZXI6NDUwNTRkNzQtYTc0OC00NTljLWFiZjYtY2RlZGNkM2Y2MDNj",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/83.json",
   "rules": [
     {
-      "provider_code": "merge-gateway",
-      "upstream_model_id": "zai/glm-4.6",
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.6-plus",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,16 +19,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
+      "input_token_unit_price": "0.5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.2",
+      "output_token_unit_price": "3",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
+      "cache_hit_token_unit_price": "0.05",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "9470ecf5-3839-4db2-bfd9-9e5f8bae4b2b",
+      "cache_write_token_unit_price": "0.625",
+      "id": "77cce64f-c827-404f-a7f7-3ed62f7dff1a",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "6",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -36,44 +51,59 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.6",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.6-plus",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.6",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.6-plus",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.6",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.6-plus",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.6",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.6-plus",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "6",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "9470ecf5-3839-4db2-bfd9-9e5f8bae4b2b",
-      "source_checksum": "sha256:02558dc0b6878d870073b5e0c86fdf8784b5ab6f58e0b9c7df20a3431fef5b3a",
-      "source_version": "2026-11-14.1"
+      "source_catalog_id": "77cce64f-c827-404f-a7f7-3ed62f7dff1a",
+      "source_checksum": "sha256:3e1a43b330ad78f545e645a209b6fae345ca1554ac96700c5f14ae7398a578a4",
+      "source_version": "2026-11-14.2"
     },
     {
-      "provider_code": "merge-gateway",
-      "upstream_model_id": "zai/glm-4.7",
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.7-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -83,14 +113,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
+      "input_token_unit_price": "0.03",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.2",
+      "output_token_unit_price": "0.13",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
+      "cache_hit_token_unit_price": "0.006",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "d0e1ceeb-1a97-409b-bcbd-34a959861460",
+      "cache_write_token_unit_price": "0.0375",
+      "id": "e2b9cd1d-4f07-40b6-9b25-fc57a32bb6e5",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -100,29 +130,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -131,13 +161,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "d0e1ceeb-1a97-409b-bcbd-34a959861460",
-      "source_checksum": "sha256:d52e3cc2b94c368ffb3c48a1e42065fc40f5036dd00177af9fa1978a01654585",
-      "source_version": "2026-11-14.1"
+      "source_catalog_id": "e2b9cd1d-4f07-40b6-9b25-fc57a32bb6e5",
+      "source_checksum": "sha256:83cab2d9ce1678b6321ec006cf4c99726486b75d7fe59d473453c46128b321c8",
+      "source_version": "2026-11-14.2"
     },
     {
-      "provider_code": "merge-gateway",
-      "upstream_model_id": "zai/glm-4.7-flashx",
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.7-max",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -147,14 +177,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.07",
+      "input_token_unit_price": "2.5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.4",
+      "output_token_unit_price": "7.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "7dce1b2c-0ef7-4001-81bf-3ffec909fbe9",
+      "cache_write_token_unit_price": "3.125",
+      "id": "d4017785-4821-4683-ab41-1abdd5b94aa7",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -164,29 +194,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7-flashx",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-max",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7-flashx",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-max",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7-flashx",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-max",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-4.7-flashx",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-max",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -195,13 +225,525 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "7dce1b2c-0ef7-4001-81bf-3ffec909fbe9",
-      "source_checksum": "sha256:6646178f05300bf8465669ccd53eef899139a976cac356c01f0770ddbc27e63f",
-      "source_version": "2026-11-14.1"
+      "source_catalog_id": "d4017785-4821-4683-ab41-1abdd5b94aa7",
+      "source_checksum": "sha256:e5e2b89466eb0d0ff03ff78074fa72244ef73458331d0eee6bac591831733a28",
+      "source_version": "2026-11-14.2"
     },
     {
-      "provider_code": "merge-gateway",
-      "upstream_model_id": "zai/glm-5",
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.7-plus",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.08",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.5",
+      "id": "7200b5cd-cb78-4022-9f91-f727935344cb",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-plus",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-plus",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-plus",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.7-plus",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7200b5cd-cb78-4022-9f91-f727935344cb",
+      "source_checksum": "sha256:49a802e671e3928bbfaba6db842612eb1065fca559743cf928010877b6b253e2",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.8-2.4t-a95b",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "d4664af7-3d16-4671-943b-1018165a622c",
+      "effective_from": "2026-11-13T17:50:47.697Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-13T17:50:47.697Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-2.4t-a95b",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-2.4t-a95b",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-2.4t-a95b",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-2.4t-a95b",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d4664af7-3d16-4671-943b-1018165a622c",
+      "source_checksum": "sha256:413a9e65a2ba23091e9a00c80ee958dc3e53c3e7f050879697296a2d5b99569b",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.8-27b",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "3",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.625",
+      "id": "dd9f1829-a6c9-48bf-9c12-0a53bbd11a26",
+      "effective_from": "2026-11-13T17:50:47.697Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-13T17:50:47.697Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-27b",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-27b",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-27b",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-27b",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "dd9f1829-a6c9-48bf-9c12-0a53bbd11a26",
+      "source_checksum": "sha256:d5dbe360ba21d06b5930f933019f29c703f9a1b8f452b5c2abeee7f7c7d73faf",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.8-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.15",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.47",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.016",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.2",
+      "id": "bd78da54-fbf7-4bdb-8810-25c919293971",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "bd78da54-fbf7-4bdb-8810-25c919293971",
+      "source_checksum": "sha256:d955d4ba4e1fbe99259e8527ea9a8f1269aa9b296d6cdc23d9f723332d15f2d9",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "alibaba/qwen3.8-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "6",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "03c71671-bdc3-4e49-905e-eb5001e82c84",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-max",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-max",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-max",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "alibaba/qwen3.8-max",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "03c71671-bdc3-4e49-905e-eb5001e82c84",
+      "source_checksum": "sha256:75a297596bcc98883421daef76ee2a2c90de65cbcfb08fa0bd139df96e9c166a",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "c3d6d12b-d66c-41f8-8f03-ac510c4bb267",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "c3d6d12b-d66c-41f8-8f03-ac510c4bb267",
+      "source_checksum": "sha256:21bc45b007007bd4649d1fe88f942f7cd0b7480089a6ffc139f8c2143881ba57",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-fable-5-1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "0091751c-3b5e-44de-8f0a-400dfea524f6",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0091751c-3b5e-44de-8f0a-400dfea524f6",
+      "source_checksum": "sha256:0f98bdef26230b7f4808b78abc95aa33d25dc66260c0f5ab3dc2da9539f99885",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-fable-5-2",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "8",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "40",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "10",
+      "id": "3dd7f0b6-ae1d-490b-910b-394d6ffdb275",
+      "effective_from": "2026-11-10T02:14:33.756Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-10T02:14:33.756Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-fable-5-2",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3dd7f0b6-ae1d-490b-910b-394d6ffdb275",
+      "source_checksum": "sha256:4420b6faf9bfaa161dd6aa1b37ee15776ebc435b4f3185a0e85459c20a5a3607",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-haiku-4-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -213,12 +755,524 @@
       "input_token_unit_size": 1000000,
       "input_token_unit_price": "1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.2",
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "9d502b67-9de7-4776-9e0e-1fae47b0ae5b",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9d502b67-9de7-4776-9e0e-1fae47b0ae5b",
+      "source_checksum": "sha256:c7e8c1641baa111be9009ce5a72905c0081b8dacf7671bfebfb1917c1eee0dbe",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-haiku-4-5-20251001",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "27bbdb91-071e-4cf2-8a06-1c5a3639277f",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-4-5-20251001",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "27bbdb91-071e-4cf2-8a06-1c5a3639277f",
+      "source_checksum": "sha256:9aa2b5ee1ef7887f350bda5b54e5588840fa27a2c7c16964a9245dbba0e98ced",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-haiku-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "bab9066f-409f-4d2c-b294-b5dd62955b09",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-5-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-5-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-5-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-haiku-5-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "bab9066f-409f-4d2c-b294-b5dd62955b09",
+      "source_checksum": "sha256:8ac04a0172a567061c2882ab828c6f060d36134eac25b2e40735242a1c537cac",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-opus-4-5-20251101",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "76e3a251-b05b-40b1-8276-6365a2ccd9c8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-5-20251101",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "76e3a251-b05b-40b1-8276-6365a2ccd9c8",
+      "source_checksum": "sha256:2b324bc5c7befe065a8269787faef091bac4fd94cb8e7c75a8c978afd4338c51",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-opus-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "7429b6b0-8bab-4e2e-8003-a488012e8db9",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7429b6b0-8bab-4e2e-8003-a488012e8db9",
+      "source_checksum": "sha256:2bf691644e10d2b18a320a919f39c934333ed5abfc17f6ba281f96efb63cac1c",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-opus-4-7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "71052d33-1fa2-440b-8beb-97f619f71e33",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "71052d33-1fa2-440b-8beb-97f619f71e33",
+      "source_checksum": "sha256:c1fa79173105654c53c28aed9776930a951637c7c77dabba05257c972a232627",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-opus-4-8",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "08e1c94a-4084-4911-9487-7406fb73b99f",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-4-8",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "08e1c94a-4084-4911-9487-7406fb73b99f",
+      "source_checksum": "sha256:a655258519094311cf3d7b1f2e0942abdf718cb33d999524e9f80384d73a8cd0",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-opus-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "68cfc7ba-54bb-436a-9f96-86bedeac7bff",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "68cfc7ba-54bb-436a-9f96-86bedeac7bff",
+      "source_checksum": "sha256:462853f2a1f22ed0ecfe74a03287bf746e346093fb11f3162de212bb6470a4d0",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "llmgateway-providers",
+      "upstream_model_id": "anthropic/claude-opus-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
       "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "8930a2d5-d3cb-47e9-9439-d6c82410d364",
+      "cache_write_token_unit_price": "5",
+      "id": "45054d74-a748-459c-abf6-cdedcd3f603c",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -228,29 +1282,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5",
+              "provider": "llmgateway-providers",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -259,1033 +1313,9 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "8930a2d5-d3cb-47e9-9439-d6c82410d364",
-      "source_checksum": "sha256:07504919f238513e313d552c208fb5f6af11beb415762a782aa6f6b5d480e1e5",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "merge-gateway",
-      "upstream_model_id": "zai/glm-5-turbo",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.24",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "44c3d6be-85e1-45bc-87ea-f9151db31ba2",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5-turbo",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5-turbo",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5-turbo",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5-turbo",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "44c3d6be-85e1-45bc-87ea-f9151db31ba2",
-      "source_checksum": "sha256:9f2d5f299f578415adbafedeabac5e3399e774b2182a8e9d27117cb9783844d6",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "merge-gateway",
-      "upstream_model_id": "zai/glm-5.1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "12803a4e-03b6-4a8b-9ae0-9411b00a5cf1",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5.1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5.1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5.1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "merge-gateway",
-              "model": "zai/glm-5.1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "12803a4e-03b6-4a8b-9ae0-9411b00a5cf1",
-      "source_checksum": "sha256:33150efc8e955d935c514f492433f126ac3392844cea28b505fd6adb22c5a4f3",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "7eb80f8a-fe35-474f-884c-64122ca83075",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "7eb80f8a-fe35-474f-884c-64122ca83075",
-      "source_checksum": "sha256:4d08c8d5a07d43141316bea5bf4d83f0178a1b447435b7ff531903cfc541d2d4",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "81358768-3760-4c56-81c5-5695ac76049c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "81358768-3760-4c56-81c5-5695ac76049c",
-      "source_checksum": "sha256:554a7861d0f2dbb1db4637054b445e9de894b4c04ca903c0471e155de7b56cb0",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.1-lightning",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "cd27d84e-4503-42a2-819e-ac2fb29e8dce",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1-lightning",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1-lightning",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1-lightning",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.1-lightning",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "cd27d84e-4503-42a2-819e-ac2fb29e8dce",
-      "source_checksum": "sha256:8520797d003bfb1a083911938def112cb715dac0e192c2af16b6bf02eb4faedd",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "4af3baa8-771b-42f7-bc94-762db03db6c5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4af3baa8-771b-42f7-bc94-762db03db6c5",
-      "source_checksum": "sha256:00bb6488ca1acc5b3e3f47cd12305cba97ef6117f878611b61f73653d4977b78",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.5-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "ed62853e-f9dd-46ea-baf9-79a3db8f940e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ed62853e-f9dd-46ea-baf9-79a3db8f940e",
-      "source_checksum": "sha256:37307a22e3f9662142048a5cd9d32521754d9f506573a6c38b257686d5a2be8c",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.5-lightning",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "97e9e745-5978-4b15-9ced-ab92cd781486",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-lightning",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-lightning",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-lightning",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "minimax",
-              "model": "MiniMax-M2.5-lightning",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "97e9e745-5978-4b15-9ced-ab92cd781486",
-      "source_checksum": "sha256:b41d886bfe996da935da66a03946f3b0255c1795e21011380dd738a682405069",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "bc88e8a2-1e30-428a-84e9-351f620d2a31",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "bc88e8a2-1e30-428a-84e9-351f620d2a31",
-      "source_checksum": "sha256:b5362b08622378f1648cd89a731f7ef5ab7d7411919f1ce0d86b8c2b455e8a2f",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax",
-      "upstream_model_id": "MiniMax-M2.7-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.06",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.375",
-      "id": "271b3ef4-cf14-4570-bc7f-bf935ec0bc32",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "271b3ef4-cf14-4570-bc7f-bf935ec0bc32",
-      "source_checksum": "sha256:a9116c94e158055608ae184ef09efea0b989a667c0620a8a1851d0228a512825",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3137",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2549",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0314",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "9d788875-1e2e-4f34-8034-e58bc024d200",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "9d788875-1e2e-4f34-8034-e58bc024d200",
-      "source_checksum": "sha256:4e7453348eba4556caa156a1d7c482081c1e147c54755654eaf77af3052bc64e",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3137",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2549",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0314",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "3086167c-b25c-4b63-a4c9-3236e290948b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "3086167c-b25c-4b63-a4c9-3236e290948b",
-      "source_checksum": "sha256:9d4b89952d38bc86784f7b061d50af536265722645399c3a63aeade20dc4e423",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3137",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2549",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0314",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "5d9f108b-bd8b-4c33-aac3-72ecc7f0df21",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5d9f108b-bd8b-4c33-aac3-72ecc7f0df21",
-      "source_checksum": "sha256:5a1a640c0220c99e94aa92dd247b1cdd2e620865663a40dd0c567695af589dd0",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.5-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6275",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.5098",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0314",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "28adaa97-d540-4fd0-aca2-e0abc3bfc2b7",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "28adaa97-d540-4fd0-aca2-e0abc3bfc2b7",
-      "source_checksum": "sha256:0514b0a4dda8d8410f3fcce211196c12b85eddcbf61b681595cba947d023fbf3",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3137",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2549",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0627",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "1515e15d-35e1-4656-b709-de288fb0a226",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "1515e15d-35e1-4656-b709-de288fb0a226",
-      "source_checksum": "sha256:26622c159d6f32e32437d813d462921dd00e0367b0a9d15ad7a5f760921c63ee",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.7-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6275",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.5098",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0627",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "f4338ac8-7e90-4642-a412-d8e93e18b742",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "f4338ac8-7e90-4642-a412-d8e93e18b742",
-      "source_checksum": "sha256:0edf7e2d1902d411aaff964861524e4985564ecf223ab871259e631d3239a455",
-      "source_version": "2026-11-14.1"
+      "source_catalog_id": "45054d74-a748-459c-abf6-cdedcd3f603c",
+      "source_checksum": "sha256:cbea84f0a33fd6dc8bfa818b2fb8d1b558bd793e81e07047a37d6634892eced8",
+      "source_version": "2026-11-14.2"
     }
   ]
 }

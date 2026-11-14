@@ -1,12 +1,858 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-14.1",
+  "catalog_version": "2026-11-14.2",
   "currency_code": "USD",
   "page": 22,
-  "cursor": "YWZ0ZXI6MzVmZmFkNTYtMmVjMC00NTRhLWE2YTAtN2E5YWZlYjc1MWUw",
-  "next_cursor": "YWZ0ZXI6OGQ5NmM0NGItMjIwNS00NjAyLWI3OWEtOGQxNWU0OWJjMGVl",
+  "cursor": "YWZ0ZXI6NDA3ZTMwOTMtYzZhNC00ZDQ3LWJjN2ItOTg3OWUzZjQwODNl",
+  "next_cursor": "YWZ0ZXI6ODEzY2JmMzctNDYzYi00YTRkLTk4NzUtMTViODA3ZTk1Y2I2",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/23.json",
   "rules": [
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-5.6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "b0321d45-ac35-4b25-964e-90ac54e86fa7",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "8",
+            "output_token_unit_price": "30",
+            "cache_hit_token_unit_price": "0.8",
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "8",
+                "output_token_unit_price": "30",
+                "cache_hit_token_unit_price": "0.8",
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b0321d45-ac35-4b25-964e-90ac54e86fa7",
+      "source_checksum": "sha256:cfed7b2b207a3c65cacbdf9209bfd1a47a91a714014a7532f46249a7d2299466",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-5.6-sol-2026-07-09",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "142f911a-68c7-43fc-b837-cfbe21bdc5fb",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "8",
+            "output_token_unit_price": "30",
+            "cache_hit_token_unit_price": "0.8",
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-sol-2026-07-09",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-sol-2026-07-09",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-sol-2026-07-09",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-sol-2026-07-09",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "8",
+                "output_token_unit_price": "30",
+                "cache_hit_token_unit_price": "0.8",
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "142f911a-68c7-43fc-b837-cfbe21bdc5fb",
+      "source_checksum": "sha256:00726de70b77c394e6052a706e085085f9c30c155a99b73d77d30dcfb86fe206",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-5.6-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "12dfb4e0-3e7a-4ce2-b483-199f7e04c613",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-5.6-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "12dfb4e0-3e7a-4ce2-b483-199f7e04c613",
+      "source_checksum": "sha256:89e7cbc4ae0c067cebca9586a208afb6cc3b7099adeea286184ee57c7234953e",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-5.6-terra-2026-07-09",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "12",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "8c04617c-30c0-4283-a035-5da5ea38641d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "18",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-terra-2026-07-09",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-terra-2026-07-09",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-terra-2026-07-09",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-5.6-terra-2026-07-09",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "18",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8c04617c-30c0-4283-a035-5da5ea38641d",
+      "source_checksum": "sha256:603331d3ff98ee121a1d8a5a1c870374833021a64213fb1a94085c4719e4256c",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-6-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "5f1f7687-d833-4059-978f-c64a46ad8e13",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "20",
+            "output_token_unit_price": "75",
+            "cache_hit_token_unit_price": "2",
+            "cache_write_token_unit_price": "25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "20",
+                "output_token_unit_price": "75",
+                "cache_hit_token_unit_price": "2",
+                "cache_write_token_unit_price": "25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5f1f7687-d833-4059-978f-c64a46ad8e13",
+      "source_checksum": "sha256:707231d748a6b750bfaf952b16184b0ffa8b4ee4cc7fecdf2432e3f91c2f9a77",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-6-astra-2026-09-03",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "9cd5a461-97eb-4221-8766-2c8c6d788bf6",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "20",
+            "output_token_unit_price": "75",
+            "cache_hit_token_unit_price": "2",
+            "cache_write_token_unit_price": "25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-astra-2026-09-03",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-astra-2026-09-03",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-astra-2026-09-03",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-astra-2026-09-03",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "20",
+                "output_token_unit_price": "75",
+                "cache_hit_token_unit_price": "2",
+                "cache_write_token_unit_price": "25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9cd5a461-97eb-4221-8766-2c8c6d788bf6",
+      "source_checksum": "sha256:c20856be637a350cd6a16b40247d7a95f741c08cc27370979e323c45dceaa806",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "35a26922-cc9d-4104-9c5b-b50383f926c4",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "35a26922-cc9d-4104-9c5b-b50383f926c4",
+      "source_checksum": "sha256:7c99029fc2167ec23639cc56e4a04de6e6b8fee1638c9ba7963018365cf39ff2",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-6-luna-2026-09-22",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "1f5865b7-a781-4945-b1b5-1cc2d2aa1a10",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-luna-2026-09-22",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-luna-2026-09-22",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-luna-2026-09-22",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "azure",
+              "model": "gpt-6-luna-2026-09-22",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "1f5865b7-a781-4945-b1b5-1cc2d2aa1a10",
+      "source_checksum": "sha256:615e6723da425000faddff93ea9499e888932031f3f1f41b8b0564348bd525e3",
+      "source_version": "2026-11-14.2"
+    },
+    {
+      "provider_code": "azure",
+      "upstream_model_id": "gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "35ffad56-2ec0-454a-a6a0-7a9afeb751e0",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "azure",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "35ffad56-2ec0-454a-a6a0-7a9afeb751e0",
+      "source_checksum": "sha256:8d980c1ab06dfc908dfedfd0f999b88ce6532e0e4a1a27da178ad15183701e72",
+      "source_version": "2026-11-14.2"
+    },
     {
       "provider_code": "azure",
       "upstream_model_id": "gpt-6-sol-2026-09-22",
@@ -99,7 +945,7 @@
       "source_kind": "official",
       "source_catalog_id": "ec7e34bd-4688-43a2-b86b-dc39e28c9b65",
       "source_checksum": "sha256:7b3b5edfe7cf72e219aa532b587e0561ef713b89d31dd1095b867be0200dce73",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -193,7 +1039,7 @@
       "source_kind": "official",
       "source_catalog_id": "a056b4cb-de1f-4f55-9dfe-3e9f027c8a8e",
       "source_checksum": "sha256:f73eb140dd07b904eb10f1aedf94c31af5eb1c6e13fc2b51e18cd5fa6760e7f7",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -287,7 +1133,7 @@
       "source_kind": "official",
       "source_catalog_id": "e2c773d6-ee31-484a-ba38-138959629864",
       "source_checksum": "sha256:f0a20df975110e6af692031f05bbcd5d5a1864c592a6ea7decfbeb2a335eb5b9",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -381,7 +1227,7 @@
       "source_kind": "official",
       "source_catalog_id": "0a5fdd2e-f981-4e36-84f6-b15008afb67c",
       "source_checksum": "sha256:cd013e071729314220cf3314101e263a3b4c63baf90293efe3ec50fee3ff7642",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -445,7 +1291,7 @@
       "source_kind": "official",
       "source_catalog_id": "cf776c4f-28df-4b82-a751-cf2bbd8f603b",
       "source_checksum": "sha256:468c0d267965a3b4543e38d539303ea9acd987c937d1aa0340ce9f7ff464b95c",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -509,7 +1355,7 @@
       "source_kind": "official",
       "source_catalog_id": "132157f1-3102-48e5-81db-8a7f653cd212",
       "source_checksum": "sha256:4aa924caf9649b829ba71fde542060a6a718f6d53ad5f9c0d2516569195e92b7",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -603,7 +1449,7 @@
       "source_kind": "official",
       "source_catalog_id": "ef17db2e-06fb-49b9-a46c-2b7ed7685e9f",
       "source_checksum": "sha256:497a210713249a0a27a9e70fd33517af573990e17a97af0d06fd5dc5340ff2cb",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -697,7 +1543,7 @@
       "source_kind": "official",
       "source_catalog_id": "aac69fb8-0d1d-4f31-a17d-aa24b92196ff",
       "source_checksum": "sha256:a70d2686f1f05730d911df725bebabae721d49134e3b80dde2dd6795f9a1e6b3",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -791,7 +1637,7 @@
       "source_kind": "official",
       "source_catalog_id": "334e0c7e-b44f-48ac-b8e2-aa4e810d13c8",
       "source_checksum": "sha256:89164a7398c58746b120f19d4c4c73a20069d15e378003572879063ef46e0b05",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -885,7 +1731,7 @@
       "source_kind": "official",
       "source_catalog_id": "e27297f6-6bff-4c27-a329-186f188e78cd",
       "source_checksum": "sha256:278079ccf4348d6c3f1c7c10284af47a408b57f9c66f434a467ac91d74046759",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     },
     {
       "provider_code": "azure",
@@ -979,733 +1825,7 @@
       "source_kind": "official",
       "source_catalog_id": "813cbf37-463b-4a4d-9875-15b807e95cb6",
       "source_checksum": "sha256:5ede9881245449d06a84d0390f0305c728675f0db7377714e7165638b9d90f27",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure",
-      "upstream_model_id": "us/gpt-6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.11",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.55",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.011",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.1375",
-      "id": "5a995921-ca6c-454b-af01-285a3b23dc58",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.22",
-            "output_token_unit_price": "0.825",
-            "cache_hit_token_unit_price": "0.022",
-            "cache_write_token_unit_price": "0.275"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-luna",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-luna",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-luna",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-luna",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.22",
-                "output_token_unit_price": "0.825",
-                "cache_hit_token_unit_price": "0.022",
-                "cache_write_token_unit_price": "0.275"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5a995921-ca6c-454b-af01-285a3b23dc58",
-      "source_checksum": "sha256:2d2ae200baf8138f868c9827468e1218a1622faec35c81536f751e131a46175e",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure",
-      "upstream_model_id": "us/gpt-6-sol",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.22",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.75",
-      "id": "7e7bf564-2780-4046-8897-8cb26adebb6f",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "4.4",
-            "output_token_unit_price": "16.5",
-            "cache_hit_token_unit_price": "0.44",
-            "cache_write_token_unit_price": "5.5"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-sol",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-sol",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-sol",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6-sol",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "4.4",
-                "output_token_unit_price": "16.5",
-                "cache_hit_token_unit_price": "0.44",
-                "cache_write_token_unit_price": "5.5"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "7e7bf564-2780-4046-8897-8cb26adebb6f",
-      "source_checksum": "sha256:4ecd85684311b9f65450b296386aef56a6f31aad8df8310526cf27027e8ec460",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure",
-      "upstream_model_id": "us/gpt-6.1-sol",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.11",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.75",
-      "id": "fd05a926-95e6-4535-91d5-1b1b3d2c5ff1",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "4.4",
-            "output_token_unit_price": "16.5",
-            "cache_hit_token_unit_price": "0.22",
-            "cache_write_token_unit_price": "5.5"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-sol",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-sol",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-sol",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-sol",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "4.4",
-                "output_token_unit_price": "16.5",
-                "cache_hit_token_unit_price": "0.22",
-                "cache_write_token_unit_price": "5.5"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "fd05a926-95e6-4535-91d5-1b1b3d2c5ff1",
-      "source_checksum": "sha256:19a439ca361536da3432dd0981c6944cdab6925fb8ab6cdfd314f8c44198e789",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure",
-      "upstream_model_id": "us/gpt-6.1-terra",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.055",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.375",
-      "id": "74600af8-7663-4b79-9b3f-4e1de9abe54e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "2.2",
-            "output_token_unit_price": "8.25",
-            "cache_hit_token_unit_price": "0.11",
-            "cache_write_token_unit_price": "2.75"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-terra",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-terra",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-terra",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "azure",
-              "model": "us/gpt-6.1-terra",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "2.2",
-                "output_token_unit_price": "8.25",
-                "cache_hit_token_unit_price": "0.11",
-                "cache_write_token_unit_price": "2.75"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "74600af8-7663-4b79-9b3f-4e1de9abe54e",
-      "source_checksum": "sha256:4859b581b6f3188ea21319f96e7b51db6a14923e3601e6ba1acd2d9b726f2ab3",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure-cognitive-services",
-      "upstream_model_id": "claude-fable-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "12.5",
-      "id": "af5f9bce-270a-4559-b599-8622201434ce",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "af5f9bce-270a-4559-b599-8622201434ce",
-      "source_checksum": "sha256:83fa31e8c5783f40d5812ad727241830727a0c3f2ec28ccc3c852c261acebc21",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure-cognitive-services",
-      "upstream_model_id": "claude-fable-5-1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "10",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "50",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "12.5",
-      "id": "d88d4321-b2aa-4bf9-ad41-e10b6b10fd79",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d88d4321-b2aa-4bf9-ad41-e10b6b10fd79",
-      "source_checksum": "sha256:29d8c5a683eed76bc211a1d503768357481281a28d71e9eebb00d4241fc260d3",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure-cognitive-services",
-      "upstream_model_id": "claude-fable-5-2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "8",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "40",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "10",
-      "id": "afcb3a90-a215-4b91-b097-0fe100999e3b",
-      "effective_from": "2026-11-10T02:14:33.756Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-10T02:14:33.756Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-fable-5-2",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "afcb3a90-a215-4b91-b097-0fe100999e3b",
-      "source_checksum": "sha256:6d2179d70c189e7e1df135715b58fcb4dca5f656799468dc4daa488293435f84",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure-cognitive-services",
-      "upstream_model_id": "claude-haiku-4-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "a8453951-915a-4543-b276-8fe67653a910",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-4-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-4-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-4-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-4-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "a8453951-915a-4543-b276-8fe67653a910",
-      "source_checksum": "sha256:a7d484322e8f9c03ed6aa218d5e4af45799683667d4867e3f5fa35c4c8e8d660",
-      "source_version": "2026-11-14.1"
-    },
-    {
-      "provider_code": "azure-cognitive-services",
-      "upstream_model_id": "claude-haiku-5-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.125",
-      "id": "8d96c44b-2205-4602-b79a-8d15e49bc0ee",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 100000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.5",
-            "output_token_unit_price": "2.5",
-            "cache_hit_token_unit_price": "0.05",
-            "cache_write_token_unit_price": "0.625"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-5-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-5-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-5-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "azure-cognitive-services",
-              "model": "claude-haiku-5-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 100000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.5",
-                "output_token_unit_price": "2.5",
-                "cache_hit_token_unit_price": "0.05",
-                "cache_write_token_unit_price": "0.625"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "8d96c44b-2205-4602-b79a-8d15e49bc0ee",
-      "source_checksum": "sha256:f01a1c200934433d3e0f40e7abe709a9786997f1afe08b5bb0372088820c0818",
-      "source_version": "2026-11-14.1"
+      "source_version": "2026-11-14.2"
     }
   ]
 }
