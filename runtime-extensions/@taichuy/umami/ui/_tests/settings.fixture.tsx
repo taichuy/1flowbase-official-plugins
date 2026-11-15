@@ -1,13 +1,39 @@
 import React from 'react';
+import * as ReactModule from 'react';
+import * as JsxRuntime from 'react/jsx-runtime';
 import { createRoot } from 'react-dom/client';
 import { ConfigProvider } from 'antd';
+import * as Antd from 'antd';
+import * as DataTable from '@1flowbase/data-table';
+import { compileNativeReactComponent } from 'host-native-compiler';
+import { evaluateNativeReactComponentArtifact } from 'host-native-evaluator';
 import { useAuthStore } from 'host-auth';
 import { appI18n } from 'host-i18n';
 import { emeraldLightTheme } from 'host-theme';
 import sharedUiEn from 'host-shared-ui-en';
 import sharedUiZh from 'host-shared-ui-zh';
-import UmamiSettingsPage from '../page';
+import settingsSource from '../settings.tsx?raw';
+import developmentSource from '../page.tsx?raw';
 import type { HostSummary } from '../api';
+
+const modules = Object.freeze({
+  react: Object.freeze({ ...ReactModule, default: React }),
+  'react/jsx-runtime': Object.freeze({ ...JsxRuntime }),
+  antd: Object.freeze({ ...Antd }),
+  '@1flowbase/data-table': Object.freeze({ ...DataTable }),
+  '@1flowbase/plugin-settings': Object.freeze({ request }),
+});
+const moduleDefinitions = Object.entries(modules).map(([module_source, namespace]) => ({ module_source, exports: Object.keys(namespace) }));
+const compiled = compileNativeReactComponent(settingsSource, moduleDefinitions);
+if (!compiled.ok) throw new Error(`Delivered settings failed NativeReact compilation: ${JSON.stringify(compiled.diagnostics)}`);
+// A plain Vite page import accepted this old layout; the actual host rejects its relative imports.
+const rejectedDevelopmentSource = compileNativeReactComponent(developmentSource, moduleDefinitions);
+if (rejectedDevelopmentSource.ok || !rejectedDevelopmentSource.diagnostics.some(item => item.message.includes('./api') || item.message.includes('./copy'))) {
+  throw new Error('Compiler regression probe must reject the original page with relative imports.');
+}
+const evaluated = evaluateNativeReactComponentArtifact(compiled.artifact, modules);
+if (!evaluated.ok) throw new Error(`Delivered settings failed NativeReact evaluation: ${JSON.stringify(evaluated.diagnostics)}`);
+const UmamiSettingsPage = evaluated.component as React.ComponentType<{ ctx: object }>;
 
 const root = createRoot(document.getElementById('root')!);
 appI18n.addResourceBundle('en_US', 'sharedUi', sharedUiEn);
@@ -59,10 +85,17 @@ export async function request({ path, method = 'GET', body, signal }: { path: st
 }
 
 const fixture = {
+  compiler: {
+    source: 'ui/settings.tsx', sourceSha256: compiled.artifact.identity.source_sha256,
+    modules: compiled.artifact.program.injectedModules.map(item => item.source),
+    developmentSourceRejected: true, defaultExportEvaluated: true,
+    developmentSourceDiagnostics: rejectedDevelopmentSource.diagnostics,
+  },
   mount(currentUser: { isRoot?: boolean; permissions?: string[] } | undefined = { isRoot: true }, locale = 'en_US') {
     useAuthStore.setState({ actor: { effective_display_role: 'root' } });
     void appI18n.changeLanguage(locale);
-    root.render(<ConfigProvider theme={emeraldLightTheme}><UmamiSettingsPage key={++mounted} ctx={{ ui: { locale }, currentUser }} /></ConfigProvider>);
+    const ctx = Object.freeze({ ui: Object.freeze({ locale }), currentUser: currentUser && Object.freeze({ ...currentUser, permissions: currentUser.permissions && Object.freeze([...currentUser.permissions]) }) });
+    root.render(<ConfigProvider theme={emeraldLightTheme}><UmamiSettingsPage key={++mounted} ctx={ctx} /></ConfigProvider>);
   },
   unmount() { root.render(null); }, reset,
   calls: () => calls, aborts: () => aborts,

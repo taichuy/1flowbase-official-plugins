@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -6,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 // Uses existing host modules and Chrome only; never installs dependencies or starts a service.
 const here = dirname(fileURLToPath(import.meta.url));
-const hostRoot = process.env.UMAMI_HOST_ROOT ?? '/home/taichuy/git/1flowbase';
+const hostRoot = process.env.UMAMI_HOST_ROOT ?? resolve(here, '../../../../../../1flowbase');
 const evidenceRoot = process.env.UMAMI_EVIDENCE_ROOT ?? resolve(hostRoot, 'tmp/test-governance/umami-ui');
 const hostRequire = createRequire(resolve(hostRoot, 'web/app/package.json'));
 function tool(name) {
@@ -20,6 +21,7 @@ const { build } = await import(hostRequire.resolve('vite'));
 await mkdir(evidenceRoot, { recursive: true });
 const outfile = resolve(evidenceRoot, 'settings.js');
 const shared = resolve(hostRoot, 'web/app/src/shared/ui/data-table');
+const sourceSha256 = createHash('sha256').update(await readFile(resolve(here, '../settings.tsx'))).digest('hex');
 await build({
   configFile: false, root: resolve(hostRoot, 'web/app'), logLevel: 'warn',
   resolve: { alias: ['react', 'react-dom', 'antd'].map(name => ({ find: name, replacement: dirname(hostRequire.resolve(`${name}/package.json`)) })) },
@@ -28,8 +30,9 @@ await build({
     lib: { entry: resolve(here, 'settings.fixture.tsx'), name: 'UmamiFixture', formats: ['iife'], fileName: () => 'settings.js', cssFileName: 'settings' },
   },
   plugins: [{ name: 'host-capabilities', resolveId(id) {
-    if (id === '@1flowbase/plugin-settings') return resolve(here, 'settings.fixture.tsx');
     if (id === 'host-auth') return resolve(hostRoot, 'web/app/src/state/auth-store.ts');
+    if (id === 'host-native-compiler') return resolve(hostRoot, 'web/packages/page-runtime/src/native-react-compiler/component-compiler.ts');
+    if (id === 'host-native-evaluator') return resolve(hostRoot, 'web/packages/page-runtime/src/native-react-compiler/artifact-evaluator.ts');
     if (id === 'host-i18n') return resolve(hostRoot, 'web/app/src/shared/i18n/app-i18n.ts');
     if (id === 'host-theme') return resolve(hostRoot, 'web/packages/ui/src/theme.ts');
     if (id === 'host-shared-ui-en') return resolve(hostRoot, 'web/app/src/shared/ui/i18n/en_US.json');
@@ -62,6 +65,14 @@ try {
       const calls = () => callFixture('calls');
       const drawer = page.getByRole('dialog', { name: 'Add connection', exact: true });
       await actions('existing-0').waitFor();
+      const compiler = await page.evaluate(() => window.umamiFixture.compiler);
+      assert.equal(compiler.source, 'ui/settings.tsx');
+      assert.equal(compiler.sourceSha256, sourceSha256, 'Mounted artifact must match the delivered settings file');
+      assert.equal(compiler.defaultExportEvaluated, true);
+      assert.equal(compiler.developmentSourceRejected, true, 'NativeReact must reject the original relative-import source');
+      assert.deepEqual([...compiler.modules].sort(), ['@1flowbase/data-table', '@1flowbase/plugin-settings', 'antd', 'react', 'react/jsx-runtime'].sort());
+      report.scenarios.push(`${label}: delivered settings.tsx compiled and evaluated by actual NativeReact compiler; old relative-import source rejected`);
+      report.compiler = compiler;
       assert.ok(await page.locator('.data-table').count(), 'Real shared DataTable is mounted');
       assert.equal(await actions('existing-1').getByRole('button', { name: 'Test connection', exact: true }).isDisabled(), true);
       await button('Columns').click();
@@ -85,7 +96,10 @@ try {
         await more.waitFor(); await more.click();
         await more.waitFor({ state: 'hidden' });
         await page.waitForFunction(() => {
-          if (document.querySelector('[data-testid="umami-actions-existing-20"]')) return true;
+          const target = document.querySelector('[data-testid="umami-actions-existing-20"]');
+          const viewport = document.querySelector('.data-table-mobile__viewport')?.getBoundingClientRect();
+          const bounds = target?.getBoundingClientRect();
+          if (bounds && viewport && bounds.top < Math.min(innerHeight, viewport.bottom) && bounds.bottom > viewport.top) return true;
           // Virtual rows are measured after each scroll; follow the changing height until the final row mounts.
           for (const child of document.querySelectorAll('.data-table-mobile__viewport *')) if (child.scrollHeight > child.clientHeight + 50 && getComputedStyle(child).overflowY !== 'visible') { child.scrollTop = child.scrollHeight; child.dispatchEvent(new Event('scroll')); }
           return false;
