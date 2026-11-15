@@ -88,4 +88,3 @@ test('connection password is write only and saved login does not accept or expos
 test('generated artifacts are deterministic and have no stale snapshots', () => {
   assert.equal(generate(pluginRoot, { check: true }).registered_operations, 208);
 });
-

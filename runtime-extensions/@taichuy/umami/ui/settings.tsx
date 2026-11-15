@@ -246,4 +246,3 @@ export default function UmamiSettingsPage({ ctx }: { ctx: Context }) {
     </Modal>
   </section>;
 }
-
