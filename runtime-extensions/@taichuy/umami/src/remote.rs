@@ -124,10 +124,21 @@ impl Context {
         token: Option<&str>,
         body: Option<&Value>,
     ) -> Result<HttpEgressResponse> {
-        let mut headers = BTreeMap::from([("accept".into(), "application/json".into())]);
+        let origin = url.origin().ascii_serialization();
+        let mut headers = BTreeMap::from([
+            ("accept".into(), "application/json".into()),
+            ("user-agent".into(), "1flowbase-umami/0.1.0".into()),
+            ("origin".into(), origin.clone()),
+            ("referer".into(), format!("{origin}/login")),
+        ]);
         if let Some(token) = token {
             headers.insert("authorization".into(), format!("Bearer {token}"));
         }
+        let body = if matches!(method, "POST" | "PUT" | "PATCH") {
+            body
+        } else {
+            None
+        };
         let body_base64 = body
             .map(|value| serde_json::to_vec(value).map(|bytes| STANDARD.encode(bytes)))
             .transpose()

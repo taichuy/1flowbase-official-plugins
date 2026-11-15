@@ -123,6 +123,17 @@ impl HostSimulator {
             }
             MultiplexHostService::HttpEgressV1 => {
                 let url = request["url"].as_str().unwrap();
+                let origin = url::Url::parse(url).unwrap().origin().ascii_serialization();
+                assert_eq!(request["headers"]["user-agent"], "1flowbase-umami/0.1.0");
+                assert_eq!(request["headers"]["origin"], origin);
+                assert_eq!(request["headers"]["referer"], format!("{origin}/login"));
+                if matches!(
+                    request["method"].as_str().unwrap(),
+                    "GET" | "HEAD" | "DELETE"
+                ) {
+                    assert!(request["body_base64"].is_null());
+                    assert!(request["headers"].get("content-type").is_none());
+                }
                 self.observed_urls.push(url.to_owned());
                 if self.network_failure {
                     self.upstream_count += 1;
@@ -274,7 +285,7 @@ async fn get_websites(sim: Rc<RefCell<HostSimulator>>, id: &str) -> Value {
             &upstream_handler("GET", "/api/websites"),
             json!({"host_id":id}),
             json!({}),
-            Value::Null,
+            json!({}),
         ),
     )
     .await
@@ -631,6 +642,38 @@ async fn concurrent_same_host_calls_singleflight_login_and_explicit_login_hides_
             .await;
             assert_eq!(result["data"]["authenticated"], true);
             assert!(result["data"].get("token").is_none());
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn egress_headers_follow_saved_origin_with_scheme_port_and_base_path() {
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            for base_url in [
+                "http://analytics.example:8081/nested/base/",
+                "https://analytics.example:8443/nested/",
+            ] {
+                let sim = Rc::new(RefCell::new(HostSimulator::default()));
+                let mut draft = body();
+                draft["base_url"] = json!(base_url);
+                let created = call(
+                    sim.clone(),
+                    invocation("hosts.create", json!({}), json!({}), draft),
+                )
+                .await;
+                assert_eq!(created["success"], true);
+                let id = created["host"]["host_id"].as_str().unwrap();
+                let result = call(sim.clone(), invocation(
+                &upstream_handler("GET", "/api/websites"), json!({"host_id":id}), json!({}),
+                json!({"headers":{"origin":"https://caller.invalid","user-agent":"caller-agent"}}),
+            )).await;
+                assert_eq!(result["success"], true);
+                assert_eq!(
+                    sim.borrow().observed_urls.last().unwrap(),
+                    &format!("{}api/websites", base_url)
+                );
+            }
         })
         .await;
 }
