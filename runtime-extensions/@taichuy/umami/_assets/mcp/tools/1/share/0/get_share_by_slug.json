@@ -1,0 +1,126 @@
+{
+  "tool_id": "plugin.umami.get_share_by_slug",
+  "name": "get_share_by_slug",
+  "short_description": "Open a share by its slug",
+  "full_description": "Resolves a public share slug and returns its resource references, parameters, and an access token scoped to the shared resources. Select a saved Umami host_id. Original upstream: GET /api/share/{slug}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getShareBySlug"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "slug": {
+        "type": "string",
+        "description": "URL slug used to access the resource."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "slug",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "slug",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "URL slug used to access the resource.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "URL slug used to access the resource."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "slug",
+        "mcp_param": "slug",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "slug"
+        },
+        "required": true,
+        "description": "URL slug used to access the resource."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {}
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

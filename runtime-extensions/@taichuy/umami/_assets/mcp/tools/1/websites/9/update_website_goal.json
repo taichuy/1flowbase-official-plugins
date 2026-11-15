@@ -1,0 +1,271 @@
+{
+  "tool_id": "plugin.umami.update_website_goal",
+  "name": "update_website_goal",
+  "short_description": "Update website goal",
+  "full_description": "Update website goal Select a saved Umami host_id. Original upstream: POST /api/websites/{websiteId}/goals/{goalId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.updateWebsiteGoal"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "goalId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "path",
+              "event"
+            ]
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ]
+      }
+    },
+    "required": [
+      "websiteId",
+      "goalId",
+      "host_id",
+      "name",
+      "parameters"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "goalId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      {
+        "name": "description",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      {
+        "name": "parameters",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "path",
+                "event"
+              ]
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter websiteId."
+      },
+      {
+        "interface_param": "goalId",
+        "mcp_param": "goalId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "goalId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter goalId."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Original Umami body parameter name."
+      },
+      {
+        "interface_param": "description",
+        "mcp_param": "description",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "description"
+        },
+        "required": false,
+        "description": "Original Umami body parameter description."
+      },
+      {
+        "interface_param": "parameters",
+        "mcp_param": "parameters",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "parameters"
+        },
+        "required": true,
+        "description": "Original Umami body parameter parameters."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        }
+      },
+      "required": [
+        "ok"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

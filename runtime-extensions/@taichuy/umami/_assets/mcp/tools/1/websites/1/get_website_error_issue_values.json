@@ -1,0 +1,456 @@
+{
+  "tool_id": "plugin.umami.get_website_error_issue_values",
+  "name": "get_website_error_issue_values",
+  "short_description": "List distinct values of an error filter field for one issue",
+  "full_description": "List distinct values of an error filter field for one issue Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/errors/{issueId}/values.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteErrorIssueValues"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "issueId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "startAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4102444800000
+      },
+      "endAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4102444800000
+      },
+      "status": {
+        "description": "Filter by issue status: `unresolved`, `resolved`, or `ignored`.",
+        "type": "string",
+        "enum": [
+          "unresolved",
+          "resolved",
+          "ignored"
+        ]
+      },
+      "search": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "release": {
+        "description": "Filter by release, as set with `data-release` or `captureException`.",
+        "type": "string",
+        "maxLength": 100
+      },
+      "environment": {
+        "description": "Filter by environment, as set with `data-environment` or `captureException`.",
+        "type": "string",
+        "maxLength": 50
+      },
+      "browser": {
+        "type": "string",
+        "maxLength": 50
+      },
+      "urlPath": {
+        "description": "Filter by the page path on which the error occurred.",
+        "type": "string",
+        "maxLength": 500
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "release",
+          "environment",
+          "browser",
+          "urlPath"
+        ],
+        "description": "Error field to return values for: `release`, `environment`, `browser`, or `urlPath`."
+      },
+      "value": {
+        "description": "Search text used to filter the returned values.",
+        "type": "string",
+        "maxLength": 500
+      }
+    },
+    "required": [
+      "websiteId",
+      "issueId",
+      "host_id",
+      "startAt",
+      "endAt",
+      "type"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "issueId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4102444800000
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4102444800000
+        }
+      },
+      {
+        "name": "status",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by issue status: `unresolved`, `resolved`, or `ignored`.",
+        "required": false,
+        "schema": {
+          "description": "Filter by issue status: `unresolved`, `resolved`, or `ignored`.",
+          "type": "string",
+          "enum": [
+            "unresolved",
+            "resolved",
+            "ignored"
+          ]
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      {
+        "name": "release",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by release, as set with `data-release` or `captureException`.",
+        "required": false,
+        "schema": {
+          "description": "Filter by release, as set with `data-release` or `captureException`.",
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      {
+        "name": "environment",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by environment, as set with `data-environment` or `captureException`.",
+        "required": false,
+        "schema": {
+          "description": "Filter by environment, as set with `data-environment` or `captureException`.",
+          "type": "string",
+          "maxLength": 50
+        }
+      },
+      {
+        "name": "browser",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 50
+        }
+      },
+      {
+        "name": "urlPath",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by the page path on which the error occurred.",
+        "required": false,
+        "schema": {
+          "description": "Filter by the page path on which the error occurred.",
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Error field to return values for: `release`, `environment`, `browser`, or `urlPath`.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "release",
+            "environment",
+            "browser",
+            "urlPath"
+          ],
+          "description": "Error field to return values for: `release`, `environment`, `browser`, or `urlPath`."
+        }
+      },
+      {
+        "name": "value",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Search text used to filter the returned values.",
+        "required": false,
+        "schema": {
+          "description": "Search text used to filter the returned values.",
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter websiteId."
+      },
+      {
+        "interface_param": "issueId",
+        "mcp_param": "issueId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "issueId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter issueId."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": true,
+        "description": "Original Umami query parameter startAt."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": true,
+        "description": "Original Umami query parameter endAt."
+      },
+      {
+        "interface_param": "status",
+        "mcp_param": "status",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "status"
+        },
+        "required": false,
+        "description": "Filter by issue status: `unresolved`, `resolved`, or `ignored`."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Original Umami query parameter search."
+      },
+      {
+        "interface_param": "release",
+        "mcp_param": "release",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "release"
+        },
+        "required": false,
+        "description": "Filter by release, as set with `data-release` or `captureException`."
+      },
+      {
+        "interface_param": "environment",
+        "mcp_param": "environment",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "environment"
+        },
+        "required": false,
+        "description": "Filter by environment, as set with `data-environment` or `captureException`."
+      },
+      {
+        "interface_param": "browser",
+        "mcp_param": "browser",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser"
+        },
+        "required": false,
+        "description": "Original Umami query parameter browser."
+      },
+      {
+        "interface_param": "urlPath",
+        "mcp_param": "urlPath",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "urlPath"
+        },
+        "required": false,
+        "description": "Filter by the page path on which the error occurred."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": true,
+        "description": "Error field to return values for: `release`, `environment`, `browser`, or `urlPath`."
+      },
+      {
+        "interface_param": "value",
+        "mcp_param": "value",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "value"
+        },
+        "required": false,
+        "description": "Search text used to filter the returned values."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ]
+      }
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

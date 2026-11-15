@@ -1,0 +1,98 @@
+{
+  "tool_id": "plugin.umami.sso",
+  "name": "sso",
+  "short_description": "Create a single sign-on token",
+  "full_description": "Returns the authenticated user and a new token valid for 24 hours. Requires Redis-backed authentication. Select a saved Umami host_id. Original upstream: POST /api/auth/sso.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.sso"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object"
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

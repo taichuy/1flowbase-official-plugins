@@ -1,0 +1,164 @@
+{
+  "tool_id": "plugin.umami.delete_website_funnel",
+  "name": "delete_website_funnel",
+  "short_description": "Delete website funnel",
+  "full_description": "Delete website funnel Select a saved Umami host_id. Original upstream: DELETE /api/websites/{websiteId}/funnels/{funnelId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.deleteWebsiteFunnel"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "funnelId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "websiteId",
+      "funnelId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "funnelId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter websiteId."
+      },
+      {
+        "interface_param": "funnelId",
+        "mcp_param": "funnelId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "funnelId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter funnelId."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "description": "Successful operation response."
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

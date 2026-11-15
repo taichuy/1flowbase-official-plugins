@@ -1,0 +1,402 @@
+{
+  "tool_id": "plugin.umami.update_website_segment",
+  "name": "update_website_segment",
+  "short_description": "Update a website segment or cohort",
+  "full_description": "Updates a saved segment or cohort's type, name, and filter parameters. Select a saved Umami host_id. Original upstream: POST /api/websites/{websiteId}/segments/{segmentId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.updateWebsiteSegment"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "segmentId": {
+        "type": "string",
+        "description": "ID of the saved segment or cohort."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "segment",
+          "cohort"
+        ]
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "description": "Display name of the resource."
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Filters applied to the analytics data."
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "all",
+              "any"
+            ],
+            "description": "Whether records must match all filters or any filter."
+          },
+          "dateRange": {
+            "type": "string"
+          },
+          "action": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ]
+          }
+        },
+        "description": "Configuration parameters for the resource."
+      }
+    },
+    "required": [
+      "websiteId",
+      "segmentId",
+      "host_id",
+      "type",
+      "name",
+      "parameters"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "segmentId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the saved segment or cohort.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the saved segment or cohort."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "segment",
+            "cohort"
+          ]
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Display name of the resource.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Display name of the resource."
+        }
+      },
+      {
+        "name": "parameters",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "Configuration parameters for the resource.",
+        "required": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "filters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "description": "Filters applied to the analytics data."
+            },
+            "match": {
+              "type": "string",
+              "enum": [
+                "all",
+                "any"
+              ],
+              "description": "Whether records must match all filters or any filter."
+            },
+            "dateRange": {
+              "type": "string"
+            },
+            "action": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "value"
+              ]
+            }
+          },
+          "description": "Configuration parameters for the resource."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "segmentId",
+        "mcp_param": "segmentId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "segmentId"
+        },
+        "required": true,
+        "description": "ID of the saved segment or cohort."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": true,
+        "description": "Original Umami body parameter type."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Display name of the resource."
+      },
+      {
+        "interface_param": "parameters",
+        "mcp_param": "parameters",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "parameters"
+        },
+        "required": true,
+        "description": "Configuration parameters for the resource."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the resource."
+        },
+        "type": {
+          "type": "string"
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "const": false
+            },
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": false
+                  },
+                  {
+                    "const": true
+                  },
+                  {},
+                  {
+                    "type": "object",
+                    "properties": {
+                      "length": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "length"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "length"
+              ]
+            }
+          ],
+          "description": "Configuration parameters for the resource."
+        },
+        "websiteId": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      "required": [
+        "id",
+        "createdAt",
+        "updatedAt",
+        "name",
+        "type",
+        "parameters",
+        "websiteId"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

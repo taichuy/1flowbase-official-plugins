@@ -1,0 +1,206 @@
+{
+  "tool_id": "plugin.umami.disable_two_factor",
+  "name": "disable_two_factor",
+  "short_description": "Disable two-factor authentication",
+  "full_description": "Disables two-factor authentication for the current user after verifying their password and authenticator code. Rejected when an administrator or team requires it. Select a saved Umami host_id. Original upstream: POST /api/2fa/disable.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.disableTwoFactor"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "password": {
+        "type": "string",
+        "description": "Password used to authenticate the account.",
+        "writeOnly": true,
+        "secret": true
+      },
+      "token": {
+        "type": "string",
+        "minLength": 6,
+        "maxLength": 6,
+        "writeOnly": true,
+        "secret": true
+      }
+    },
+    "required": [
+      "host_id",
+      "password",
+      "token"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "password",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Password used to authenticate the account.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "Password used to authenticate the account.",
+          "writeOnly": true,
+          "secret": true
+        }
+      },
+      {
+        "name": "token",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 6,
+          "writeOnly": true,
+          "secret": true
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "password",
+        "mcp_param": "password",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "password"
+        },
+        "required": true,
+        "description": "Password used to authenticate the account."
+      },
+      {
+        "interface_param": "token",
+        "mcp_param": "token",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "token"
+        },
+        "required": true,
+        "description": "Original Umami body parameter token."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {
+        "secret": true
+      },
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Human-readable explanation of the result."
+                },
+                "lockedUntil": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Time until which further authentication attempts are blocked."
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "lockedUntil"
+              ],
+              "description": "Error details returned when the operation fails."
+            }
+          },
+          "required": [
+            "error"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "description": "Whether the operation succeeded."
+            }
+          },
+          "required": [
+            "ok"
+          ]
+        }
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

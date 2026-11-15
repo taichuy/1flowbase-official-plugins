@@ -1,0 +1,282 @@
+{
+  "tool_id": "plugin.umami.post_dashboard",
+  "name": "post_dashboard",
+  "short_description": "Save my dashboard",
+  "full_description": "Creates or updates the current user's personal dashboard with the supplied name, description, and configuration. Select a saved Umami host_id. Original upstream: POST /api/dashboard.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.postDashboard"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 200,
+        "description": "Display name of the dashboard."
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Description of the dashboard."
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "description": "Dashboard configuration, including components, layout, and saved reports."
+      }
+    },
+    "required": [
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Display name of the dashboard.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Display name of the dashboard."
+        }
+      },
+      {
+        "name": "description",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Description of the dashboard.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Description of the dashboard."
+        }
+      },
+      {
+        "name": "parameters",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "Dashboard configuration, including components, layout, and saved reports.",
+        "required": false,
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "description": "Dashboard configuration, including components, layout, and saved reports."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": false,
+        "description": "Display name of the dashboard."
+      },
+      {
+        "interface_param": "description",
+        "mcp_param": "description",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "description"
+        },
+        "required": false,
+        "description": "Description of the dashboard."
+      },
+      {
+        "interface_param": "parameters",
+        "mcp_param": "parameters",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "parameters"
+        },
+        "required": false,
+        "description": "Dashboard configuration, including components, layout, and saved reports."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who owns the dashboard."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the dashboard."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team, if any."
+        },
+        "type": {
+          "type": "string",
+          "description": "Board type used for the dashboard."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the dashboard."
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "const": false
+            },
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": false
+                  },
+                  {
+                    "const": true
+                  },
+                  {},
+                  {
+                    "type": "object",
+                    "properties": {
+                      "length": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "length"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "length"
+              ]
+            }
+          ],
+          "description": "Dashboard configuration, including components, layout, and saved reports."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "name",
+        "teamId",
+        "type",
+        "description",
+        "parameters"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

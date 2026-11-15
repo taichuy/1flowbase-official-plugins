@@ -1,0 +1,277 @@
+{
+  "tool_id": "plugin.umami.create_pixel_share",
+  "name": "create_pixel_share",
+  "short_description": "Create a share for a tracking pixel",
+  "full_description": "Creates a named share for the specified tracking pixel with optional parameters. Select a saved Umami host_id. Original upstream: POST /api/pixels/{pixelId}/shares.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.createPixelShare"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "pixelId": {
+        "type": "string",
+        "description": "ID of the tracking pixel."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 200,
+        "description": "Display name of the resource."
+      },
+      "parameters": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Configuration parameters for the resource."
+      }
+    },
+    "required": [
+      "pixelId",
+      "host_id",
+      "name"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "pixelId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the tracking pixel.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the tracking pixel."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Display name of the resource.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Display name of the resource."
+        }
+      },
+      {
+        "name": "parameters",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "Configuration parameters for the resource.",
+        "required": false,
+        "schema": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Configuration parameters for the resource."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "pixelId",
+        "mcp_param": "pixelId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "pixelId"
+        },
+        "required": true,
+        "description": "ID of the tracking pixel."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Display name of the resource."
+      },
+      {
+        "interface_param": "parameters",
+        "mcp_param": "parameters",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "parameters"
+        },
+        "required": false,
+        "description": "Configuration parameters for the resource."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the resource."
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL slug used to access the resource."
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "const": false
+            },
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": false
+                  },
+                  {
+                    "const": true
+                  },
+                  {},
+                  {
+                    "type": "object",
+                    "properties": {
+                      "length": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "length"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "length"
+              ]
+            }
+          ],
+          "description": "Configuration parameters for the resource."
+        },
+        "entityId": {
+          "type": "string",
+          "description": "ID of the resource being shared."
+        },
+        "shareType": {
+          "type": "number",
+          "description": "Type of resource made available by the share."
+        }
+      },
+      "required": [
+        "id",
+        "createdAt",
+        "updatedAt",
+        "name",
+        "slug",
+        "parameters",
+        "entityId",
+        "shareType"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

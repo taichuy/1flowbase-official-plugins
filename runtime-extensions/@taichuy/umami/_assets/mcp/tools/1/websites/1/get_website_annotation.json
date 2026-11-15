@@ -1,0 +1,192 @@
+{
+  "tool_id": "plugin.umami.get_website_annotation",
+  "name": "get_website_annotation",
+  "short_description": "Get a website annotation",
+  "full_description": "Returns the date, all-day setting, and note for a specific website annotation. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/annotations/{annotationId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteAnnotation"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "annotationId": {
+        "type": "string",
+        "description": "ID of the annotation."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "websiteId",
+      "annotationId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "annotationId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the annotation.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the annotation."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "annotationId",
+        "mcp_param": "annotationId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "annotationId"
+        },
+        "required": true,
+        "description": "ID of the annotation."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "websiteId": {
+          "type": "string",
+          "description": "ID of the website."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "allDay": {
+          "type": "boolean",
+          "description": "Whether the annotation applies to the entire day."
+        },
+        "note": {
+          "type": "string",
+          "description": "Text of the annotation."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "websiteId",
+        "date",
+        "allDay",
+        "note"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

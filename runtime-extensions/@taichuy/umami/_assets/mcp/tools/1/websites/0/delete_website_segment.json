@@ -1,0 +1,159 @@
+{
+  "tool_id": "plugin.umami.delete_website_segment",
+  "name": "delete_website_segment",
+  "short_description": "Delete a website segment or cohort",
+  "full_description": "Deletes the specified saved segment or cohort from the website. Select a saved Umami host_id. Original upstream: DELETE /api/websites/{websiteId}/segments/{segmentId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.deleteWebsiteSegment"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "segmentId": {
+        "type": "string",
+        "description": "ID of the saved segment or cohort."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "websiteId",
+      "segmentId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "segmentId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the saved segment or cohort.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the saved segment or cohort."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "segmentId",
+        "mcp_param": "segmentId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "segmentId"
+        },
+        "required": true,
+        "description": "ID of the saved segment or cohort."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true,
+          "description": "Whether the operation succeeded."
+        }
+      },
+      "required": [
+        "ok"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

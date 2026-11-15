@@ -1,0 +1,114 @@
+{
+  "tool_id": "plugin.umami.initiate_two_factor_setup",
+  "name": "initiate_two_factor_setup",
+  "short_description": "Set up two-factor authentication",
+  "full_description": "Starts or replaces the current user's pending setup and returns a QR code and manual setup key for an authenticator app. Select a saved Umami host_id. Original upstream: POST /api/2fa/setup/initiate.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.initiateTwoFactorSetup"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {
+        "secret": true
+      },
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "qrCodeDataUrl": {
+          "type": "string",
+          "description": "Data URL of the QR code for authenticator setup."
+        },
+        "manualKey": {
+          "type": "string",
+          "description": "Secret key for manually configuring an authenticator app."
+        }
+      },
+      "required": [
+        "qrCodeDataUrl",
+        "manualKey"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

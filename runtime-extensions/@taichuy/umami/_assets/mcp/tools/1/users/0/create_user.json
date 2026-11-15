@@ -1,0 +1,211 @@
+{
+  "tool_id": "plugin.umami.create_user",
+  "name": "create_user",
+  "short_description": "Create a user",
+  "full_description": "Creates a user account with the supplied username, password, and role. Select a saved Umami host_id. Original upstream: POST /api/users.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.createUser"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "username": {
+        "type": "string",
+        "maxLength": 255,
+        "description": "Username of the account."
+      },
+      "password": {
+        "type": "string",
+        "minLength": 8,
+        "maxLength": 255,
+        "description": "Password used to authenticate the account.",
+        "writeOnly": true,
+        "secret": true
+      },
+      "role": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "user",
+          "view-only"
+        ],
+        "description": "Permission role assigned to the user."
+      }
+    },
+    "required": [
+      "host_id",
+      "username",
+      "password",
+      "role"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "username",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Username of the account.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Username of the account."
+        }
+      },
+      {
+        "name": "password",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Password used to authenticate the account.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 255,
+          "description": "Password used to authenticate the account.",
+          "writeOnly": true,
+          "secret": true
+        }
+      },
+      {
+        "name": "role",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Permission role assigned to the user.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "user",
+            "view-only"
+          ],
+          "description": "Permission role assigned to the user."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "username",
+        "mcp_param": "username",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "username"
+        },
+        "required": true,
+        "description": "Username of the account."
+      },
+      {
+        "interface_param": "password",
+        "mcp_param": "password",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "password"
+        },
+        "required": true,
+        "description": "Password used to authenticate the account."
+      },
+      {
+        "interface_param": "role",
+        "mcp_param": "role",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "role"
+        },
+        "required": true,
+        "description": "Permission role assigned to the user."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Username of the account."
+        },
+        "role": {
+          "type": "string",
+          "description": "Permission role assigned to the user."
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "role"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

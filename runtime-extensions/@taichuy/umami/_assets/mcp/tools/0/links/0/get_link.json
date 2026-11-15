@@ -1,0 +1,172 @@
+{
+  "tool_id": "plugin.umami.get_link",
+  "name": "get_link",
+  "short_description": "Get a tracked link",
+  "full_description": "Returns the specified tracked link, including its destination URL and slug. Select a saved Umami host_id. Original upstream: GET /api/links/{linkId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getLink"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "linkId": {
+        "type": "string",
+        "description": "ID of the tracked link."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "linkId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "linkId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the tracked link.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the tracked link."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "linkId",
+        "mcp_param": "linkId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "linkId"
+        },
+        "required": true,
+        "description": "ID of the tracked link."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was deleted, if applicable."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the resource."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        },
+        "url": {
+          "type": "string",
+          "description": "URL associated with the resource."
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL slug used to access the resource."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "deletedAt",
+        "name",
+        "teamId",
+        "url",
+        "slug"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

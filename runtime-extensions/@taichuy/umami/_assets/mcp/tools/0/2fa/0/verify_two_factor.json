@@ -1,0 +1,186 @@
+{
+  "tool_id": "plugin.umami.verify_two_factor",
+  "name": "verify_two_factor",
+  "short_description": "Complete two-factor sign-in",
+  "full_description": "Exchanges a partial sign-in token and a valid authenticator or backup code for a full authentication token and user details. Select a saved Umami host_id. Original upstream: POST /api/2fa/verify.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.verifyTwoFactor"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "body": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "minLength": 6,
+                "maxLength": 6,
+                "writeOnly": true,
+                "secret": true
+              }
+            },
+            "required": [
+              "token"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "backupCode": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Single-use backup code for two-factor authentication.",
+                "writeOnly": true,
+                "secret": true
+              }
+            },
+            "required": [
+              "backupCode"
+            ]
+          }
+        ]
+      }
+    },
+    "required": [
+      "host_id",
+      "body"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "body",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "minLength": 6,
+                  "maxLength": 6,
+                  "writeOnly": true,
+                  "secret": true
+                }
+              },
+              "required": [
+                "token"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "backupCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Single-use backup code for two-factor authentication.",
+                  "writeOnly": true,
+                  "secret": true
+                }
+              },
+              "required": [
+                "backupCode"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "body",
+        "mcp_param": "body",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "body"
+        },
+        "required": true,
+        "description": "Original Umami body parameter body."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {
+        "secret": true
+      },
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object"
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

@@ -1,0 +1,346 @@
+{
+  "tool_id": "plugin.umami.get_website_session_activity",
+  "name": "get_website_session_activity",
+  "short_description": "Get a visitor's session activity",
+  "full_description": "Returns activity for the specified session and sessions linked by visitor identity, using the requested date range and optional distinct ID. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/sessions/{sessionId}/activity.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteSessionActivity"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "sessionId": {
+        "type": "string",
+        "description": "ID of the visitor session."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "startAt": {
+        "type": "integer",
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      "endAt": {
+        "type": "integer",
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      "distinctId": {
+        "type": "string",
+        "description": "Custom identifier assigned to the visitor."
+      },
+      "period": {
+        "type": "string",
+        "enum": [
+          "today",
+          "24h",
+          "7d",
+          "30d",
+          "0day",
+          "24hour",
+          "0week",
+          "7day",
+          "0month",
+          "30day",
+          "90day",
+          "0year",
+          "6month",
+          "12month"
+        ],
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+      }
+    },
+    "required": [
+      "websiteId",
+      "sessionId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "sessionId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the visitor session.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the visitor session."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Start of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "Start of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "End of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "End of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "distinctId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Custom identifier assigned to the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Custom identifier assigned to the visitor."
+        }
+      },
+      {
+        "name": "period",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "today",
+            "24h",
+            "7d",
+            "30d",
+            "0day",
+            "24hour",
+            "0week",
+            "7day",
+            "0month",
+            "30day",
+            "90day",
+            "0year",
+            "6month",
+            "12month"
+          ],
+          "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "sessionId",
+        "mcp_param": "sessionId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "sessionId"
+        },
+        "required": true,
+        "description": "ID of the visitor session."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": false,
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": false,
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "distinctId",
+        "mcp_param": "distinctId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "distinctId"
+        },
+        "required": false,
+        "description": "Custom identifier assigned to the visitor."
+      },
+      {
+        "interface_param": "period",
+        "mcp_param": "period",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "period"
+        },
+        "required": false,
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "Date and time the record was created."
+          },
+          "urlPath": {
+            "type": "string",
+            "description": "Path portion of the page URL."
+          },
+          "urlQuery": {
+            "type": "string",
+            "description": "Query string portion of the page URL."
+          },
+          "referrerDomain": {
+            "type": "string",
+            "description": "Domain of the referring page."
+          },
+          "eventId": {
+            "type": "string",
+            "description": "ID of the event."
+          },
+          "eventType": {
+            "type": "number",
+            "description": "Event type: 1 for a pageview or 2 for a custom event."
+          },
+          "eventName": {
+            "type": "string",
+            "description": "Name of the custom event."
+          },
+          "visitId": {
+            "type": "string",
+            "description": "ID of the visit."
+          },
+          "hostname": {
+            "type": "string",
+            "description": "Hostname on which the activity occurred."
+          },
+          "hasData": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "createdAt",
+          "urlPath",
+          "urlQuery",
+          "referrerDomain",
+          "eventId",
+          "eventType",
+          "eventName",
+          "visitId",
+          "hostname",
+          "hasData"
+        ]
+      }
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

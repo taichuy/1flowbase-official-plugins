@@ -1,0 +1,158 @@
+{
+  "tool_id": "plugin.umami.join_team",
+  "name": "join_team",
+  "short_description": "Join a team",
+  "full_description": "Adds the current user to a team as a member using the team's access code. Select a saved Umami host_id. Original upstream: POST /api/teams/join.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.joinTeam"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "accessCode": {
+        "type": "string",
+        "maxLength": 50,
+        "description": "Code used to join the team."
+      }
+    },
+    "required": [
+      "host_id",
+      "accessCode"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "accessCode",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Code used to join the team.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Code used to join the team."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "accessCode",
+        "mcp_param": "accessCode",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "accessCode"
+        },
+        "required": true,
+        "description": "Code used to join the team."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "role": {
+          "type": "string",
+          "description": "Permission role assigned to the user."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "role",
+        "teamId"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

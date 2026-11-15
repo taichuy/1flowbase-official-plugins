@@ -1,0 +1,236 @@
+{
+  "tool_id": "plugin.umami.create_team",
+  "name": "create_team",
+  "short_description": "Create a team",
+  "full_description": "Creates a team with an access code and an owner. Administrators can specify a different user as the owner. Select a saved Umami host_id. Original upstream: POST /api/teams.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.createTeam"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 50,
+        "description": "Display name of the resource."
+      },
+      "ownerId": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "required": [
+      "host_id",
+      "name"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Display name of the resource.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Display name of the resource."
+        }
+      },
+      {
+        "name": "ownerId",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Display name of the resource."
+      },
+      {
+        "interface_param": "ownerId",
+        "mcp_param": "ownerId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "ownerId"
+        },
+        "required": false,
+        "description": "Original Umami body parameter ownerId."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "object",
+          "properties": {
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Date and time the record was created."
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Date and time the record was last updated."
+            },
+            "logoUrl": {
+              "type": "string",
+              "description": "URL of the logo image."
+            },
+            "twoFactorRequired": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is required."
+            },
+            "deletedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Date and time the record was deleted, if applicable."
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name of the resource."
+            },
+            "accessCode": {
+              "type": "string",
+              "description": "Code used to join the team."
+            }
+          },
+          "required": [
+            "id",
+            "createdAt",
+            "updatedAt",
+            "logoUrl",
+            "twoFactorRequired",
+            "deletedAt",
+            "name",
+            "accessCode"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "userId": {
+              "type": "string",
+              "description": "ID of the associated user."
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Date and time the record was created."
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Date and time the record was last updated."
+            },
+            "role": {
+              "type": "string",
+              "description": "Permission role assigned to the user."
+            },
+            "teamId": {
+              "type": "string",
+              "description": "ID of the associated team."
+            }
+          },
+          "required": [
+            "id",
+            "userId",
+            "createdAt",
+            "updatedAt",
+            "role",
+            "teamId"
+          ]
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

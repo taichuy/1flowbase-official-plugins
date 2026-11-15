@@ -1,0 +1,122 @@
+{
+  "tool_id": "plugin.umami.legacy_delete_reports_report_id",
+  "name": "legacy_delete_reports_report_id",
+  "short_description": "Legacy DELETE /api/reports/{reportId}",
+  "full_description": "Historical Umami report API retained by the upstream rewrite. Prefer the corresponding current website operation for new workflows. Select a saved Umami host_id. Original upstream: DELETE /api/reports/{reportId}. Historical compatibility API.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.legacy_delete_reports_reportId"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "reportId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "reportId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "reportId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "reportId",
+        "mcp_param": "reportId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "reportId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter reportId."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {}
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

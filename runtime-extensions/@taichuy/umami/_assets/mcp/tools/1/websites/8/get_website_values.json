@@ -1,0 +1,363 @@
+{
+  "tool_id": "plugin.umami.get_website_values",
+  "name": "get_website_values",
+  "short_description": "List website filter values",
+  "full_description": "Returns available values for a website filter, including saved segments or cohorts when requested, to populate filter choices. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/values.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteValues"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "startAt": {
+        "type": "number",
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      "endAt": {
+        "type": "number",
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      "startDate": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Start of the date range as an ISO 8601 date or date-time."
+      },
+      "endDate": {
+        "type": "string",
+        "format": "date-time",
+        "description": "End of the date range as an ISO 8601 date or date-time."
+      },
+      "timezone": {
+        "type": "string",
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+      },
+      "unit": {
+        "type": "string",
+        "description": "Time interval used to group results: minute, hour, day, month, or year."
+      },
+      "compare": {
+        "type": "string",
+        "enum": [
+          "prev",
+          "yoy"
+        ],
+        "description": "Comparison period: prev for the previous period or yoy for the same period last year."
+      },
+      "type": {
+        "type": "string",
+        "description": "Type of resource or analytics dimension to return."
+      },
+      "search": {
+        "type": "string",
+        "description": "Search text used to filter results."
+      }
+    },
+    "required": [
+      "websiteId",
+      "host_id",
+      "type"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "number",
+        "parameter_type": "url",
+        "description": "Start of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "number",
+          "description": "Start of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "number",
+        "parameter_type": "url",
+        "description": "End of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "number",
+          "description": "End of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "startDate",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Start of the date range as an ISO 8601 date or date-time.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start of the date range as an ISO 8601 date or date-time."
+        }
+      },
+      {
+        "name": "endDate",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "End of the date range as an ISO 8601 date or date-time.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End of the date range as an ISO 8601 date or date-time."
+        }
+      },
+      {
+        "name": "timezone",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+        }
+      },
+      {
+        "name": "unit",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Time interval used to group results: minute, hour, day, month, or year.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Time interval used to group results: minute, hour, day, month, or year."
+        }
+      },
+      {
+        "name": "compare",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Comparison period: prev for the previous period or yoy for the same period last year.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "prev",
+            "yoy"
+          ],
+          "description": "Comparison period: prev for the previous period or yoy for the same period last year."
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Type of resource or analytics dimension to return.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "Type of resource or analytics dimension to return."
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Search text used to filter results.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Search text used to filter results."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": false,
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": false,
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "startDate",
+        "mcp_param": "startDate",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startDate"
+        },
+        "required": false,
+        "description": "Start of the date range as an ISO 8601 date or date-time."
+      },
+      {
+        "interface_param": "endDate",
+        "mcp_param": "endDate",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endDate"
+        },
+        "required": false,
+        "description": "End of the date range as an ISO 8601 date or date-time."
+      },
+      {
+        "interface_param": "timezone",
+        "mcp_param": "timezone",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "timezone"
+        },
+        "required": false,
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+      },
+      {
+        "interface_param": "unit",
+        "mcp_param": "unit",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "unit"
+        },
+        "required": false,
+        "description": "Time interval used to group results: minute, hour, day, month, or year."
+      },
+      {
+        "interface_param": "compare",
+        "mcp_param": "compare",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "compare"
+        },
+        "required": false,
+        "description": "Comparison period: prev for the previous period or yoy for the same period last year."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": true,
+        "description": "Type of resource or analytics dimension to return."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Search text used to filter results."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "array",
+      "items": {}
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

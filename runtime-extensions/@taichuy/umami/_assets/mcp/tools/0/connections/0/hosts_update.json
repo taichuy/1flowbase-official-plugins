@@ -1,0 +1,253 @@
+{
+  "tool_id": "plugin.umami.hosts_update",
+  "name": "hosts_update",
+  "short_description": "Update Umami connection",
+  "full_description": "Update a shared connection. Omit password to retain it. Changed connection details are authenticated before saving.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.hosts.update"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "base_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Umami origin, optionally including its deployment base path."
+      },
+      "username": {
+        "type": "string",
+        "minLength": 1
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "password": {
+        "type": "string",
+        "writeOnly": true,
+        "format": "password",
+        "description": "Write-only credential. Omit when editing to retain the saved password."
+      }
+    },
+    "required": [
+      "host_id",
+      "name",
+      "base_url",
+      "username",
+      "enabled"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      {
+        "name": "base_url",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Umami origin, optionally including its deployment base path.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Umami origin, optionally including its deployment base path."
+        }
+      },
+      {
+        "name": "username",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      {
+        "name": "enabled",
+        "field_type": "boolean",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "password",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Write-only credential. Omit when editing to retain the saved password.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "writeOnly": true,
+          "format": "password",
+          "description": "Write-only credential. Omit when editing to retain the saved password."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Original Umami body parameter name."
+      },
+      {
+        "interface_param": "base_url",
+        "mcp_param": "base_url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "base_url"
+        },
+        "required": true,
+        "description": "Umami origin, optionally including its deployment base path."
+      },
+      {
+        "interface_param": "username",
+        "mcp_param": "username",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "username"
+        },
+        "required": true,
+        "description": "Original Umami body parameter username."
+      },
+      {
+        "interface_param": "enabled",
+        "mcp_param": "enabled",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "enabled"
+        },
+        "required": true,
+        "description": "Original Umami body parameter enabled."
+      },
+      {
+        "interface_param": "password",
+        "mcp_param": "password",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "password"
+        },
+        "required": false,
+        "description": "Write-only credential. Omit when editing to retain the saved password."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "host": {
+        "type": "object",
+        "properties": {
+          "host_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Saved Umami connection ID. Obtain it from hosts_list."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "has_password": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "host_id",
+          "name",
+          "base_url",
+          "username",
+          "enabled",
+          "has_password"
+        ],
+        "additionalProperties": false
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

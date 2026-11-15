@@ -1,0 +1,1194 @@
+{
+  "tool_id": "plugin.umami.legacy_post_reports_funnel",
+  "name": "legacy_post_reports_funnel",
+  "short_description": "Legacy POST /api/reports/funnel",
+  "full_description": "Historical Umami report API retained by the upstream rewrite. Prefer the corresponding current website operation for new workflows. Select a saved Umami host_id. Original upstream: POST /api/reports/funnel. Historical compatibility API.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.legacy_post_reports_funnel"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "body": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "websiteId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "filters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "referrer": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "query": {
+                    "type": "string"
+                  },
+                  "os": {
+                    "type": "string"
+                  },
+                  "browser": {
+                    "type": "string"
+                  },
+                  "device": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "tag": {
+                    "type": "string"
+                  },
+                  "hostname": {
+                    "type": "string"
+                  },
+                  "distinctId": {
+                    "type": "string"
+                  },
+                  "language": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "type": "string"
+                  },
+                  "utmSource": {
+                    "type": "string"
+                  },
+                  "utmMedium": {
+                    "type": "string"
+                  },
+                  "utmCampaign": {
+                    "type": "string"
+                  },
+                  "utmContent": {
+                    "type": "string"
+                  },
+                  "utmTerm": {
+                    "type": "string"
+                  },
+                  "segment": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "cohort": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "eventType": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "excludeBounce": {
+                    "type": "string"
+                  },
+                  "match": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "any"
+                    ]
+                  }
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "websiteId",
+              "filters"
+            ]
+          },
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "goal"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "path",
+                          "event"
+                        ]
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate",
+                      "type",
+                      "value"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "funnel"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "window": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "steps": {
+                        "minItems": 2,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "path",
+                                "event"
+                              ]
+                            },
+                            "value": {
+                              "type": "string"
+                            },
+                            "filters": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "property": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": [
+                                      "eq",
+                                      "neq",
+                                      "c",
+                                      "dnc"
+                                    ]
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "property",
+                                  "operator",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "value"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate",
+                      "window",
+                      "steps"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "journey"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "steps": {
+                        "type": "number",
+                        "minimum": 2,
+                        "maximum": 7
+                      },
+                      "startStep": {
+                        "type": "string"
+                      },
+                      "endStep": {
+                        "type": "string"
+                      },
+                      "eventType": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate",
+                      "steps"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "performance"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "unit": {
+                        "type": "string"
+                      },
+                      "timezone": {
+                        "type": "string"
+                      },
+                      "metric": {
+                        "type": "string",
+                        "enum": [
+                          "lcp",
+                          "inp",
+                          "cls",
+                          "fcp",
+                          "ttfb"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "retention"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "timezone": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "utm"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {}
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "revenue"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "unit": {
+                        "type": "string"
+                      },
+                      "timezone": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "compare": {
+                        "type": "string",
+                        "enum": [
+                          "prev",
+                          "yoy"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate",
+                      "currency"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "attribution"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "model": {
+                        "type": "string",
+                        "enum": [
+                          "first-click",
+                          "last-click"
+                        ]
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "path",
+                          "event"
+                        ]
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate",
+                      "model",
+                      "type",
+                      "step"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "breakdown"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "path",
+                            "referrer",
+                            "title",
+                            "query",
+                            "os",
+                            "browser",
+                            "device",
+                            "country",
+                            "region",
+                            "city",
+                            "tag",
+                            "hostname",
+                            "distinctId",
+                            "language",
+                            "event",
+                            "utmSource",
+                            "utmMedium",
+                            "utmCampaign",
+                            "utmContent",
+                            "utmTerm"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate",
+                      "fields"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "heatmap"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "startDate": {},
+                      "endDate": {},
+                      "urlPath": {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "click",
+                          "scroll"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "startDate",
+                      "endDate"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "parameters"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "required": [
+      "host_id",
+      "body"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "body",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "websiteId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "referrer": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "query": {
+                      "type": "string"
+                    },
+                    "os": {
+                      "type": "string"
+                    },
+                    "browser": {
+                      "type": "string"
+                    },
+                    "device": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "region": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "tag": {
+                      "type": "string"
+                    },
+                    "hostname": {
+                      "type": "string"
+                    },
+                    "distinctId": {
+                      "type": "string"
+                    },
+                    "language": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "utmSource": {
+                      "type": "string"
+                    },
+                    "utmMedium": {
+                      "type": "string"
+                    },
+                    "utmCampaign": {
+                      "type": "string"
+                    },
+                    "utmContent": {
+                      "type": "string"
+                    },
+                    "utmTerm": {
+                      "type": "string"
+                    },
+                    "segment": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "cohort": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "eventType": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "excludeBounce": {
+                      "type": "string"
+                    },
+                    "match": {
+                      "type": "string",
+                      "enum": [
+                        "all",
+                        "any"
+                      ]
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "websiteId",
+                "filters"
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "goal"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "path",
+                            "event"
+                          ]
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "type",
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "funnel"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "window": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "steps": {
+                          "minItems": 2,
+                          "maxItems": 8,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "path",
+                                  "event"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              },
+                              "filters": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "property": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "operator": {
+                                      "type": "string",
+                                      "enum": [
+                                        "eq",
+                                        "neq",
+                                        "c",
+                                        "dnc"
+                                      ]
+                                    },
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "property",
+                                    "operator",
+                                    "value"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "window",
+                        "steps"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "journey"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "steps": {
+                          "type": "number",
+                          "minimum": 2,
+                          "maximum": 7
+                        },
+                        "startStep": {
+                          "type": "string"
+                        },
+                        "endStep": {
+                          "type": "string"
+                        },
+                        "eventType": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "steps"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "performance"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "unit": {
+                          "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "metric": {
+                          "type": "string",
+                          "enum": [
+                            "lcp",
+                            "inp",
+                            "cls",
+                            "fcp",
+                            "ttfb"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "retention"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "timezone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "utm"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {}
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "revenue"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "unit": {
+                          "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "compare": {
+                          "type": "string",
+                          "enum": [
+                            "prev",
+                            "yoy"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "currency"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "attribution"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "model": {
+                          "type": "string",
+                          "enum": [
+                            "first-click",
+                            "last-click"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "path",
+                            "event"
+                          ]
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "model",
+                        "type",
+                        "step"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "breakdown"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "fields": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "path",
+                              "referrer",
+                              "title",
+                              "query",
+                              "os",
+                              "browser",
+                              "device",
+                              "country",
+                              "region",
+                              "city",
+                              "tag",
+                              "hostname",
+                              "distinctId",
+                              "language",
+                              "event",
+                              "utmSource",
+                              "utmMedium",
+                              "utmCampaign",
+                              "utmContent",
+                              "utmTerm"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "fields"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "heatmap"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {},
+                        "endDate": {},
+                        "urlPath": {
+                          "type": "string",
+                          "maxLength": 500
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "click",
+                            "scroll"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "parameters"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "body",
+        "mcp_param": "body",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "body"
+        },
+        "required": true,
+        "description": "Original Umami body parameter body."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {}
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

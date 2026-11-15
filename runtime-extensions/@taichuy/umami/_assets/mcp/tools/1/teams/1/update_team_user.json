@@ -1,0 +1,218 @@
+{
+  "tool_id": "plugin.umami.update_team_user",
+  "name": "update_team_user",
+  "short_description": "Change a team member's role",
+  "full_description": "Updates a user's role in the specified team, subject to the caller's role and permissions. Select a saved Umami host_id. Original upstream: POST /api/teams/{teamId}/users/{userId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.updateTeamUser"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "teamId": {
+        "type": "string",
+        "description": "ID of the associated team."
+      },
+      "userId": {
+        "type": "string",
+        "description": "ID of the associated user."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "role": {
+        "type": "string",
+        "enum": [
+          "team-member",
+          "team-view-only",
+          "team-manager"
+        ],
+        "description": "Permission role assigned to the user."
+      }
+    },
+    "required": [
+      "teamId",
+      "userId",
+      "host_id",
+      "role"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "teamId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated team.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated team."
+        }
+      },
+      {
+        "name": "userId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated user.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated user."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "role",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Permission role assigned to the user.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "team-member",
+            "team-view-only",
+            "team-manager"
+          ],
+          "description": "Permission role assigned to the user."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "teamId",
+        "mcp_param": "teamId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "teamId"
+        },
+        "required": true,
+        "description": "ID of the associated team."
+      },
+      {
+        "interface_param": "userId",
+        "mcp_param": "userId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "userId"
+        },
+        "required": true,
+        "description": "ID of the associated user."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "role",
+        "mcp_param": "role",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "role"
+        },
+        "required": true,
+        "description": "Permission role assigned to the user."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "role": {
+          "type": "string",
+          "description": "Permission role assigned to the user."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "role",
+        "teamId"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}
