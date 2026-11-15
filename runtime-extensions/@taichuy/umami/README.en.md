@@ -65,7 +65,7 @@ The development extractor reuses TypeScript 5.9.3 and Zod 4.4.3 already installe
 node scripts/extract-upstream.cjs /path/to/umami /path/to/1flowbase/web _assets/api/upstream-contracts.json
 node scripts/generate.mjs
 node scripts/generate.mjs --check
-node --test scripts/_tests/coverage.test.mjs
+node --test scripts/_tests/*.test.mjs
 cargo test --locked
 ```
 

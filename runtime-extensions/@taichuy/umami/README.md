@@ -66,7 +66,7 @@ HTTP 路径格式为：
 node scripts/extract-upstream.cjs /path/to/umami /path/to/1flowbase/web _assets/api/upstream-contracts.json
 node scripts/generate.mjs
 node scripts/generate.mjs --check
-node --test scripts/_tests/coverage.test.mjs
+node --test scripts/_tests/*.test.mjs
 cargo test --locked
 ```
 
