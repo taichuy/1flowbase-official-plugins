@@ -201,16 +201,18 @@ pub(crate) fn build_url(base: &str, template: &str, path: &Value, query: &Value)
     }
     if !query.is_null() {
         let query = query.as_object().ok_or(Failure("invalid_input"))?;
-        let mut pairs = url.query_pairs_mut();
-        for (name, value) in query {
-            if value.is_null() {
-                continue;
+        if query.values().any(|value| !value.is_null()) {
+            let mut pairs = url.query_pairs_mut();
+            for (name, value) in query {
+                if value.is_null() {
+                    continue;
+                }
+                let value = match value {
+                    Value::String(v) => v.clone(),
+                    other => serde_json::to_string(other).map_err(|_| Failure("invalid_input"))?,
+                };
+                pairs.append_pair(name, &value);
             }
-            let value = match value {
-                Value::String(v) => v.clone(),
-                other => serde_json::to_string(other).map_err(|_| Failure("invalid_input"))?,
-            };
-            pairs.append_pair(name, &value);
         }
     }
     Ok(url)

@@ -474,6 +474,11 @@ fn path_encoding_query_structure_and_base_url_constraints() {
     use crate::remote::{build_url, normalize_base};
     let base = normalize_base("https://analytics.example/base/").unwrap();
     assert_eq!(base, "https://analytics.example/base");
+    for empty in [json!({}), json!({"ignored":null})] {
+        let url = build_url(&base, "/api/websites", &Value::Null, &empty).unwrap();
+        assert_eq!(url.as_str(), "https://analytics.example/base/api/websites");
+        assert!(url.query().is_none());
+    }
     let url = build_url(
         &base,
         "/api/websites/{websiteId}",
