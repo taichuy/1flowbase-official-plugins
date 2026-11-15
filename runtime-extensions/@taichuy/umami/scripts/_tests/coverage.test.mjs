@@ -55,6 +55,23 @@ test('whole-body interfaces advertise their original arrays and discriminated ob
   assert.ok(!stats.parameter_schema_snapshot.properties.website_id, 'preserve upstream DTO field names');
 });
 
+test('legitimate upstream id fields survive extraction, interface registration and MCP projection', () => {
+  const upstream = source.contracts.find(contract => contract.operation.operationId === 'createWebsite');
+  assert.ok(upstream.operation.requestBody.content['application/json'].schema.properties.id, 'Umami accepts a caller-provided website id');
+  const operation = operations.find(item => item.interface_id === 'umami.api.createWebsite');
+  assert.ok(operation.input_schema.properties.body.properties.id, 'HTTP contract must preserve id');
+  const tool = tools.find(item => item.name === 'create_website');
+  assert.ok(tool.parameter_schema_snapshot.properties.id, 'MCP must expose the same id parameter');
+  function verify(value) {
+    if (!value || typeof value !== 'object') return;
+    if (value.properties && value.required?.includes('id')) assert.ok(Object.hasOwn(value.properties, 'id'), 'Required id has a declared property');
+    for (const child of Object.values(value)) verify(child);
+  }
+  verify(source.contracts);
+  verify(operations);
+  verify(tools);
+});
+
 test('MCP native graph is owned, fully bound, hash verified and reset on activation', () => {
   const instanceFile = bundle.files.find(file => file.kind === 'instance');
   const instance = json(`_assets/mcp/${instanceFile.path}`);

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import schemaCodec from './schema.cjs';
 
 export const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const version = '0.1.0';
@@ -16,19 +17,7 @@ const failure = object({ code: text() }, ['code']);
 const envelope = (properties, required = []) => object({ success: { type: 'boolean' }, ...properties, error: failure }, ['success', ...required]);
 const input = (paths = {}, query = object(), body = object()) => object({ path: object(paths, Object.keys(paths)), query, body }, ['path', 'query', 'body']);
 
-function resolveRefs(schema, root = schema, trail = []) {
-  if (Array.isArray(schema)) return schema.map(item => resolveRefs(item, root, trail));
-  if (!schema || typeof schema !== 'object') return schema;
-  if (schema.$ref) {
-    if (!schema.$ref.startsWith('#/')) throw new Error(`External schema reference ${schema.$ref}`);
-    if (trail.includes(schema.$ref)) throw new Error(`Recursive schema requires an explicit contract: ${schema.$ref}`);
-    const target = schema.$ref.slice(2).split('/').reduce((value, key) => value?.[key.replaceAll('~1', '/').replaceAll('~0', '~')], root);
-    if (!target) throw new Error(`Unresolved schema reference ${schema.$ref}`);
-    const { $ref, ...rest } = schema;
-    return { ...resolveRefs(target, root, [...trail, $ref]), ...resolveRefs(rest, root, trail) };
-  }
-  return Object.fromEntries(Object.entries(schema).filter(([key]) => !['$defs', '$schema', 'id'].includes(key)).map(([key, value]) => [key, resolveRefs(value, root, trail)]));
-}
+const resolveRefs = schemaCodec.resolveSchemaReferences;
 
 function requestLocations(contract) {
   const operation = contract.operation;

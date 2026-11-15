@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { execFileSync } = require('node:child_process');
+const { cleanSchema } = require('./schema.cjs');
 
 function dependency(name, moduleRoot) {
   const requireFrom = createRequire(path.join(moduleRoot, 'package.json'));
@@ -26,16 +27,11 @@ function extract(upstreamRoot, moduleRoot) {
     return entry.isDirectory() ? walk(file) : [file];
   }).sort();
   const convert = value => {
-    if (value?._zod) return clean(z.toJSONSchema(value, { io: 'input', unrepresentable: 'any' }));
+    if (value?._zod) return cleanSchema(z.toJSONSchema(value, { io: 'input', unrepresentable: 'any' }));
     if (Array.isArray(value)) return value.map(convert);
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, convert(child)]));
     return value;
   };
-  function clean(value) {
-    if (Array.isArray(value)) return value.map(clean);
-    if (!value || typeof value !== 'object') return value;
-    return Object.fromEntries(Object.entries(value).filter(([key]) => !['$schema', 'id'].includes(key)).map(([key, child]) => [key, clean(child)]));
-  }
   // Date validation callbacks are not executed by schema generation. Extract the
   // real enum from source, and fail if extraction accidentally calls a callback.
   const dates = ts.createSourceFile('date.ts', fs.readFileSync(path.join(sourceRoot, 'lib/date.ts'), 'utf8'), ts.ScriptTarget.Latest, true);

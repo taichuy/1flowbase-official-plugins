@@ -47,6 +47,18 @@
             "type": "null"
           }
         ]
+      },
+      "id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
@@ -130,6 +142,25 @@
             }
           ]
         }
+      },
+      {
+        "name": "id",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
       }
     ],
     "mappings": [
@@ -182,6 +213,16 @@
         },
         "required": false,
         "description": "Original Umami body parameter teamId."
+      },
+      {
+        "interface_param": "id",
+        "mcp_param": "id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "id"
+        },
+        "required": false,
+        "description": "Original Umami body parameter id."
       }
     ]
   },
@@ -224,6 +265,11 @@
     "x-umami-success-schema": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
         "name": {
           "type": "string"
         },
@@ -381,6 +427,11 @@
         "user": {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
             "username": {
               "type": "string"
             }

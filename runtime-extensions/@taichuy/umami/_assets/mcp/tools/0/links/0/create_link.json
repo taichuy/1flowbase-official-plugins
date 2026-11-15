@@ -41,6 +41,18 @@
           }
         ],
         "description": "ID of the associated team."
+      },
+      "id": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Unique identifier of the resource."
       }
     },
     "required": [
@@ -119,6 +131,25 @@
           ],
           "description": "ID of the associated team."
         }
+      },
+      {
+        "name": "id",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "Unique identifier of the resource.",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Unique identifier of the resource."
+        }
       }
     ],
     "mappings": [
@@ -171,6 +202,16 @@
         },
         "required": false,
         "description": "ID of the associated team."
+      },
+      {
+        "interface_param": "id",
+        "mcp_param": "id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "id"
+        },
+        "required": false,
+        "description": "Unique identifier of the resource."
       }
     ]
   },
@@ -213,6 +254,10 @@
     "x-umami-success-schema": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the resource."
+        },
         "userId": {
           "type": "string",
           "description": "ID of the associated user."
