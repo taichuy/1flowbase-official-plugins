@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-14.2",
+  "catalog_version": "2026-11-15.1",
   "currency_code": "USD",
   "page": 136,
-  "cursor": "YWZ0ZXI6YmUwZGMxMzEtYTljYy00MTZhLWFhYjUtMmMwMTc2NjY1MzQ2",
-  "next_cursor": "YWZ0ZXI6YzI2NTcwY2QtMzQ0Ny00MzI2LThjZTItNGU1MWRkZDEzYTQy",
+  "cursor": "YWZ0ZXI6Njc3ZmVjNmEtMTVlMy00M2JhLWI4NTQtNTQ4NTcyODczZTVk",
+  "next_cursor": "YWZ0ZXI6Y2FhOWQ2NzctYjYyMy00MGZmLWI5ZGQtOGJmOGIwOGViYjRl",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/137.json",
   "rules": [
+    {
+      "provider_code": "vivgrid",
+      "upstream_model_id": "gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "be0dc131-a9cc-416a-aab5-2c0176665346",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "vivgrid",
+              "model": "gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "vivgrid",
+              "model": "gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "vivgrid",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "vivgrid",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "be0dc131-a9cc-416a-aab5-2c0176665346",
+      "source_checksum": "sha256:90ade0517b3ef7a6b6a7784118751984aa7097839d9736549a4000a9059f7daf",
+      "source_version": "2026-11-15.1"
+    },
     {
       "provider_code": "vivgrid",
       "upstream_model_id": "gpt-6.1-sol",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "f9426624-958a-482e-8486-c14af7cbbfbb",
       "source_checksum": "sha256:d9c807961f42849dd73ff4da6865d2a96e68a25201da2d7aca6d04f32fb91434",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "vivgrid",
@@ -193,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "cf2bb86f-e603-44fa-8043-421a3f4521b0",
       "source_checksum": "sha256:b00fffdf4637e5361738d02803e6a606ff828b9d99c84691d5a786b97a34cebc",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -257,7 +351,7 @@
       "source_kind": "official",
       "source_catalog_id": "2ed52519-2b29-4c15-9164-4f87698ec426",
       "source_checksum": "sha256:fffbabc46ba16691da1dc0f1f6d737c7d9644013790772c87ebf6c3445f2ce16",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -321,7 +415,7 @@
       "source_kind": "official",
       "source_catalog_id": "298e09cc-1ef7-4bff-8329-5174c47ef72c",
       "source_checksum": "sha256:865c4e6b191c349a627aee9b978adcd6f6faeefd7d43eb3cd5b7522a0725e6af",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -385,7 +479,7 @@
       "source_kind": "official",
       "source_catalog_id": "13e5a017-411f-4eee-ba3f-b80cee16a971",
       "source_checksum": "sha256:84d9fb2d841929dfd4fb7ee7a4a5eef0635db36a950bb8810481c3e35d882742",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -449,7 +543,7 @@
       "source_kind": "official",
       "source_catalog_id": "b41518f8-2fe9-4127-9285-d4a155d344ba",
       "source_checksum": "sha256:2f7647ca81c1a345545c664c2b0949eaa75e74df5a0bf45e71c2f10c58e38d23",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -513,7 +607,7 @@
       "source_kind": "official",
       "source_catalog_id": "8b0571e4-5aad-40af-8a7b-aa02326704f1",
       "source_checksum": "sha256:9b350084ebdebb3ee1a063487b10a368654fbbf9f26517d0acf2cf8b826fb9d8",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -577,7 +671,7 @@
       "source_kind": "official",
       "source_catalog_id": "eb5ccd01-1c11-4073-9ad3-a31f82a44ab4",
       "source_checksum": "sha256:e2b60156c32947503afe8781144104ac9ff717950da1a1f1377f694c4924ff17",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -641,7 +735,7 @@
       "source_kind": "official",
       "source_catalog_id": "ac6ee082-3740-481a-bae4-4c5b11140ec8",
       "source_checksum": "sha256:5918e6bfa02978560f7ac9a439067dc2ba774e398ef65d08539c9ab6d402ecc0",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -705,7 +799,7 @@
       "source_kind": "official",
       "source_catalog_id": "4c157faf-bdc3-4681-be2f-9f38dd811607",
       "source_checksum": "sha256:8896c00b8568d816e10716b5df1b4e6d520dc94809f5017d48204b8bd4c53640",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -769,7 +863,7 @@
       "source_kind": "official",
       "source_catalog_id": "799959fc-998c-45b5-80ef-afa2c1f867e5",
       "source_checksum": "sha256:d503e9f630e8447af905e95f3db79e04bc06a4a20759cb59d8f36e6d64452dcd",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -833,7 +927,7 @@
       "source_kind": "official",
       "source_catalog_id": "501d9708-ea81-431b-a5d9-4d26de943b6f",
       "source_checksum": "sha256:01078ec38d63dc4a823f8433b10061dd79359049d24ed8423f80237da26ae1bc",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -897,7 +991,7 @@
       "source_kind": "official",
       "source_catalog_id": "cc0ffe8f-adcb-488c-be3d-5c9f564fa82e",
       "source_checksum": "sha256:afd4c73257e3abaf53571c04194298080671ea0311b544c716fec9b380508923",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -961,7 +1055,7 @@
       "source_kind": "official",
       "source_catalog_id": "2dbe0d16-1aa3-4290-aaa6-d11667bb63db",
       "source_checksum": "sha256:e2ed74bf75a307fc343e8e709b329f6498a7a77f24f71419d70f39932031b5db",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "void-api",
@@ -1025,7 +1119,7 @@
       "source_kind": "official",
       "source_catalog_id": "2115fa70-2321-4ba7-8d5e-5ec13d428adb",
       "source_checksum": "sha256:4315fb9868cbf1ae0ba51c3a20a8452a5569e625b4cadff78ca74e41f8e2ca16",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "wafer.ai",
@@ -1089,7 +1183,7 @@
       "source_kind": "official",
       "source_catalog_id": "461e442e-6a55-4f00-8d64-41936d36300e",
       "source_checksum": "sha256:a9f0e9c76072db60cdb1a26c3b8fd7de5200c8c208502b2ae1e2b5fe6bf156ed",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "xai",
@@ -1135,7 +1229,7 @@
       "source_kind": "official",
       "source_catalog_id": "26000000-0000-4000-8000-000000000002",
       "source_checksum": "sha256:cc101cf5d03a15559468f1b5c1d599f488c7bba9bbc5ae95581dc9bba5932842",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "xai",
@@ -1181,7 +1275,7 @@
       "source_kind": "official",
       "source_catalog_id": "26000000-0000-4000-8000-000000000001",
       "source_checksum": "sha256:255701cfd0cdaf484b0781b137d8f27d37d459ccda25039c294f14e0a61c51fb",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     },
     {
       "provider_code": "xxapi",
@@ -1245,71 +1339,7 @@
       "source_kind": "official",
       "source_catalog_id": "caa9d677-b623-40ff-b9dd-8bf8b08ebb4e",
       "source_checksum": "sha256:b8cc3c10122eb7665da2e8ef4e595ca81e4dbff161f7c829ace94a62abe8781c",
-      "source_version": "2026-11-14.2"
-    },
-    {
-      "provider_code": "xxapi",
-      "upstream_model_id": "claude-fable-5-1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3.846",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "19.23",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.09615",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4.808",
-      "id": "c26570cd-3447-4326-8ce2-4e51ddd13a42",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "xxapi",
-              "model": "claude-fable-5-1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "xxapi",
-              "model": "claude-fable-5-1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "xxapi",
-              "model": "claude-fable-5-1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "xxapi",
-              "model": "claude-fable-5-1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c26570cd-3447-4326-8ce2-4e51ddd13a42",
-      "source_checksum": "sha256:2548acdbc0ca577932c47f699877dc27347149173bc2e37c01396b02cf4da634",
-      "source_version": "2026-11-14.2"
+      "source_version": "2026-11-15.1"
     }
   ]
 }
