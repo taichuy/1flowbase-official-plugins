@@ -1,0 +1,178 @@
+{
+  "tool_id": "plugin.umami.hosts_list",
+  "name": "hosts_list",
+  "short_description": "List Umami connections",
+  "full_description": "List shared saved Umami connections. Passwords and session tokens are never returned.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.hosts.list"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "page": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "page_size": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "search": {
+        "type": "string"
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "page",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      {
+        "name": "page_size",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "page",
+        "mcp_param": "page",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page"
+        },
+        "required": false,
+        "description": "Original Umami query parameter page."
+      },
+      {
+        "interface_param": "page_size",
+        "mcp_param": "page_size",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page_size"
+        },
+        "required": false,
+        "description": "Original Umami query parameter page_size."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Original Umami query parameter search."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "host_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Saved Umami connection ID. Obtain it from hosts_list."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "base_url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "username": {
+              "type": "string",
+              "minLength": 1
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "has_password": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "host_id",
+            "name",
+            "base_url",
+            "username",
+            "enabled",
+            "has_password"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "total": {
+        "type": "integer"
+      },
+      "page": {
+        "type": "integer"
+      },
+      "page_size": {
+        "type": "integer"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

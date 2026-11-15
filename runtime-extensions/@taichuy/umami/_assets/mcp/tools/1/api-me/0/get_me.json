@@ -1,0 +1,243 @@
+{
+  "tool_id": "plugin.umami.get_me",
+  "name": "get_me",
+  "short_description": "Get my authentication details",
+  "full_description": "Returns the current authentication context, including the authenticated user or share credentials. Select a saved Umami host_id. Original upstream: GET /api/me.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getMe"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier of the resource."
+            },
+            "username": {
+              "type": "string",
+              "description": "Username of the account."
+            },
+            "role": {
+              "type": "string",
+              "description": "Permission role assigned to the user."
+            },
+            "isAdmin": {
+              "type": "boolean",
+              "description": "Whether the user has administrator privileges."
+            }
+          },
+          "required": [
+            "id",
+            "username",
+            "role",
+            "isAdmin"
+          ],
+          "description": "User associated with the resource."
+        },
+        "apiKey": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier of the resource."
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name of the resource."
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "description": "API key authentication details."
+        },
+        "authType": {
+          "anyOf": [
+            {
+              "const": "session"
+            },
+            {
+              "const": "share"
+            },
+            {
+              "const": "api-key"
+            }
+          ]
+        },
+        "twoFactorSetupPending": {
+          "type": "boolean"
+        },
+        "passwordChangeRequired": {
+          "type": "boolean"
+        },
+        "shareToken": {
+          "type": "object",
+          "properties": {
+            "shareType": {
+              "type": "number",
+              "description": "Type of resource made available by the share."
+            },
+            "websiteId": {
+              "type": "string",
+              "description": "ID of the website."
+            },
+            "websiteIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "boardId": {
+              "type": "string",
+              "description": "ID of the board."
+            },
+            "pixelId": {
+              "type": "string",
+              "description": "ID of the tracking pixel."
+            },
+            "pixelIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "linkId": {
+              "type": "string",
+              "description": "ID of the tracked link."
+            },
+            "linkIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "allowFilter": {
+                  "type": "boolean"
+                },
+                "theme": {
+                  "anyOf": [
+                    {
+                      "const": "light"
+                    },
+                    {
+                      "const": "dark"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "const": true
+                  },
+                  {
+                    "const": "light"
+                  },
+                  {
+                    "const": "dark"
+                  }
+                ]
+              },
+              "description": "Configuration parameters for the resource."
+            }
+          }
+        }
+      }
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

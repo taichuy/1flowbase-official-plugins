@@ -1,0 +1,891 @@
+{
+  "tool_id": "plugin.umami.get_website_goal_stats",
+  "name": "get_website_goal_stats",
+  "short_description": "Get website goal stats",
+  "full_description": "Get website goal stats Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/goals/stats.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteGoalStats"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "path": {
+        "type": "string"
+      },
+      "referrer": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "query": {
+        "type": "string"
+      },
+      "os": {
+        "type": "string"
+      },
+      "browser": {
+        "type": "string"
+      },
+      "device": {
+        "type": "string"
+      },
+      "country": {
+        "type": "string"
+      },
+      "region": {
+        "type": "string"
+      },
+      "city": {
+        "type": "string"
+      },
+      "tag": {
+        "type": "string"
+      },
+      "hostname": {
+        "type": "string"
+      },
+      "distinctId": {
+        "type": "string"
+      },
+      "language": {
+        "type": "string"
+      },
+      "event": {
+        "type": "string"
+      },
+      "utmSource": {
+        "type": "string"
+      },
+      "utmMedium": {
+        "type": "string"
+      },
+      "utmCampaign": {
+        "type": "string"
+      },
+      "utmContent": {
+        "type": "string"
+      },
+      "utmTerm": {
+        "type": "string"
+      },
+      "segment": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "cohort": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "eventType": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+      },
+      "excludeBounce": {
+        "type": "string"
+      },
+      "match": {
+        "type": "string",
+        "enum": [
+          "all",
+          "any"
+        ]
+      },
+      "startAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 8640000000000000
+      },
+      "endAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 8640000000000000
+      },
+      "timezone": {
+        "type": "string"
+      },
+      "unit": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "path",
+          "event"
+        ]
+      },
+      "value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "websiteId",
+      "host_id",
+      "startAt",
+      "endAt",
+      "type",
+      "value"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "path",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "referrer",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "title",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "query",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "os",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "browser",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "device",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "country",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "region",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "city",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "tag",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "hostname",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "distinctId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "language",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "event",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "utmSource",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "utmMedium",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "utmCampaign",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "utmContent",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "utmTerm",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "segment",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "cohort",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      {
+        "name": "eventType",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "name": "excludeBounce",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "match",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "all",
+            "any"
+          ]
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8640000000000000
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8640000000000000
+        }
+      },
+      {
+        "name": "timezone",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "unit",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "path",
+            "event"
+          ]
+        }
+      },
+      {
+        "name": "value",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "Original Umami path parameter websiteId."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "path",
+        "mcp_param": "path",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "path"
+        },
+        "required": false,
+        "description": "Original Umami query parameter path."
+      },
+      {
+        "interface_param": "referrer",
+        "mcp_param": "referrer",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "referrer"
+        },
+        "required": false,
+        "description": "Original Umami query parameter referrer."
+      },
+      {
+        "interface_param": "title",
+        "mcp_param": "title",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "title"
+        },
+        "required": false,
+        "description": "Original Umami query parameter title."
+      },
+      {
+        "interface_param": "query",
+        "mcp_param": "query",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "query"
+        },
+        "required": false,
+        "description": "Original Umami query parameter query."
+      },
+      {
+        "interface_param": "os",
+        "mcp_param": "os",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "os"
+        },
+        "required": false,
+        "description": "Original Umami query parameter os."
+      },
+      {
+        "interface_param": "browser",
+        "mcp_param": "browser",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser"
+        },
+        "required": false,
+        "description": "Original Umami query parameter browser."
+      },
+      {
+        "interface_param": "device",
+        "mcp_param": "device",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "device"
+        },
+        "required": false,
+        "description": "Original Umami query parameter device."
+      },
+      {
+        "interface_param": "country",
+        "mcp_param": "country",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "country"
+        },
+        "required": false,
+        "description": "Original Umami query parameter country."
+      },
+      {
+        "interface_param": "region",
+        "mcp_param": "region",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "region"
+        },
+        "required": false,
+        "description": "Original Umami query parameter region."
+      },
+      {
+        "interface_param": "city",
+        "mcp_param": "city",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "city"
+        },
+        "required": false,
+        "description": "Original Umami query parameter city."
+      },
+      {
+        "interface_param": "tag",
+        "mcp_param": "tag",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "tag"
+        },
+        "required": false,
+        "description": "Original Umami query parameter tag."
+      },
+      {
+        "interface_param": "hostname",
+        "mcp_param": "hostname",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "hostname"
+        },
+        "required": false,
+        "description": "Original Umami query parameter hostname."
+      },
+      {
+        "interface_param": "distinctId",
+        "mcp_param": "distinctId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "distinctId"
+        },
+        "required": false,
+        "description": "Original Umami query parameter distinctId."
+      },
+      {
+        "interface_param": "language",
+        "mcp_param": "language",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "language"
+        },
+        "required": false,
+        "description": "Original Umami query parameter language."
+      },
+      {
+        "interface_param": "event",
+        "mcp_param": "event",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "event"
+        },
+        "required": false,
+        "description": "Original Umami query parameter event."
+      },
+      {
+        "interface_param": "utmSource",
+        "mcp_param": "utmSource",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmSource"
+        },
+        "required": false,
+        "description": "Original Umami query parameter utmSource."
+      },
+      {
+        "interface_param": "utmMedium",
+        "mcp_param": "utmMedium",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmMedium"
+        },
+        "required": false,
+        "description": "Original Umami query parameter utmMedium."
+      },
+      {
+        "interface_param": "utmCampaign",
+        "mcp_param": "utmCampaign",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmCampaign"
+        },
+        "required": false,
+        "description": "Original Umami query parameter utmCampaign."
+      },
+      {
+        "interface_param": "utmContent",
+        "mcp_param": "utmContent",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmContent"
+        },
+        "required": false,
+        "description": "Original Umami query parameter utmContent."
+      },
+      {
+        "interface_param": "utmTerm",
+        "mcp_param": "utmTerm",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmTerm"
+        },
+        "required": false,
+        "description": "Original Umami query parameter utmTerm."
+      },
+      {
+        "interface_param": "segment",
+        "mcp_param": "segment",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "segment"
+        },
+        "required": false,
+        "description": "Original Umami query parameter segment."
+      },
+      {
+        "interface_param": "cohort",
+        "mcp_param": "cohort",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "cohort"
+        },
+        "required": false,
+        "description": "Original Umami query parameter cohort."
+      },
+      {
+        "interface_param": "eventType",
+        "mcp_param": "eventType",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "eventType"
+        },
+        "required": false,
+        "description": "Original Umami query parameter eventType."
+      },
+      {
+        "interface_param": "excludeBounce",
+        "mcp_param": "excludeBounce",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "excludeBounce"
+        },
+        "required": false,
+        "description": "Original Umami query parameter excludeBounce."
+      },
+      {
+        "interface_param": "match",
+        "mcp_param": "match",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "match"
+        },
+        "required": false,
+        "description": "Original Umami query parameter match."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": true,
+        "description": "Original Umami query parameter startAt."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": true,
+        "description": "Original Umami query parameter endAt."
+      },
+      {
+        "interface_param": "timezone",
+        "mcp_param": "timezone",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "timezone"
+        },
+        "required": false,
+        "description": "Original Umami query parameter timezone."
+      },
+      {
+        "interface_param": "unit",
+        "mcp_param": "unit",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "unit"
+        },
+        "required": false,
+        "description": "Original Umami query parameter unit."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": true,
+        "description": "Original Umami query parameter type."
+      },
+      {
+        "interface_param": "value",
+        "mcp_param": "value",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "value"
+        },
+        "required": true,
+        "description": "Original Umami query parameter value."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "num": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "num",
+        "total"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

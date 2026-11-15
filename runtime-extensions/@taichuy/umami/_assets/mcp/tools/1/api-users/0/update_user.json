@@ -1,0 +1,244 @@
+{
+  "tool_id": "plugin.umami.update_user",
+  "name": "update_user",
+  "short_description": "Update a user",
+  "full_description": "Updates a user's password. Administrators can also change the username and role. Select a saved Umami host_id. Original upstream: POST /api/users/{userId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.updateUser"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "userId": {
+        "type": "string",
+        "description": "ID of the associated user."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "username": {
+        "type": "string",
+        "maxLength": 255,
+        "description": "Username of the account."
+      },
+      "password": {
+        "type": "string",
+        "minLength": 8,
+        "maxLength": 255,
+        "description": "Password used to authenticate the account.",
+        "writeOnly": true,
+        "secret": true
+      },
+      "role": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "user",
+          "view-only"
+        ],
+        "description": "Permission role assigned to the user."
+      }
+    },
+    "required": [
+      "userId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "userId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated user.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated user."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "username",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Username of the account.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Username of the account."
+        }
+      },
+      {
+        "name": "password",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Password used to authenticate the account.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 255,
+          "description": "Password used to authenticate the account.",
+          "writeOnly": true,
+          "secret": true
+        }
+      },
+      {
+        "name": "role",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Permission role assigned to the user.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "user",
+            "view-only"
+          ],
+          "description": "Permission role assigned to the user."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "userId",
+        "mcp_param": "userId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "userId"
+        },
+        "required": true,
+        "description": "ID of the associated user."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "username",
+        "mcp_param": "username",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "username"
+        },
+        "required": false,
+        "description": "Username of the account."
+      },
+      {
+        "interface_param": "password",
+        "mcp_param": "password",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "password"
+        },
+        "required": false,
+        "description": "Password used to authenticate the account."
+      },
+      {
+        "interface_param": "role",
+        "mcp_param": "role",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "role"
+        },
+        "required": false,
+        "description": "Permission role assigned to the user."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the resource."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "username": {
+          "type": "string",
+          "description": "Username of the account."
+        },
+        "role": {
+          "type": "string",
+          "description": "Permission role assigned to the user."
+        }
+      },
+      "required": [
+        "id",
+        "createdAt",
+        "username",
+        "role"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

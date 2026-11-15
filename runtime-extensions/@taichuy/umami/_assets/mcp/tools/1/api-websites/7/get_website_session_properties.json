@@ -1,0 +1,213 @@
+{
+  "tool_id": "plugin.umami.get_website_session_properties",
+  "name": "get_website_session_properties",
+  "short_description": "Get a session's custom properties",
+  "full_description": "Returns custom property records, data types, and values for the specified website session. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/sessions/{sessionId}/properties.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteSessionProperties"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "sessionId": {
+        "type": "string",
+        "description": "ID of the visitor session."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "websiteId",
+      "sessionId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "sessionId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the visitor session.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the visitor session."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "sessionId",
+        "mcp_param": "sessionId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "sessionId"
+        },
+        "required": true,
+        "description": "ID of the visitor session."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "websiteId": {
+            "type": "string",
+            "description": "ID of the website."
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "ID of the visitor session."
+          },
+          "dataKey": {
+            "type": "string",
+            "description": "Name of the custom property."
+          },
+          "dataType": {
+            "type": "number",
+            "description": "Data type of the custom property."
+          },
+          "stringValue": {
+            "type": "string",
+            "description": "Custom property value stored as a string."
+          },
+          "numberValue": {
+            "type": "number",
+            "description": "Custom property value stored as a number."
+          },
+          "dateValue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "Custom property value stored as a date-time."
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "Date and time the record was created."
+          }
+        },
+        "required": [
+          "websiteId",
+          "sessionId",
+          "dataKey",
+          "dataType",
+          "stringValue",
+          "numberValue",
+          "dateValue",
+          "createdAt"
+        ]
+      }
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

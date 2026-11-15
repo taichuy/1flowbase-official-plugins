@@ -1,0 +1,322 @@
+{
+  "tool_id": "plugin.umami.get_website_segments",
+  "name": "get_website_segments",
+  "short_description": "List website segments and cohorts",
+  "full_description": "Returns saved segments or cohorts for the website, filtered by the requested type and search text. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/segments.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteSegments"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "segment",
+          "cohort"
+        ],
+        "description": "Type of resource or analytics dimension to return."
+      },
+      "search": {
+        "type": "string",
+        "description": "Search text used to filter results."
+      }
+    },
+    "required": [
+      "websiteId",
+      "host_id",
+      "type"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Type of resource or analytics dimension to return.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "segment",
+            "cohort"
+          ],
+          "description": "Type of resource or analytics dimension to return."
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Search text used to filter results.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Search text used to filter results."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": true,
+        "description": "Type of resource or analytics dimension to return."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Search text used to filter results."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier of the resource."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Date and time the record was created."
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Date and time the record was last updated."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name of the resource."
+              },
+              "type": {
+                "type": "string"
+              },
+              "parameters": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": false
+                  },
+                  {
+                    "const": true
+                  },
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "const": false
+                        },
+                        {
+                          "const": true
+                        },
+                        {},
+                        {
+                          "type": "object",
+                          "properties": {
+                            "length": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "length"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "length": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "length"
+                    ]
+                  }
+                ],
+                "description": "Configuration parameters for the resource."
+              },
+              "websiteId": {
+                "type": "string",
+                "description": "ID of the website."
+              }
+            },
+            "required": [
+              "id",
+              "createdAt",
+              "updatedAt",
+              "name",
+              "type",
+              "parameters",
+              "websiteId"
+            ]
+          },
+          "description": "Data returned by the operation."
+        },
+        "count": {
+          "type": "number",
+          "description": "Number of matching records."
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number, starting at 1."
+        },
+        "pageSize": {
+          "type": "number",
+          "description": "Number of results per page."
+        },
+        "orderBy": {
+          "type": "string",
+          "description": "Field to sort the results by."
+        },
+        "sortDescending": {
+          "type": "boolean",
+          "description": "Whether to sort results in descending order."
+        },
+        "search": {
+          "type": "string",
+          "description": "Search text used to filter results."
+        },
+        "isCapped": {
+          "type": "boolean",
+          "description": "Whether the results were truncated by the maximum result limit."
+        }
+      },
+      "required": [
+        "data",
+        "count",
+        "page",
+        "pageSize"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

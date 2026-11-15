@@ -1,0 +1,227 @@
+{
+  "tool_id": "plugin.umami.update_pixel",
+  "name": "update_pixel",
+  "short_description": "Update a tracking pixel",
+  "full_description": "Updates a tracking pixel's name or slug. Select a saved Umami host_id. Original upstream: POST /api/pixels/{pixelId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.updatePixel"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "pixelId": {
+        "type": "string",
+        "description": "ID of the tracking pixel."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 100,
+        "description": "Display name of the resource."
+      },
+      "slug": {
+        "type": "string",
+        "minLength": 8,
+        "maxLength": 100,
+        "description": "URL slug used to access the resource."
+      }
+    },
+    "required": [
+      "pixelId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "pixelId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the tracking pixel.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the tracking pixel."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Display name of the resource.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name of the resource."
+        }
+      },
+      {
+        "name": "slug",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "URL slug used to access the resource.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 100,
+          "description": "URL slug used to access the resource."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "pixelId",
+        "mcp_param": "pixelId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "pixelId"
+        },
+        "required": true,
+        "description": "ID of the tracking pixel."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": false,
+        "description": "Display name of the resource."
+      },
+      {
+        "interface_param": "slug",
+        "mcp_param": "slug",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "slug"
+        },
+        "required": false,
+        "description": "URL slug used to access the resource."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the resource."
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was deleted, if applicable."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the resource."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL slug used to access the resource."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "deletedAt",
+        "name",
+        "teamId",
+        "slug"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

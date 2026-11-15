@@ -1,0 +1,426 @@
+{
+  "tool_id": "plugin.umami.get_website_annotations",
+  "name": "get_website_annotations",
+  "short_description": "List website annotations",
+  "full_description": "Returns a paginated list of dated notes for the website, optionally filtered by date range or search text. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/annotations.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteAnnotations"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "startAt": {
+        "type": "integer",
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      "endAt": {
+        "type": "integer",
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      "search": {
+        "type": "string",
+        "description": "Search text used to filter results."
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Page number, starting at 1."
+      },
+      "pageSize": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Number of results per page."
+      },
+      "maxResults": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Maximum number of results to include."
+      },
+      "period": {
+        "type": "string",
+        "enum": [
+          "today",
+          "24h",
+          "7d",
+          "30d",
+          "0day",
+          "24hour",
+          "0week",
+          "7day",
+          "0month",
+          "30day",
+          "90day",
+          "0year",
+          "6month",
+          "12month"
+        ],
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+      }
+    },
+    "required": [
+      "websiteId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Start of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "Start of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "End of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "End of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Search text used to filter results.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Search text used to filter results."
+        }
+      },
+      {
+        "name": "page",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Page number, starting at 1.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Page number, starting at 1."
+        }
+      },
+      {
+        "name": "pageSize",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Number of results per page.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of results per page."
+        }
+      },
+      {
+        "name": "maxResults",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Maximum number of results to include.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of results to include."
+        }
+      },
+      {
+        "name": "period",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "today",
+            "24h",
+            "7d",
+            "30d",
+            "0day",
+            "24hour",
+            "0week",
+            "7day",
+            "0month",
+            "30day",
+            "90day",
+            "0year",
+            "6month",
+            "12month"
+          ],
+          "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": false,
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": false,
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Search text used to filter results."
+      },
+      {
+        "interface_param": "page",
+        "mcp_param": "page",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page"
+        },
+        "required": false,
+        "description": "Page number, starting at 1."
+      },
+      {
+        "interface_param": "pageSize",
+        "mcp_param": "pageSize",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "pageSize"
+        },
+        "required": false,
+        "description": "Number of results per page."
+      },
+      {
+        "interface_param": "maxResults",
+        "mcp_param": "maxResults",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "maxResults"
+        },
+        "required": false,
+        "description": "Maximum number of results to include."
+      },
+      {
+        "interface_param": "period",
+        "mcp_param": "period",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "period"
+        },
+        "required": false,
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier of the resource."
+              },
+              "userId": {
+                "type": "string",
+                "description": "ID of the associated user."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Date and time the record was created."
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Date and time the record was last updated."
+              },
+              "websiteId": {
+                "type": "string",
+                "description": "ID of the website."
+              },
+              "date": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "allDay": {
+                "type": "boolean",
+                "description": "Whether the annotation applies to the entire day."
+              },
+              "note": {
+                "type": "string",
+                "description": "Text of the annotation."
+              }
+            },
+            "required": [
+              "id",
+              "userId",
+              "createdAt",
+              "updatedAt",
+              "websiteId",
+              "date",
+              "allDay",
+              "note"
+            ]
+          },
+          "description": "Data returned by the operation."
+        },
+        "count": {
+          "type": "number",
+          "description": "Number of matching records."
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number, starting at 1."
+        },
+        "pageSize": {
+          "type": "number",
+          "description": "Number of results per page."
+        },
+        "orderBy": {
+          "type": "string",
+          "description": "Field to sort the results by."
+        },
+        "sortDescending": {
+          "type": "boolean",
+          "description": "Whether to sort results in descending order."
+        },
+        "search": {
+          "type": "string",
+          "description": "Search text used to filter results."
+        },
+        "isCapped": {
+          "type": "boolean",
+          "description": "Whether the results were truncated by the maximum result limit."
+        }
+      },
+      "required": [
+        "data",
+        "count",
+        "page",
+        "pageSize"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

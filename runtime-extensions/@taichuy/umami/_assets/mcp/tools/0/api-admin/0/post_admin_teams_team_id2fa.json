@@ -1,0 +1,166 @@
+{
+  "tool_id": "plugin.umami.post_admin_teams_team_id2fa",
+  "name": "post_admin_teams_team_id2fa",
+  "short_description": "Set a team's two-factor requirement",
+  "full_description": "Enables or disables the requirement for members of the specified team to use two-factor authentication. Select a saved Umami host_id. Original upstream: POST /api/admin/teams/{teamId}/2fa.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.postAdminTeamsTeamId2fa"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "teamId": {
+        "type": "string",
+        "description": "ID of the associated team."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "required": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "teamId",
+      "host_id",
+      "required"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "teamId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated team.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated team."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "required",
+        "field_type": "boolean",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "teamId",
+        "mcp_param": "teamId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "teamId"
+        },
+        "required": true,
+        "description": "ID of the associated team."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "required",
+        "mcp_param": "required",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "required"
+        },
+        "required": true,
+        "description": "Original Umami body parameter required."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": "Whether the operation succeeded."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        },
+        "twoFactorRequired": {
+          "description": "Whether two-factor authentication is required."
+        }
+      },
+      "required": [
+        "ok",
+        "teamId",
+        "twoFactorRequired"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

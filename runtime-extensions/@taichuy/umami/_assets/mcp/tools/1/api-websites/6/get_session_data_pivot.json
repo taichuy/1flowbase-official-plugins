@@ -1,0 +1,1113 @@
+{
+  "tool_id": "plugin.umami.get_session_data_pivot",
+  "name": "get_session_data_pivot",
+  "short_description": "List session properties in table form",
+  "full_description": "Returns a page of sessions matching the selected property and filters, with the latest property keys and values grouped into one row per session. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/session-data-pivot.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getSessionDataPivot"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "startAt": {
+        "type": "integer",
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      "endAt": {
+        "type": "integer",
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      "propertyName": {
+        "type": "string",
+        "description": "Name of the custom event or session property."
+      },
+      "timezone": {
+        "type": "string",
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+      },
+      "unit": {
+        "type": "string",
+        "description": "Time interval used to group results: minute, hour, day, month, or year."
+      },
+      "path": {
+        "type": "string",
+        "description": "Filter by page URL path."
+      },
+      "referrer": {
+        "type": "string",
+        "description": "Filter by referring URL."
+      },
+      "title": {
+        "type": "string",
+        "description": "Filter by page title."
+      },
+      "query": {
+        "type": "string",
+        "description": "Filter by page URL query string."
+      },
+      "os": {
+        "type": "string",
+        "description": "Operating system used by the visitor."
+      },
+      "browser": {
+        "type": "string",
+        "description": "Browser used by the visitor."
+      },
+      "device": {
+        "type": "string",
+        "description": "Device category used by the visitor."
+      },
+      "country": {
+        "type": "string",
+        "description": "Country code of the visitor."
+      },
+      "region": {
+        "type": "string",
+        "description": "Region or subdivision of the visitor."
+      },
+      "city": {
+        "type": "string",
+        "description": "City of the visitor."
+      },
+      "tag": {
+        "type": "string",
+        "description": "Tag attached to the tracked activity."
+      },
+      "hostname": {
+        "type": "string",
+        "description": "Hostname on which the activity occurred."
+      },
+      "distinctId": {
+        "type": "string",
+        "description": "Custom identifier assigned to the visitor."
+      },
+      "language": {
+        "type": "string",
+        "description": "Preferred language reported by the visitor browser."
+      },
+      "event": {
+        "type": "string",
+        "description": "Filter by custom event name."
+      },
+      "utmSource": {
+        "type": "string",
+        "description": "UTM campaign source."
+      },
+      "utmMedium": {
+        "type": "string",
+        "description": "UTM campaign medium."
+      },
+      "utmCampaign": {
+        "type": "string",
+        "description": "UTM campaign name."
+      },
+      "utmContent": {
+        "type": "string",
+        "description": "UTM campaign content."
+      },
+      "utmTerm": {
+        "type": "string",
+        "description": "UTM campaign search term."
+      },
+      "excludeBounce": {
+        "type": "string",
+        "description": "Set a non-empty value to exclude visits with only one pageview."
+      },
+      "segment": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID of a saved segment used to filter results."
+      },
+      "cohort": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID of a saved cohort used to filter visitors."
+      },
+      "eventType": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Event type: 1 for a pageview or 2 for a custom event."
+      },
+      "match": {
+        "type": "string",
+        "enum": [
+          "all",
+          "any"
+        ],
+        "description": "Whether records must match all filters or any filter."
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Page number, starting at 1."
+      },
+      "pageSize": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Number of results per page."
+      },
+      "maxResults": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Maximum number of results to include."
+      },
+      "period": {
+        "type": "string",
+        "enum": [
+          "today",
+          "24h",
+          "7d",
+          "30d",
+          "0day",
+          "24hour",
+          "0week",
+          "7day",
+          "0month",
+          "30day",
+          "90day",
+          "0year",
+          "6month",
+          "12month"
+        ],
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+      }
+    },
+    "required": [
+      "websiteId",
+      "host_id",
+      "propertyName"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Start of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "Start of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "End of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "End of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "propertyName",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Name of the custom event or session property.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "Name of the custom event or session property."
+        }
+      },
+      {
+        "name": "timezone",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+        }
+      },
+      {
+        "name": "unit",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Time interval used to group results: minute, hour, day, month, or year.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Time interval used to group results: minute, hour, day, month, or year."
+        }
+      },
+      {
+        "name": "path",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by page URL path.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by page URL path."
+        }
+      },
+      {
+        "name": "referrer",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by referring URL.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by referring URL."
+        }
+      },
+      {
+        "name": "title",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by page title.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by page title."
+        }
+      },
+      {
+        "name": "query",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by page URL query string.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by page URL query string."
+        }
+      },
+      {
+        "name": "os",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Operating system used by the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Operating system used by the visitor."
+        }
+      },
+      {
+        "name": "browser",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Browser used by the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Browser used by the visitor."
+        }
+      },
+      {
+        "name": "device",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Device category used by the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Device category used by the visitor."
+        }
+      },
+      {
+        "name": "country",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Country code of the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Country code of the visitor."
+        }
+      },
+      {
+        "name": "region",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Region or subdivision of the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Region or subdivision of the visitor."
+        }
+      },
+      {
+        "name": "city",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "City of the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "City of the visitor."
+        }
+      },
+      {
+        "name": "tag",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Tag attached to the tracked activity.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Tag attached to the tracked activity."
+        }
+      },
+      {
+        "name": "hostname",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Hostname on which the activity occurred.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Hostname on which the activity occurred."
+        }
+      },
+      {
+        "name": "distinctId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Custom identifier assigned to the visitor.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Custom identifier assigned to the visitor."
+        }
+      },
+      {
+        "name": "language",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Preferred language reported by the visitor browser.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Preferred language reported by the visitor browser."
+        }
+      },
+      {
+        "name": "event",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by custom event name.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by custom event name."
+        }
+      },
+      {
+        "name": "utmSource",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "UTM campaign source.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "UTM campaign source."
+        }
+      },
+      {
+        "name": "utmMedium",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "UTM campaign medium.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "UTM campaign medium."
+        }
+      },
+      {
+        "name": "utmCampaign",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "UTM campaign name.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "UTM campaign name."
+        }
+      },
+      {
+        "name": "utmContent",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "UTM campaign content.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "UTM campaign content."
+        }
+      },
+      {
+        "name": "utmTerm",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "UTM campaign search term.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "UTM campaign search term."
+        }
+      },
+      {
+        "name": "excludeBounce",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Set a non-empty value to exclude visits with only one pageview.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Set a non-empty value to exclude visits with only one pageview."
+        }
+      },
+      {
+        "name": "segment",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of a saved segment used to filter results.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "description": "ID of a saved segment used to filter results."
+        }
+      },
+      {
+        "name": "cohort",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of a saved cohort used to filter visitors.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "description": "ID of a saved cohort used to filter visitors."
+        }
+      },
+      {
+        "name": "eventType",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Event type: 1 for a pageview or 2 for a custom event.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Event type: 1 for a pageview or 2 for a custom event."
+        }
+      },
+      {
+        "name": "match",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Whether records must match all filters or any filter.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "all",
+            "any"
+          ],
+          "description": "Whether records must match all filters or any filter."
+        }
+      },
+      {
+        "name": "page",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Page number, starting at 1.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Page number, starting at 1."
+        }
+      },
+      {
+        "name": "pageSize",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Number of results per page.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of results per page."
+        }
+      },
+      {
+        "name": "maxResults",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Maximum number of results to include.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of results to include."
+        }
+      },
+      {
+        "name": "period",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "today",
+            "24h",
+            "7d",
+            "30d",
+            "0day",
+            "24hour",
+            "0week",
+            "7day",
+            "0month",
+            "30day",
+            "90day",
+            "0year",
+            "6month",
+            "12month"
+          ],
+          "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": false,
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": false,
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "propertyName",
+        "mcp_param": "propertyName",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "propertyName"
+        },
+        "required": true,
+        "description": "Name of the custom event or session property."
+      },
+      {
+        "interface_param": "timezone",
+        "mcp_param": "timezone",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "timezone"
+        },
+        "required": false,
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+      },
+      {
+        "interface_param": "unit",
+        "mcp_param": "unit",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "unit"
+        },
+        "required": false,
+        "description": "Time interval used to group results: minute, hour, day, month, or year."
+      },
+      {
+        "interface_param": "path",
+        "mcp_param": "path",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "path"
+        },
+        "required": false,
+        "description": "Filter by page URL path."
+      },
+      {
+        "interface_param": "referrer",
+        "mcp_param": "referrer",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "referrer"
+        },
+        "required": false,
+        "description": "Filter by referring URL."
+      },
+      {
+        "interface_param": "title",
+        "mcp_param": "title",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "title"
+        },
+        "required": false,
+        "description": "Filter by page title."
+      },
+      {
+        "interface_param": "query",
+        "mcp_param": "query",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "query"
+        },
+        "required": false,
+        "description": "Filter by page URL query string."
+      },
+      {
+        "interface_param": "os",
+        "mcp_param": "os",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "os"
+        },
+        "required": false,
+        "description": "Operating system used by the visitor."
+      },
+      {
+        "interface_param": "browser",
+        "mcp_param": "browser",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "browser"
+        },
+        "required": false,
+        "description": "Browser used by the visitor."
+      },
+      {
+        "interface_param": "device",
+        "mcp_param": "device",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "device"
+        },
+        "required": false,
+        "description": "Device category used by the visitor."
+      },
+      {
+        "interface_param": "country",
+        "mcp_param": "country",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "country"
+        },
+        "required": false,
+        "description": "Country code of the visitor."
+      },
+      {
+        "interface_param": "region",
+        "mcp_param": "region",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "region"
+        },
+        "required": false,
+        "description": "Region or subdivision of the visitor."
+      },
+      {
+        "interface_param": "city",
+        "mcp_param": "city",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "city"
+        },
+        "required": false,
+        "description": "City of the visitor."
+      },
+      {
+        "interface_param": "tag",
+        "mcp_param": "tag",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "tag"
+        },
+        "required": false,
+        "description": "Tag attached to the tracked activity."
+      },
+      {
+        "interface_param": "hostname",
+        "mcp_param": "hostname",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "hostname"
+        },
+        "required": false,
+        "description": "Hostname on which the activity occurred."
+      },
+      {
+        "interface_param": "distinctId",
+        "mcp_param": "distinctId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "distinctId"
+        },
+        "required": false,
+        "description": "Custom identifier assigned to the visitor."
+      },
+      {
+        "interface_param": "language",
+        "mcp_param": "language",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "language"
+        },
+        "required": false,
+        "description": "Preferred language reported by the visitor browser."
+      },
+      {
+        "interface_param": "event",
+        "mcp_param": "event",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "event"
+        },
+        "required": false,
+        "description": "Filter by custom event name."
+      },
+      {
+        "interface_param": "utmSource",
+        "mcp_param": "utmSource",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmSource"
+        },
+        "required": false,
+        "description": "UTM campaign source."
+      },
+      {
+        "interface_param": "utmMedium",
+        "mcp_param": "utmMedium",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmMedium"
+        },
+        "required": false,
+        "description": "UTM campaign medium."
+      },
+      {
+        "interface_param": "utmCampaign",
+        "mcp_param": "utmCampaign",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmCampaign"
+        },
+        "required": false,
+        "description": "UTM campaign name."
+      },
+      {
+        "interface_param": "utmContent",
+        "mcp_param": "utmContent",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmContent"
+        },
+        "required": false,
+        "description": "UTM campaign content."
+      },
+      {
+        "interface_param": "utmTerm",
+        "mcp_param": "utmTerm",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "utmTerm"
+        },
+        "required": false,
+        "description": "UTM campaign search term."
+      },
+      {
+        "interface_param": "excludeBounce",
+        "mcp_param": "excludeBounce",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "excludeBounce"
+        },
+        "required": false,
+        "description": "Set a non-empty value to exclude visits with only one pageview."
+      },
+      {
+        "interface_param": "segment",
+        "mcp_param": "segment",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "segment"
+        },
+        "required": false,
+        "description": "ID of a saved segment used to filter results."
+      },
+      {
+        "interface_param": "cohort",
+        "mcp_param": "cohort",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "cohort"
+        },
+        "required": false,
+        "description": "ID of a saved cohort used to filter visitors."
+      },
+      {
+        "interface_param": "eventType",
+        "mcp_param": "eventType",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "eventType"
+        },
+        "required": false,
+        "description": "Event type: 1 for a pageview or 2 for a custom event."
+      },
+      {
+        "interface_param": "match",
+        "mcp_param": "match",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "match"
+        },
+        "required": false,
+        "description": "Whether records must match all filters or any filter."
+      },
+      {
+        "interface_param": "page",
+        "mcp_param": "page",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page"
+        },
+        "required": false,
+        "description": "Page number, starting at 1."
+      },
+      {
+        "interface_param": "pageSize",
+        "mcp_param": "pageSize",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "pageSize"
+        },
+        "required": false,
+        "description": "Number of results per page."
+      },
+      {
+        "interface_param": "maxResults",
+        "mcp_param": "maxResults",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "maxResults"
+        },
+        "required": false,
+        "description": "Maximum number of results to include."
+      },
+      {
+        "interface_param": "period",
+        "mcp_param": "period",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "period"
+        },
+        "required": false,
+        "description": "Relative date range, for example 7d or 30day, used instead of an explicit startAt/endAt range."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sessionId": {
+                "type": "string",
+                "description": "ID of the visitor session."
+              },
+              "distinctId": {
+                "type": "string",
+                "description": "Custom identifier assigned to the visitor."
+              },
+              "createdAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                ],
+                "description": "Date and time the record was created."
+              },
+              "propertyKeys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Names of the custom properties."
+              },
+              "propertyValues": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Values of the custom properties."
+              }
+            },
+            "required": [
+              "sessionId",
+              "distinctId",
+              "createdAt",
+              "propertyKeys",
+              "propertyValues"
+            ]
+          },
+          "description": "Data returned by the operation."
+        },
+        "count": {
+          "type": "number",
+          "description": "Number of matching records."
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number, starting at 1."
+        },
+        "pageSize": {
+          "type": "number",
+          "description": "Number of results per page."
+        },
+        "orderBy": {
+          "type": "string",
+          "description": "Field to sort the results by."
+        },
+        "sortDescending": {
+          "type": "boolean",
+          "description": "Whether to sort results in descending order."
+        },
+        "search": {
+          "type": "string",
+          "description": "Search text used to filter results."
+        },
+        "isCapped": {
+          "type": "boolean",
+          "description": "Whether the results were truncated by the maximum result limit."
+        }
+      },
+      "required": [
+        "data",
+        "count",
+        "page",
+        "pageSize"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

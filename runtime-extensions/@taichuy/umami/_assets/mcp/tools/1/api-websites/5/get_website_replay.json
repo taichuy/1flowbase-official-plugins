@@ -1,0 +1,186 @@
+{
+  "tool_id": "plugin.umami.get_website_replay",
+  "name": "get_website_replay",
+  "short_description": "Get a session replay recording",
+  "full_description": "Returns the merged recording events, session details, and event and chunk counts for a replay, with optional stopping points by timestamp, chunk, or event index. Select a saved Umami host_id. Original upstream: GET /api/websites/{websiteId}/replays/{replayId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getWebsiteReplay"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "websiteId": {
+        "type": "string",
+        "description": "ID of the website."
+      },
+      "replayId": {
+        "type": "string",
+        "description": "ID of the session replay."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "websiteId",
+      "replayId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "websiteId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the website.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the website."
+        }
+      },
+      {
+        "name": "replayId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the session replay.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the session replay."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "websiteId",
+        "mcp_param": "websiteId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "websiteId"
+        },
+        "required": true,
+        "description": "ID of the website."
+      },
+      {
+        "interface_param": "replayId",
+        "mcp_param": "replayId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "replayId"
+        },
+        "required": true,
+        "description": "ID of the session replay."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "ID of the visitor session."
+        },
+        "events": {
+          "type": "array",
+          "items": {}
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the recording started."
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the recording ended."
+        },
+        "eventCount": {
+          "type": "number",
+          "description": "Number of recorded replay events."
+        },
+        "chunkCount": {
+          "type": "number",
+          "description": "Number of stored recording chunks."
+        }
+      },
+      "required": [
+        "sessionId",
+        "events",
+        "startedAt",
+        "endedAt",
+        "eventCount",
+        "chunkCount"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

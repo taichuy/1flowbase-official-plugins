@@ -1,0 +1,133 @@
+{
+  "tool_id": "plugin.umami.get_admin_users_user_id2fa",
+  "name": "get_admin_users_user_id2fa",
+  "short_description": "Get a user's two-factor status",
+  "full_description": "Returns whether two-factor authentication is enabled for the specified user. Select a saved Umami host_id. Original upstream: GET /api/admin/users/{userId}/2fa.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getAdminUsersUserId2fa"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "userId": {
+        "type": "string",
+        "description": "ID of the associated user."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "userId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "userId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated user.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated user."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "userId",
+        "mcp_param": "userId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "userId"
+        },
+        "required": true,
+        "description": "ID of the associated user."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "isEnabled": {
+          "type": "boolean",
+          "description": "Whether two-factor authentication is enabled."
+        }
+      },
+      "required": [
+        "isEnabled"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,175 @@
+{
+  "tool_id": "plugin.umami.get_two_factor_status",
+  "name": "get_two_factor_status",
+  "short_description": "Get two-factor authentication status",
+  "full_description": "Returns whether two-factor authentication is enabled, configured, or required for the current user, including the reason it is required. Select a saved Umami host_id. Original upstream: GET /api/2fa/status.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getTwoFactorStatus"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {
+        "secret": true
+      },
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "isEnabled": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is enabled."
+            },
+            "isRequired": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is required for this user."
+            },
+            "requiredReason": {
+              "type": "null",
+              "description": "Reason two-factor authentication is required."
+            },
+            "isConfigured": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication has been configured."
+            },
+            "globalRequired": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is required for all users."
+            }
+          },
+          "required": [
+            "isEnabled",
+            "isRequired",
+            "requiredReason",
+            "isConfigured",
+            "globalRequired"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "isEnabled": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is enabled."
+            },
+            "isRequired": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is required for this user."
+            },
+            "requiredReason": {
+              "anyOf": [
+                {
+                  "const": "user"
+                },
+                {
+                  "const": "team"
+                },
+                {
+                  "const": "global"
+                }
+              ],
+              "description": "Reason two-factor authentication is required."
+            },
+            "isConfigured": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication has been configured."
+            },
+            "globalRequired": {
+              "type": "boolean",
+              "description": "Whether two-factor authentication is required for all users."
+            }
+          },
+          "required": [
+            "isEnabled",
+            "isRequired",
+            "requiredReason",
+            "isConfigured",
+            "globalRequired"
+          ]
+        }
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

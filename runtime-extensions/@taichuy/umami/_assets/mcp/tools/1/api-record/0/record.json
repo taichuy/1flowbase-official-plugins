@@ -1,0 +1,484 @@
+{
+  "tool_id": "plugin.umami.record",
+  "name": "record",
+  "short_description": "Send session recordings or heatmap data",
+  "full_description": "Stores session replay events or heatmap clicks and scrolls for a website, using a valid tracking cache token to identify the session and visit. Select a saved Umami host_id. Original upstream: POST /api/record.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.record"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "body": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "record"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "website": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {},
+                    "maxItems": 200
+                  },
+                  "timestamp": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  }
+                },
+                "required": [
+                  "website",
+                  "events"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "heatmap"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "website": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "click"
+                            },
+                            "url": {
+                              "type": "string",
+                              "description": "URL associated with the resource."
+                            },
+                            "x": {
+                              "type": "number"
+                            },
+                            "y": {
+                              "type": "number"
+                            },
+                            "pageX": {
+                              "type": "number",
+                              "description": "Horizontal position on the page in pixels."
+                            },
+                            "pageY": {
+                              "type": "number",
+                              "description": "Vertical position on the page in pixels."
+                            },
+                            "pageW": {
+                              "type": "number",
+                              "description": "Page width in pixels."
+                            },
+                            "pageH": {
+                              "type": "number",
+                              "description": "Page height in pixels."
+                            },
+                            "viewportW": {
+                              "type": "number",
+                              "description": "Viewport width in pixels."
+                            },
+                            "viewportH": {
+                              "type": "number",
+                              "description": "Viewport height in pixels."
+                            },
+                            "timestamp": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "url"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "scroll"
+                            },
+                            "url": {
+                              "type": "string",
+                              "description": "URL associated with the resource."
+                            },
+                            "scrollPct": {
+                              "type": "number"
+                            },
+                            "pageW": {
+                              "type": "number",
+                              "description": "Page width in pixels."
+                            },
+                            "pageH": {
+                              "type": "number",
+                              "description": "Page height in pixels."
+                            },
+                            "viewportW": {
+                              "type": "number",
+                              "description": "Viewport width in pixels."
+                            },
+                            "viewportH": {
+                              "type": "number",
+                              "description": "Viewport height in pixels."
+                            },
+                            "timestamp": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "url"
+                          ]
+                        }
+                      ]
+                    },
+                    "maxItems": 200
+                  },
+                  "timestamp": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  }
+                },
+                "required": [
+                  "website",
+                  "events"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "payload"
+            ]
+          }
+        ]
+      }
+    },
+    "required": [
+      "host_id",
+      "body"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "body",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "record"
+                },
+                "payload": {
+                  "type": "object",
+                  "properties": {
+                    "website": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {},
+                      "maxItems": 200
+                    },
+                    "timestamp": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    }
+                  },
+                  "required": [
+                    "website",
+                    "events"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "payload"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "heatmap"
+                },
+                "payload": {
+                  "type": "object",
+                  "properties": {
+                    "website": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "const": "click"
+                              },
+                              "url": {
+                                "type": "string",
+                                "description": "URL associated with the resource."
+                              },
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              },
+                              "pageX": {
+                                "type": "number",
+                                "description": "Horizontal position on the page in pixels."
+                              },
+                              "pageY": {
+                                "type": "number",
+                                "description": "Vertical position on the page in pixels."
+                              },
+                              "pageW": {
+                                "type": "number",
+                                "description": "Page width in pixels."
+                              },
+                              "pageH": {
+                                "type": "number",
+                                "description": "Page height in pixels."
+                              },
+                              "viewportW": {
+                                "type": "number",
+                                "description": "Viewport width in pixels."
+                              },
+                              "viewportH": {
+                                "type": "number",
+                                "description": "Viewport height in pixels."
+                              },
+                              "timestamp": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "url"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "const": "scroll"
+                              },
+                              "url": {
+                                "type": "string",
+                                "description": "URL associated with the resource."
+                              },
+                              "scrollPct": {
+                                "type": "number"
+                              },
+                              "pageW": {
+                                "type": "number",
+                                "description": "Page width in pixels."
+                              },
+                              "pageH": {
+                                "type": "number",
+                                "description": "Page height in pixels."
+                              },
+                              "viewportW": {
+                                "type": "number",
+                                "description": "Viewport width in pixels."
+                              },
+                              "viewportH": {
+                                "type": "number",
+                                "description": "Viewport height in pixels."
+                              },
+                              "timestamp": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "url"
+                            ]
+                          }
+                        ]
+                      },
+                      "maxItems": 200
+                    },
+                    "timestamp": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    }
+                  },
+                  "required": [
+                    "website",
+                    "events"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "payload"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "body",
+        "mcp_param": "body",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "body"
+        },
+        "required": true,
+        "description": "Original Umami body parameter body."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "description": "Whether the operation succeeded."
+            }
+          },
+          "required": [
+            "ok"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "description": "Whether the operation succeeded."
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "ok",
+            "reason"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "beep": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "beep"
+          ]
+        }
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

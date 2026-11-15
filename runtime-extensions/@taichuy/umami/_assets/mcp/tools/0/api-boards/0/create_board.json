@@ -1,0 +1,440 @@
+{
+  "tool_id": "plugin.umami.create_board",
+  "name": "create_board",
+  "short_description": "Create a board",
+  "full_description": "Creates a board with a name, type, and configuration, optionally assigned to a team. Validates access to its referenced resources and reports. Select a saved Umami host_id. Original upstream: POST /api/boards.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.createBoard"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "type": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": []
+          },
+          {
+            "const": "open"
+          }
+        ]
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 100,
+        "description": "Display name of the resource."
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Description of the resource."
+      },
+      "userId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "ID of the associated user."
+      },
+      "teamId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "ID of the associated team."
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "websiteId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the website."
+          },
+          "pixelId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the tracking pixel."
+          },
+          "linkId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the tracked link."
+          }
+        },
+        "description": "Configuration parameters for the resource."
+      }
+    },
+    "required": [
+      "host_id",
+      "type",
+      "name"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": true,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": []
+            },
+            {
+              "const": "open"
+            }
+          ]
+        }
+      },
+      {
+        "name": "name",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Display name of the resource.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name of the resource."
+        }
+      },
+      {
+        "name": "description",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Description of the resource.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Description of the resource."
+        }
+      },
+      {
+        "name": "userId",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "ID of the associated user.",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ID of the associated user."
+        }
+      },
+      {
+        "name": "teamId",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "ID of the associated team.",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ID of the associated team."
+        }
+      },
+      {
+        "name": "parameters",
+        "field_type": "object",
+        "parameter_type": "json_body",
+        "description": "Configuration parameters for the resource.",
+        "required": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "websiteId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the website."
+            },
+            "pixelId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the tracking pixel."
+            },
+            "linkId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the tracked link."
+            }
+          },
+          "description": "Configuration parameters for the resource."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": true,
+        "description": "Original Umami body parameter type."
+      },
+      {
+        "interface_param": "name",
+        "mcp_param": "name",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "name"
+        },
+        "required": true,
+        "description": "Display name of the resource."
+      },
+      {
+        "interface_param": "description",
+        "mcp_param": "description",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "description"
+        },
+        "required": false,
+        "description": "Description of the resource."
+      },
+      {
+        "interface_param": "userId",
+        "mcp_param": "userId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "userId"
+        },
+        "required": false,
+        "description": "ID of the associated user."
+      },
+      {
+        "interface_param": "teamId",
+        "mcp_param": "teamId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "teamId"
+        },
+        "required": false,
+        "description": "ID of the associated team."
+      },
+      {
+        "interface_param": "parameters",
+        "mcp_param": "parameters",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "parameters"
+        },
+        "required": false,
+        "description": "Configuration parameters for the resource."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the resource."
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the resource."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        },
+        "type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the resource."
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "const": false
+            },
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": false
+                  },
+                  {
+                    "const": true
+                  },
+                  {},
+                  {
+                    "type": "object",
+                    "properties": {
+                      "length": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "length"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "length"
+              ]
+            }
+          ],
+          "description": "Configuration parameters for the resource."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "name",
+        "teamId",
+        "type",
+        "description",
+        "parameters"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

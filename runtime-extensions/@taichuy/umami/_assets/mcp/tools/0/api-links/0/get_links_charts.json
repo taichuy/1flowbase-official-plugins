@@ -1,0 +1,227 @@
+{
+  "tool_id": "plugin.umami.get_links_charts",
+  "name": "get_links_charts",
+  "short_description": "Get visitor charts for links",
+  "full_description": "Returns visitor totals and chart data for the requested links the caller can view, within the selected date range. Select a saved Umami host_id. Original upstream: GET /api/links/charts.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getLinksCharts"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      "ids": {
+        "type": "string",
+        "description": "Comma-separated resource IDs. Provide between 1 and 20 IDs."
+      },
+      "startAt": {
+        "type": "integer",
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      "endAt": {
+        "type": "integer",
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      "timezone": {
+        "type": "string",
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+      }
+    },
+    "required": [
+      "host_id",
+      "ids"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      },
+      {
+        "name": "ids",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Comma-separated resource IDs. Provide between 1 and 20 IDs.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "Comma-separated resource IDs. Provide between 1 and 20 IDs."
+        }
+      },
+      {
+        "name": "startAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Start of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "Start of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "endAt",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "End of the date range as a Unix timestamp in milliseconds.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "description": "End of the date range as a Unix timestamp in milliseconds."
+        }
+      },
+      {
+        "name": "timezone",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      },
+      {
+        "interface_param": "ids",
+        "mcp_param": "ids",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "ids"
+        },
+        "required": true,
+        "description": "Comma-separated resource IDs. Provide between 1 and 20 IDs."
+      },
+      {
+        "interface_param": "startAt",
+        "mcp_param": "startAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "startAt"
+        },
+        "required": false,
+        "description": "Start of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "endAt",
+        "mcp_param": "endAt",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "endAt"
+        },
+        "required": false,
+        "description": "End of the date range as a Unix timestamp in milliseconds."
+      },
+      {
+        "interface_param": "timezone",
+        "mcp_param": "timezone",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "timezone"
+        },
+        "required": false,
+        "description": "IANA time zone used to interpret dates and group results, for example America/New_York."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "total": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "values",
+              "total"
+            ]
+          },
+          "description": "Data returned by the operation."
+        }
+      },
+      "required": [
+        "data"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

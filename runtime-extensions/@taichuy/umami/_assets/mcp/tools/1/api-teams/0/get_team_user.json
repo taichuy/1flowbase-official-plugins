@@ -1,0 +1,186 @@
+{
+  "tool_id": "plugin.umami.get_team_user",
+  "name": "get_team_user",
+  "short_description": "Get a team member",
+  "full_description": "Returns the specified user's membership details for a team. Select a saved Umami host_id. Original upstream: GET /api/teams/{teamId}/users/{userId}.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "umami.api.getTeamUser"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "teamId": {
+        "type": "string",
+        "description": "ID of the associated team."
+      },
+      "userId": {
+        "type": "string",
+        "description": "ID of the associated user."
+      },
+      "host_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    },
+    "required": [
+      "teamId",
+      "userId",
+      "host_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "teamId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated team.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated team."
+        }
+      },
+      {
+        "name": "userId",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "ID of the associated user.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "ID of the associated user."
+        }
+      },
+      {
+        "name": "host_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Saved Umami connection ID. Obtain it from hosts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Saved Umami connection ID. Obtain it from hosts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "teamId",
+        "mcp_param": "teamId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "teamId"
+        },
+        "required": true,
+        "description": "ID of the associated team."
+      },
+      {
+        "interface_param": "userId",
+        "mcp_param": "userId",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "userId"
+        },
+        "required": true,
+        "description": "ID of the associated user."
+      },
+      {
+        "interface_param": "host_id",
+        "mcp_param": "host_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "host_id"
+        },
+        "required": true,
+        "description": "Saved Umami connection ID. Obtain it from hosts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "data": {},
+      "content_type": {
+        "type": "string"
+      },
+      "encoding": {
+        "const": "base64"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "success"
+    ],
+    "additionalProperties": false,
+    "x-umami-success-schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the resource."
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the associated user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date and time the record was last updated."
+        },
+        "role": {
+          "type": "string",
+          "description": "Permission role assigned to the user."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "ID of the associated team."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "updatedAt",
+        "role",
+        "teamId"
+      ]
+    }
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}
