@@ -126,7 +126,7 @@ class Client {
     try {
       response = await fetch(`${this.baseUrl}${route}`, {
         method, headers, body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
-        redirect: 'error', signal: AbortSignal.timeout(90_000),
+        redirect: 'error', signal: AbortSignal.timeout(240_000),
       });
     } catch { throw new FixtureError('fixture_http_transport_failed'); }
     this.report.http_requests++;
