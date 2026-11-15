@@ -15,6 +15,13 @@ const toolFiles = bundle.files.filter(file => file.kind === 'tool');
 const tools = toolFiles.map(file => json(`_assets/mcp/${file.path}`));
 const key = operation => `${operation.method.toUpperCase()} ${operation.path}`;
 
+test('runtime MCP assets avoid source-only directories pruned by package installation', () => {
+  for (const file of bundle.files) {
+    const directories = file.path.split('/').slice(0, -1);
+    assert.ok(!directories.some(name => name === 'scripts' || name === 'demo'), `Runtime asset would be omitted by the Host installer: ${file.path}`);
+  }
+});
+
 test('all canonical and legacy routes have registered operations, execution bindings and MCP tools', () => {
   assert.equal(source.provenance.canonical_operations, 186);
   assert.equal(source.provenance.compatibility_operations, 16);

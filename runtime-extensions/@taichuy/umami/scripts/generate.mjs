@@ -137,7 +137,9 @@ export function generate(root = pluginRoot, { check = false } = {}) {
     };
     // Bucket by group and tens, keeping each generated directory below 15 files.
     const withinGroup = registrations.slice(0, index).filter(item => item.group === op.group).length;
-    const file = `tools/${Math.floor(groups.indexOf(op.group) / 10)}/${op.group}/${Math.floor(withinGroup / 10)}/${name}.json`;
+    // Logical API groups can be named scripts/demo; physical runtime assets
+    // must not use those source-only directory names filtered by the Host.
+    const file = `tools/${Math.floor(groups.indexOf(op.group) / 10)}/api-${op.group}/${Math.floor(withinGroup / 10)}/${name}.json`;
     write(`_assets/mcp/${file}`, tool);
     bindings.push({ group_path: `/${op.group}`, tool_id: tool.tool_id, display_alias: null, visible: true, sort_order: withinGroup });
   });
