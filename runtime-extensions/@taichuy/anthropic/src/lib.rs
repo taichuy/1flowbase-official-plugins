@@ -17,6 +17,11 @@ use serde_json::{json, Map, Value};
 
 mod protocol_context;
 mod recovery;
+mod stream_blocks;
+use stream_blocks::{process_anthropic_sse_data, AnthropicStreamParseState, ToolUseBuilder};
+#[cfg(test)]
+#[path = "_tests/stream_blocks.rs"]
+mod stream_blocks_tests;
 #[cfg(test)]
 #[path = "_tests/sse_codec.rs"]
 mod sse_codec;
@@ -560,6 +565,11 @@ pub enum ProviderStreamEvent {
     ReasoningSignatureDelta {
         signature: String,
     },
+    OutputItem {
+        phase: ProviderOutputItemPhase,
+        output_index: usize,
+        item: Value,
+    },
     ToolCallDelta {
         call_id: String,
         delta: Value,
@@ -576,6 +586,13 @@ pub enum ProviderStreamEvent {
     Error {
         error: ProviderRuntimeError,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderOutputItemPhase {
+    Added,
+    Done,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -2048,6 +2065,7 @@ where
     let mut events = Vec::new();
     let mut all_events = Vec::new();
     let mut tool_builders = BTreeMap::new();
+    let mut blocks = BTreeMap::new();
     let mut usage = ProviderUsage::default();
     let mut finish_reason = ProviderFinishReason::Unknown;
     let mut message_id = Value::Null;
@@ -2080,6 +2098,7 @@ where
             AnthropicStreamParseState {
                 text: &mut text,
                 tool_builders: &mut tool_builders,
+                blocks: &mut blocks,
                 usage: &mut usage,
                 finish_reason: &mut finish_reason,
                 message_id: &mut message_id,
@@ -2139,151 +2158,6 @@ where
     })
 }
 
-#[derive(Default)]
-struct ToolUseBuilder {
-    id: String,
-    name: String,
-    input_json: String,
-}
-
-impl ToolUseBuilder {
-    fn into_tool_call(self) -> Result<ProviderToolCall> {
-        let arguments = if self.input_json.trim().is_empty() {
-            json!({})
-        } else {
-            serde_json::from_str(&self.input_json)
-                .context("Anthropic tool input JSON was incomplete")?
-        };
-        Ok(ProviderToolCall {
-            id: self.id,
-            name: self.name,
-            arguments,
-        })
-    }
-}
-
-struct AnthropicStreamParseState<'a> {
-    text: &'a mut String,
-    tool_builders: &'a mut BTreeMap<usize, ToolUseBuilder>,
-    usage: &'a mut ProviderUsage,
-    finish_reason: &'a mut ProviderFinishReason,
-    message_id: &'a mut Value,
-    saw_message_stop: &'a mut bool,
-}
-
-fn process_anthropic_sse_data(
-    data: &str,
-    events: &mut Vec<ProviderStreamEvent>,
-    state: AnthropicStreamParseState<'_>,
-) -> Result<()> {
-    let AnthropicStreamParseState {
-        text,
-        tool_builders,
-        usage,
-        finish_reason,
-        message_id,
-        saw_message_stop,
-    } = state;
-    if data.is_empty() || data == "[DONE]" {
-        return Ok(());
-    }
-    let payload: Value = serde_json::from_str(data)?;
-    match payload
-        .get("type")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-    {
-        "message_start" => {
-            if let Some(message) = payload.get("message") {
-                if let Some(id) = message.get("id") {
-                    *message_id = id.clone();
-                }
-                *usage = normalize_usage(message.get("usage").unwrap_or(&Value::Null));
-            }
-        }
-        "content_block_start" => {
-            let index = payload.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
-            if let Some(block) = payload.get("content_block") {
-                if block.get("type").and_then(Value::as_str) == Some("tool_use") {
-                    tool_builders.insert(
-                        index,
-                        ToolUseBuilder {
-                            id: block.get("id").map(value_to_string).unwrap_or_default(),
-                            name: block.get("name").map(value_to_string).unwrap_or_default(),
-                            input_json: block
-                                .get("input")
-                                .filter(|value| !is_empty_tool_input(value))
-                                .map(Value::to_string)
-                                .unwrap_or_default(),
-                        },
-                    );
-                }
-            }
-        }
-        "content_block_delta" => {
-            let index = payload.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
-            let delta = payload.get("delta").unwrap_or(&Value::Null);
-            match delta
-                .get("type")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-            {
-                "text_delta" => {
-                    if let Some(value) = delta.get("text").and_then(Value::as_str) {
-                        text.push_str(value);
-                        events.push(ProviderStreamEvent::TextDelta {
-                            delta: value.to_string(),
-                        });
-                    }
-                }
-                "input_json_delta" => {
-                    if let Some(value) = delta.get("partial_json").and_then(Value::as_str) {
-                        if let Some(builder) = tool_builders.get_mut(&index) {
-                            builder.input_json.push_str(value);
-                            events.push(ProviderStreamEvent::ToolCallDelta {
-                                call_id: builder.id.clone(),
-                                delta: Value::String(value.to_string()),
-                            });
-                        }
-                    }
-                }
-                "thinking_delta" => {
-                    if let Some(value) = delta.get("thinking").and_then(Value::as_str) {
-                        events.push(ProviderStreamEvent::ReasoningDelta {
-                            delta: value.to_string(),
-                        });
-                    }
-                }
-                "signature_delta" => {
-                    if let Some(value) = delta.get("signature").and_then(Value::as_str) {
-                        events.push(ProviderStreamEvent::ReasoningSignatureDelta {
-                            signature: value.to_string(),
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-        "message_delta" => {
-            if let Some(delta) = payload.get("delta") {
-                if let Some(reason) = delta.get("stop_reason").and_then(Value::as_str) {
-                    *finish_reason = normalize_stop_reason(reason);
-                }
-            }
-            if let Some(snapshot) = payload.get("usage") {
-                merge_usage(usage, normalize_usage(snapshot));
-            }
-        }
-        "message_stop" => *saw_message_stop = true,
-        "error" => {
-            return Err(
-                upstream_error::from_parts(None, &HeaderMap::new(), data.to_string()).into(),
-            );
-        }
-        _ => {}
-    }
-    Ok(())
-}
 
 fn normalize_usage(raw: &Value) -> ProviderUsage {
     let input = raw.get("input_tokens").and_then(Value::as_u64);
@@ -3925,6 +3799,7 @@ mod tests {
         let mut events = Vec::new();
         let mut text = String::new();
         let mut builders = BTreeMap::new();
+        let mut blocks = BTreeMap::new();
         let mut usage = ProviderUsage::default();
         let mut finish_reason = ProviderFinishReason::Unknown;
         let mut message_id = Value::Null;
@@ -3942,6 +3817,7 @@ mod tests {
                 AnthropicStreamParseState {
                     text: &mut text,
                     tool_builders: &mut builders,
+                    blocks: &mut blocks,
                     usage: &mut usage,
                     finish_reason: &mut finish_reason,
                     message_id: &mut message_id,
