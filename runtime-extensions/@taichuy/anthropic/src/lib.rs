@@ -25,6 +25,9 @@ mod stream_blocks_tests;
 #[cfg(test)]
 #[path = "_tests/sse_codec.rs"]
 mod sse_codec;
+#[cfg(test)]
+#[path = "_tests/stream_completion.rs"]
+mod stream_completion_tests;
 mod upstream_error;
 
 use protocol_context::{
@@ -2116,6 +2119,12 @@ where
         recovery.observe_data(&event.data)?;
         emit_new_events(&events, on_event)?;
         all_events.append(&mut events);
+        // The protocol terminal completes the message. Some upstream proxies
+        // keep the HTTP body open after it; waiting for EOF delays the host's
+        // durable callback commit even though all output has already arrived.
+        if saw_message_stop {
+            break;
+        }
     }
     if !saw_message_stop {
         return Err(recovery.disconnected(anyhow!("Anthropic stream closed before message_stop")));
