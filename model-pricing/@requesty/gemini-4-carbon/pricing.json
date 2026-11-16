@@ -1,7 +1,7 @@
 {
   "schema_version": "1flowbase.model-pricing-source/v2",
   "provider_code": "requesty",
-  "upstream_model_id": "claude-sonnet-4@eu",
+  "upstream_model_id": "gemini-4-carbon",
   "currency_code": "USD",
   "effective_to": null,
   "timezone": "UTC",
@@ -11,81 +11,51 @@
   "priority": 0,
   "enabled": true,
   "input_token_unit_size": 1000000,
-  "input_token_unit_price": "3",
+  "input_token_unit_price": "2",
   "output_token_unit_size": 1000000,
-  "output_token_unit_price": "15",
+  "output_token_unit_price": "10",
   "cache_hit_token_unit_size": 1000000,
-  "cache_hit_token_unit_price": "0.3",
+  "cache_hit_token_unit_price": "0.1",
   "cache_write_token_unit_size": 1000000,
-  "cache_write_token_unit_price": "3.75",
-  "id": "06db7944-fa97-4bb8-9209-2481ecf0953d",
-  "effective_from": "2026-10-31T02:01:38.612Z",
-  "rules": [
-    {
-      "when": {
-        "input_tokens": {
-          "operator": "gt",
-          "value": 200000
-        }
-      },
-      "overrides": {
-        "input_token_unit_price": "6",
-        "output_token_unit_price": "22.5",
-        "cache_hit_token_unit_price": "0.6",
-        "cache_write_token_unit_price": "7.5"
-      }
-    }
-  ],
+  "cache_write_token_unit_price": "2",
+  "id": "2e0c0e72-a3a2-4ab3-9fb6-c9fd1f8b3403",
+  "effective_from": "2026-11-16T22:16:55.203Z",
+  "rules": [],
   "extensions": {
     "source": "community_pricing",
     "price_sync": {
-      "synced_at": "2026-10-31T02:01:38.612Z",
+      "synced_at": "2026-11-16T22:16:55.203Z",
       "meters": {
         "input": {
           "source": "models.dev",
           "provider": "requesty",
-          "model": "claude-sonnet-4@eu",
+          "model": "gemini-4-carbon",
           "field": "cost.input",
           "url": "https://models.dev/api.json"
         },
         "output": {
           "source": "models.dev",
           "provider": "requesty",
-          "model": "claude-sonnet-4@eu",
+          "model": "gemini-4-carbon",
           "field": "cost.output",
           "url": "https://models.dev/api.json"
         },
         "cache_hit": {
           "source": "models.dev",
           "provider": "requesty",
-          "model": "claude-sonnet-4@eu",
+          "model": "gemini-4-carbon",
           "field": "cost.cache_read",
           "url": "https://models.dev/api.json"
         },
         "cache_write": {
           "source": "models.dev",
           "provider": "requesty",
-          "model": "claude-sonnet-4@eu",
+          "model": "gemini-4-carbon",
           "field": "cost.cache_write",
           "url": "https://models.dev/api.json"
         }
       },
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 200000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "6",
-            "output_token_unit_price": "22.5",
-            "cache_hit_token_unit_price": "0.6",
-            "cache_write_token_unit_price": "7.5"
-          }
-        }
-      ]
+      "rules": []
     }
   }
 }
