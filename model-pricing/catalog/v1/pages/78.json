@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-17.2",
+  "catalog_version": "2026-11-17.3",
   "currency_code": "USD",
   "page": 78,
-  "cursor": "YWZ0ZXI6MjUwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAy",
-  "next_cursor": "YWZ0ZXI6MTlkODc3ZTgtODZjMi00ZTZkLTk4YjItYTY1ZjBmY2VlMDE0",
+  "cursor": "YWZ0ZXI6YjJkZGU1ZTgtZGRmZi00NWMwLTkwNzAtMzZmNTg0YTU2M2Nm",
+  "next_cursor": "YWZ0ZXI6NGZkMzEzMTUtODZhNi00NGE4LTlhYTAtODVjMWVjNmJhZWVl",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/79.json",
   "rules": [
     {
-      "provider_code": "kimi",
-      "upstream_model_id": "kimi-k3",
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.1-terra",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -18,81 +18,446 @@
       "local_time_end": null,
       "priority": 0,
       "enabled": true,
-      "id": "145eecae-e65d-4c2c-a360-a04d0fce5f0b",
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
+      "output_token_unit_price": "7.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "216b7157-e48a-44ac-a634-e01f2bb08dc8",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
       "extensions": {
-        "price_type": "standard_api",
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-17T22:58:02.891Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "cache_write_ttl_seconds": 3600
-              },
-              "overrides": {
-                "cache_write_token_unit_price": "6"
-              }
-            }
-          ]
+          "rules": []
         }
       },
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3",
-      "rules": [
-        {
-          "when": {
-            "cache_write_ttl_seconds": 3600
-          },
-          "overrides": {
-            "cache_write_token_unit_price": "6"
-          }
-        }
-      ],
       "source_kind": "official",
-      "source_catalog_id": "145eecae-e65d-4c2c-a360-a04d0fce5f0b",
-      "source_checksum": "sha256:03e85266cee3668acfdc9687698585524f211b69d6f4b82a8122dccf5858fbc6",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "216b7157-e48a-44ac-a634-e01f2bb08dc8",
+      "source_checksum": "sha256:1a2bf25be593bdc515592159833c53cb5a6982a099437f5a1a466c2c6ccb630e",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi",
-      "upstream_model_id": "kimi-k3.1-pro",
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.1-terra-fast",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.05",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "b3665912-3e3a-4e0b-9346-5fd0218817c5",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-fast",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-fast",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-fast",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-fast",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b3665912-3e3a-4e0b-9346-5fd0218817c5",
+      "source_checksum": "sha256:30e4e355d3a1f73d6f362db043038e5d0e403e1bbd4c75ac23a7bfb0841f77ed",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.1-terra-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "7.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "4882649b-bc21-4f08-92f7-c042955163fd",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.1-terra-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "4882649b-bc21-4f08-92f7-c042955163fd",
+      "source_checksum": "sha256:a56da40b5f1c7a1c5230872f914b48242151692b557abce86ed0953a87861e75",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.2-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "16",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "60",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.8",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "20",
+      "id": "679d224f-cbb9-4216-96ed-df7a0774a04f",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "679d224f-cbb9-4216-96ed-df7a0774a04f",
+      "source_checksum": "sha256:928f4a6e1fe342a470d9d665eec3563d0fc32939d4e48b16258bcab94deeb557",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.2-astra-fast",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "8",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "40",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "10",
+      "id": "87efef33-73b7-43fa-baf2-5f3a2cce4b72",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-fast",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-fast",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-fast",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-fast",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "87efef33-73b7-43fa-baf2-5f3a2cce4b72",
+      "source_checksum": "sha256:3f4dd595e3afc8bdec396163646279039656c1aef3bf8be47d5bc156e92647b4",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.2-astra-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "16",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "60",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.8",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "20",
+      "id": "4208c9f4-aac9-49b6-aac4-5d9dd4cb8b86",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-astra-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "4208c9f4-aac9-49b6-aac4-5d9dd4cb8b86",
+      "source_checksum": "sha256:8f8923125e04f21dc5fb177c4cfd22074eb339e3621c8003944111088c306845",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.2-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "7d5718d6-709e-4c9f-87dd-ad9c09904220",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7d5718d6-709e-4c9f-87dd-ad9c09904220",
+      "source_checksum": "sha256:6ff3d625c270c6dce837de98c6fed0fc3c7b5fa1e7b7c5e35bd77f576d89b956",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.2-sol-fast",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -106,75 +471,377 @@
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2",
-      "id": "a6e29754-7706-400c-bee7-17b0ceada90e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "cache_write_ttl_seconds": 3600
-          },
-          "overrides": {
-            "cache_write_token_unit_price": "4"
-          }
-        }
-      ],
+      "cache_write_token_unit_price": "2.5",
+      "id": "8c8b6aba-871a-4417-bfeb-8cd0afc1ea62",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-17T22:58:02.891Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-fast",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-fast",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-fast",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-fast",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "cache_write_ttl_seconds": 3600
-              },
-              "overrides": {
-                "cache_write_token_unit_price": "4"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "a6e29754-7706-400c-bee7-17b0ceada90e",
-      "source_checksum": "sha256:5deb26d28d094184a5004fd8ddd8d5bf2ff5b08d578a825b16232f76ab617e0b",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "8c8b6aba-871a-4417-bfeb-8cd0afc1ea62",
+      "source_checksum": "sha256:71026b4ac91664f5da1376126622ab4dbe331a77480d12b70bf037154664e769",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi",
-      "upstream_model_id": "kimi-k3.1-pro-highspeed",
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/gpt-6.2-sol-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "526c7c9c-516a-4121-b1d1-a6cf0a2dbadd",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/gpt-6.2-sol-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "526c7c9c-516a-4121-b1d1-a6cf0a2dbadd",
+      "source_checksum": "sha256:94f5b461cee09c3198de560a2a84ac370d9eb2848fda6fa860a5a80c05cdc41e",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/o1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "15",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "60",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "7.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "bd52ab3e-e4a0-4796-81ed-72eeec44beb3",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "bd52ab3e-e4a0-4796-81ed-72eeec44beb3",
+      "source_checksum": "sha256:f6f5cecbcaf65b89110f887516399fa308c1125817f8b1dbda52778537febc11",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/o3-fast",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "8",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "007e49aa-071f-44f5-bfa6-3f159c3fddc9",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-fast",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-fast",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-fast",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-fast",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "007e49aa-071f-44f5-bfa6-3f159c3fddc9",
+      "source_checksum": "sha256:ec316320dc01cb34194a0c4e5bcf3319de221da7ed3558d50428f9f3908f0e62",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/o3-mini",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.4",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.55",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "2ac69946-cfe1-4a9f-83f4-646bd52eab06",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-mini",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-mini",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-mini",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o3-mini",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "2ac69946-cfe1-4a9f-83f4-646bd52eab06",
+      "source_checksum": "sha256:a2d3c9d32ad513b029f7aab5d403209f16ef4bb5a08ee54987f51c7eb3c00910",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "openai/o4-mini",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.4",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.275",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "e601556d-ea13-441c-b9d7-9083faefdbe8",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o4-mini",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o4-mini",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o4-mini",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "kilo",
+              "model": "openai/o4-mini",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e601556d-ea13-441c-b9d7-9083faefdbe8",
+      "source_checksum": "sha256:069526fdcd62e06b29063ba8556baff112e7f24080c4f884521a462865467181",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "kilo",
+      "upstream_model_id": "quiverai/arrow-2",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -188,75 +855,57 @@
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "20",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
+      "cache_hit_token_unit_price": "0.4",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4",
-      "id": "ba2e9f7b-bd25-4091-9d8a-22b597dee139",
-      "effective_from": "2026-11-07T21:58:09.420Z",
-      "rules": [
-        {
-          "when": {
-            "cache_write_ttl_seconds": 3600
-          },
-          "overrides": {
-            "cache_write_token_unit_price": "8"
-          }
-        }
-      ],
+      "cache_write_token_unit_price": "5",
+      "id": "ae8acb5d-9f15-4c8d-a652-9b920961cb2f",
+      "effective_from": "2026-11-12T20:54:40.423Z",
+      "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-07T21:58:09.420Z",
+          "synced_at": "2026-11-12T20:54:40.423Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "moonshotai",
-              "model": "kimi-k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "cache_write_ttl_seconds": 3600
-              },
-              "overrides": {
-                "cache_write_token_unit_price": "8"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ba2e9f7b-bd25-4091-9d8a-22b597dee139",
-      "source_checksum": "sha256:4f838c3fff6a472670abdc920ad5a848ad670ecd8db1a8cf71fe48ee641d37ea",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "ae8acb5d-9f15-4c8d-a652-9b920961cb2f",
+      "source_checksum": "sha256:f5ec63a9ef9e6bc8a3d987586cf4bd590d5280ea27f86920dfdedc7a58ca637f",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi-code-plan-cn",
-      "upstream_model_id": "k3",
+      "provider_code": "kilo",
+      "upstream_model_id": "quiverai/arrow-2-telos",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -266,46 +915,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "6",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "30",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.6",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "07577e93-b9d6-44bf-af60-0753e0d4de73",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "7.5",
+      "id": "e0434ddf-0ac3-49c1-8ead-fdb5c34f8ab4",
+      "effective_from": "2026-11-12T20:54:40.423Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-12T20:54:40.423Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2-telos",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2-telos",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2-telos",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3",
+              "provider": "kilo",
+              "model": "quiverai/arrow-2-telos",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -314,13 +963,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "07577e93-b9d6-44bf-af60-0753e0d4de73",
-      "source_checksum": "sha256:a2705f06f6c42829d462107b5f25a01c4fe3695167f7136fa5923241f961719e",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "e0434ddf-0ac3-49c1-8ead-fdb5c34f8ab4",
+      "source_checksum": "sha256:3b7d5ba74f698b9a214c18fdae7754d4d054d629fa8ba991a9f4f625e21e652e",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi-code-plan-cn",
-      "upstream_model_id": "k3-256k",
+      "provider_code": "kilo",
+      "upstream_model_id": "qwen/qwen-plus",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -330,46 +979,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "0.78",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "2.34",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.156",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "05f6f0a6-4c92-4f85-a217-bc22f66d1947",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "0.975",
+      "id": "f89df682-4de9-4386-9b7e-8db80f734582",
+      "effective_from": "2026-11-17T22:58:02.891Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-17T22:58:02.891Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3-256k",
+              "provider": "kilo",
+              "model": "qwen/qwen-plus",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3-256k",
+              "provider": "kilo",
+              "model": "qwen/qwen-plus",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3-256k",
+              "provider": "kilo",
+              "model": "qwen/qwen-plus",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3-256k",
+              "provider": "kilo",
+              "model": "qwen/qwen-plus",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -378,13 +1027,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "05f6f0a6-4c92-4f85-a217-bc22f66d1947",
-      "source_checksum": "sha256:90e64c2854215cdcc101ec0a0de99798abebbcb991d29df4bd951709c309edfd",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "f89df682-4de9-4386-9b7e-8db80f734582",
+      "source_checksum": "sha256:f9cc3723c79fec97da3f8894ea9ed5fc5a4da7e4db1cb29a903413c4de0c43b6",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi-code-plan-cn",
-      "upstream_model_id": "k3.1-pro",
+      "provider_code": "kilo",
+      "upstream_model_id": "qwen/qwen3-coder-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -394,46 +1043,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "0.52",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "2.6",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.104",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "64c95cf4-8f52-4d80-9c47-e6ad20b6b9cd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "0.65",
+      "id": "06bfe2ed-8739-4e97-8533-df7e7d7f6863",
+      "effective_from": "2026-11-17T22:58:02.891Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-17T22:58:02.891Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro",
+              "provider": "kilo",
+              "model": "qwen/qwen3-coder-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro",
+              "provider": "kilo",
+              "model": "qwen/qwen3-coder-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro",
+              "provider": "kilo",
+              "model": "qwen/qwen3-coder-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro",
+              "provider": "kilo",
+              "model": "qwen/qwen3-coder-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -442,13 +1091,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "64c95cf4-8f52-4d80-9c47-e6ad20b6b9cd",
-      "source_checksum": "sha256:4f06f80a3a28c8973a51baa4921d10b438f53a87d89939a9bcfbea62087b3b25",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "06bfe2ed-8739-4e97-8533-df7e7d7f6863",
+      "source_checksum": "sha256:a80513de857fdc5d7d37c10d5845d469e345bde4b1f973ba6a622a85b6a9870d",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi-code-plan-cn",
-      "upstream_model_id": "k3.1-pro-highspeed",
+      "provider_code": "kilo",
+      "upstream_model_id": "qwen/qwen3.5-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -458,46 +1107,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "0.1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "0.4",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "b1f59cdf-adb7-4811-a34e-578b432d789f",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "0.125",
+      "id": "62291e98-6190-4196-8ff4-0b58c9c6ce4f",
+      "effective_from": "2026-11-12T20:54:40.423Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-12T20:54:40.423Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "k3.1-pro-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -506,13 +1155,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "b1f59cdf-adb7-4811-a34e-578b432d789f",
-      "source_checksum": "sha256:82bac80f04b0526dab331e50ebc1079fad1978fe92ddcfcdcb4608b7c951e02b",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "62291e98-6190-4196-8ff4-0b58c9c6ce4f",
+      "source_checksum": "sha256:b1a6791cb40e90236b99856f84934fd7d9a91ca83c4c24648121f9eff0da8d9d",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi-code-plan-cn",
-      "upstream_model_id": "kimi-for-coding",
+      "provider_code": "kilo",
+      "upstream_model_id": "qwen/qwen3.5-plus",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -522,46 +1171,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "0.4",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "2.4",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.04",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "f99f97e0-c7d4-46fa-a987-5de63316abf6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "0.5",
+      "id": "b494a42b-0e7e-486b-a76b-b79fbc0d7970",
+      "effective_from": "2026-11-12T20:54:40.423Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-12T20:54:40.423Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-plus",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-plus",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-plus",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding",
+              "provider": "kilo",
+              "model": "qwen/qwen3.5-plus",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -570,13 +1219,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "f99f97e0-c7d4-46fa-a987-5de63316abf6",
-      "source_checksum": "sha256:db0a24ec816e40256c35e681c5218c20b8853588d63610b095b80cda603d4f05",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "b494a42b-0e7e-486b-a76b-b79fbc0d7970",
+      "source_checksum": "sha256:995867c63d8870ae95925b7f0e6bccc5409d7743229b68fb11ba472e3dd18b46",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kimi-code-plan-cn",
-      "upstream_model_id": "kimi-for-coding-highspeed",
+      "provider_code": "kilo",
+      "upstream_model_id": "qwen/qwen3.6-plus",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -586,46 +1235,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "1.3",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "3.9",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.05",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "564c6be5-a3e4-474f-ab47-32b6cac16c8a",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "1.625",
+      "id": "4fd31315-86a6-44a8-9aa0-85c1ec6baeee",
+      "effective_from": "2026-11-17T22:58:02.891Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-17T22:58:02.891Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kimi-code-plan-cn",
-              "model": "kimi-for-coding-highspeed",
+              "provider": "kilo",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -634,713 +1283,9 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "564c6be5-a3e4-474f-ab47-32b6cac16c8a",
-      "source_checksum": "sha256:92448bef9fda8cc1223f907b4a1241e4bd3c0eac0b5365e17b1487cdc5180ebb",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kimi-code-plan-global",
-      "upstream_model_id": "k3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "f3bdfdbc-a22b-4b3e-9258-5bd9645eeab5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "f3bdfdbc-a22b-4b3e-9258-5bd9645eeab5",
-      "source_checksum": "sha256:74b734772d994f2924ae91eb4d8184154eab81feb45a820aab356fdd06b44878",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kimi-code-plan-global",
-      "upstream_model_id": "k3-256k",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "28a197a5-bbae-4fce-82de-3ff3b0adca9e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3-256k",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3-256k",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3-256k",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3-256k",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "28a197a5-bbae-4fce-82de-3ff3b0adca9e",
-      "source_checksum": "sha256:3365e972eac4101fb55d24a78e5eea6364c44c58ae63243601de58712bae466f",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kimi-code-plan-global",
-      "upstream_model_id": "k3.1-pro",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "33c7cba5-9220-4e59-9dcb-8922928d0cc3",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "33c7cba5-9220-4e59-9dcb-8922928d0cc3",
-      "source_checksum": "sha256:16b27f88cace1e72540cd3249a197c577959a07942b62b200f0ea5305d333088",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kimi-code-plan-global",
-      "upstream_model_id": "k3.1-pro-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "eac10012-3e60-40c4-abcf-7b5e5d380421",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "k3.1-pro-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "eac10012-3e60-40c4-abcf-7b5e5d380421",
-      "source_checksum": "sha256:a3bb36ab66933d87396c6153c5279cb911ef279f75a55027961f404183090def",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kimi-code-plan-global",
-      "upstream_model_id": "kimi-for-coding",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "90ae21f8-bdf8-48b4-84e0-f492b8bf2243",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "90ae21f8-bdf8-48b4-84e0-f492b8bf2243",
-      "source_checksum": "sha256:d2a155ebf87f5e155c709f723a1b675a14f0f5eb4aedfa4d2611b98d29e4ed2b",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kimi-code-plan-global",
-      "upstream_model_id": "kimi-for-coding-highspeed",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "fc80f8f5-a4e5-4587-b369-0ef28419ca0b",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding-highspeed",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding-highspeed",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding-highspeed",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kimi-code-plan-global",
-              "model": "kimi-for-coding-highspeed",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "fc80f8f5-a4e5-4587-b369-0ef28419ca0b",
-      "source_checksum": "sha256:df8c6c7d46332b4b9c1fbe20678e137f6450dab89cb3f1a1a40599cfc6939c15",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "korouter",
-      "upstream_model_id": "claude-fable-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "6.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "32.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.65",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "8.13",
-      "id": "b5dec942-bb08-4252-9434-c2a6f0ad6531",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "b5dec942-bb08-4252-9434-c2a6f0ad6531",
-      "source_checksum": "sha256:696e4a78094c55dc41576d942d4ac3da8901929584e4a8fb26eb733d311a812a",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "korouter",
-      "upstream_model_id": "claude-fable-5.1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "6.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "32.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1625",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "8.13",
-      "id": "0a6003ae-5ef8-498d-97af-7d94bcfd2031",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5.1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5.1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5.1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-fable-5.1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0a6003ae-5ef8-498d-97af-7d94bcfd2031",
-      "source_checksum": "sha256:25be7cd0d10ec275799d281897f96dfa3e829d285441d67d861e54d014a2c3f7",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "korouter",
-      "upstream_model_id": "claude-haiku-4-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.65",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.065",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.8125",
-      "id": "04bdf3c6-95fc-4405-b880-3dca41404fc0",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-haiku-4-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-haiku-4-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-haiku-4-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-haiku-4-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "04bdf3c6-95fc-4405-b880-3dca41404fc0",
-      "source_checksum": "sha256:77fdf4801fe527b83600592cdc84c5d912d51bf0b6c14d0efeb21dcb36beefb7",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "korouter",
-      "upstream_model_id": "claude-opus-4-6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3.25",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "16.25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.325",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4.06",
-      "id": "594d33f8-9fe3-4f2b-a087-493aed680869",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "594d33f8-9fe3-4f2b-a087-493aed680869",
-      "source_checksum": "sha256:b2007ff1b0a2574b778a55fdb088bdc216580b1ff545e223bc034078bfce8ac6",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "korouter",
-      "upstream_model_id": "claude-opus-4-7",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3.25",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "16.25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.325",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4.06",
-      "id": "19d877e8-86c2-4e6d-98b2-a65f0fcee014",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-7",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-7",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-7",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "korouter",
-              "model": "claude-opus-4-7",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "19d877e8-86c2-4e6d-98b2-a65f0fcee014",
-      "source_checksum": "sha256:b6cc2ff967d8305d7a5289084e351976a17a842481c520993ef6d8ab2ed4cf73",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "4fd31315-86a6-44a8-9aa0-85c1ec6baeee",
+      "source_checksum": "sha256:11cb355a21c6be5f9611b99eb92e6fb6af570deab64d6900e8e9b90d20d30fda",
+      "source_version": "2026-11-17.3"
     }
   ]
 }

@@ -1,14 +1,300 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-17.2",
+  "catalog_version": "2026-11-17.3",
   "currency_code": "USD",
   "page": 72,
-  "cursor": "YWZ0ZXI6MmY1YmNiZDMtYzExZi00ZjkwLTgzNjctN2NjOGRlNWMyMDM0",
-  "next_cursor": "YWZ0ZXI6NzAyZGE3MTktY2I0MS00YjQxLWE4NDUtOTNlMWY1YTg0OGU1",
+  "cursor": "YWZ0ZXI6ZWIwNWNiZTQtOTRkMC00YTQzLWFhZTgtN2Q0ODY3ZGIwYTA0",
+  "next_cursor": "YWZ0ZXI6ZDJhMjI0OTQtM2M5NS00NDQ4LTljNTQtNzg0ODE0ZTUwMjYz",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/73.json",
   "rules": [
     {
-      "provider_code": "kenari",
+      "provider_code": "jiekou",
+      "upstream_model_id": "claude-opus-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.5",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "6.25",
+      "id": "e1965d54-a3e9-46bc-a98f-e492d6a540fe",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-opus-4-6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-opus-4-6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-opus-4-6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-opus-4-6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e1965d54-a3e9-46bc-a98f-e492d6a540fe",
+      "source_checksum": "sha256:9f0bbcd7e00b224950b3eb95b2a6f7b9891f8be0cfb768718b8efabafabb354e",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "jiekou",
+      "upstream_model_id": "claude-sonnet-4-5-20250929",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.75",
+      "id": "35e1bd0a-103d-42b9-a62f-e2666c336cc3",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "6",
+            "output_token_unit_price": "22.5",
+            "cache_hit_token_unit_price": "0.6",
+            "cache_write_token_unit_price": "7.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "jiekou",
+              "model": "claude-sonnet-4-5-20250929",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "6",
+                "output_token_unit_price": "22.5",
+                "cache_hit_token_unit_price": "0.6",
+                "cache_write_token_unit_price": "7.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "35e1bd0a-103d-42b9-a62f-e2666c336cc3",
+      "source_checksum": "sha256:5892c54669b97b3728a7ec43b73a2f78cdef0e9c2d524911532b23e6c071419a",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "jzstoken",
+      "upstream_model_id": "claude-haiku-4-5-20251001",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.0778",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.3892",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.0078",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.1168",
+      "id": "22dd405d-8f0f-41bc-aca6-8ba196256d44",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-haiku-4-5-20251001",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "22dd405d-8f0f-41bc-aca6-8ba196256d44",
+      "source_checksum": "sha256:dbc51cfa34430edbcb999e4f3561a6e72073189785b10623d54be3be7826fe53",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "jzstoken",
+      "upstream_model_id": "claude-opus-4-7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.17",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5.84",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1168",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.46",
+      "id": "35156a65-2869-404d-9261-3685e7cc7f7d",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-opus-4-7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-opus-4-7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-opus-4-7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "jzstoken",
+              "model": "claude-opus-4-7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "35156a65-2869-404d-9261-3685e7cc7f7d",
+      "source_checksum": "sha256:f6aa5c048773cacd6cfae595d5fc9b349f8307b9afabe55bae63f49c5b958bfc",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "jzstoken",
       "upstream_model_id": "claude-opus-4-8",
       "currency_code": "USD",
       "effective_to": null,
@@ -19,45 +305,45 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5.71",
+      "input_token_unit_price": "1.17",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "29.71",
+      "output_token_unit_price": "5.84",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5714",
+      "cache_hit_token_unit_price": "0.1168",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "7.43",
-      "id": "ca6dc7f4-7cbd-47ff-ae2a-2907360ae6d1",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "1.46",
+      "id": "559091cf-5e58-425f-9198-d325dbec1c3f",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-4-8",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-4-8",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-4-8",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-4-8",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -67,12 +353,12 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ca6dc7f4-7cbd-47ff-ae2a-2907360ae6d1",
-      "source_checksum": "sha256:d55a0ad841bc8d4c15ebe3e6092323a47890cb74d1885907f298efec83288249",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "559091cf-5e58-425f-9198-d325dbec1c3f",
+      "source_checksum": "sha256:fbfe84669aa689c884a8368d92e520e23788282b5dabfd043ca08de21a59b793",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
+      "provider_code": "jzstoken",
       "upstream_model_id": "claude-opus-5",
       "currency_code": "USD",
       "effective_to": null,
@@ -83,45 +369,45 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5.71",
+      "input_token_unit_price": "1.17",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "28.57",
+      "output_token_unit_price": "5.84",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "2.29",
+      "cache_hit_token_unit_price": "0.1168",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5.71",
-      "id": "9ce89482-1428-4c29-b1be-0bbfbebf4016",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "1.46",
+      "id": "ea0b1164-f796-4778-bbd8-dfe974cac484",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-opus-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -131,13 +417,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "9ce89482-1428-4c29-b1be-0bbfbebf4016",
-      "source_checksum": "sha256:57fd50ce4f06f6f466229123439c2d9c055358f2cbda7df0d0e701e927bc4677",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "ea0b1164-f796-4778-bbd8-dfe974cac484",
+      "source_checksum": "sha256:39e2342c60ef8fc3cca254aa59f37c0922f5b2127a88a14dc3319c39da78c888",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "claude-opus-5-5",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "claude-opus-5.5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -147,46 +433,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4.57",
+      "input_token_unit_price": "1.17",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "22.86",
+      "output_token_unit_price": "5.84",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.4571",
+      "cache_hit_token_unit_price": "0.1168",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5.71",
-      "id": "37ad3737-9bb3-46a7-a9bc-67a2287827bf",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "1.46",
+      "id": "54ee66fd-3ca6-4070-9722-5b27c92722e7",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-opus-5-5",
+              "provider": "jzstoken",
+              "model": "claude-opus-5.5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-opus-5-5",
+              "provider": "jzstoken",
+              "model": "claude-opus-5.5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-opus-5-5",
+              "provider": "jzstoken",
+              "model": "claude-opus-5.5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-opus-5-5",
+              "provider": "jzstoken",
+              "model": "claude-opus-5.5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -195,76 +481,12 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "37ad3737-9bb3-46a7-a9bc-67a2287827bf",
-      "source_checksum": "sha256:c064599a2c16cd886cf0f8a0c1ee5c5f999d7d78dfb73e33eaba680fb881fd8d",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "54ee66fd-3ca6-4070-9722-5b27c92722e7",
+      "source_checksum": "sha256:ecc4f167a246c0b3257ed852e784389d4c19dfc754de41ed8198b440c5def0cf",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "claude-sonnet-4-6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3.6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "17.71",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.36",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "4.46",
-      "id": "4d22180f-35c5-4ad3-a48b-1ca6344e6d64",
-      "effective_from": "2026-11-17T04:38:29.469Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4d22180f-35c5-4ad3-a48b-1ca6344e6d64",
-      "source_checksum": "sha256:a5d339e9801afbc14e67e28fde1cf5bdd7f263120065643fb9a6564753c8ba17",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kenari",
+      "provider_code": "jzstoken",
       "upstream_model_id": "claude-sonnet-5",
       "currency_code": "USD",
       "effective_to": null,
@@ -275,45 +497,45 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.43",
+      "input_token_unit_price": "0.7784",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "7.14",
+      "output_token_unit_price": "3.89",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5714",
+      "cache_hit_token_unit_price": "0.0778",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.71",
-      "id": "002751ca-0445-4f7e-b623-d86d2905aa54",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.9731",
+      "id": "f7bbf3db-a6fd-4fa6-9b5d-7dfc6c05603a",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-sonnet-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-sonnet-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-sonnet-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "claude-sonnet-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -323,13 +545,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "002751ca-0445-4f7e-b623-d86d2905aa54",
-      "source_checksum": "sha256:28f53249f365ffcdd4dad5ddb3479537d86ea7e06c3d13e67df3431d036863da",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "f7bbf3db-a6fd-4fa6-9b5d-7dfc6c05603a",
+      "source_checksum": "sha256:288708f3e3692f0b2b3609ffe529daaac83e58eedbf34cf52bd5625e1bc0e0d4",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "claude-sonnet-5-5",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "claude-sonnet-5.5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -339,46 +561,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.29",
+      "input_token_unit_price": "0.7784",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11.43",
+      "output_token_unit_price": "3.89",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.8571",
+      "cache_hit_token_unit_price": "0.0778",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.86",
-      "id": "cb00a8f5-0865-4d53-a138-50f90073d24c",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.9731",
+      "id": "f7ea9a6b-4829-4e7c-ade9-c1939d06e8ec",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-5-5",
+              "provider": "jzstoken",
+              "model": "claude-sonnet-5.5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-5-5",
+              "provider": "jzstoken",
+              "model": "claude-sonnet-5.5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-5-5",
+              "provider": "jzstoken",
+              "model": "claude-sonnet-5.5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "claude-sonnet-5-5",
+              "provider": "jzstoken",
+              "model": "claude-sonnet-5.5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -387,13 +609,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "cb00a8f5-0865-4d53-a138-50f90073d24c",
-      "source_checksum": "sha256:33d5569cc6ccf2e20cce6816c86e184be7f3305169d09515eba78926469c703c",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "f7ea9a6b-4829-4e7c-ade9-c1939d06e8ec",
+      "source_checksum": "sha256:408144463d7e5749d8a7a881f2c90c501facde8fc3473bbaaf956c6f3c3a7776",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gemini-3-1-flash-lite",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "deepseek-v4-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -403,46 +625,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2857",
+      "input_token_unit_price": "0.1497",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.71",
+      "output_token_unit_price": "0.7485",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0286",
+      "cache_hit_token_unit_price": "0.015",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0857",
-      "id": "2f9b9dca-8234-4b71-b176-82bd3a713bea",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.1497",
+      "id": "1f3fc0e3-b9eb-460e-b960-421a70f370b0",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-flash-lite",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-flash-lite",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-flash-lite",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-flash-lite",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -451,13 +673,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "2f9b9dca-8234-4b71-b176-82bd3a713bea",
-      "source_checksum": "sha256:a388e28c0b403fa3029ddcf18abbd827a21b93453c5cb87c5f0d62ab693d9069",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "1f3fc0e3-b9eb-460e-b960-421a70f370b0",
+      "source_checksum": "sha256:8c86dfdaa18631349eae55cf1d96afa4add2cb2b3cbcdc5d745b676e9fa52e31",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gemini-3-1-pro",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "deepseek-v4-pro",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -467,46 +689,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.2",
+      "input_token_unit_price": "0.4491",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "7.14",
+      "output_token_unit_price": "2.25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.12",
+      "cache_hit_token_unit_price": "0.0449",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.2229",
-      "id": "bb2124de-0825-4c2f-928e-4047c3901fc8",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.4491",
+      "id": "22e78b7c-6c8a-487a-a462-8dacb059cd7b",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-pro",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-pro",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-pro",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-pro",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-pro",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-pro",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-1-pro",
+              "provider": "jzstoken",
+              "model": "deepseek-v4-pro",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -515,13 +737,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "bb2124de-0825-4c2f-928e-4047c3901fc8",
-      "source_checksum": "sha256:7c0b39e212e120ca0a26208e68426e1c95345ede1cf2743a60e8d197d3e50c60",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "22e78b7c-6c8a-487a-a462-8dacb059cd7b",
+      "source_checksum": "sha256:2f01388fc436bf31c64983f0836ec6be9b73f133ce3a814571121cadf449123d",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gemini-3-6-flash",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "deepseek-v4.1-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -531,46 +753,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3429",
+      "input_token_unit_price": "0.1497",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.71",
+      "output_token_unit_price": "0.7485",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0343",
+      "cache_hit_token_unit_price": "0.015",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0171",
-      "id": "ba126a26-332a-473f-b946-00202b4bcc16",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.1497",
+      "id": "cff89dc2-fba7-4118-9b06-186c810db39b",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-6-flash",
+              "provider": "jzstoken",
+              "model": "deepseek-v4.1-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-6-flash",
+              "provider": "jzstoken",
+              "model": "deepseek-v4.1-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-6-flash",
+              "provider": "jzstoken",
+              "model": "deepseek-v4.1-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-6-flash",
+              "provider": "jzstoken",
+              "model": "deepseek-v4.1-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -579,13 +801,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ba126a26-332a-473f-b946-00202b4bcc16",
-      "source_checksum": "sha256:19fb0cfce08f517c3c24bd9c3d4fa17550829e731a0b68945a8fd73f269e0670",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "cff89dc2-fba7-4118-9b06-186c810db39b",
+      "source_checksum": "sha256:60625d6378575c8db252a5817e7ea2722bee9bba9b09a778b381d9c2b4b37c94",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gemini-3-7-flash",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "glm-5.3",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -595,46 +817,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3429",
+      "input_token_unit_price": "0.6228",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.71",
+      "output_token_unit_price": "3.11",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0343",
+      "cache_hit_token_unit_price": "0.0623",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0171",
-      "id": "ea19ebdb-5155-4981-9868-36245fd29ccc",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.6228",
+      "id": "420079a7-5adc-4332-997e-65f10ea75263",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-7-flash",
+              "provider": "jzstoken",
+              "model": "glm-5.3",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-7-flash",
+              "provider": "jzstoken",
+              "model": "glm-5.3",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-7-flash",
+              "provider": "jzstoken",
+              "model": "glm-5.3",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-7-flash",
+              "provider": "jzstoken",
+              "model": "glm-5.3",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -643,13 +865,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ea19ebdb-5155-4981-9868-36245fd29ccc",
-      "source_checksum": "sha256:5cb87ad9482be391e1bb33b15fa0fde9ed366c40147f8aa52d52b8e8a0a1d0dc",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "420079a7-5adc-4332-997e-65f10ea75263",
+      "source_checksum": "sha256:d790bd770d0fc5c0d908b039d3942028f5ebf63ff7975dd85136c27a9fba038d",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gemini-3-8-flash",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "gpt-5.5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -659,46 +881,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3429",
+      "input_token_unit_price": "0.3892",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.71",
+      "output_token_unit_price": "2.34",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0343",
+      "cache_hit_token_unit_price": "0.0389",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.0171",
-      "id": "a9c68bd8-aedf-4d11-b9e7-08392128a441",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.3892",
+      "id": "51fd99b4-75cf-4f3e-95a6-a71cd8fc6d32",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-8-flash",
+              "provider": "jzstoken",
+              "model": "gpt-5.5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-8-flash",
+              "provider": "jzstoken",
+              "model": "gpt-5.5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-8-flash",
+              "provider": "jzstoken",
+              "model": "gpt-5.5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gemini-3-8-flash",
+              "provider": "jzstoken",
+              "model": "gpt-5.5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -707,13 +929,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "a9c68bd8-aedf-4d11-b9e7-08392128a441",
-      "source_checksum": "sha256:c0eefb2f61530e06c9846477cebf2dcc2c819fe9c8263831f5a6e49925e8e09d",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "51fd99b4-75cf-4f3e-95a6-a71cd8fc6d32",
+      "source_checksum": "sha256:48cbc236ed2cdf01fc12191c2e759956a90dbb4ad2f7f90e81cce6cca1670ba6",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gpt-5-6-luna",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "gpt-5.6-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -723,46 +945,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
+      "input_token_unit_price": "0.6228",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.14",
+      "output_token_unit_price": "2.8",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
+      "cache_hit_token_unit_price": "0.0623",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.2571",
-      "id": "8209a4b0-e241-40b8-853c-ef0d0a1efb9a",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.7784",
+      "id": "dfcf8cce-724b-439a-b2bf-3121356742c7",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-sol",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-sol",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-sol",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-sol",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -771,13 +993,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "8209a4b0-e241-40b8-853c-ef0d0a1efb9a",
-      "source_checksum": "sha256:49e0674df8683704a532388831ee14ac9e5701d3ef876f7937b05fb2284d3400",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "dfcf8cce-724b-439a-b2bf-3121356742c7",
+      "source_checksum": "sha256:2824ad17cf0bb6b359e7c766c374936f39634466fdf1cf276f6daa2b1b8c8522",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gpt-5-6-sol",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "gpt-5.6-terra",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -787,46 +1009,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.97",
+      "input_token_unit_price": "0.2335",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "17.71",
+      "output_token_unit_price": "1.4",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.19",
+      "cache_hit_token_unit_price": "0.0234",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.71",
-      "id": "11046fa5-0a30-41e8-8669-4218345713a6",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.3503",
+      "id": "47dd3a12-86f5-4a27-ac2e-ae9794394542",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-terra",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-terra",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-terra",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-5-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-5.6-terra",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -835,140 +1057,12 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "11046fa5-0a30-41e8-8669-4218345713a6",
-      "source_checksum": "sha256:5a7296c45abf68c93f9df74ea7abdd194693a3a554c0eabeba16c812bdd61920",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "47dd3a12-86f5-4a27-ac2e-ae9794394542",
+      "source_checksum": "sha256:7894d5b2f201bf9e95099bf86ed26a73204d0a2e3604ea249477fd5ec77c25a1",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gpt-6-1-sol",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.29",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11.43",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2286",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.86",
-      "id": "901b1f1b-4d1d-4900-bac6-946b0ddb9b9d",
-      "effective_from": "2026-11-17T04:38:29.469Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-sol",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-sol",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-sol",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-sol",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "901b1f1b-4d1d-4900-bac6-946b0ddb9b9d",
-      "source_checksum": "sha256:9596bfd6156feb8903d067d7fe7a02dba2e29362eebc9498885031cf08cf8e1a",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kenari",
-      "upstream_model_id": "gpt-6-1-terra",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.14",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5.71",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0571",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.43",
-      "id": "0dfdce21-3324-4061-99ea-7be872a1edf4",
-      "effective_from": "2026-11-17T04:38:29.469Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-terra",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-terra",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-terra",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-1-terra",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0dfdce21-3324-4061-99ea-7be872a1edf4",
-      "source_checksum": "sha256:bf88a239fcfdc5544ea4ad99b0c8ae646546feb1218cf8a09f591f2a857eb6fc",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kenari",
+      "provider_code": "jzstoken",
       "upstream_model_id": "gpt-6-astra",
       "currency_code": "USD",
       "effective_to": null,
@@ -979,45 +1073,45 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "11.43",
+      "input_token_unit_price": "1.17",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "57.14",
+      "output_token_unit_price": "7.01",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.14",
+      "cache_hit_token_unit_price": "0.1168",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "11.43",
-      "id": "283d7474-2bca-49c6-b57d-a342f59f4e65",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "1.75",
+      "id": "a0517783-34a1-4a12-8c38-07f6cce36399",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "gpt-6-astra",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "gpt-6-astra",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "gpt-6-astra",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
+              "provider": "jzstoken",
               "model": "gpt-6-astra",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
@@ -1027,13 +1121,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "283d7474-2bca-49c6-b57d-a342f59f4e65",
-      "source_checksum": "sha256:86f3e9b614b462809b73fe49e6b2271c997f2220951e795a01ef298434f9c79d",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "a0517783-34a1-4a12-8c38-07f6cce36399",
+      "source_checksum": "sha256:540c127eee358e997dca6ba4df17aef4011883a3bf4e9703f3be2327016a6e4a",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gpt-6-luna",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "gpt-6.1-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1043,46 +1137,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.1",
+      "input_token_unit_price": "0.3114",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.4857",
+      "output_token_unit_price": "1.87",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.01",
+      "cache_hit_token_unit_price": "0.0311",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.1143",
-      "id": "40575950-0f7f-4181-aca0-57a5cf34ff49",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.3892",
+      "id": "11e1b5d6-634f-454c-a706-baeb63bec00d",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-sol",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-sol",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-sol",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-luna",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-sol",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1091,13 +1185,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "40575950-0f7f-4181-aca0-57a5cf34ff49",
-      "source_checksum": "sha256:a360189e52df724f4c8d2f485008c950e9391569fc79aec1cf7944b816b8af96",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "11e1b5d6-634f-454c-a706-baeb63bec00d",
+      "source_checksum": "sha256:968179524ab525fb07159ba918cfd995266fb3e73057e81edc99048724db2d8c",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "gpt-6-sol",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "gpt-6.1-terra",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1107,46 +1201,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.29",
+      "input_token_unit_price": "0.1557",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11.43",
+      "output_token_unit_price": "0.7784",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2286",
+      "cache_hit_token_unit_price": "0.0156",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.29",
-      "id": "ee41f8c7-0df6-4fa3-8960-79f83b48afbd",
-      "effective_from": "2026-11-17T04:38:29.469Z",
+      "cache_write_token_unit_price": "0.1557",
+      "id": "2334bb4c-3a4a-4962-beaa-663ee1acef19",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-terra",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-terra",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-terra",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "gpt-6-sol",
+              "provider": "jzstoken",
+              "model": "gpt-6.1-terra",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1155,13 +1249,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ee41f8c7-0df6-4fa3-8960-79f83b48afbd",
-      "source_checksum": "sha256:a432aebc645368d99eba7f9df717c20d81e16d54ca1d845eb6e3f87f84eea1c5",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "2334bb4c-3a4a-4962-beaa-663ee1acef19",
+      "source_checksum": "sha256:ed0c1a5bf2b3be5f4fd6a870ddbfe9d435b15cca2a826ffcc2c8543f8bc9ed90",
+      "source_version": "2026-11-17.3"
     },
     {
-      "provider_code": "kenari",
-      "upstream_model_id": "qwen3-7-plus",
+      "provider_code": "jzstoken",
+      "upstream_model_id": "grok-4.7",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1171,46 +1265,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.38285714",
+      "input_token_unit_price": "0.3892",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.48571429",
+      "output_token_unit_price": "1.95",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.07428571",
+      "cache_hit_token_unit_price": "0.0389",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.48",
-      "id": "50eba75a-2efe-4ec8-99bf-24720f212357",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "0.4865",
+      "id": "d2a22494-3c95-4448-9c54-784814e50263",
+      "effective_from": "2026-11-14T23:09:56.614Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-14T23:09:56.614Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-7-plus",
+              "provider": "jzstoken",
+              "model": "grok-4.7",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-7-plus",
+              "provider": "jzstoken",
+              "model": "grok-4.7",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-7-plus",
+              "provider": "jzstoken",
+              "model": "grok-4.7",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-7-plus",
+              "provider": "jzstoken",
+              "model": "grok-4.7",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1219,73 +1313,9 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "50eba75a-2efe-4ec8-99bf-24720f212357",
-      "source_checksum": "sha256:dc2f111b8f33b0210499df9dbfbde950b9273c72b61070fd31f4e16bf638b932",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "kenari",
-      "upstream_model_id": "qwen3-8-max",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "6.86",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2971",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.97",
-      "id": "702da719-cb41-4b41-a845-93e1f5a848e5",
-      "effective_from": "2026-11-17T04:38:29.469Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T04:38:29.469Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-8-max",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-8-max",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-8-max",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "kenari",
-              "model": "qwen3-8-max",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "702da719-cb41-4b41-a845-93e1f5a848e5",
-      "source_checksum": "sha256:06bc8333bef829f6224f6d4802204a38a83e79b3ab118b5bb4d116963a3a8672",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "d2a22494-3c95-4448-9c54-784814e50263",
+      "source_checksum": "sha256:32d21435f3fdad0d006cae6e649700105fdd99f28948ac2f68cad328424516cb",
+      "source_version": "2026-11-17.3"
     }
   ]
 }

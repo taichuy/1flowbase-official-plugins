@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-17.2",
+  "catalog_version": "2026-11-17.3",
   "currency_code": "USD",
   "page": 69,
-  "cursor": "YWZ0ZXI6ZmMxMGU1ODAtNzI4Mi00ODFiLWFjYzUtMmMyNTQwNTYwNzcz",
-  "next_cursor": "YWZ0ZXI6NWZlMDZlNjEtNWRmMC00NTU0LTllYTktYjdhYjdlOTA3YjE3",
+  "cursor": "YWZ0ZXI6Nzk5NzNiMDgtMWE1YS00M2Q2LWIxNmEtYzU5OTEwZTFlNjg4",
+  "next_cursor": "YWZ0ZXI6NmRhNWRiMDAtODg2MS00NmRjLTg5NTEtYWEzNGVjYmU3MGZk",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/70.json",
   "rules": [
     {
-      "provider_code": "impossibl",
-      "upstream_model_id": "openai/gpt-5.6-luna",
+      "provider_code": "hostinger-router",
+      "upstream_model_id": "kimi-k3",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,91 +19,1167 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
+      "input_token_unit_price": "3.96",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
+      "output_token_unit_price": "19.8",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
+      "cache_hit_token_unit_price": "0.9",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.25",
-      "id": "b8c8eacd-cf29-435a-b6ee-08e403b8d550",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "4.95",
+      "id": "c5b0ce7c-207b-4820-a930-36d40d074647",
+      "effective_from": "2026-11-15T02:47:37.236Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-15T02:47:37.236Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hostinger-router",
+              "model": "kimi-k3",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hostinger-router",
+              "model": "kimi-k3",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hostinger-router",
+              "model": "kimi-k3",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hostinger-router",
+              "model": "kimi-k3",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "c5b0ce7c-207b-4820-a930-36d40d074647",
+      "source_checksum": "sha256:a0ba8d8cbdf4e69e5828407a7009c4b6d6478be8dfe53ca548d1e4f585dae698",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hostinger_router",
+      "upstream_model_id": "claude-sonnet-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2.64",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "13.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.264",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.3",
+      "id": "18864729-ab86-477a-b51a-250e1551335b",
+      "effective_from": "2026-10-31T08:12:11.741Z",
       "rules": [
         {
           "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
+            "cache_write_ttl_seconds": 3600
           },
           "overrides": {
-            "input_token_unit_price": "0.4",
-            "output_token_unit_price": "1.8",
-            "cache_hit_token_unit_price": "0.04",
-            "cache_write_token_unit_price": "0.5"
+            "cache_write_token_unit_price": "5.28"
           }
         }
       ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-10-31T08:12:11.741Z",
           "meters": {
             "input": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "hostinger_router",
+              "model": "claude-sonnet-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "hostinger_router",
+              "model": "claude-sonnet-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "hostinger_router",
+              "model": "claude-sonnet-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-luna",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "hostinger_router",
+              "model": "claude-sonnet-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
           },
           "rules": [
             {
               "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
+                "cache_write_ttl_seconds": 3600
               },
               "overrides": {
-                "input_token_unit_price": "0.4",
-                "output_token_unit_price": "1.8",
-                "cache_hit_token_unit_price": "0.04",
-                "cache_write_token_unit_price": "0.5"
+                "cache_write_token_unit_price": "5.28"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "b8c8eacd-cf29-435a-b6ee-08e403b8d550",
-      "source_checksum": "sha256:427a7de3d5251aa0b5d4ae0165a139daed95adb4749fe4b1a3127466be19b035",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "18864729-ab86-477a-b51a-250e1551335b",
+      "source_checksum": "sha256:df29ac410e15a1755ea8dae89eee34391e4efe07132b08ad93c6b0987a3a2c36",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "15.2923",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "76.4619",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1.5293",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "19.1155",
+      "id": "d70a532e-46cb-4b73-ab74-ad52997f69e0",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d70a532e-46cb-4b73-ab74-ad52997f69e0",
+      "source_checksum": "sha256:b16031e2a1b3ba689d4670da9ba361e1aa17046920e0cafba03b426e9f170a31",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-fable-5.1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "15.2923",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "76.4619",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3823",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "19.1155",
+      "id": "afb9c7d7-ae35-4e78-99da-7c512e547acd",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "afb9c7d7-ae35-4e78-99da-7c512e547acd",
+      "source_checksum": "sha256:92b1b19bf3a8a53beb427e9eb515951d04775cf23acdff1aed722828ff61f10b",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-fable-5.2",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "12.2339",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "61.1695",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3059",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "15.2923",
+      "id": "a556f706-5fba-46b1-9939-ef401fedfe00",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.2",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.2",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.2",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-fable-5.2",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a556f706-5fba-46b1-9939-ef401fedfe00",
+      "source_checksum": "sha256:56fa3037ae052d673291a9d63330520e550c5275f45ad8ede9ff2eeda0b820b5",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-haiku-4.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.5293",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "7.6462",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1529",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.9116",
+      "id": "fd9b9f36-8a54-4a8d-b873-d907cdda21e9",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-4.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "fd9b9f36-8a54-4a8d-b873-d907cdda21e9",
+      "source_checksum": "sha256:a653c5f70411a764fc291420b6816017382849262179ac2d95e79b19e04ea1ba",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-haiku-5.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1529",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.7646",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.0153",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.1912",
+      "id": "1b8f340b-e493-4fa8-8757-aa8267e9e4f3",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-5.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-5.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-5.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-haiku-5.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "1b8f340b-e493-4fa8-8757-aa8267e9e4f3",
+      "source_checksum": "sha256:c0f2ed76c1afe7879c90ed018872c2731bf8eef06b732468a910c5517060e6e4",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-4.1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "22.9386",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "114.6928",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "2.2938",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "28.6732",
+      "id": "f57d9ee8-e084-4b3a-ba12-1ebfd37631af",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f57d9ee8-e084-4b3a-ba12-1ebfd37631af",
+      "source_checksum": "sha256:38234a3ad69e9f5960a2055371f593a98bff3d395e6ae27ab234bfe2a4e830b6",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-4.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "7.6462",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "38.2309",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.7646",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "9.5578",
+      "id": "6b5aba65-babf-4e5d-9040-d02c5fa54b36",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6b5aba65-babf-4e5d-9040-d02c5fa54b36",
+      "source_checksum": "sha256:3176b08e68cc3d165141fd7ee77acc71918d6caa976d6e88df86841431ed7722",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-4.6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "7.6462",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "38.2309",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.7646",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "9.5578",
+      "id": "7e4bde4f-ea16-4f22-ad58-4f158737bc03",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7e4bde4f-ea16-4f22-ad58-4f158737bc03",
+      "source_checksum": "sha256:6ff5416c74ff66bafd9fec133d240f11b154f98cab27ac20670a2f44d60b8fd3",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-4.7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "7.6462",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "38.2309",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.7646",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "9.5578",
+      "id": "15952458-b5da-436f-851b-8f71d0954a27",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "15952458-b5da-436f-851b-8f71d0954a27",
+      "source_checksum": "sha256:30329a53fa77eaa27e95829b9ef959bda69fa81be8015adeff33c0b1c22f846b",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-4.8",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "7.6462",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "38.2309",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.7646",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "9.5578",
+      "id": "13b0e44d-2105-482e-ba89-784e369fcec3",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.8",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.8",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.8",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-4.8",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "13b0e44d-2105-482e-ba89-784e369fcec3",
+      "source_checksum": "sha256:33f9292d8794a6fa3c57997089d7e5094bd1c37a642e180341f3e86604dc1c10",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "7.6462",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "38.2309",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.7646",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "9.5578",
+      "id": "db06bab4-c5ea-4e2f-8b3a-c0373a66dfb7",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "db06bab4-c5ea-4e2f-8b3a-c0373a66dfb7",
+      "source_checksum": "sha256:5f6a9debf75d488f23e767e81f50c4abb909c35136766c60f81b7061939ee605",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-opus-5.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "6.117",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "30.5848",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3059",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "7.6462",
+      "id": "6ec838d4-9b21-4a2f-bffb-6d501ebb798f",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-opus-5.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6ec838d4-9b21-4a2f-bffb-6d501ebb798f",
+      "source_checksum": "sha256:b32a6ef2a4e96313009553c18da3b903c8c25b2f3a96f8aba19df8c103069704",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-sonnet-4.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4.5877",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "22.9386",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4588",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5.7347",
+      "id": "d258808e-3e3e-48cb-9ff4-72d626a6f4ce",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "d258808e-3e3e-48cb-9ff4-72d626a6f4ce",
+      "source_checksum": "sha256:322f44d0f75d79d820c8b66a0615e936f9d75f14120d767ca6adce1d0a0abecd",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-sonnet-4.6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4.5877",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "22.9386",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4588",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5.7347",
+      "id": "2bbca699-10dc-475c-81b8-5460c634d232",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-4.6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "2bbca699-10dc-475c-81b8-5460c634d232",
+      "source_checksum": "sha256:dcada8a8b7db964c746bd1c282a64ec7e46d6bb22427b3be8578995b99251c2e",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-sonnet-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3.0584",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15.2923",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.3059",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.8231",
+      "id": "538a6928-629e-473f-b3f3-c179c94b9cd2",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "538a6928-629e-473f-b3f3-c179c94b9cd2",
+      "source_checksum": "sha256:d42de581475d46cb2fb5ab7bb7bba24fb0d1af591838ad25190c50642da9546a",
+      "source_version": "2026-11-17.3"
+    },
+    {
+      "provider_code": "hubris",
+      "upstream_model_id": "anthropic/claude-sonnet-5.5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "3.0584",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "15.2923",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1529",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "3.8231",
+      "id": "f8364948-e189-42a8-9040-d928568bb38f",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5.5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5.5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5.5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "hubris",
+              "model": "anthropic/claude-sonnet-5.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f8364948-e189-42a8-9040-d928568bb38f",
+      "source_checksum": "sha256:4dd25e5556d53a8f5982aca89330076aaa6d5f840de3d71259a3486f95cb40f5",
+      "source_version": "2026-11-17.3"
     },
     {
       "provider_code": "impossibl",
-      "upstream_model_id": "openai/gpt-5.6-sol",
+      "upstream_model_id": "anthropic/claude-fable-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -113,31 +1189,16 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4",
+      "input_token_unit_price": "10",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "20",
+      "output_token_unit_price": "50",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.4",
+      "cache_hit_token_unit_price": "1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5",
-      "id": "6b8df917-295c-4f56-94c9-1cef85bed753",
+      "cache_write_token_unit_price": "12.5",
+      "id": "a7a839d4-420b-412e-babc-124a64b8456f",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "8",
-            "output_token_unit_price": "30",
-            "cache_hit_token_unit_price": "0.8",
-            "cache_write_token_unit_price": "10"
-          }
-        }
-      ],
+      "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -146,408 +1207,43 @@
             "input": {
               "source": "models.dev",
               "provider": "impossibl",
-              "model": "openai/gpt-5.6-sol",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
               "provider": "impossibl",
-              "model": "openai/gpt-5.6-sol",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
               "provider": "impossibl",
-              "model": "openai/gpt-5.6-sol",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
               "provider": "impossibl",
-              "model": "openai/gpt-5.6-sol",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "8",
-                "output_token_unit_price": "30",
-                "cache_hit_token_unit_price": "0.8",
-                "cache_write_token_unit_price": "10"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "6b8df917-295c-4f56-94c9-1cef85bed753",
-      "source_checksum": "sha256:8b84f343cc5247fe3658c13d8e2a1367139dd3ec60e792138853cc398b080602",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "a7a839d4-420b-412e-babc-124a64b8456f",
+      "source_checksum": "sha256:23ca29a8d3160d54ae1d6b41309a7c02a5c8e7f160eb6beb895f89d310c49f69",
+      "source_version": "2026-11-17.3"
     },
     {
       "provider_code": "impossibl",
-      "upstream_model_id": "openai/gpt-5.6-terra",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "2752863f-5609-4468-8683-41882eb52691",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "4",
-            "output_token_unit_price": "18",
-            "cache_hit_token_unit_price": "0.4",
-            "cache_write_token_unit_price": "5"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-terra",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-terra",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-terra",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "impossibl",
-              "model": "openai/gpt-5.6-terra",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "4",
-                "output_token_unit_price": "18",
-                "cache_hit_token_unit_price": "0.4",
-                "cache_write_token_unit_price": "5"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "2752863f-5609-4468-8683-41882eb52691",
-      "source_checksum": "sha256:631d94188ee7e1bb8b8ff2d75a7c77867bf6a72b613673deba12fca3b81271bb",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "inceptron",
-      "upstream_model_id": "deepseek-ai/DeepSeek-V4-Flash-0731",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.13",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.495",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.027",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "282a1852-80b0-45c2-8d1f-ed9917b28c96",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "282a1852-80b0-45c2-8d1f-ed9917b28c96",
-      "source_checksum": "sha256:eff9201595b833cfe14601988f5a147ee441e74f0efbb7d6c91135f00bd70d1d",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "inceptron",
-      "upstream_model_id": "moonshotai/Kimi-K2.6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.7995",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.22",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "67435f0e-3001-45af-ae62-8d62a3813f37",
-      "effective_from": "2026-11-17T14:36:50.583Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T14:36:50.583Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "67435f0e-3001-45af-ae62-8d62a3813f37",
-      "source_checksum": "sha256:0c3aeecaf824f55140e0644d4ba458d8c52a4e5006a8c61fe47af1f3edad5d91",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "inceptron",
-      "upstream_model_id": "moonshotai/Kimi-K2.7-Code",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.7",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.16",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "ad6a4203-40dd-42cf-b040-fe62b69260e8",
-      "effective_from": "2026-11-17T14:36:50.583Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T14:36:50.583Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.7-Code",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.7-Code",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.7-Code",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "moonshotai/Kimi-K2.7-Code",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ad6a4203-40dd-42cf-b040-fe62b69260e8",
-      "source_checksum": "sha256:11275631653cda8140f1021e8f0c1eeaccc61bdf0d01193a993d33d3e60d9d1e",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "inceptron",
-      "upstream_model_id": "zai-org/GLM-5.2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "824b6ad0-9f6e-4dbf-ae25-c793daf6ec77",
-      "effective_from": "2026-11-10T17:56:49.509Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-10T17:56:49.509Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.2",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "824b6ad0-9f6e-4dbf-ae25-c793daf6ec77",
-      "source_checksum": "sha256:632610557c65e3c4e7cf6612e533d593adc43cacac0ef9c42c73c57e6197d966",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "inceptron",
-      "upstream_model_id": "zai-org/GLM-5.3",
+      "upstream_model_id": "anthropic/claude-haiku-4-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -559,460 +1255,12 @@
       "input_token_unit_size": 1000000,
       "input_token_unit_price": "1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.85",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.135",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "c03c7d51-1fb6-4104-9279-164550ad3fad",
-      "effective_from": "2026-11-17T14:36:50.583Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T14:36:50.583Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c03c7d51-1fb6-4104-9279-164550ad3fad",
-      "source_checksum": "sha256:81c065eaa2300c7c20cf3c96084886536dc133f92e55901725671e9850bdf5cc",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "inceptron",
-      "upstream_model_id": "zai-org/GLM-5.3-Flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.175",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.49",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.04",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "4536b5af-2015-4cf1-ae8b-b27e1bb48ab0",
-      "effective_from": "2026-11-16T22:16:55.203Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-16T22:16:55.203Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3-Flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3-Flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3-Flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "inceptron",
-              "model": "zai-org/GLM-5.3-Flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4536b5af-2015-4cf1-ae8b-b27e1bb48ab0",
-      "source_checksum": "sha256:278b985cb6adff1881f3382dd13be2e7a85ad5ddcda8dc59dd21efb5a3cb3199",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/claude-fable-5-1:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "4.91",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "24.53",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.13",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.14",
-      "id": "2400e306-69b5-41d7-947a-a58db731c251",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-fable-5-1:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-fable-5-1:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-fable-5-1:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-fable-5-1:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "2400e306-69b5-41d7-947a-a58db731c251",
-      "source_checksum": "sha256:f360d7bc20fe1c1d682aaee4720418fd3855482c1c90902020ffa4258d646d28",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/claude-opus-5-5:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.97",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "9.81",
+      "output_token_unit_price": "5",
       "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.46",
-      "id": "1f76fd68-eac9-4ec0-b364-94714b690e8a",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-opus-5-5:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-opus-5-5:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-opus-5-5:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-opus-5-5:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "1f76fd68-eac9-4ec0-b364-94714b690e8a",
-      "source_checksum": "sha256:04cac5e37ca50151031df0bbcc19cd8594be03396420deaf1125fcbb463ced0d",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/claude-sonnet-5-5:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.99",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.91",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.23",
-      "id": "89aa9bbb-8d7d-4ca2-8c0f-1f317a4b6e97",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-sonnet-5-5:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-sonnet-5-5:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-sonnet-5-5:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/claude-sonnet-5-5:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "89aa9bbb-8d7d-4ca2-8c0f-1f317a4b6e97",
-      "source_checksum": "sha256:16f0a59a094f8a9a44294fe4841d9fa49c957401743a7129be4c788e7a25191e",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/gemini-3.1-pro-preview:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.18",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5.3",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.12",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.33",
-      "id": "c13fd04e-1b23-4bed-b8b2-363a8beeedd3",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.1-pro-preview:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.1-pro-preview:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.1-pro-preview:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.1-pro-preview:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c13fd04e-1b23-4bed-b8b2-363a8beeedd3",
-      "source_checksum": "sha256:afb053f02c89641e5e426971e8d6be394d8dfc19dec17c1a8d6cd70cc3040ae1",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/gemini-3.8-flash:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.45",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.21",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3",
-      "id": "4a954015-18ec-40cc-9573-03b4afa9dc7e",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.8-flash:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.8-flash:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.8-flash:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gemini-3.8-flash:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4a954015-18ec-40cc-9573-03b4afa9dc7e",
-      "source_checksum": "sha256:bd9fe8e3609d04e62ad3344ee149032853653c4b2ec7dfda9dee5275faf5523e",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/gpt-5.6-sol:official",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.125",
-      "id": "eaf85cca-3cb0-42e3-a5a5-8512bc3c1a87",
+      "cache_write_token_unit_price": "1.25",
+      "id": "6da5db00-8861-46dc-8951-aa34ecbe70fd",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1022,29 +1270,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-5.6-sol:official",
+              "provider": "impossibl",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-5.6-sol:official",
+              "provider": "impossibl",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-5.6-sol:official",
+              "provider": "impossibl",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-5.6-sol:official",
+              "provider": "impossibl",
+              "model": "anthropic/claude-haiku-4-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1053,329 +1301,9 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "eaf85cca-3cb0-42e3-a5a5-8512bc3c1a87",
-      "source_checksum": "sha256:0fbd46a32165d0aa72d1b86bd20b39e202f2581fcc1f8f202b01b86e6167fbaf",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/gpt-6-astra:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.18",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.42",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.12",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.48",
-      "id": "eb350997-d9af-4ee6-a617-aa820cedf3dc",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "eb350997-d9af-4ee6-a617-aa820cedf3dc",
-      "source_checksum": "sha256:cc32d84a5f155504ec93718e6077add9b5663d023c26721ae064dde9d8d0142c",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/gpt-6-astra:official",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "12.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "62.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.25",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "15.625",
-      "id": "5022fdde-e8ba-40e9-9057-127e17179c52",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:official",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:official",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:official",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6-astra:official",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5022fdde-e8ba-40e9-9057-127e17179c52",
-      "source_checksum": "sha256:70f1d585689ecd88cd1b2109200d8636ad86bc9d38ebc7a2ca35f63eeba4aaf9",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "infer",
-      "upstream_model_id": "infer/gpt-6.1-sol:low-cost",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.24",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.89",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3",
-      "id": "7e0c3dca-5321-4a06-962b-5fe8386016a2",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6.1-sol:low-cost",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6.1-sol:low-cost",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6.1-sol:low-cost",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "infer",
-              "model": "infer/gpt-6.1-sol:low-cost",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "7e0c3dca-5321-4a06-962b-5fe8386016a2",
-      "source_checksum": "sha256:f147c40ad02c315a60b2422139e0bb515e68b9962ff003e7ebfd8dc063114017",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "io-net",
-      "upstream_model_id": "Qwen/Qwen2.5-VL-32B-Instruct",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.05",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.22",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.025",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.1",
-      "id": "77c47da7-d1b6-4300-ade7-3a82f096a1db",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen2.5-VL-32B-Instruct",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen2.5-VL-32B-Instruct",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen2.5-VL-32B-Instruct",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen2.5-VL-32B-Instruct",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "77c47da7-d1b6-4300-ade7-3a82f096a1db",
-      "source_checksum": "sha256:dd1d66a6e298da01f3e1b521bfb879d84dbe1b412ba71f3a8f7809a798f28023",
-      "source_version": "2026-11-17.2"
-    },
-    {
-      "provider_code": "io-net",
-      "upstream_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.11",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.6",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.055",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.22",
-      "id": "5fe06e61-5df0-4554-9ea9-b7ab7e907b17",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "io-net",
-              "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5fe06e61-5df0-4554-9ea9-b7ab7e907b17",
-      "source_checksum": "sha256:00e32fd72179bd31161a4c4901022f5f21806557293e11961caf35d77a9a7f7e",
-      "source_version": "2026-11-17.2"
+      "source_catalog_id": "6da5db00-8861-46dc-8951-aa34ecbe70fd",
+      "source_checksum": "sha256:1f768fe536cf07236f804354161265d3fbc69ed33a5d33f8141d62fb77fabd9a",
+      "source_version": "2026-11-17.3"
     }
   ]
 }
