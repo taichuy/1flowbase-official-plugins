@@ -1,12 +1,200 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-16.3",
+  "catalog_version": "2026-11-17.1",
   "currency_code": "USD",
   "page": 39,
-  "cursor": "YWZ0ZXI6OWI4ODU3NTEtNTI0Ny00NzQ1LTgzZDQtODNkMGVjNzg1M2Qx",
-  "next_cursor": "YWZ0ZXI6NGY1ZDQ1MjQtNTQxYi00ZDU0LTgwOTctMTVmODZhMzEzYjdl",
+  "cursor": "YWZ0ZXI6YzdmOTJjODgtYTk1Yy00NjQwLWI1NGUtOTFhZjNjZWFhMzM4",
+  "next_cursor": "YWZ0ZXI6YzVmMmNkYzAtNGRkYy00YzMxLTkxNjUtMDEzODBiMWQ1OTkw",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/40.json",
   "rules": [
+    {
+      "provider_code": "cheapest-token",
+      "upstream_model_id": "gpt-6-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "35",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "e64031a4-86cf-4efd-811b-e8a0f93d8b6f",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "20",
+            "output_token_unit_price": "52.5",
+            "cache_hit_token_unit_price": "2",
+            "cache_write_token_unit_price": "25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "20",
+                "output_token_unit_price": "52.5",
+                "cache_hit_token_unit_price": "2",
+                "cache_write_token_unit_price": "25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e64031a4-86cf-4efd-811b-e8a0f93d8b6f",
+      "source_checksum": "sha256:3a4932da35637020d5462f0ade576eba7498f5c31d24c51420b3dd7c0c145aee",
+      "source_version": "2026-11-17.1"
+    },
+    {
+      "provider_code": "cheapest-token",
+      "upstream_model_id": "gpt-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.125",
+      "id": "9b885751-5247-4745-83d4-83d0ec7853d1",
+      "effective_from": "2026-11-14T23:09:56.614Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-14T23:09:56.614Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "cheapest-token",
+              "model": "gpt-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9b885751-5247-4745-83d4-83d0ec7853d1",
+      "source_checksum": "sha256:2d5d02c71f86ca6243f020a81ca8044d7dd264529d6ed609552c464b21ca0aaf",
+      "source_version": "2026-11-17.1"
+    },
     {
       "provider_code": "cheapest-token",
       "upstream_model_id": "gpt-6-sol",
@@ -99,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "9865d3ab-70c3-4d16-b6bb-92b4da846d71",
       "source_checksum": "sha256:dacc2274333fe1085e69fb1ae7f87343b85c0f927797314d70f31494adac68f3",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cheapest-token",
@@ -193,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "5b62ca66-317e-4391-bde4-f3ad082a9d06",
       "source_checksum": "sha256:e13f6af8cabf33e5ae195a655bce17ef576c78f5bf98539a6221e6e0d7a5e9aa",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cheapest-token",
@@ -287,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "d40aa041-6d2e-4166-b4ab-9c30cca34187",
       "source_checksum": "sha256:f82eb2a3fd16b9852be2948e1d1821a2846b825a67f26e0b38213874e8d1f903",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cline-pass",
@@ -351,7 +539,7 @@
       "source_kind": "official",
       "source_catalog_id": "f1ef2bc0-c106-4145-a665-5de05c98f880",
       "source_checksum": "sha256:30756e4c1c46af1511ad43eb7cd982d9c858aac7009b6a3dc0e5b48a92cce539",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cline-pass",
@@ -415,7 +603,7 @@
       "source_kind": "official",
       "source_catalog_id": "313583b2-334c-429f-8527-9158d6632f87",
       "source_checksum": "sha256:504e4cdd6e8d03045da22935ce11cd81bb621419ec79b1b52311c6436a59e3d4",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cline-pass",
@@ -509,7 +697,7 @@
       "source_kind": "official",
       "source_catalog_id": "0a21769a-e576-4367-95ee-815f0aebe6b1",
       "source_checksum": "sha256:f85f58399ad0ba4d6e6c4c66b0d9b145067035ed4a08e6112ebe1c99623b8c82",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cline-pass",
@@ -573,7 +761,7 @@
       "source_kind": "official",
       "source_catalog_id": "ee99bf35-6c2e-4134-8512-7d0564aa885f",
       "source_checksum": "sha256:a02ac0dd37c70f40b4f87b92db7cecf9c22910b867b5ffcbcf1f9a43fb99b2ed",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -637,7 +825,7 @@
       "source_kind": "official",
       "source_catalog_id": "97a3ad15-2d03-47e4-92d7-a27ddbc14739",
       "source_checksum": "sha256:576aa50ad186db465c1205e301c5d62284f383f55124a642b1f8e867e906eeea",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -701,7 +889,7 @@
       "source_kind": "official",
       "source_catalog_id": "43942fc8-afa8-4597-b1ce-ab292ab73113",
       "source_checksum": "sha256:3d95758edeed1d166b9417cda56a84753bf3df8f4977bed071b06aff8603d038",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -765,7 +953,7 @@
       "source_kind": "official",
       "source_catalog_id": "f0ed2951-e15b-4172-a062-7463cd395466",
       "source_checksum": "sha256:fd7a2407cb248daff5a9192f69b74a287ff74d2b7f301850514481e5effa3b1b",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -829,7 +1017,7 @@
       "source_kind": "official",
       "source_catalog_id": "5b4c8a44-e733-4ea7-9438-6214a26d1766",
       "source_checksum": "sha256:a3049f33b720b5ee51a33632277f49b730eac18fde21f384e498ed2ded5efe85",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -923,7 +1111,7 @@
       "source_kind": "official",
       "source_catalog_id": "65a5200f-74f7-4bc4-afa6-a8c8112e5937",
       "source_checksum": "sha256:7ebe7f7c083ac0840f335091a52aba5de8f1c535dbd4dd9a4f8bc66175bb3245",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -987,7 +1175,7 @@
       "source_kind": "official",
       "source_catalog_id": "34af0448-7bf5-4cae-9e6a-a47838c3d66f",
       "source_checksum": "sha256:fb36f5f898593b5bc784ded187130f935475332f99e436882049e1f1e02af815",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -1051,7 +1239,7 @@
       "source_kind": "official",
       "source_catalog_id": "140ed947-5af4-4ac2-8d8f-6b927cb4a01f",
       "source_checksum": "sha256:8687b119a8a90b13b5337134253e5138d8846e3d75d9760b19ab355d41da9c76",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -1115,7 +1303,7 @@
       "source_kind": "official",
       "source_catalog_id": "51bd26d4-2ba3-421e-a289-fcfcb93c8c3c",
       "source_checksum": "sha256:95fec7d28c82709446047d4dc364ffda1f0ba278b1d0a40f434744959f6ea08e",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -1179,7 +1367,7 @@
       "source_kind": "official",
       "source_catalog_id": "3f8ed5c9-4b60-44a9-bb5f-dec040ad9306",
       "source_checksum": "sha256:a21b2ef175412dbac615cb55db26930351061fd0b3e144c0744bc55fa12cf3e5",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -1243,7 +1431,7 @@
       "source_kind": "official",
       "source_catalog_id": "75a18a72-aa57-46bd-8486-372a59fc8fe6",
       "source_checksum": "sha256:c2b72b40273440ba363766021e09643a0d83423fd3390a1c2482ffa16fde2af9",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     },
     {
       "provider_code": "cloudflare-ai-gateway",
@@ -1307,135 +1495,7 @@
       "source_kind": "official",
       "source_catalog_id": "c5f2cdc0-4ddc-4c31-9165-01380b1d5990",
       "source_checksum": "sha256:fa581fe690727db361e9c601d02c4b6616aedacf9d418ceb420d4e1940c46879",
-      "source_version": "2026-11-16.3"
-    },
-    {
-      "provider_code": "cloudflare-ai-gateway",
-      "upstream_model_id": "anthropic/claude-sonnet-4.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "1442979f-22d2-495e-a0fa-0d6d8ced4599",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "1442979f-22d2-495e-a0fa-0d6d8ced4599",
-      "source_checksum": "sha256:83afeba6d9254384cf050ae23b8a8507c532ac7d92aacff65d54d24a634ea551",
-      "source_version": "2026-11-16.3"
-    },
-    {
-      "provider_code": "cloudflare-ai-gateway",
-      "upstream_model_id": "anthropic/claude-sonnet-4.6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "4f5d4524-541b-4d54-8097-15f86a313b7e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cloudflare-ai-gateway",
-              "model": "anthropic/claude-sonnet-4.6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4f5d4524-541b-4d54-8097-15f86a313b7e",
-      "source_checksum": "sha256:a2bf7e31d24a2ac7fea98c218ae4d264ef03fe95cc57aa0a61eeff27abbf5f7c",
-      "source_version": "2026-11-16.3"
+      "source_version": "2026-11-17.1"
     }
   ]
 }
