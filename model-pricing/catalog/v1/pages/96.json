@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-18.2",
+  "catalog_version": "2026-11-18.3",
   "currency_code": "USD",
   "page": 96,
-  "cursor": "YWZ0ZXI6NWQ5ZjEwOGItYmQ4Yi00YzMzLWFhYzMtNzJlY2M3ZjBkZjIx",
-  "next_cursor": "YWZ0ZXI6ZTkwYzBhZjktOWE4ZS00OWNhLThhMjYtMGUyODdmMDk0NzAy",
+  "cursor": "YWZ0ZXI6ZGRlMDFmODYtMjQzZi00ZDMwLTljZGMtM2RlZjZhZDFjMjMw",
+  "next_cursor": "YWZ0ZXI6MjlkYjQ4NzUtYmU5MC00OTAwLWIxZTAtM2E5MWUyNmYyY2Zj",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/97.json",
   "rules": [
     {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.5-highspeed",
+      "provider_code": "lowrouter",
+      "upstream_model_id": "auto/openai/gpt-6-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,16 +19,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6275",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.5098",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0314",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "28adaa97-d540-4fd0-aca2-e0abc3bfc2b7",
+      "cache_write_token_unit_price": "2.5",
+      "id": "a93cb32c-a2b2-4f25-ab11-7d58abbd74c1",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -36,44 +51,59 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6-sol",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6-sol",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6-sol",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6-sol",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "28adaa97-d540-4fd0-aca2-e0abc3bfc2b7",
-      "source_checksum": "sha256:0514b0a4dda8d8410f3fcce211196c12b85eddcbf61b681595cba947d023fbf3",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "a93cb32c-a2b2-4f25-ab11-7d58abbd74c1",
+      "source_checksum": "sha256:6dfe4c52484e2226d0918ef56cb01eaa2cac077f0ca1d70f940c4ca03a9bbcb0",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.7",
+      "provider_code": "lowrouter",
+      "upstream_model_id": "auto/openai/gpt-6.1-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -83,16 +113,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3137",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2549",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0627",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "1515e15d-35e1-4656-b709-de288fb0a226",
+      "cache_write_token_unit_price": "2.5",
+      "id": "9540d473-b4ec-4546-a7e9-b16a30ab6308",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -100,44 +145,59 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-sol",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-sol",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-sol",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-sol",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "1515e15d-35e1-4656-b709-de288fb0a226",
-      "source_checksum": "sha256:26622c159d6f32e32437d813d462921dd00e0367b0a9d15ad7a5f760921c63ee",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "9540d473-b4ec-4546-a7e9-b16a30ab6308",
+      "source_checksum": "sha256:05dc2678af0f7f7ca30422f52d002f1e381eabf56a6d5588cb6f23b43a9bafa7",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn",
-      "upstream_model_id": "MiniMax-M2.7-highspeed",
+      "provider_code": "lowrouter",
+      "upstream_model_id": "auto/openai/gpt-6.1-terra",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -147,16 +207,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.6275",
+      "input_token_unit_price": "1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.5098",
+      "output_token_unit_price": "5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0627",
+      "cache_hit_token_unit_price": "0.05",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3922",
-      "id": "f4338ac8-7e90-4642-a412-d8e93e18b742",
+      "cache_write_token_unit_price": "1.25",
+      "id": "ebe4df28-f0c3-45c8-9da8-e76be75e01f6",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "7.5",
+            "cache_hit_token_unit_price": "0.1",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -164,44 +239,59 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-terra",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-terra",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-terra",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "lowrouter",
+              "model": "auto/openai/gpt-6.1-terra",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "7.5",
+                "cache_hit_token_unit_price": "0.1",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "f4338ac8-7e90-4642-a412-d8e93e18b742",
-      "source_checksum": "sha256:0edf7e2d1902d411aaff964861524e4985564ecf223ab871259e631d3239a455",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "ebe4df28-f0c3-45c8-9da8-e76be75e01f6",
+      "source_checksum": "sha256:37e5aa23b64b65cbbbdb9063fe9c64d65020bcd72bd81c36e26d235b3b3e0c71",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M2.1",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-fable-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -211,14 +301,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "10",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "50",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "b667c824-5ec8-4127-91a1-2d34add46016",
+      "cache_write_token_unit_price": "12.5",
+      "id": "f4a56778-bdde-43c6-9613-e9514c1b220b",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -228,29 +318,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -259,13 +349,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "b667c824-5ec8-4127-91a1-2d34add46016",
-      "source_checksum": "sha256:4494996717aa464fb64d5aae856d0a4afc280dd6b3513caf6737eddc0c4b2e4f",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "f4a56778-bdde-43c6-9613-e9514c1b220b",
+      "source_checksum": "sha256:9d067357e31a4e9cef298df18173f3e60958eebc44871efd24af6ec36aa55afe",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M2.5",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-fable-5-1",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -275,14 +365,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "10",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "50",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.25",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "e5a912c1-28cb-471b-bc3b-6d422db93a01",
+      "cache_write_token_unit_price": "12.5",
+      "id": "c95c3d2d-7d58-4a8f-8d53-83aea6c52aaa",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -292,29 +382,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-1",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -323,13 +413,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "e5a912c1-28cb-471b-bc3b-6d422db93a01",
-      "source_checksum": "sha256:df6f350792f0673e474ea681efc6a3d4c20f6dcba13fe6bf181ad79c80e7a2e0",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "c95c3d2d-7d58-4a8f-8d53-83aea6c52aaa",
+      "source_checksum": "sha256:b8e14cd80b29c936d38eefe9217a751a83a742ad5ca1c510e404333ee83f44a4",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M2.5-highspeed",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-fable-5-2",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -339,46 +429,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "8",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "40",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "cd770ae8-2722-40c7-b6b8-f34646dd10e6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
+      "cache_write_token_unit_price": "10",
+      "id": "94462209-d50f-4b8a-ba93-ef7896537d75",
+      "effective_from": "2026-11-10T02:14:33.756Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
+          "synced_at": "2026-11-10T02:14:33.756Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-2",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-2",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-2",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-fable-5-2",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -387,13 +477,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "cd770ae8-2722-40c7-b6b8-f34646dd10e6",
-      "source_checksum": "sha256:c46d2ebf5bda9a6fed37f836a4736040eeb9951493bd7c2bfb5e870bc5fcee8a",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "94462209-d50f-4b8a-ba93-ef7896537d75",
+      "source_checksum": "sha256:3d4fd71d62aebf977903f319c3d6c4f825d3b1eae13a763ece80fd5af44d5eb6",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M2.7",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-haiku-4-5-20251001",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -403,14 +493,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "16778401-d7a0-442d-9ab0-e721eefbe532",
+      "cache_write_token_unit_price": "1.25",
+      "id": "576feefe-00e4-45ea-b09a-b098eb710b30",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -420,29 +510,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-4-5-20251001",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-4-5-20251001",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-4-5-20251001",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-4-5-20251001",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -451,13 +541,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "16778401-d7a0-442d-9ab0-e721eefbe532",
-      "source_checksum": "sha256:2a0a56495b20ea34ab725bfb1ce677ed267938ff3b301c339182bdf553158778",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "576feefe-00e4-45ea-b09a-b098eb710b30",
+      "source_checksum": "sha256:db9d31e2683c638824cf573ff7b7cdacd756fc24b344b35afcbc0644675da30f",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M2.7-highspeed",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-haiku-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -467,16 +557,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "0.1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "0.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "ae588ffb-38ce-4fe8-9ff7-36cebae0463e",
+      "cache_write_token_unit_price": "0.125",
+      "id": "1cbe8b41-c985-4fe0-a604-6f88ef6edb49",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 100000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.5",
+            "output_token_unit_price": "2.5",
+            "cache_hit_token_unit_price": "0.05",
+            "cache_write_token_unit_price": "0.625"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -484,44 +589,59 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-haiku-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 100000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.5",
+                "output_token_unit_price": "2.5",
+                "cache_hit_token_unit_price": "0.05",
+                "cache_write_token_unit_price": "0.625"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "ae588ffb-38ce-4fe8-9ff7-36cebae0463e",
-      "source_checksum": "sha256:b91700584f082d1a78ff2a74bfa55cd269ad157c87deabb723ebadcd6332f6c3",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "1cbe8b41-c985-4fe0-a604-6f88ef6edb49",
+      "source_checksum": "sha256:39668defedb5ce009bc822a45542bc9d6e5bd533ecfec90fab49507ed8a1c261",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M3",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-4-1-20250805",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -531,14 +651,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "15",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "75",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "1.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "0f0354a6-0a65-4937-a57a-7184ca2e7809",
+      "cache_write_token_unit_price": "18.75",
+      "id": "dfdbd860-373d-4381-abe8-e5bfbfef55d0",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -548,29 +668,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-1-20250805",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-1-20250805",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-1-20250805",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-1-20250805",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -579,13 +699,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "0f0354a6-0a65-4937-a57a-7184ca2e7809",
-      "source_checksum": "sha256:489845c8efc33e482d435ddb0d18e4aee5b511d718772f6140c916032a19741a",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "dfdbd860-373d-4381-abe8-e5bfbfef55d0",
+      "source_checksum": "sha256:801b383889447ddd9639538e4aaf9a3e54281e42c03ce96f4502253a2d19bd6e",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M3.1-Flash",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-4-5-20251101",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -595,14 +715,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "127c71e3-a5dc-4cce-974a-561550cde6bc",
+      "cache_write_token_unit_price": "6.25",
+      "id": "7a150305-68bf-4099-8251-bbf82a63be36",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -612,29 +732,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-5-20251101",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-5-20251101",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-5-20251101",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-5-20251101",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -643,13 +763,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "127c71e3-a5dc-4cce-974a-561550cde6bc",
-      "source_checksum": "sha256:7986709135ee74c29cab90dc89b1dd85fddac0df03a08b25c17aad1d3fe0bad4",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "7a150305-68bf-4099-8251-bbf82a63be36",
+      "source_checksum": "sha256:e31e1f333304d694154b9a1fcd866e32cc53f1d7afc8d8f1a86cbd47edd90586",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-cn-coding-plan",
-      "upstream_model_id": "MiniMax-M3.1-Flash-Preview",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-4-6",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -659,14 +779,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "3c1bc5b3-09cb-4f3c-b2b2-5036cd3fae4a",
+      "cache_write_token_unit_price": "6.25",
+      "id": "e82bf4d7-6a81-4e6c-8a95-903d18a6c03a",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -676,29 +796,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-6",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-6",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-6",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-cn-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-6",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -707,13 +827,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "3c1bc5b3-09cb-4f3c-b2b2-5036cd3fae4a",
-      "source_checksum": "sha256:2be863290ad91aab881495a72a90723e434cc2fa378cd021f9577fcb077dfdd5",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "e82bf4d7-6a81-4e6c-8a95-903d18a6c03a",
+      "source_checksum": "sha256:027f63439d326ec1f9af93eba7b45e805b315e8bd933d8cb1863e9a9fb926166",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M2.1",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-4-7",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -723,14 +843,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "91e98443-01cc-40d3-a983-d547a7758ecb",
+      "cache_write_token_unit_price": "6.25",
+      "id": "65e9ab9f-f4ed-4d4f-b136-61b01eada09d",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -740,29 +860,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.1",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-7",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -771,13 +891,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "91e98443-01cc-40d3-a983-d547a7758ecb",
-      "source_checksum": "sha256:cd45c955ae35ea86cf74ea00d6a9315cc2eedd71582c5df3737226c72b88168a",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "65e9ab9f-f4ed-4d4f-b136-61b01eada09d",
+      "source_checksum": "sha256:5612d10e0baf2e5241c99664b36b253ef94f09119b0d58c1984dd1bfb0e28a53",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M2.5",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-4-8",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -787,14 +907,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "37274112-6688-45f5-bdbd-fb39ea87dffb",
+      "cache_write_token_unit_price": "6.25",
+      "id": "e0c41581-38ce-4ba7-ac81-e3284d9e23c3",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -804,29 +924,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-4-8",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -835,13 +955,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "37274112-6688-45f5-bdbd-fb39ea87dffb",
-      "source_checksum": "sha256:fd6e23f3f64423e3a80c586abc63eecd4f3e4d6c0ee47cd0c94d34187e62d244",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "e0c41581-38ce-4ba7-ac81-e3284d9e23c3",
+      "source_checksum": "sha256:509e6ef1d77aa760c97070ba407a14515b1739c965f7493ac4cb93e3512615b4",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M2.5-highspeed",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -851,14 +971,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "5",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "25",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "30e9c2c9-c64c-4116-b3c5-1070e2beef5e",
+      "cache_write_token_unit_price": "6.25",
+      "id": "40cb7b06-f6ae-421a-88fd-c4b68559bcba",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -868,29 +988,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.5-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -899,13 +1019,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "30e9c2c9-c64c-4116-b3c5-1070e2beef5e",
-      "source_checksum": "sha256:a1192b50df04fe6263c64701e73ecd1fa296f5575e6937b8b070d5884f9a8676",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "40cb7b06-f6ae-421a-88fd-c4b68559bcba",
+      "source_checksum": "sha256:b29c3d80b0f76a6079839a74afd0596b701bd8ef39f55e126ab183dd2bea3b14",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M2.7",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-opus-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -915,14 +1035,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "4",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "20",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "703dd436-db5d-414b-a008-f2244592842a",
+      "cache_write_token_unit_price": "5",
+      "id": "83828e94-662b-4e8e-b6dc-dde1b8ae69de",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -932,29 +1052,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-opus-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -963,13 +1083,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "703dd436-db5d-414b-a008-f2244592842a",
-      "source_checksum": "sha256:a6c01282f2c56658a6c9b1759e31c1e53e821004fd7576749bb8e1f5a44acc15",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "83828e94-662b-4e8e-b6dc-dde1b8ae69de",
+      "source_checksum": "sha256:8b493b56610519b790834057b8372c6f94f482beef1eb97579cb5927aef68f86",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M2.7-highspeed",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-sonnet-4-5-20250929",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -979,14 +1099,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "3",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "15",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "f91e4f91-5e28-4f6f-8b01-defe02df4c96",
+      "cache_write_token_unit_price": "3.75",
+      "id": "60fdb055-96c0-4c6e-a7c4-93f0d504ab3a",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -996,29 +1116,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M2.7-highspeed",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-5-20250929",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1027,13 +1147,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "f91e4f91-5e28-4f6f-8b01-defe02df4c96",
-      "source_checksum": "sha256:4a64b3dd94ce5814cef246e1dd3c9607e0b171bcb13a2f46bf305491593702c4",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "60fdb055-96c0-4c6e-a7c4-93f0d504ab3a",
+      "source_checksum": "sha256:be11294a39dff46d0253aa9c4aedf978f163f525dba3fbb250e8acdb10356d71",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M3",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-sonnet-4-6",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1043,14 +1163,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "3",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "15",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "377031c0-d65f-4f54-9092-b05ac2e8f3fd",
+      "cache_write_token_unit_price": "3.75",
+      "id": "8246e07a-4731-4167-af7c-f0aab84c052d",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1060,29 +1180,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-4-6",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1091,13 +1211,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "377031c0-d65f-4f54-9092-b05ac2e8f3fd",
-      "source_checksum": "sha256:541871a37dae53b3bb0522669afd3f327cd3f03ace495167371d8fb97c5a6fd0",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "8246e07a-4731-4167-af7c-f0aab84c052d",
+      "source_checksum": "sha256:f6fe27c48ffc27edc6d988498404dbd36ea29b1f1797e1b227d5a4cab4b3a4d4",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M3.1-Flash",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-sonnet-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1107,14 +1227,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "c8170ac9-de04-447e-bf1e-b9e427d8db45",
+      "cache_write_token_unit_price": "2.5",
+      "id": "45398af2-0a42-4b6a-b393-09a53674e7d5",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1124,29 +1244,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1155,13 +1275,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "c8170ac9-de04-447e-bf1e-b9e427d8db45",
-      "source_checksum": "sha256:e7818fdfc164be5fdea22740e74f7eddd1e9311f562d9179f17c755085ee0fee",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "45398af2-0a42-4b6a-b393-09a53674e7d5",
+      "source_checksum": "sha256:35bb6e11391557d4cacd4c0828cef500817ce6c87c6d8c534297d1d72b260a85",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "minimax-coding-plan",
-      "upstream_model_id": "MiniMax-M3.1-Flash-Preview",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "anthropic/claude-sonnet-5-5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1171,14 +1291,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0",
+      "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0",
+      "cache_hit_token_unit_price": "0.1",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0",
-      "id": "331c6cf2-afca-4e53-8bd8-a2a5b4549036",
+      "cache_write_token_unit_price": "2.5",
+      "id": "56c0105b-ed54-4cd6-b432-576e6876f4e0",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1188,29 +1308,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "minimax-coding-plan",
-              "model": "MiniMax-M3.1-Flash-Preview",
+              "provider": "merge-gateway",
+              "model": "anthropic/claude-sonnet-5-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1219,13 +1339,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "331c6cf2-afca-4e53-8bd8-a2a5b4549036",
-      "source_checksum": "sha256:76f3a3b855bd896228bedd51a24af68fc892c5489f298fe8b52e9988dff30116",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "56c0105b-ed54-4cd6-b432-576e6876f4e0",
+      "source_checksum": "sha256:3d0aaddbbd142802bfd4bb8924965f5a520d004f36bf4c1447eeb75f6e37d6aa",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "moonshotai-cn",
-      "upstream_model_id": "kimi-k3",
+      "provider_code": "merge-gateway",
+      "upstream_model_id": "deepseek/deepseek-v4-flash",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1235,14 +1355,14 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.9879",
+      "input_token_unit_price": "0.3",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "14.9395",
+      "output_token_unit_price": "1.2",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2988",
+      "cache_hit_token_unit_price": "0.006",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.9879",
-      "id": "e90c0af9-9a8e-49ca-8a26-0e287f094702",
+      "cache_write_token_unit_price": "0.1125",
+      "id": "29db4875-be90-4900-b1e0-3a91e26f2cfc",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1252,29 +1372,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "moonshotai-cn",
-              "model": "kimi-k3",
+              "provider": "merge-gateway",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "moonshotai-cn",
-              "model": "kimi-k3",
+              "provider": "merge-gateway",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "moonshotai-cn",
-              "model": "kimi-k3",
+              "provider": "merge-gateway",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "moonshotai-cn",
-              "model": "kimi-k3",
+              "provider": "merge-gateway",
+              "model": "deepseek/deepseek-v4-flash",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1283,9 +1403,9 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "e90c0af9-9a8e-49ca-8a26-0e287f094702",
-      "source_checksum": "sha256:1c074e3797671684c4b2917703e75e4697d6ca85143b0dc7bcb98b2a24c0465a",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "29db4875-be90-4900-b1e0-3a91e26f2cfc",
+      "source_checksum": "sha256:ef69cc2ceabf5a28f9e61075994b1a07d09cd71fad8222c0c11c771b7812013d",
+      "source_version": "2026-11-18.3"
     }
   ]
 }

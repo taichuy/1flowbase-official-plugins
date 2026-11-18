@@ -1,0 +1,91 @@
+{
+  "schema_version": "1flowbase.model-pricing-source/v2",
+  "provider_code": "requesty",
+  "upstream_model_id": "gpt-6.2-astra@eu",
+  "currency_code": "USD",
+  "effective_to": null,
+  "timezone": "UTC",
+  "weekday_mask": 127,
+  "local_time_start": null,
+  "local_time_end": null,
+  "priority": 0,
+  "enabled": true,
+  "input_token_unit_size": 1000000,
+  "input_token_unit_price": "9.6",
+  "output_token_unit_size": 1000000,
+  "output_token_unit_price": "48",
+  "cache_hit_token_unit_size": 1000000,
+  "cache_hit_token_unit_price": "0.48",
+  "cache_write_token_unit_size": 1000000,
+  "cache_write_token_unit_price": "12",
+  "id": "2c316f3c-7dd9-403b-a008-8e9f7d76ce41",
+  "effective_from": "2026-11-18T22:07:30.985Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 272000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "19.2",
+        "output_token_unit_price": "72",
+        "cache_hit_token_unit_price": "0.96",
+        "cache_write_token_unit_price": "24"
+      }
+    }
+  ],
+  "extensions": {
+    "source": "community_pricing",
+    "price_sync": {
+      "synced_at": "2026-11-18T22:07:30.985Z",
+      "meters": {
+        "input": {
+          "source": "models.dev",
+          "provider": "requesty",
+          "model": "gpt-6.2-astra@eu",
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
+        },
+        "output": {
+          "source": "models.dev",
+          "provider": "requesty",
+          "model": "gpt-6.2-astra@eu",
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_hit": {
+          "source": "models.dev",
+          "provider": "requesty",
+          "model": "gpt-6.2-astra@eu",
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
+        },
+        "cache_write": {
+          "source": "models.dev",
+          "provider": "requesty",
+          "model": "gpt-6.2-astra@eu",
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
+        }
+      },
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "19.2",
+            "output_token_unit_price": "72",
+            "cache_hit_token_unit_price": "0.96",
+            "cache_write_token_unit_price": "24"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-18.2",
+  "catalog_version": "2026-11-18.3",
   "currency_code": "USD",
   "page": 68,
-  "cursor": "YWZ0ZXI6YmY2MmVhNWYtZDg4Mi00NzBmLWFiNDItYzg4OWQ3OTlkMWRi",
-  "next_cursor": "YWZ0ZXI6NDU0Yjg2ZjAtMDg3ZC00ZDllLTk4OTktOGRjNWY4ZWJkMTUw",
+  "cursor": "YWZ0ZXI6NDQ3Mjg5MjgtZWQ4Ny00ZTBlLTk4YjItNjI0NTU1Mzg2NDdh",
+  "next_cursor": "YWZ0ZXI6MTJmNjVhOTMtMWI5Zi00MzE5LWI1NjUtOTAyOGVkNDA3ZTI3",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/69.json",
   "rules": [
     {
-      "provider_code": "google-vertex-anthropic",
-      "upstream_model_id": "claude-sonnet-5-5@default",
+      "provider_code": "github_copilot",
+      "upstream_model_id": "gpt-6-luna",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,61 +19,91 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
+      "input_token_unit_price": "0.1",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
+      "output_token_unit_price": "0.5",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
+      "cache_hit_token_unit_price": "0.01",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "051e9556-feed-4632-9833-5915bcb2fe49",
+      "cache_write_token_unit_price": "0.125",
+      "id": "e7714d4f-e212-481e-977a-29b29f5429e1",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.2",
+            "output_token_unit_price": "0.75",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.25"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5-5@default",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-luna",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5-5@default",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-luna",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5-5@default",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-luna",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5-5@default",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-luna",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.2",
+                "output_token_unit_price": "0.75",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.25"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "051e9556-feed-4632-9833-5915bcb2fe49",
-      "source_checksum": "sha256:49f12f6a18e20c7b12706c440d18b950bfc956b924740fece5c80dba186cdc4e",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "e7714d4f-e212-481e-977a-29b29f5429e1",
+      "source_checksum": "sha256:29016349665c5657aaa0eae22bdddf71449deaa7ba41472071d6f39984b0c630",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "google-vertex-anthropic",
-      "upstream_model_id": "claude-sonnet-5@default",
+      "provider_code": "github_copilot",
+      "upstream_model_id": "gpt-6-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -90,54 +120,84 @@
       "cache_hit_token_unit_price": "0.2",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "2.5",
-      "id": "d63a204a-2d70-4c45-a044-888b0761fdaa",
+      "id": "645ce479-f601-4ce5-bdbd-baf74faa7c2f",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5@default",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-sol",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "output": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5@default",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-sol",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_hit": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5@default",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-sol",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             },
             "cache_write": {
-              "source": "models.dev",
-              "provider": "google-vertex-anthropic",
-              "model": "claude-sonnet-5@default",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6-sol",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
             }
           },
-          "rules": []
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "d63a204a-2d70-4c45-a044-888b0761fdaa",
-      "source_checksum": "sha256:891cdf94670e686c596195f9a27b221ec1bdcba04fd4d63cf74c4d140d0e473c",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "645ce479-f601-4ce5-bdbd-baf74faa7c2f",
+      "source_checksum": "sha256:9c1053ab871c395ac847ec6162971466090eb73b4f1ccee15971d30f257ff857",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-3-haiku-20240307",
+      "provider_code": "github_copilot",
+      "upstream_model_id": "gpt-6.1-sol",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -147,974 +207,390 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.25",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3",
-      "id": "97d5feac-ef53-4fba-b3d1-9c65fd3f5a64",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3-haiku-20240307",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3-haiku-20240307",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3-haiku-20240307",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3-haiku-20240307",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "97d5feac-ef53-4fba-b3d1-9c65fd3f5a64",
-      "source_checksum": "sha256:589533cf299849efc417d61546227691a6986065ad8c6d3232cb37705429e47a",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-3.5-haiku",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.8",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.08",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1",
-      "id": "48ed7be3-cea6-4ff6-bd63-bbba9b0500b5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-haiku",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-haiku",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-haiku",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-haiku",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "48ed7be3-cea6-4ff6-bd63-bbba9b0500b5",
-      "source_checksum": "sha256:12cfccdbd2840378a93437942725b7a56ac644ec183f38f39800df4358bfa632",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-3.5-sonnet-v2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "5b41a9fd-e20e-49c3-8e0a-939f14d30f52",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-sonnet-v2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-sonnet-v2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-sonnet-v2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.5-sonnet-v2",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5b41a9fd-e20e-49c3-8e0a-939f14d30f52",
-      "source_checksum": "sha256:19d42bee499313d1e8a979a5ec986777f4b9641511bdddf6c129b1f440ecf44e",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-3.7-sonnet",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "2f6f16ce-09fe-40df-9a77-a016441d50b0",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.7-sonnet",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.7-sonnet",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.7-sonnet",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-3.7-sonnet",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "2f6f16ce-09fe-40df-9a77-a016441d50b0",
-      "source_checksum": "sha256:dca44abb5395124bb6b4817b10d1914b7d526270bdb6cc9f3dcda307a60402c1",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-4.5-haiku",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "5a0a0a09-8e10-4dbe-937e-7e08a9bb106d",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-haiku",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-haiku",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-haiku",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-haiku",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5a0a0a09-8e10-4dbe-937e-7e08a9bb106d",
-      "source_checksum": "sha256:201ca1467027580745cb889501c879575e5fc6d3b412add42ec087a6e2a849e8",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-4.5-opus",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "6.25",
-      "id": "ebe687a1-f105-475a-a96a-4fa132fe1d93",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-opus",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-opus",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-opus",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-opus",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ebe687a1-f105-475a-a96a-4fa132fe1d93",
-      "source_checksum": "sha256:0e9b163b0544240a62de63dc43d23fd2b286493c11e046cd817de12353ed8a60",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-4.5-sonnet",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "3b6529ad-4344-4493-b75f-63c964bebfe5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-sonnet",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-sonnet",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-sonnet",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-4.5-sonnet",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "3b6529ad-4344-4493-b75f-63c964bebfe5",
-      "source_checksum": "sha256:5e3c946db132ac1ea4a8e08805fecf2115a9863bae71a80f502de5b3c6ea2e43",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-haiku-4-5-20251001",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.25",
-      "id": "ace3dcb7-3ec4-4f0f-b7ce-afa606ef6606",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-haiku-4-5-20251001",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-haiku-4-5-20251001",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-haiku-4-5-20251001",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-haiku-4-5-20251001",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ace3dcb7-3ec4-4f0f-b7ce-afa606ef6606",
-      "source_checksum": "sha256:39f4afad1268ff1423a9fe0fa5ac0ad793f9a521eed2e6f63801313525de6a2c",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-opus-4",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "18.75",
-      "id": "663434ea-d7af-424f-876e-968d7532053e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "663434ea-d7af-424f-876e-968d7532053e",
-      "source_checksum": "sha256:b815d6589cf2377483fc2ebd1a2b9023f12734a3b7da4acc82929e0658eb1e73",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-opus-4-1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "18.75",
-      "id": "114497c1-b600-48d7-93e0-f8de779fe57a",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "114497c1-b600-48d7-93e0-f8de779fe57a",
-      "source_checksum": "sha256:02869c2d4bd437d16cbf9addcbd8b6ea4395e57b591e7b75d2c228fca583266d",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-opus-4-1-20250805",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "75",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.5",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "18.75",
-      "id": "f5421878-9d79-4283-b2b6-764da239354e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1-20250805",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1-20250805",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1-20250805",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-opus-4-1-20250805",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "f5421878-9d79-4283-b2b6-764da239354e",
-      "source_checksum": "sha256:d6a4ed5e11624f8122839a76b95950447db0e441ba41f66d3f8f92bd36f08d11",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-sonnet-4",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "174b8840-a4e7-4e4b-bf49-275cdce2f898",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "174b8840-a4e7-4e4b-bf49-275cdce2f898",
-      "source_checksum": "sha256:b5919312d34c9951c92b2357ea3196f3a9363b4ee0d6107a71c18a612f7d3706",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "claude-sonnet-4-5-20250929",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.75",
-      "id": "fc6e5709-16e4-4c7f-932f-fa7e2eed4c64",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4-5-20250929",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4-5-20250929",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4-5-20250929",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "claude-sonnet-4-5-20250929",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "fc6e5709-16e4-4c7f-932f-fa7e2eed4c64",
-      "source_checksum": "sha256:7e907c8b7f1f2550fa2def3d555689af2deb94b41a4e0f7a9262dd0ff0810eea",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "gemini-2.5-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.3",
-      "id": "5a0452d3-32b3-4bde-bd8b-3d5dadc6a7c5",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "5a0452d3-32b3-4bde-bd8b-3d5dadc6a7c5",
-      "source_checksum": "sha256:9965acee094fb4415e81886302876f779bff374943ab909c8c7cfaed8a97dbdb",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "gemini-2.5-flash-lite",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.1",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.025",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.1",
-      "id": "50cab308-44ef-47e6-957a-1e95155b1a8c",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash-lite",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash-lite",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash-lite",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-flash-lite",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "50cab308-44ef-47e6-957a-1e95155b1a8c",
-      "source_checksum": "sha256:35e62945c980ad070c512f94e878e21c79324d5d7dcdc098f31f2ef2884fb311",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "helicone",
-      "upstream_model_id": "gemini-2.5-pro",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.25",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
       "output_token_unit_price": "10",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.3125",
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "6009a46c-6751-4e67-b5aa-311c1a2bb45e",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-sol",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-sol",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-sol",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-sol",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6009a46c-6751-4e67-b5aa-311c1a2bb45e",
+      "source_checksum": "sha256:727da9396e192c57f1e44ace410eb2da93103cbd2de4351d8c1c23debbcf1945",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "github_copilot",
+      "upstream_model_id": "gpt-6.1-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.05",
       "cache_write_token_unit_size": 1000000,
       "cache_write_token_unit_price": "1.25",
-      "id": "2ca047ca-623a-46bc-b21f-cac37b88b7b9",
+      "id": "eb88939a-10a0-4c0c-9bd4-fb6e0c2ddd42",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "7.5",
+            "cache_hit_token_unit_price": "0.1",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-terra",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-terra",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-terra",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.1-terra",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "7.5",
+                "cache_hit_token_unit_price": "0.1",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "eb88939a-10a0-4c0c-9bd4-fb6e0c2ddd42",
+      "source_checksum": "sha256:6c7d74aac2c8a5ffda856e89f71dafbbb7b1401b636b3cdb8223598da4b0393f",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "github_copilot",
+      "upstream_model_id": "gpt-6.2-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "8",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "40",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "10",
+      "id": "246e112c-c308-41c8-b10b-2fd910b0b6f7",
+      "effective_from": "2026-11-18T04:32:40.791Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "16",
+            "output_token_unit_price": "60",
+            "cache_hit_token_unit_price": "0.8",
+            "cache_write_token_unit_price": "20"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-18T04:32:40.791Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-astra",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-astra",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-astra",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-astra",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "16",
+                "output_token_unit_price": "60",
+                "cache_hit_token_unit_price": "0.8",
+                "cache_write_token_unit_price": "20"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "246e112c-c308-41c8-b10b-2fd910b0b6f7",
+      "source_checksum": "sha256:4dd50a427e5426e87e76120abeeab982de741206eb2c68c1d6fc7806467aac1e",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "github_copilot",
+      "upstream_model_id": "gpt-6.2-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "dd95fa80-c79b-40cf-ad2b-bcc3cf095b55",
+      "effective_from": "2026-11-18T04:32:40.791Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-18T04:32:40.791Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-sol",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-sol",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-sol",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "github_copilot",
+              "model": "gpt-6.2-sol",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "dd95fa80-c79b-40cf-ad2b-bcc3cf095b55",
+      "source_checksum": "sha256:6748bf78ed99fa01bbc0b1e4ab7daf1a4bad5e573cefcfec3f77627710752be2",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "492eb023-adc9-49d8-b577-9537f2abbb14",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
@@ -1124,29 +600,29 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-pro",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-pro",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-pro",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "helicone",
-              "model": "gemini-2.5-pro",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1155,13 +631,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "2ca047ca-623a-46bc-b21f-cac37b88b7b9",
-      "source_checksum": "sha256:81af3d410d6bfab01166a9e54c2a3b3ba89424ade6edf39ff683056d1f0fc597",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "492eb023-adc9-49d8-b577-9537f2abbb14",
+      "source_checksum": "sha256:af47ed9bbec11071b523a6e466093854758fc25d9c5c6bc1fa79c4b7ce089f8a",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "hostinger-router",
-      "upstream_model_id": "claude-fable-5",
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-fable-5-1",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1171,46 +647,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "13.2",
+      "input_token_unit_price": "0",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "66",
+      "output_token_unit_price": "0",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "1.32",
+      "cache_hit_token_unit_price": "0",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "16.5",
-      "id": "6f60a00d-e1f7-4e5e-b18b-006c4791a42f",
-      "effective_from": "2026-11-15T02:47:37.236Z",
+      "cache_write_token_unit_price": "0",
+      "id": "c447bcc1-fb52-48d0-bdbe-204de35f53ab",
+      "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-15T02:47:37.236Z",
+          "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-fable-5",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5-1",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-fable-5",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5-1",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-fable-5",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5-1",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-fable-5",
+              "provider": "gitlab",
+              "model": "duo-chat-fable-5-1",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1219,13 +695,13 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "6f60a00d-e1f7-4e5e-b18b-006c4791a42f",
-      "source_checksum": "sha256:e66b0807e153173468728adc88fc2d9979d2153e8068de31253de241aae0bd99",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "c447bcc1-fb52-48d0-bdbe-204de35f53ab",
+      "source_checksum": "sha256:4cc698faa310301be9343d34eaa3da640a449c295cc1e210292ecec4939fc72d",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "hostinger-router",
-      "upstream_model_id": "claude-haiku-4.5",
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-5-6-luna",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1235,46 +711,46 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.32",
+      "input_token_unit_price": "0",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "6.6",
+      "output_token_unit_price": "0",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.132",
+      "cache_hit_token_unit_price": "0",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.65",
-      "id": "454b86f0-087d-4d9e-9899-8dc5f8ebd150",
-      "effective_from": "2026-11-15T02:47:37.236Z",
+      "cache_write_token_unit_price": "0",
+      "id": "e333b4d6-5f79-4967-b3be-e91ea7e509ae",
+      "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
-          "synced_at": "2026-11-15T02:47:37.236Z",
+          "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-haiku-4.5",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-luna",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-haiku-4.5",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-luna",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-haiku-4.5",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-luna",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
               "source": "models.dev",
-              "provider": "hostinger-router",
-              "model": "claude-haiku-4.5",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-luna",
               "field": "cost.cache_write",
               "url": "https://models.dev/api.json"
             }
@@ -1283,9 +759,713 @@
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "454b86f0-087d-4d9e-9899-8dc5f8ebd150",
-      "source_checksum": "sha256:0e463aab3065b55e9f70455d6cffd731cd434d91b15269d2b4f5e02c0e7d8917",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "e333b4d6-5f79-4967-b3be-e91ea7e509ae",
+      "source_checksum": "sha256:dcf8d8e02751143f2a03f3576bb23f97609ab54ca494363f6e2510340743b91b",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-5-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "738ae8c6-2f80-4654-b0b7-bdda3ee488e8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "738ae8c6-2f80-4654-b0b7-bdda3ee488e8",
+      "source_checksum": "sha256:9f58694eb34d9c29bd4fc196bfd78d5486889671b7157beeced9f932af01121f",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-5-6-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "1ec44eae-b3a1-4e84-aa0a-b9b5ba69ae8c",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-5-6-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "1ec44eae-b3a1-4e84-aa0a-b9b5ba69ae8c",
+      "source_checksum": "sha256:835b94e94f0a59b7b99551b68b1e865a5e53b4213265a7721d15ac8e4057f4b0",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-6-1-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "b443b59d-b11b-45e9-9cd6-b3e5db761996",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-1-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-1-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-1-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-1-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b443b59d-b11b-45e9-9cd6-b3e5db761996",
+      "source_checksum": "sha256:5c935e1e3e01b70bfe16921f84e31af21a2916e26e9d9b4cc796423f1ebf2688",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-6-astra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "6af58f91-c01c-4326-b296-343227ab50f8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-astra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-astra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-astra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-astra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6af58f91-c01c-4326-b296-343227ab50f8",
+      "source_checksum": "sha256:6e9b47ddedbe588983155d32c44b06f022c202b9e325d9590afe536de6ec8ca4",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "50bf572b-bfd4-431f-945c-9a6c77da9806",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "50bf572b-bfd4-431f-945c-9a6c77da9806",
+      "source_checksum": "sha256:b04e387ec8f221213714e37d85fbcbd1f446c13b48af6ce753b0e7cbc6a95120",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "228af157-7056-4056-aac6-b3845cdec559",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "228af157-7056-4056-aac6-b3845cdec559",
+      "source_checksum": "sha256:f71f6ec96b9ca3c5ddc16721783f24e0531f7012a88a22fdda7c58caca6052c9",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-haiku-4-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "2b93fd71-282f-45ae-9339-415b71392aeb",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-4-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-4-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-4-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-4-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "2b93fd71-282f-45ae-9339-415b71392aeb",
+      "source_checksum": "sha256:ae7d6b510927b7c9751844d34999ee6e75d113eb2f6ce5b21fe132cd215e26c6",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-haiku-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "9721d525-21b1-463f-8a3c-867282d41fd7",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-5-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-5-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-5-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-haiku-5-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "9721d525-21b1-463f-8a3c-867282d41fd7",
+      "source_checksum": "sha256:2c94341f185c6bbe8f7acdd7b5bd1673e3c7e9a42832d60f7590b1432a68eba2",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-opus-4-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "aaccf404-0f8c-4e0c-bebe-23f352712dc8",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "aaccf404-0f8c-4e0c-bebe-23f352712dc8",
+      "source_checksum": "sha256:fecab1ae7e8f10b5b67cf1e54d6e1e487ced7ea05bc5f7679063bcf124234571",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-opus-4-6",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "ff2f5d30-2bc8-4424-b864-6439a89f5ceb",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-6",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-6",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-6",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "ff2f5d30-2bc8-4424-b864-6439a89f5ceb",
+      "source_checksum": "sha256:888832e463e24f7a3ec36f90444cb3600c130520a881dbf4ec8b25dae81be857",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "gitlab",
+      "upstream_model_id": "duo-chat-opus-4-7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "12f65a93-1b9f-4319-b565-9028ed407e27",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "gitlab",
+              "model": "duo-chat-opus-4-7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "12f65a93-1b9f-4319-b565-9028ed407e27",
+      "source_checksum": "sha256:f44c8bca7112e6fdf4a4b481a1b6e8032346dd47a86b971868a001aeb575701a",
+      "source_version": "2026-11-18.3"
     }
   ]
 }

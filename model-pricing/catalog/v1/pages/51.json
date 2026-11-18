@@ -1,15 +1,15 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-18.2",
+  "catalog_version": "2026-11-18.3",
   "currency_code": "USD",
   "page": 51,
-  "cursor": "YWZ0ZXI6OTRmMTZiZWEtOTNjOC00MDZmLTgyNDAtNmUwZjE5YzY2YjNj",
-  "next_cursor": "YWZ0ZXI6M2E4N2IwZDItNGIyOS00N2E1LWI2MmYtMDU2NTg1OWMzOTI1",
+  "cursor": "YWZ0ZXI6ZjU5MzYwOGMtYjJkNC00YjE4LWE5NjAtNDJkMTIzZTlhNjYy",
+  "next_cursor": "YWZ0ZXI6MDE4YTUzZmQtZGNkNy00M2JmLTg1N2YtY2UzOGZjYTc0ODgx",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/52.json",
   "rules": [
     {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemini-3-8-flash",
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.6-plus",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -19,80 +19,31 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.74998",
+      "input_token_unit_price": "0.32",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3.74997",
+      "output_token_unit_price": "1.88",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.07497",
+      "cache_hit_token_unit_price": "0.032",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.74998",
-      "id": "6f28eb05-6b04-4678-a86d-b51d9acacff9",
+      "cache_write_token_unit_price": "0.4",
+      "id": "ec705d53-15de-4974-a7aa-80b22617d40e",
       "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-8-flash",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-8-flash",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-8-flash",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-8-flash",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
             }
           },
-          "rules": []
+          "overrides": {
+            "input_token_unit_price": "1.25",
+            "output_token_unit_price": "7.5",
+            "cache_hit_token_unit_price": "0.124",
+            "cache_write_token_unit_price": "1.57"
+          }
         }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "6f28eb05-6b04-4678-a86d-b51d9acacff9",
-      "source_checksum": "sha256:267718378400434fa6e834262c44876f7a6a4dd98b62de2840888fd3ee1d60a2",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemini-3-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "3",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.05",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.62503",
-      "id": "43fa87cf-9b2c-4e74-94a8-e069a4dc89ff",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
+      ],
       "extensions": {
         "source": "community_pricing",
         "price_sync": {
@@ -100,44 +51,881 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-flash",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-flash",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-flash",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.6-plus",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-flash",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.6-plus",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "1.25",
+                "output_token_unit_price": "7.5",
+                "cache_hit_token_unit_price": "0.124",
+                "cache_write_token_unit_price": "1.57"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "ec705d53-15de-4974-a7aa-80b22617d40e",
+      "source_checksum": "sha256:74b9e44ef26e99b2a33988e4bfa57481ad4559da7ff61df5a5ab38f17022e990",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.7-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.04",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.13",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.01",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.04",
+      "id": "66d420fc-c9f7-42c8-a613-2fd69a5f5a41",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 32000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.1",
+            "output_token_unit_price": "0.37",
+            "cache_hit_token_unit_price": "0.02",
+            "cache_write_token_unit_price": "0.12"
+          }
+        },
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.19",
+            "output_token_unit_price": "0.74",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.24"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 32000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.1",
+                "output_token_unit_price": "0.37",
+                "cache_hit_token_unit_price": "0.02",
+                "cache_write_token_unit_price": "0.12"
+              }
+            },
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.19",
+                "output_token_unit_price": "0.74",
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.24"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "66d420fc-c9f7-42c8-a613-2fd69a5f5a41",
+      "source_checksum": "sha256:629b5723f54cd5bf73a8d37edc3ef2dd599d6a5f2b7f8afa2e24e5b5939b81e8",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.7-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.88",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5.63",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.375",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.35",
+      "id": "d2f08b90-10d7-4f00-9997-1c8d83cff361",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-max",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": []
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "43fa87cf-9b2c-4e74-94a8-e069a4dc89ff",
-      "source_checksum": "sha256:a8e623392eebd43103af4f7bb7512fbf63251bcea8fb614ce4ee5535ee15a79b",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "d2f08b90-10d7-4f00-9997-1c8d83cff361",
+      "source_checksum": "sha256:ca716ded49bca2fc692395b8a638823578f8535533a33eab04e51e213d073f73",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemini-3-pro",
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.7-plus",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.32",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.25",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.032",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.4",
+      "id": "a1cc89d0-d16e-4232-8eb5-b59cb062d897",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 256000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.96",
+            "output_token_unit_price": "3.75",
+            "cache_hit_token_unit_price": "0.096",
+            "cache_write_token_unit_price": "1.2"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.7-plus",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 256000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.96",
+                "output_token_unit_price": "3.75",
+                "cache_hit_token_unit_price": "0.096",
+                "cache_write_token_unit_price": "1.2"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a1cc89d0-d16e-4232-8eb5-b59cb062d897",
+      "source_checksum": "sha256:c80c629f1bd306df70dec9d5311d453281f05cbacfca6283b1c0a8e9c5292525",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.8-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.13",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.43",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.016",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.2",
+      "id": "2bb7d34c-4db4-41c8-adb7-599588ebf690",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "2bb7d34c-4db4-41c8-adb7-599588ebf690",
+      "source_checksum": "sha256:68511b655b5e10bdd29de5241f52baa46799ebc45c776d7b4f35ec66934acea4",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.8-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.88",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5.63",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.23",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.35",
+      "id": "cac19921-5ea0-44b5-8a2f-966311406a80",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-max",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-max",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-max",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-max",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "cac19921-5ea0-44b5-8a2f-966311406a80",
+      "source_checksum": "sha256:a8d2ad979c1ff8a2c6377ae0772c9633ded044ab0edaa2028270d3368de0e07e",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen3.8-omni-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.13",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.43",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.016",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.13",
+      "id": "e7329059-e93d-401e-9587-2b1f55abff9d",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-omni-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-omni-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-omni-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen3.8-omni-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "e7329059-e93d-401e-9587-2b1f55abff9d",
+      "source_checksum": "sha256:486a238252ca1c5e2a39af5a8c86ebe39c76271dfe1f97f591dd0da44cc21112",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "qwen/qwen4-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.6",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.8",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.08",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2",
+      "id": "729ce848-9369-4c48-89d0-a5c1b938f8e3",
+      "effective_from": "2026-11-16T22:16:55.203Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-16T22:16:55.203Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen4-max",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen4-max",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen4-max",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "qwen/qwen4-max",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "729ce848-9369-4c48-89d0-a5c1b938f8e3",
+      "source_checksum": "sha256:4540c80875aaf2b073014e97114bd81ab78c791a6e11b251eb353090dd52b670",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "tencent/hy3",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.16",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.64",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.04",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.16",
+      "id": "764dec3c-7eee-40a0-9984-42d624bc27ec",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy3",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy3",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy3",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy3",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "764dec3c-7eee-40a0-9984-42d624bc27ec",
+      "source_checksum": "sha256:f8d27b316e469e86e638a0a0a9f894044d9fc81c725e308dab85c53e80c759f8",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "tencent/hy4",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.96",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2.88",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.048",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.96",
+      "id": "8953fdc4-b164-4a1d-a676-0ed301fb3ff3",
+      "effective_from": "2026-11-10T10:02:08.968Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-10T10:02:08.968Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8953fdc4-b164-4a1d-a676-0ed301fb3ff3",
+      "source_checksum": "sha256:67e3598886ea8061a9c5fc85471d649699707b1c999b9e5995d8e5061e0a6d4c",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "tencent/hy4-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.08",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.32",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.0032",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.08",
+      "id": "8f660f08-6c41-4fbc-860f-823b518f22a0",
+      "effective_from": "2026-11-16T22:16:55.203Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-16T22:16:55.203Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "tencent/hy4-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8f660f08-6c41-4fbc-860f-823b518f22a0",
+      "source_checksum": "sha256:acf594d6c11ba9780d54e3962dfc43eb7549545531959f537049bd8a4a72eca1",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "x-ai/grok-4.3",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.25",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "820354f3-c98d-4c35-82b5-5e0c0b07eb2b",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2.5",
+            "output_token_unit_price": "5",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.3",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.3",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.3",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.3",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2.5",
+                "output_token_unit_price": "5",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "820354f3-c98d-4c35-82b5-5e0c0b07eb2b",
+      "source_checksum": "sha256:4e18561e12f13e46992818ffa5241dc0701b59480dbfcf47568bf409edb1843e",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "x-ai/grok-4.5",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -149,12 +937,12 @@
       "input_token_unit_size": 1000000,
       "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12",
+      "output_token_unit_price": "6",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.2",
+      "cache_hit_token_unit_price": "0.3",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.49998",
-      "id": "e53a223a-abb0-46fe-b55f-682fe4f888ea",
+      "cache_write_token_unit_price": "2",
+      "id": "e67ae3e7-d5b4-4fa6-b869-d4b71f15eb5c",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
@@ -166,8 +954,9 @@
           },
           "overrides": {
             "input_token_unit_price": "4",
-            "output_token_unit_price": "18",
-            "cache_hit_token_unit_price": "0.4"
+            "output_token_unit_price": "12",
+            "cache_hit_token_unit_price": "0.6",
+            "cache_write_token_unit_price": "4"
           }
         }
       ],
@@ -178,31 +967,31 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.5",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.5",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.5",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": [
@@ -215,149 +1004,22 @@
               },
               "overrides": {
                 "input_token_unit_price": "4",
-                "output_token_unit_price": "18",
-                "cache_hit_token_unit_price": "0.4"
+                "output_token_unit_price": "12",
+                "cache_hit_token_unit_price": "0.6",
+                "cache_write_token_unit_price": "4"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "e53a223a-abb0-46fe-b55f-682fe4f888ea",
-      "source_checksum": "sha256:d352e83b758c4fcbc8e71f3cdfc05faf9499afe954bbeed46e97aee046df6746",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "e67ae3e7-d5b4-4fa6-b869-d4b71f15eb5c",
+      "source_checksum": "sha256:d5beca8be21fe595df1d1ca2d8cb33e0abb197d848e103cea423f98dbbb9e7f9",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemini-3-pro-image",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.49998",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15.00002",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "2.49998",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.49998",
-      "id": "e5338f51-d05f-43d7-8283-6fcfc2f0b4ca",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro-image",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro-image",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro-image",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-3-pro-image",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e5338f51-d05f-43d7-8283-6fcfc2f0b4ca",
-      "source_checksum": "sha256:2a3c537553b3e39db6173870ac40d05abdb94cffb4ac3cc082d94682e8700b4e",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemini-4-argon",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.49998",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "12.49997",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.12502",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.49998",
-      "id": "c358d840-d117-4670-bc3c-040bc195eb53",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-argon",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-argon",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-argon",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-argon",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c358d840-d117-4670-bc3c-040bc195eb53",
-      "source_checksum": "sha256:2a746a2328e45c63a001bc235a0cd5dce136c9f7fd62307aa22b695a401c6b04",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemini-4-carbon",
+      "provider_code": "crossmodel",
+      "upstream_model_id": "x-ai/grok-4.6",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -369,911 +1031,26 @@
       "input_token_unit_size": 1000000,
       "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "2",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2",
-      "id": "4ecb73d9-95e6-40d6-bcc1-719cded5010b",
-      "effective_from": "2026-11-11T22:46:03.846Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-11T22:46:03.846Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-carbon",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-carbon",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-carbon",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemini-4-carbon",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4ecb73d9-95e6-40d6-bcc1-719cded5010b",
-      "source_checksum": "sha256:5bb01fafa7eb50babe69ccdb24d4827cc8c5e42c80db28be734712514590c704",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gemma-3-12b",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.15001",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.50001",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.15001",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.15001",
-      "id": "4ccefd2e-5ed7-489c-aba9-9b1795b21396",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemma-3-12b",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemma-3-12b",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemma-3-12b",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gemma-3-12b",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4ccefd2e-5ed7-489c-aba9-9b1795b21396",
-      "source_checksum": "sha256:1befffad4f0ae8686de72328f9310d87a697f6cea53f228e0c5a4c280b4b2974",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-glm-5-2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.4",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.26",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.4",
-      "id": "98d9c269-5acd-4f5e-b9e9-9dd05d00cda3",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-glm-5-2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-glm-5-2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-glm-5-2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-2",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "98d9c269-5acd-4f5e-b9e9-9dd05d00cda3",
-      "source_checksum": "sha256:516af8d3838f1beb66e8036f5eb491bfadacac6fc4a63b95fb140f5965415bd4",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-glm-5-3",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.4",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.39999",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25998",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.4",
-      "id": "2840a129-51f3-49c5-952b-7e39b2c948b0",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "2840a129-51f3-49c5-952b-7e39b2c948b0",
-      "source_checksum": "sha256:8593a8dc237cc0080fd58d133cf4f0763bd9897bbbeba93ecef4f120be7e490c",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-glm-5-3-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.15001",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.50001",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03003",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.15001",
-      "id": "0e473343-c4e7-4c0c-ac03-fdf079c3cb0e",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3-flash",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3-flash",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3-flash",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-glm-5-3-flash",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0e473343-c4e7-4c0c-ac03-fdf079c3cb0e",
-      "source_checksum": "sha256:57b0f609d7b6c7dbcd3e3ef0ff874893aac1d4b6149e7af8ca5eb02337ceb24d",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.25",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.125",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.24999",
-      "id": "79dfb739-b953-4f21-8f3a-e1f87c192f77",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "79dfb739-b953-4f21-8f3a-e1f87c192f77",
-      "source_checksum": "sha256:0b7613dc1ee6badf526af8b3db331d8a16696a810f80f526c677bba3512130ff",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-1",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.25",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.125",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.24999",
-      "id": "3542c16d-096e-4575-b224-759e89860bbf",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-1",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-1",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-1",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-1",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "3542c16d-096e-4575-b224-759e89860bbf",
-      "source_checksum": "sha256:c8938d0be8c2b2964acaebfae264b9527463e8d352f2314d69236f31ed19a98f",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-2",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "14",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.175",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.75",
-      "id": "0d5f6972-ff59-4838-8d85-1e6e30455fdd",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-2",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-2",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-2",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-2",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "0d5f6972-ff59-4838-8d85-1e6e30455fdd",
-      "source_checksum": "sha256:01dae8c7a5a397b063391a7aa9315ae3615259f636946a236ff5317211e982df",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-3-codex",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "14",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.175",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1.75",
-      "id": "ec7e476c-9d07-4fd6-9cf4-c6e431ce4463",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-3-codex",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-3-codex",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-3-codex",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-3-codex",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "ec7e476c-9d07-4fd6-9cf4-c6e431ce4463",
-      "source_checksum": "sha256:5d38769d5b9239d71f8a359fd096d6d808b7037c67bcd67871b683e1c2846cc7",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-4",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.25",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.49998",
-      "id": "186055bc-ce97-470a-b7e4-3df24c7ce4d9",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "5",
-            "output_token_unit_price": "22.5",
-            "cache_hit_token_unit_price": "0.5"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "5",
-                "output_token_unit_price": "22.5",
-                "cache_hit_token_unit_price": "0.5"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "186055bc-ce97-470a-b7e4-3df24c7ce4d9",
-      "source_checksum": "sha256:86b76cb77001b3df78a3fdde8d451b753803bbf33aaf6b1d7aa8edb7dc3bdbb5",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-4-mini",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.75",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "4.5",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.075",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.74998",
-      "id": "47f11d92-6322-4d72-8726-29df87adef84",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-mini",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-mini",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-mini",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-mini",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "47f11d92-6322-4d72-8726-29df87adef84",
-      "source_checksum": "sha256:3b913685cc5d2f17b7b18839d90e3dfa5558baa336a8f0242f1cc59e0693b6e7",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-4-nano",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.25",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.02",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.19999",
-      "id": "d474780e-c692-4eff-b2d3-cc1b9f2c1007",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-nano",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-nano",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-nano",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-nano",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "d474780e-c692-4eff-b2d3-cc1b9f2c1007",
-      "source_checksum": "sha256:8f09b2dcc4c98ef206558aaec6e3d094701a780c6ae468dfeb1c89d5122d3b7c",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-4-pro",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "29.99997",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "180.0001",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "29.99997",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "29.99997",
-      "id": "07b73949-a708-43ed-9a93-559173f2f6e6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "60",
-            "output_token_unit_price": "270"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-pro",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-pro",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-pro",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-4-pro",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "60",
-                "output_token_unit_price": "270"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "07b73949-a708-43ed-9a93-559173f2f6e6",
-      "source_checksum": "sha256:d5fc4d0405a2e3fbbc843d1669bce3576a349ba7608c0d553fb356104697977d",
-      "source_version": "2026-11-18.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "5",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "30",
+      "output_token_unit_price": "6",
       "cache_hit_token_unit_size": 1000000,
       "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "5.00003",
-      "id": "e2107532-23b3-4766-b32c-67d023b6ee22",
+      "cache_write_token_unit_price": "2",
+      "id": "ac30ad1e-3300-4317-afb3-a96399b6a8b8",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
           "when": {
             "input_tokens": {
               "operator": "gt",
-              "value": 272000
+              "value": 200000
             }
           },
           "overrides": {
-            "input_token_unit_price": "10",
-            "output_token_unit_price": "45",
-            "cache_hit_token_unit_price": "1"
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "12",
+            "cache_hit_token_unit_price": "1",
+            "cache_write_token_unit_price": "4"
           }
         }
       ],
@@ -1284,31 +1061,31 @@
           "meters": {
             "input": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.6",
               "field": "cost.input",
               "url": "https://models.dev/api.json"
             },
             "output": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.6",
               "field": "cost.output",
               "url": "https://models.dev/api.json"
             },
             "cache_hit": {
               "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.6",
               "field": "cost.cache_read",
               "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.6",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": [
@@ -1316,26 +1093,27 @@
               "when": {
                 "input_tokens": {
                   "operator": "gt",
-                  "value": 272000
+                  "value": 200000
                 }
               },
               "overrides": {
-                "input_token_unit_price": "10",
-                "output_token_unit_price": "45",
-                "cache_hit_token_unit_price": "1"
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "12",
+                "cache_hit_token_unit_price": "1",
+                "cache_write_token_unit_price": "4"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "e2107532-23b3-4766-b32c-67d023b6ee22",
-      "source_checksum": "sha256:91702cbb3bde70dcffe3879fc7e413e6e9fd1c2a1cbedac34b2ce05a0e5bb75d",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "ac30ad1e-3300-4317-afb3-a96399b6a8b8",
+      "source_checksum": "sha256:7b72af9e3eba12c64829dcf1763b3192cc85072264c348c433f4587174cd18e2",
+      "source_version": "2026-11-18.3"
     },
     {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-gpt-5-5-pro",
+      "provider_code": "crossmodel",
+      "upstream_model_id": "x-ai/grok-4.7",
       "currency_code": "USD",
       "effective_to": null,
       "timezone": "UTC",
@@ -1345,26 +1123,28 @@
       "priority": 0,
       "enabled": true,
       "input_token_unit_size": 1000000,
-      "input_token_unit_price": "29.99997",
+      "input_token_unit_price": "2",
       "output_token_unit_size": 1000000,
-      "output_token_unit_price": "180.0001",
+      "output_token_unit_price": "6",
       "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "29.99997",
+      "cache_hit_token_unit_price": "0.5",
       "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "29.99997",
-      "id": "3a87b0d2-4b29-47a5-b62f-0565859c3925",
+      "cache_write_token_unit_price": "2",
+      "id": "e7966b57-c47f-4925-afe1-d006cace2486",
       "effective_from": "2026-10-31T02:01:38.612Z",
       "rules": [
         {
           "when": {
             "input_tokens": {
               "operator": "gt",
-              "value": 272000
+              "value": 200000
             }
           },
           "overrides": {
-            "input_token_unit_price": "60",
-            "output_token_unit_price": "270"
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "12",
+            "cache_hit_token_unit_price": "1",
+            "cache_write_token_unit_price": "4"
           }
         }
       ],
@@ -1374,32 +1154,32 @@
           "synced_at": "2026-10-31T02:01:38.612Z",
           "meters": {
             "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5-pro",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
             },
             "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5-pro",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
             },
             "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5-pro",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
             },
             "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-gpt-5-5-pro",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-4.7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
             }
           },
           "rules": [
@@ -1407,21 +1187,433 @@
               "when": {
                 "input_tokens": {
                   "operator": "gt",
-                  "value": 272000
+                  "value": 200000
                 }
               },
               "overrides": {
-                "input_token_unit_price": "60",
-                "output_token_unit_price": "270"
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "12",
+                "cache_hit_token_unit_price": "1",
+                "cache_write_token_unit_price": "4"
               }
             }
           ]
         }
       },
       "source_kind": "official",
-      "source_catalog_id": "3a87b0d2-4b29-47a5-b62f-0565859c3925",
-      "source_checksum": "sha256:7230c6c5f9b0c1957e2e336eb44fa4391cb4507fd15cc48bbac80ee50c7d0c6c",
-      "source_version": "2026-11-18.2"
+      "source_catalog_id": "e7966b57-c47f-4925-afe1-d006cace2486",
+      "source_checksum": "sha256:4a7fcc79173970e97a0e9a02a357a8010e88ab094490407b4698383d7269d8be",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "x-ai/grok-build-0.1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1",
+      "id": "7ecc4509-ec30-4391-9880-2a2fc9b687b5",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "4",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "2"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-build-0.1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-build-0.1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-build-0.1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "x-ai/grok-build-0.1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 200000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "4",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "2"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7ecc4509-ec30-4391-9880-2a2fc9b687b5",
+      "source_checksum": "sha256:8a3f7d1b1fa9e9af2bc6d2287444a961b26060e5921b82ccbc972c9344c8c9e2",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "xiaomi/mimo-v2.6-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.16",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.32",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.004",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.16",
+      "id": "861933cb-43a3-431e-ad83-e38c1f566a02",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-flash",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-flash",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-flash",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-flash",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "861933cb-43a3-431e-ad83-e38c1f566a02",
+      "source_checksum": "sha256:38cd75b2f1b44273149ef8bee4ca47103354eb636c66b73723ce2e2b7bcc7a15",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "xiaomi/mimo-v2.6-pro",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.47",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.94",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.005",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.47",
+      "id": "c2d0b409-f938-4213-9d26-febd9b762514",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-pro",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-pro",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-pro",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "xiaomi/mimo-v2.6-pro",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "c2d0b409-f938-4213-9d26-febd9b762514",
+      "source_checksum": "sha256:d39dee82936c50049efd9c0c86843eca293f73b93cd425b66a564ea8c24edb3b",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "z-ai/glm-4.7",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.47",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "2.16",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.47",
+      "id": "78103de2-39fb-4871-bb36-9ba01912d956",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 32000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.62",
+            "output_token_unit_price": "2.47",
+            "cache_hit_token_unit_price": "0.13",
+            "cache_write_token_unit_price": "0.62"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-4.7",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-4.7",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-4.7",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-4.7",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 32000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.62",
+                "output_token_unit_price": "2.47",
+                "cache_hit_token_unit_price": "0.13",
+                "cache_write_token_unit_price": "0.62"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "78103de2-39fb-4871-bb36-9ba01912d956",
+      "source_checksum": "sha256:5cfffc629b7ff5536605d01ddd97076fb7952440ce3e3d498d1729bb53687f38",
+      "source_version": "2026-11-18.3"
+    },
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "z-ai/glm-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.6",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "3",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.16",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.6",
+      "id": "018a53fd-dcd7-43bf-857f-ce38fca74881",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 32000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.8",
+            "output_token_unit_price": "3.4",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "0.8"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "z-ai/glm-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 32000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.8",
+                "output_token_unit_price": "3.4",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "0.8"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "018a53fd-dcd7-43bf-857f-ce38fca74881",
+      "source_checksum": "sha256:e77f4770554080ecaf3d58ccef4cdf7bc7a2a48c5d9ccbb25630c49f5fdc2a6a",
+      "source_version": "2026-11-18.3"
     }
   ]
 }
