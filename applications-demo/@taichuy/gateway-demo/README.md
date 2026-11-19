@@ -41,3 +41,13 @@ Release v12 修正 Workflow Start 的 MCP 编排说明：`outputs` 必须为 `[]
 Release v12 corrects the Workflow Start authoring guidance: `outputs` must be `[]`, and input variables come from `config.input_fields`. When supported by the host, node discovery exposes structural constraints through `document_schema`. Open the saved orchestration in the editor as part of verification; a successful node preview does not establish editor compatibility.
 
 The API Key summary draft and published definition no longer duplicate Start input fields in `outputs`. Sorting parameters, variable references and API mappings are preserved. This template excludes the log-deletion test application, temporary sessions and test records. The host owns structural validation: incomplete drafts remain editable, while invalid node structures must be rejected.
+
+## Release v14：无供应商时也能安装 / Install without model providers
+
+默认内置包保留管理页面、数据建模定义、MCP、模型使用统计和应用 API Key 汇总。日报设置仍引用同一个工作流；内置包只安装其草稿和关闭的定时配置。配置日报的大语言模型后，先发布工作流，再启用定时任务。重新导出时保留这个边界：不要导出日报的已发布版本或启用定时任务。
+
+示例对话 AgentFlow 不再随镜像内置；配置所需供应商后，可单独安装 [Gateway Demo Conversation](../gateway-demo-conversation/README.md)。升级不会删除已存在的对话应用，也不会撤销已存在的日报发布；应用发布仍使用宿主原有校验。
+
+The bundled template retains the management pages, data model definitions, MCP, model usage statistics, and application API key summary. The daily report settings still reference the same workflow, but the bundle only installs its draft and disabled schedule. Configure its LLM, publish the workflow, and then enable the schedule. When re-exporting, leave the daily report unpublished and its schedule disabled.
+
+The sample conversation AgentFlow is now a separate [Gateway Demo Conversation](../gateway-demo-conversation/README.md) template. Configure the required providers before installing it. Existing conversation applications and daily report publications are not removed by the upgrade.
