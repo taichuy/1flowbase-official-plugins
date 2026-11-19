@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-19.1",
+  "catalog_version": "2026-11-19.2",
   "currency_code": "USD",
   "page": 58,
-  "cursor": "YWZ0ZXI6YTAxYmU2ZmQtMWRjZC00ODljLWFkNTYtY2Q2ZTk3ZjExMDVh",
-  "next_cursor": "YWZ0ZXI6ZTA2Y2UwYjQtMjk2NS00Mjc5LThmNzctMmZlMTFmZjY0ZmFh",
+  "cursor": "YWZ0ZXI6NGI5OTU3NjktMjBiYS00NDFhLWEyNTktZGFjYjk1NWVjODY2",
+  "next_cursor": "YWZ0ZXI6NWM3ZjAyNzAtNmY1MS00OGZlLWFmYWMtNzQ3MzFhODU5MWVm",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/59.json",
   "rules": [
+    {
+      "provider_code": "digitalocean",
+      "upstream_model_id": "openai-gpt-5.6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "20",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.4",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5",
+      "id": "a01be6fd-1dcd-489c-ad56-cd6e97f1105a",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "8",
+            "output_token_unit_price": "30",
+            "cache_hit_token_unit_price": "0.8",
+            "cache_write_token_unit_price": "10"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "digitalocean",
+              "model": "openai-gpt-5.6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "digitalocean",
+              "model": "openai-gpt-5.6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "digitalocean",
+              "model": "openai-gpt-5.6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "digitalocean",
+              "model": "openai-gpt-5.6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "8",
+                "output_token_unit_price": "30",
+                "cache_hit_token_unit_price": "0.8",
+                "cache_write_token_unit_price": "10"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "a01be6fd-1dcd-489c-ad56-cd6e97f1105a",
+      "source_checksum": "sha256:34734d7efca6080442947cd82a6d70e44bf930a01a830a2444f982df981efc82",
+      "source_version": "2026-11-19.2"
+    },
     {
       "provider_code": "digitalocean",
       "upstream_model_id": "openai-gpt-5.6-terra",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "8e30f81a-db75-4258-86f7-a382b2c8ade4",
       "source_checksum": "sha256:10ff475df12142f965155960780cbbb5110f252f40011dc7f894f24c4b2e91c0",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "digitalocean",
@@ -193,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "fc5802d4-c572-460e-a4c9-96bc520d716d",
       "source_checksum": "sha256:52b630d091cb1bd6d1acbe0f0b1532bce8d841a6ee2c607f8a24609005885acb",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "digitalocean",
@@ -287,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "2ecb82b2-0c12-4400-9fc3-17f1429baee8",
       "source_checksum": "sha256:cc2ee0f1e99fddebc968bf0f7e4429858e7b223fd7e64511b20c283314e13650",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "digitalocean",
@@ -381,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "a5edeb14-c836-4d74-9b34-13c0dff28a57",
       "source_checksum": "sha256:e2273125f2129d185118c39daf6945d6d68d8fd7c9d30c35126f4f3d83fe46d1",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "digitalocean",
@@ -475,7 +569,7 @@
       "source_kind": "official",
       "source_catalog_id": "95e3b2d2-4606-482d-bd36-2409b2a3e326",
       "source_checksum": "sha256:b851f56b0614fe03cbc783cb6f970acff9bd38f97757ec34fa0009cc762c93c0",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -539,7 +633,7 @@
       "source_kind": "official",
       "source_catalog_id": "e0e8f498-0071-410a-ac2c-271e7a1b43cc",
       "source_checksum": "sha256:09227127ad0983fde232ec6c828eab4b5c3be5ef8ec589adac8b153f7963fc6e",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -633,7 +727,7 @@
       "source_kind": "official",
       "source_catalog_id": "4c107b7a-f1ae-48da-a8b5-9ae519212628",
       "source_checksum": "sha256:c5779e398ffa80327eef53f0db41d42ed938ff569a2f2d8adebe7a9cc404b9f9",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -697,7 +791,7 @@
       "source_kind": "official",
       "source_catalog_id": "cdb83b48-69f2-4237-9ffc-87d36239f44c",
       "source_checksum": "sha256:5fdece1b9da236183853da0950b1f2316d2875391849554bd6b76675981994fd",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -761,7 +855,7 @@
       "source_kind": "official",
       "source_catalog_id": "abcb9732-8d8f-44bd-9de2-ae464dca5132",
       "source_checksum": "sha256:9e6cbf1fdf0992de2bc0608c8f9cf0cc11d0828ae6d2ad047de4c30003a6493b",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -855,7 +949,7 @@
       "source_kind": "official",
       "source_catalog_id": "e29441d1-7349-471f-8279-18d3a05f7e44",
       "source_checksum": "sha256:99cf0e197b5443dcb53fb7cd46d275ef5ffbbe6946356248ab285d0ad684ced7",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -949,7 +1043,7 @@
       "source_kind": "official",
       "source_catalog_id": "90035b69-f8b1-4f36-b8d8-ed6a09dc816f",
       "source_checksum": "sha256:99fa4dd51837588b764a7140d77299b3994df312346a0527d529ae880141b549",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "dothoosh",
@@ -1043,7 +1137,7 @@
       "source_kind": "official",
       "source_catalog_id": "4c963cad-3ffd-43f8-8195-e99db0509157",
       "source_checksum": "sha256:c8cc4bfbb709be379dd712d73a8dcbcfb4618b805d3bebd8d1d8461a2b022ee4",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1107,7 +1201,7 @@
       "source_kind": "official",
       "source_catalog_id": "16491048-1674-4d57-8e8b-b8ed5dcf4746",
       "source_checksum": "sha256:51c951b6e035473c6220f1173f601f04dc6eaa9170953338c538311309be9ab2",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1171,7 +1265,7 @@
       "source_kind": "official",
       "source_catalog_id": "eb8fb439-25ce-4191-9f7d-a409ca390919",
       "source_checksum": "sha256:8e1d6ec55ecf73cc4b5da391a53bfcef1a00c76e58f74dffd81dc4d2d6321a27",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1235,7 +1329,7 @@
       "source_kind": "official",
       "source_catalog_id": "5f8a9af1-a670-49e2-93eb-d65c047b7fee",
       "source_checksum": "sha256:a22d284a8290559c219fb9f42c66b428aef40910fcdfc62abbc87852d0c285c8",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1299,7 +1393,7 @@
       "source_kind": "official",
       "source_catalog_id": "fc1af308-aabf-4500-896d-2fbafb97a569",
       "source_checksum": "sha256:baf7e1ad76f5708b0e840bf7df972acf04d9776cf8530124ea63b7498fd9d587",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1363,7 +1457,7 @@
       "source_kind": "official",
       "source_catalog_id": "5b5a0d9e-9c23-40d0-9f48-fbe1b9de680b",
       "source_checksum": "sha256:1a07ff79f9c90f231f715367a87329b6407047efc783dc0de34dfc213263c095",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1427,7 +1521,7 @@
       "source_kind": "official",
       "source_catalog_id": "616f7c8c-90aa-425c-946b-39d13bf49918",
       "source_checksum": "sha256:2a7d82edd7641765d99a80fa4e92370d4dc64d4e96d1cf5e85948ad1a9c3ae49",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     },
     {
       "provider_code": "doubleword",
@@ -1491,71 +1585,7 @@
       "source_kind": "official",
       "source_catalog_id": "5c7f0270-6f51-48fe-afac-74731a8591ef",
       "source_checksum": "sha256:6a86fb42b31bf170753e5f2bdc410e15ac8ecea357799ff6a02752c19f790301",
-      "source_version": "2026-11-19.1"
-    },
-    {
-      "provider_code": "doubleword",
-      "upstream_model_id": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.15",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.6",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.003",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.1875",
-      "id": "e06ce0b4-2965-4279-8f77-2fe11ff64faa",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "doubleword",
-              "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "doubleword",
-              "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "doubleword",
-              "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "doubleword",
-              "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "e06ce0b4-2965-4279-8f77-2fe11ff64faa",
-      "source_checksum": "sha256:5a1a74b9a6b08e9c6db312df509a7f198e1b2ed2b427f0abdff95c2c23db733a",
-      "source_version": "2026-11-19.1"
+      "source_version": "2026-11-19.2"
     }
   ]
 }
