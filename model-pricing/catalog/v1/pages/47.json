@@ -1,12 +1,486 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-20.3",
+  "catalog_version": "2026-11-21.1",
   "currency_code": "USD",
   "page": 47,
-  "cursor": "YWZ0ZXI6OGU2OThlMmItYjNjOC00YzAyLTg5NDAtYmFjYWE1OTM1Zjc0",
-  "next_cursor": "YWZ0ZXI6OGNkMmQzZWMtYjk5MS00ZDY5LWI5ZmYtZmMxOGYxZjM3MTgy",
+  "cursor": "YWZ0ZXI6Zjg3NTUzNTEtODVlOS00MmQzLWE2ZjAtZTZhN2U2NGE1ZTJk",
+  "next_cursor": "YWZ0ZXI6MGM0YTdhMDYtZThlNS00OGUzLTliYjEtY2Y4MTFjY2QyZGU5",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/48.json",
   "rules": [
+    {
+      "provider_code": "commandcode",
+      "upstream_model_id": "gpt-6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.2",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "df060c79-b38b-4d98-819c-bb3c02e67422",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.4",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.4",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "df060c79-b38b-4d98-819c-bb3c02e67422",
+      "source_checksum": "sha256:93a857210da8624693dca44ef491d228b96d1690536705ba69d51c21840aea1f",
+      "source_version": "2026-11-21.1"
+    },
+    {
+      "provider_code": "commandcode",
+      "upstream_model_id": "gpt-6.1-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "10",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "2.5",
+      "id": "2cfb6316-fd23-452f-a5bb-dd7c4f99f780",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "15",
+            "cache_hit_token_unit_price": "0.2",
+            "cache_write_token_unit_price": "5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-sol",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-sol",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-sol",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-sol",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "4",
+                "output_token_unit_price": "15",
+                "cache_hit_token_unit_price": "0.2",
+                "cache_write_token_unit_price": "5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "2cfb6316-fd23-452f-a5bb-dd7c4f99f780",
+      "source_checksum": "sha256:3b344981c64a700f811496079cbf9b8b34a6e1da7f8df0d0603fefd3dc8a2b81",
+      "source_version": "2026-11-21.1"
+    },
+    {
+      "provider_code": "commandcode",
+      "upstream_model_id": "gpt-6.1-terra",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.05",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.25",
+      "id": "7a9df8de-7b51-4f60-bd80-60ee9118a5c4",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "2",
+            "output_token_unit_price": "7.5",
+            "cache_hit_token_unit_price": "0.1",
+            "cache_write_token_unit_price": "2.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-terra",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-terra",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-terra",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "commandcode",
+              "model": "gpt-6.1-terra",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "2",
+                "output_token_unit_price": "7.5",
+                "cache_hit_token_unit_price": "0.1",
+                "cache_write_token_unit_price": "2.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "7a9df8de-7b51-4f60-bd80-60ee9118a5c4",
+      "source_checksum": "sha256:66fa05952e1822d50aae3088fb3efbfc249030d7209e63d77fafb1571da72914",
+      "source_version": "2026-11-21.1"
+    },
+    {
+      "provider_code": "coralbricks",
+      "upstream_model_id": "deepseek-v4.1-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.01",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.09",
+      "id": "b9b228bc-0f89-4a92-911b-ce3b772c72ae",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b9b228bc-0f89-4a92-911b-ce3b772c72ae",
+      "source_checksum": "sha256:6e32dd111a180cf3e75a6be1c05d1083ad073a849c2bcbd1f1ad686890dee9ab",
+      "source_version": "2026-11-21.1"
+    },
+    {
+      "provider_code": "coralbricks",
+      "upstream_model_id": "deepseek-v4.1-flash-fast",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.25",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.005",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0",
+      "id": "3cbcfe8e-e927-4014-8dc6-929eb7b69841",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "3cbcfe8e-e927-4014-8dc6-929eb7b69841",
+      "source_checksum": "sha256:a48db5081a9f90555b6255225be5a531035a638e47f7dd53661fb6e5c5d4dee3",
+      "source_version": "2026-11-21.1"
+    },
+    {
+      "provider_code": "coralbricks",
+      "upstream_model_id": "deepseek-v4.1-flash-fast-fp4",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.01",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.09",
+      "id": "8e698e2b-b3c8-4c02-8940-bacaa5935f74",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast-fp4",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast-fp4",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast-fp4",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "coralbricks",
+              "model": "deepseek-v4.1-flash-fast-fp4",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "8e698e2b-b3c8-4c02-8940-bacaa5935f74",
+      "source_checksum": "sha256:996562038432e8129dce8fe36ccfed554a6bbb3b1267055f55f3ff7b007389fc",
+      "source_version": "2026-11-21.1"
+    },
     {
       "provider_code": "coralbricks",
       "upstream_model_id": "glm-5.3",
@@ -69,7 +543,7 @@
       "source_kind": "official",
       "source_catalog_id": "dfcf61b3-ccdd-4003-a7e9-b5fd12c4be43",
       "source_checksum": "sha256:3d6aa1a12ac84fc65e1fa3a39b0da391c217af2bab09d134bd3e6ee8cb1f2e2f",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "coralbricks",
@@ -133,7 +607,7 @@
       "source_kind": "official",
       "source_catalog_id": "7309845e-6a1e-4636-b2d5-a5264fb3c4b0",
       "source_checksum": "sha256:1590096f3db17ac3c85101e8855ec5e83b5b806f42fbab60a4454a67250d9eb2",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "coralbricks",
@@ -197,7 +671,7 @@
       "source_kind": "official",
       "source_catalog_id": "383b5c6e-0057-4789-824a-1251bc46b1d9",
       "source_checksum": "sha256:355ec4cf8da5ba1a995a90498e28fb7ae7b56edfb6b437f6c404e4d3b614c37e",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -261,7 +735,7 @@
       "source_kind": "official",
       "source_catalog_id": "11faff8a-c543-40f9-85ea-3e576ceb5bcd",
       "source_checksum": "sha256:0e8a4f40a3311f16ab54418535ca31bce5c121334ea574737cfa458eab35bd4b",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -325,7 +799,7 @@
       "source_kind": "official",
       "source_catalog_id": "e6557a9c-a790-492c-a42b-3a91df0b8525",
       "source_checksum": "sha256:4f8d2918124703d617b029e6b5b69d2265da1f32b2054d73f72e94df9ad1aceb",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -389,7 +863,7 @@
       "source_kind": "official",
       "source_catalog_id": "0c3ca64b-33b4-4a4d-9dd8-02c3b08a89bf",
       "source_checksum": "sha256:4e204feba27dff513e357e21bb38c62d6c62ea1994b2bb8d0c673d28b3a25532",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -453,7 +927,7 @@
       "source_kind": "official",
       "source_catalog_id": "2cc08c9e-1634-41f1-bf13-6f9e3f8cf72e",
       "source_checksum": "sha256:0e4d3bb31b710e72154c4888bc230aed88b2662772d7a390ba5cd678b5c8f510",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -517,7 +991,7 @@
       "source_kind": "official",
       "source_catalog_id": "38bb05dd-f5d5-4c37-9def-b850adf67c0b",
       "source_checksum": "sha256:8120dc7fa86ae4a8b975297130808d09d3f8e40d17b168145503aab537642618",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -581,7 +1055,7 @@
       "source_kind": "official",
       "source_catalog_id": "38982e2a-1e7f-48ca-be1b-4c9ae0c1649a",
       "source_checksum": "sha256:c37557a67957ac5e7a15ebbbef5da1a9290a911a0c0b0bcba558a7588e309f8e",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -645,7 +1119,7 @@
       "source_kind": "official",
       "source_catalog_id": "95f95573-a611-4450-843e-031fc6f54ab1",
       "source_checksum": "sha256:553ebd27c2684902343572fb74e02c3b6dfd80ac43d61836d403197d814b7fe3",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -709,7 +1183,7 @@
       "source_kind": "official",
       "source_catalog_id": "7e782458-efae-4ec7-998b-b32a064b62c5",
       "source_checksum": "sha256:aa5b6add8a0a832c710bc9961573d6562d0eacb36bd1116d397e219a09e5d131",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -773,7 +1247,7 @@
       "source_kind": "official",
       "source_catalog_id": "6b027c84-21b4-4b05-a05d-966bb0e31ce4",
       "source_checksum": "sha256:2843afcb77830e95e208d4ce6b41689156d571f40c49249b4432c8068d781acc",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -837,7 +1311,7 @@
       "source_kind": "official",
       "source_catalog_id": "2937ea75-027f-4849-95d1-2bd7dfe28cf6",
       "source_checksum": "sha256:a519810f1f92d5a3f9cbd743489bea902a639e505762e8b0398d83b8c35b48b4",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     },
     {
       "provider_code": "cortecs",
@@ -901,391 +1375,7 @@
       "source_kind": "official",
       "source_catalog_id": "0c4a7a06-e8e5-48e3-9bb1-cf811ccd2de9",
       "source_checksum": "sha256:17b5d7d2b2fd7f0be063d74580bab5acdd3021b0edd7186694ac6a98aa1d543a",
-      "source_version": "2026-11-20.3"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "claude-sonnet-5.5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2.275",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "11.372",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.114",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.842",
-      "id": "44de8129-b5c0-48a1-958b-a0e7090fcd18",
-      "effective_from": "2026-11-17T22:58:02.891Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-17T22:58:02.891Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5.5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5.5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5.5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "claude-sonnet-5.5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "44de8129-b5c0-48a1-958b-a0e7090fcd18",
-      "source_checksum": "sha256:c6805683157f668737bb188c4ecc523ebd30c821e79b33d83244c9c1d5a991c7",
-      "source_version": "2026-11-20.3"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "gemini-2.5-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.299",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.491",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.029",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.097",
-      "id": "748d9bbc-b62f-4b8b-91a3-128730e31103",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "748d9bbc-b62f-4b8b-91a3-128730e31103",
-      "source_checksum": "sha256:a9cdb416ba2782cbee62ae8759ee0a07b65c8cd24058181dcd7ff844f0e89aa6",
-      "source_version": "2026-11-20.3"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "gemini-2.5-pro",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.495",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "9.964",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.242",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.434",
-      "id": "35b92c85-0aa1-4284-90a7-393c8de26db6",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-pro",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-pro",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-pro",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-2.5-pro",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "35b92c85-0aa1-4284-90a7-393c8de26db6",
-      "source_checksum": "sha256:2400f992003878f52446ee2882c797508e2ce5b337d595e94d8ad2665cddaa0f",
-      "source_version": "2026-11-20.3"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "gemini-3.1-flash-lite",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.272",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.631",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.025",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.082",
-      "id": "77d8cbd4-aba7-4297-bfd0-16f159ecb8ff",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.1-flash-lite",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.1-flash-lite",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.1-flash-lite",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.1-flash-lite",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "77d8cbd4-aba7-4297-bfd0-16f159ecb8ff",
-      "source_checksum": "sha256:1fda08b783ea7450e4f60c6293377affc5d0faf476d2987ef5169b94c04b4f97",
-      "source_version": "2026-11-20.3"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "gemini-3.5-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "1.649",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "9.899",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.165",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "1",
-      "id": "da456c3f-1d09-4f5f-89dc-d76568c558bb",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "da456c3f-1d09-4f5f-89dc-d76568c558bb",
-      "source_checksum": "sha256:375523b437e4a3a451943370fad5ee30172cf87f12a5c66dca080d0d5ae2cf6f",
-      "source_version": "2026-11-20.3"
-    },
-    {
-      "provider_code": "cortecs",
-      "upstream_model_id": "gemini-3.5-flash-lite",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.33",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.749",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.033",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.082",
-      "id": "8cd2d3ec-b991-4d69-b9ff-fc18f1f37182",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash-lite",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash-lite",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash-lite",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "cortecs",
-              "model": "gemini-3.5-flash-lite",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "8cd2d3ec-b991-4d69-b9ff-fc18f1f37182",
-      "source_checksum": "sha256:de30b6ebef2df0deb01ef728737b8100fa2400b998a91e076448ea605d40d558",
-      "source_version": "2026-11-20.3"
+      "source_version": "2026-11-21.1"
     }
   ]
 }
