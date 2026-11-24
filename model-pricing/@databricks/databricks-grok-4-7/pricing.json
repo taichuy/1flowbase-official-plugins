@@ -11,41 +11,55 @@
   "priority": 0,
   "enabled": true,
   "input_token_unit_size": 1000000,
-  "input_token_unit_price": "2.49998",
+  "input_token_unit_price": "2",
   "output_token_unit_size": 1000000,
-  "output_token_unit_price": "7.50001",
+  "output_token_unit_price": "6",
   "cache_hit_token_unit_size": 1000000,
-  "cache_hit_token_unit_price": "0.62503",
+  "cache_hit_token_unit_price": "0.5",
   "cache_write_token_unit_size": 1000000,
   "cache_write_token_unit_price": "2.49998",
-  "id": "4426625a-9602-4b7d-a8b0-b2d5586b5f15",
-  "effective_from": "2026-10-31T02:01:38.612Z",
-  "rules": [],
+  "id": "53279c69-87fc-4f58-8f16-095fe67a3e31",
+  "effective_from": "2026-11-24T23:30:56.762Z",
+  "rules": [
+    {
+      "when": {
+        "input_tokens": {
+          "operator": "gt",
+          "value": 200000
+        }
+      },
+      "overrides": {
+        "input_token_unit_price": "4",
+        "output_token_unit_price": "12",
+        "cache_hit_token_unit_price": "1"
+      }
+    }
+  ],
   "extensions": {
     "source": "community_pricing",
     "price_sync": {
-      "synced_at": "2026-10-31T02:01:38.612Z",
+      "synced_at": "2026-11-24T23:30:56.762Z",
       "meters": {
         "input": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "databricks-grok-4-7",
-          "field": "input_cost_per_token",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
         },
         "output": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "databricks-grok-4-7",
-          "field": "output_cost_per_token",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
         },
         "cache_hit": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "databricks-grok-4-7",
-          "field": "cache_read_input_token_cost",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
         },
         "cache_write": {
           "source": "litellm",
@@ -55,7 +69,21 @@
           "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
         }
       },
-      "rules": []
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 200000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "4",
+            "output_token_unit_price": "12",
+            "cache_hit_token_unit_price": "1"
+          }
+        }
+      ]
     }
   }
 }

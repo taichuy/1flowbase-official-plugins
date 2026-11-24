@@ -11,15 +11,15 @@
   "priority": 0,
   "enabled": true,
   "input_token_unit_size": 1000000,
-  "input_token_unit_price": "8.00002",
+  "input_token_unit_price": "8",
   "output_token_unit_size": 1000000,
-  "output_token_unit_price": "40.00003",
+  "output_token_unit_price": "40",
   "cache_hit_token_unit_size": 1000000,
-  "cache_hit_token_unit_price": "0.39998",
+  "cache_hit_token_unit_price": "0.4",
   "cache_write_token_unit_size": 1000000,
-  "cache_write_token_unit_price": "9.99999",
-  "id": "050575bf-0ead-46bd-90a1-e76b2bf45827",
-  "effective_from": "2026-11-19T13:26:45.505Z",
+  "cache_write_token_unit_price": "10",
+  "id": "d40ef2da-bf6f-42d2-b329-37f906d49d5a",
+  "effective_from": "2026-11-24T23:30:56.762Z",
   "rules": [
     {
       "when": {
@@ -29,45 +29,45 @@
         }
       },
       "overrides": {
-        "input_token_unit_price": "15.99997",
-        "output_token_unit_price": "59.9998",
-        "cache_hit_token_unit_price": "0.80003",
-        "cache_write_token_unit_price": "19.99998"
+        "input_token_unit_price": "16",
+        "output_token_unit_price": "60",
+        "cache_hit_token_unit_price": "0.8",
+        "cache_write_token_unit_price": "20"
       }
     }
   ],
   "extensions": {
     "source": "community_pricing",
     "price_sync": {
-      "synced_at": "2026-11-19T13:26:45.505Z",
+      "synced_at": "2026-11-24T23:30:56.762Z",
       "meters": {
         "input": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "system.ai.gpt-6-2-astra",
-          "field": "input_cost_per_token",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.input",
+          "url": "https://models.dev/api.json"
         },
         "output": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "system.ai.gpt-6-2-astra",
-          "field": "output_cost_per_token",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.output",
+          "url": "https://models.dev/api.json"
         },
         "cache_hit": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "system.ai.gpt-6-2-astra",
-          "field": "cache_read_input_token_cost",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.cache_read",
+          "url": "https://models.dev/api.json"
         },
         "cache_write": {
-          "source": "litellm",
+          "source": "models.dev",
           "provider": "databricks",
           "model": "system.ai.gpt-6-2-astra",
-          "field": "cache_creation_input_token_cost",
-          "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+          "field": "cost.cache_write",
+          "url": "https://models.dev/api.json"
         }
       },
       "rules": [
@@ -79,10 +79,10 @@
             }
           },
           "overrides": {
-            "input_token_unit_price": "15.99997",
-            "output_token_unit_price": "59.9998",
-            "cache_hit_token_unit_price": "0.80003",
-            "cache_write_token_unit_price": "19.99998"
+            "input_token_unit_price": "16",
+            "output_token_unit_price": "60",
+            "cache_hit_token_unit_price": "0.8",
+            "cache_write_token_unit_price": "20"
           }
         }
       ]
