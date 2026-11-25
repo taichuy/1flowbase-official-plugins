@@ -1,0 +1,104 @@
+{
+  "tool_id": "plugin.google-search-console.sites_delete",
+  "name": "sites_delete",
+  "short_description": "Remove Search Console site property",
+  "full_description": "Remove a site property from the Google Search Console account. Requires full webmasters scope.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.sites.delete"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      }
+    },
+    "required": [
+      "account_id",
+      "site_url"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      },
+      {
+        "name": "site_url",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      {
+        "interface_param": "site_url",
+        "mcp_param": "site_url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "site_url"
+        },
+        "required": true,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "deleted": {
+        "type": "boolean"
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      }
+    },
+    "required": [
+      "deleted",
+      "site_url"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "high",
+  "status": "enabled"
+}

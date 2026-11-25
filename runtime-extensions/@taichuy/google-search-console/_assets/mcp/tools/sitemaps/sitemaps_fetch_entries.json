@@ -1,0 +1,291 @@
+{
+  "tool_id": "plugin.google-search-console.sitemaps_fetch_entries",
+  "name": "sitemaps_fetch_entries",
+  "short_description": "Fetch and parse URLs inside a sitemap XML",
+  "full_description": "Safely fetch a verified site sitemap XML (urlset or sitemapindex) over Host Network Egress and extract page URLs (<loc>, <lastmod>, <changefreq>, <priority>).",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.sitemaps.fetch_entries"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "feedpath": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+      },
+      "follow_index": {
+        "type": "boolean",
+        "description": "When true and feedpath is a sitemapindex, expand child sitemaps (default false)."
+      },
+      "max_entries": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "description": "Maximum entries to return (default 500, max 5000)."
+      },
+      "max_child_sitemaps": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 20,
+        "description": "Max child sitemaps to fetch when follow_index is true (default 5, max 20)."
+      }
+    },
+    "required": [
+      "account_id",
+      "site_url",
+      "feedpath"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      },
+      {
+        "name": "site_url",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+        }
+      },
+      {
+        "name": "feedpath",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+        }
+      },
+      {
+        "name": "follow_index",
+        "field_type": "boolean",
+        "parameter_type": "json_body",
+        "description": "When true and feedpath is a sitemapindex, expand child sitemaps (default false).",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "description": "When true and feedpath is a sitemapindex, expand child sitemaps (default false)."
+        }
+      },
+      {
+        "name": "max_entries",
+        "field_type": "integer",
+        "parameter_type": "json_body",
+        "description": "Maximum entries to return (default 500, max 5000).",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5000,
+          "description": "Maximum entries to return (default 500, max 5000)."
+        }
+      },
+      {
+        "name": "max_child_sitemaps",
+        "field_type": "integer",
+        "parameter_type": "json_body",
+        "description": "Max child sitemaps to fetch when follow_index is true (default 5, max 20).",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Max child sitemaps to fetch when follow_index is true (default 5, max 20)."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      {
+        "interface_param": "site_url",
+        "mcp_param": "site_url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "site_url"
+        },
+        "required": true,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      {
+        "interface_param": "feedpath",
+        "mcp_param": "feedpath",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "feedpath"
+        },
+        "required": true,
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+      },
+      {
+        "interface_param": "follow_index",
+        "mcp_param": "follow_index",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "follow_index"
+        },
+        "required": false,
+        "description": "When true and feedpath is a sitemapindex, expand child sitemaps (default false)."
+      },
+      {
+        "interface_param": "max_entries",
+        "mcp_param": "max_entries",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "max_entries"
+        },
+        "required": false,
+        "description": "Maximum entries to return (default 500, max 5000)."
+      },
+      {
+        "interface_param": "max_child_sitemaps",
+        "mcp_param": "max_child_sitemaps",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "max_child_sitemaps"
+        },
+        "required": false,
+        "description": "Max child sitemaps to fetch when follow_index is true (default 5, max 20)."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "enum": [
+          "urlset",
+          "sitemapindex"
+        ]
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "feedpath": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+      },
+      "total_found": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "returned_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "child_sitemaps": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "loc": {
+              "type": "string",
+              "minLength": 1
+            },
+            "lastmod": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "changefreq": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "priority": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "source_sitemap": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "required": [
+            "loc"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "kind",
+      "site_url",
+      "feedpath",
+      "total_found",
+      "returned_count",
+      "truncated",
+      "child_sitemaps",
+      "entries"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

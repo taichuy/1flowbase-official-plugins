@@ -1,0 +1,529 @@
+{
+  "tool_id": "plugin.google-search-console.search_analytics_query",
+  "name": "search_analytics_query",
+  "short_description": "Query Google Search Analytics",
+  "full_description": "Query clicks, impressions, CTR, and average position across dimensions (query, page, date, country, device, searchAppearance) with optional filters and pagination.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.analytics.query"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "start_date": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Start date in YYYY-MM-DD format."
+      },
+      "end_date": {
+        "type": "string",
+        "minLength": 1,
+        "description": "End date in YYYY-MM-DD format."
+      },
+      "dimensions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "country",
+            "device",
+            "page",
+            "query",
+            "searchAppearance",
+            "date"
+          ]
+        },
+        "description": "Dimensions to group results by."
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "web",
+          "image",
+          "video",
+          "news",
+          "discover",
+          "googleNews"
+        ],
+        "description": "Search type filter (default web)."
+      },
+      "aggregation_type": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "byPage",
+          "byProperty",
+          "byNewsShowcasePanel"
+        ]
+      },
+      "dimension_filter_groups": {
+        "type": "array",
+        "description": "Optional Search Console API dimensionFilterGroups array.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "groupType": {
+              "type": "string",
+              "enum": [
+                "and"
+              ]
+            },
+            "filters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "dimension": {
+                    "type": "string",
+                    "enum": [
+                      "country",
+                      "device",
+                      "page",
+                      "query",
+                      "searchAppearance"
+                    ]
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "contains",
+                      "equals",
+                      "notContains",
+                      "notEquals",
+                      "includingRegex",
+                      "excludingRegex"
+                    ]
+                  },
+                  "expression": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "dimension",
+                  "operator",
+                  "expression"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "row_limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 25000,
+        "description": "Max rows to return (1-25000, default 1000)."
+      },
+      "start_row": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Zero-based pagination offset."
+      },
+      "data_state": {
+        "type": "string",
+        "enum": [
+          "final",
+          "all"
+        ],
+        "description": "Use \"all\" to include fresh unfinalized data."
+      }
+    },
+    "required": [
+      "account_id",
+      "site_url",
+      "start_date",
+      "end_date"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      },
+      {
+        "name": "site_url",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+        }
+      },
+      {
+        "name": "start_date",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Start date in YYYY-MM-DD format.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Start date in YYYY-MM-DD format."
+        }
+      },
+      {
+        "name": "end_date",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "End date in YYYY-MM-DD format.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "End date in YYYY-MM-DD format."
+        }
+      },
+      {
+        "name": "dimensions",
+        "field_type": "array",
+        "parameter_type": "json_body",
+        "description": "Dimensions to group results by.",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "country",
+              "device",
+              "page",
+              "query",
+              "searchAppearance",
+              "date"
+            ]
+          },
+          "description": "Dimensions to group results by."
+        }
+      },
+      {
+        "name": "type",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Search type filter (default web).",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "web",
+            "image",
+            "video",
+            "news",
+            "discover",
+            "googleNews"
+          ],
+          "description": "Search type filter (default web)."
+        }
+      },
+      {
+        "name": "aggregation_type",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "byPage",
+            "byProperty",
+            "byNewsShowcasePanel"
+          ]
+        }
+      },
+      {
+        "name": "dimension_filter_groups",
+        "field_type": "array",
+        "parameter_type": "json_body",
+        "description": "Optional Search Console API dimensionFilterGroups array.",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "description": "Optional Search Console API dimensionFilterGroups array.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "groupType": {
+                "type": "string",
+                "enum": [
+                  "and"
+                ]
+              },
+              "filters": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dimension": {
+                      "type": "string",
+                      "enum": [
+                        "country",
+                        "device",
+                        "page",
+                        "query",
+                        "searchAppearance"
+                      ]
+                    },
+                    "operator": {
+                      "type": "string",
+                      "enum": [
+                        "contains",
+                        "equals",
+                        "notContains",
+                        "notEquals",
+                        "includingRegex",
+                        "excludingRegex"
+                      ]
+                    },
+                    "expression": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "dimension",
+                    "operator",
+                    "expression"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "row_limit",
+        "field_type": "integer",
+        "parameter_type": "json_body",
+        "description": "Max rows to return (1-25000, default 1000).",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 25000,
+          "description": "Max rows to return (1-25000, default 1000)."
+        }
+      },
+      {
+        "name": "start_row",
+        "field_type": "integer",
+        "parameter_type": "json_body",
+        "description": "Zero-based pagination offset.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based pagination offset."
+        }
+      },
+      {
+        "name": "data_state",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Use \"all\" to include fresh unfinalized data.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "final",
+            "all"
+          ],
+          "description": "Use \"all\" to include fresh unfinalized data."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      {
+        "interface_param": "site_url",
+        "mcp_param": "site_url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "site_url"
+        },
+        "required": true,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      {
+        "interface_param": "start_date",
+        "mcp_param": "start_date",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "start_date"
+        },
+        "required": true,
+        "description": "Start date in YYYY-MM-DD format."
+      },
+      {
+        "interface_param": "end_date",
+        "mcp_param": "end_date",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "end_date"
+        },
+        "required": true,
+        "description": "End date in YYYY-MM-DD format."
+      },
+      {
+        "interface_param": "dimensions",
+        "mcp_param": "dimensions",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "dimensions"
+        },
+        "required": false,
+        "description": "Dimensions to group results by."
+      },
+      {
+        "interface_param": "type",
+        "mcp_param": "type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "type"
+        },
+        "required": false,
+        "description": "Search type filter (default web)."
+      },
+      {
+        "interface_param": "aggregation_type",
+        "mcp_param": "aggregation_type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "aggregation_type"
+        },
+        "required": false,
+        "description": "Parameter aggregation_type (body)."
+      },
+      {
+        "interface_param": "dimension_filter_groups",
+        "mcp_param": "dimension_filter_groups",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "dimension_filter_groups"
+        },
+        "required": false,
+        "description": "Optional Search Console API dimensionFilterGroups array."
+      },
+      {
+        "interface_param": "row_limit",
+        "mcp_param": "row_limit",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "row_limit"
+        },
+        "required": false,
+        "description": "Max rows to return (1-25000, default 1000)."
+      },
+      {
+        "interface_param": "start_row",
+        "mcp_param": "start_row",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "start_row"
+        },
+        "required": false,
+        "description": "Zero-based pagination offset."
+      },
+      {
+        "interface_param": "data_state",
+        "mcp_param": "data_state",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "data_state"
+        },
+        "required": false,
+        "description": "Use \"all\" to include fresh unfinalized data."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "rows": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "clicks": {
+              "type": "number"
+            },
+            "impressions": {
+              "type": "number"
+            },
+            "ctr": {
+              "type": "number"
+            },
+            "position": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "clicks",
+            "impressions",
+            "ctr",
+            "position"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "response_aggregation_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "site_url",
+      "rows"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

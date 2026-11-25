@@ -1,0 +1,231 @@
+{
+  "tool_id": "plugin.google-search-console.accounts_list",
+  "name": "accounts_list",
+  "short_description": "List connected Google Search Console accounts",
+  "full_description": "List connected Google Search Console accounts accessible to the current role. Tokens and credentials are never returned.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.accounts.list"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Page number starting at 1."
+      },
+      "page_size": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "description": "Items per page (1-100)."
+      },
+      "search": {
+        "type": "string",
+        "description": "Filter by email or display name."
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "page",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Page number starting at 1.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Page number starting at 1."
+        }
+      },
+      {
+        "name": "page_size",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "Items per page (1-100).",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Items per page (1-100)."
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by email or display name.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by email or display name."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "page",
+        "mcp_param": "page",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page"
+        },
+        "required": false,
+        "description": "Page number starting at 1."
+      },
+      {
+        "interface_param": "page_size",
+        "mcp_param": "page_size",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page_size"
+        },
+        "required": false,
+        "description": "Items per page (1-100)."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Filter by email or display name."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "account_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Connected Google account ID. Obtain it from accounts_list."
+            },
+            "email": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Google account email."
+            },
+            "display_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Google account display name."
+            },
+            "avatar_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "scope_mode": {
+              "type": "string",
+              "enum": [
+                "readonly",
+                "full"
+              ]
+            },
+            "granted_scopes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "active",
+                "reauth_required",
+                "error"
+              ]
+            },
+            "last_error": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "has_credential": {
+              "type": "boolean"
+            },
+            "site_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "last_synced_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "created_at": {
+              "type": "string",
+              "minLength": 1
+            },
+            "updated_at": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "account_id",
+            "email",
+            "display_name",
+            "scope_mode",
+            "granted_scopes",
+            "enabled",
+            "status",
+            "has_credential",
+            "site_count",
+            "created_at",
+            "updated_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "page_size": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "required": [
+      "items",
+      "total",
+      "page",
+      "page_size"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

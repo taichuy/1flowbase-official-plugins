@@ -1,0 +1,487 @@
+{
+  "tool_id": "plugin.google-search-console.sites_overview",
+  "name": "sites_overview",
+  "short_description": "Get comprehensive SEO overview for a site",
+  "full_description": "Aggregate site metadata, sitemaps, period-over-period search performance totals, daily trend, top queries, top pages, and device breakdown in one call.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.sites.overview"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 480,
+        "description": "Number of days to summarize (default 28, ending 2 days ago)."
+      },
+      "top_limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "description": "Max top queries/pages to return (default 20)."
+      },
+      "search_type": {
+        "type": "string",
+        "enum": [
+          "web",
+          "image",
+          "video",
+          "news",
+          "discover",
+          "googleNews"
+        ],
+        "description": "Search surface type (default web)."
+      }
+    },
+    "required": [
+      "account_id",
+      "site_url"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      },
+      {
+        "name": "site_url",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+        }
+      },
+      {
+        "name": "days",
+        "field_type": "integer",
+        "parameter_type": "json_body",
+        "description": "Number of days to summarize (default 28, ending 2 days ago).",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 480,
+          "description": "Number of days to summarize (default 28, ending 2 days ago)."
+        }
+      },
+      {
+        "name": "top_limit",
+        "field_type": "integer",
+        "parameter_type": "json_body",
+        "description": "Max top queries/pages to return (default 20).",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Max top queries/pages to return (default 20)."
+        }
+      },
+      {
+        "name": "search_type",
+        "field_type": "string",
+        "parameter_type": "json_body",
+        "description": "Search surface type (default web).",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "web",
+            "image",
+            "video",
+            "news",
+            "discover",
+            "googleNews"
+          ],
+          "description": "Search surface type (default web)."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      {
+        "interface_param": "site_url",
+        "mcp_param": "site_url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "site_url"
+        },
+        "required": true,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      {
+        "interface_param": "days",
+        "mcp_param": "days",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "days"
+        },
+        "required": false,
+        "description": "Number of days to summarize (default 28, ending 2 days ago)."
+      },
+      {
+        "interface_param": "top_limit",
+        "mcp_param": "top_limit",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "top_limit"
+        },
+        "required": false,
+        "description": "Max top queries/pages to return (default 20)."
+      },
+      {
+        "interface_param": "search_type",
+        "mcp_param": "search_type",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search_type"
+        },
+        "required": false,
+        "description": "Search surface type (default web)."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "site": {
+        "type": "object",
+        "properties": {
+          "site_url": {
+            "type": "string",
+            "minLength": 1,
+            "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+          },
+          "property_type": {
+            "type": "string"
+          },
+          "permission_level": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "site_url",
+          "property_type",
+          "permission_level"
+        ],
+        "additionalProperties": false
+      },
+      "window": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer"
+          },
+          "search_type": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "minLength": 1
+          },
+          "end_date": {
+            "type": "string",
+            "minLength": 1
+          },
+          "previous_start_date": {
+            "type": "string",
+            "minLength": 1
+          },
+          "previous_end_date": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "days",
+          "search_type",
+          "start_date",
+          "end_date",
+          "previous_start_date",
+          "previous_end_date"
+        ],
+        "additionalProperties": false
+      },
+      "totals": {
+        "type": "object",
+        "properties": {
+          "clicks": {
+            "type": "number"
+          },
+          "impressions": {
+            "type": "number"
+          },
+          "ctr": {
+            "type": "number"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "clicks",
+          "impressions",
+          "ctr",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "previous_totals": {
+        "type": "object",
+        "properties": {
+          "clicks": {
+            "type": "number"
+          },
+          "impressions": {
+            "type": "number"
+          },
+          "ctr": {
+            "type": "number"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "clicks",
+          "impressions",
+          "ctr",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "sitemaps": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "lastSubmitted": {
+              "type": "string"
+            },
+            "isPending": {
+              "type": "boolean"
+            },
+            "isSitemapsIndex": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string"
+            },
+            "lastDownloaded": {
+              "type": "string"
+            },
+            "warnings": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "errors": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "contents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "daily_trend": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "clicks": {
+              "type": "number"
+            },
+            "impressions": {
+              "type": "number"
+            },
+            "ctr": {
+              "type": "number"
+            },
+            "position": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "clicks",
+            "impressions",
+            "ctr",
+            "position"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "top_queries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "clicks": {
+              "type": "number"
+            },
+            "impressions": {
+              "type": "number"
+            },
+            "ctr": {
+              "type": "number"
+            },
+            "position": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "clicks",
+            "impressions",
+            "ctr",
+            "position"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "top_pages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "clicks": {
+              "type": "number"
+            },
+            "impressions": {
+              "type": "number"
+            },
+            "ctr": {
+              "type": "number"
+            },
+            "position": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "clicks",
+            "impressions",
+            "ctr",
+            "position"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "clicks": {
+              "type": "number"
+            },
+            "impressions": {
+              "type": "number"
+            },
+            "ctr": {
+              "type": "number"
+            },
+            "position": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "clicks",
+            "impressions",
+            "ctr",
+            "position"
+          ],
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": [
+      "site",
+      "window",
+      "totals",
+      "previous_totals",
+      "sitemaps",
+      "daily_trend",
+      "top_queries",
+      "top_pages",
+      "devices"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,161 @@
+{
+  "tool_id": "plugin.google-search-console.accounts_get",
+  "name": "accounts_get",
+  "short_description": "Get Google Search Console account",
+  "full_description": "Get metadata and connection status for a connected Google Search Console account.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.accounts.get"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      }
+    },
+    "required": [
+      "account_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Connected Google account ID. Obtain it from accounts_list."
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Google account email."
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Google account display name."
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "scope_mode": {
+            "type": "string",
+            "enum": [
+              "readonly",
+              "full"
+            ]
+          },
+          "granted_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "reauth_required",
+              "error"
+            ]
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "has_credential": {
+            "type": "boolean"
+          },
+          "site_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_synced_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "created_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "updated_at": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account_id",
+          "email",
+          "display_name",
+          "scope_mode",
+          "granted_scopes",
+          "enabled",
+          "status",
+          "has_credential",
+          "site_count",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "account"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

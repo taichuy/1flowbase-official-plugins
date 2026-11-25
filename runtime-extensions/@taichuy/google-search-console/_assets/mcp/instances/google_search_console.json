@@ -1,0 +1,169 @@
+{
+  "instance_id": "google_search_console",
+  "name": "Google Search Console",
+  "description_short": "连接 Google 账号后分析 Search Console 站点、Sitemaps、搜索表现和收录状态。",
+  "status": "enabled",
+  "default_entry_path": "/gsc",
+  "groups": [
+    {
+      "path": "/gsc",
+      "display_name": "Google Search Console",
+      "description_short": "站点、Sitemap、搜索流量分析与 URL 收录诊断。",
+      "enabled": true,
+      "sort_order": 0
+    },
+    {
+      "path": "/gsc/accounts",
+      "display_name": "accounts",
+      "description_short": "查看已授权的 Google Search Console 账号。",
+      "enabled": true,
+      "sort_order": 1
+    },
+    {
+      "path": "/gsc/sites",
+      "display_name": "sites",
+      "description_short": "列出、同步、查看与总览已验证站点。",
+      "enabled": true,
+      "sort_order": 2
+    },
+    {
+      "path": "/gsc/sitemaps",
+      "display_name": "sitemaps",
+      "description_short": "查看、提交 Sitemaps 及解析 Sitemap XML URL 列表。",
+      "enabled": true,
+      "sort_order": 3
+    },
+    {
+      "path": "/gsc/analytics",
+      "display_name": "analytics",
+      "description_short": "按关键词、页面、日期、国家与设备维度查询搜索流量表现。",
+      "enabled": true,
+      "sort_order": 4
+    },
+    {
+      "path": "/gsc/inspection",
+      "display_name": "inspection",
+      "description_short": "检查单页在 Google 索引中的抓取与收录状态。",
+      "enabled": true,
+      "sort_order": 5
+    }
+  ],
+  "bindings": [
+    {
+      "group_path": "/gsc/accounts",
+      "tool_id": "plugin.google-search-console.accounts_list",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 0
+    },
+    {
+      "group_path": "/gsc/accounts",
+      "tool_id": "plugin.google-search-console.accounts_get",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 1
+    },
+    {
+      "group_path": "/gsc/sites",
+      "tool_id": "plugin.google-search-console.sites_list",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 2
+    },
+    {
+      "group_path": "/gsc/sites",
+      "tool_id": "plugin.google-search-console.sites_sync",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 3
+    },
+    {
+      "group_path": "/gsc/sites",
+      "tool_id": "plugin.google-search-console.sites_get",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 4
+    },
+    {
+      "group_path": "/gsc/sites",
+      "tool_id": "plugin.google-search-console.sites_add",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 5
+    },
+    {
+      "group_path": "/gsc/sites",
+      "tool_id": "plugin.google-search-console.sites_delete",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 6
+    },
+    {
+      "group_path": "/gsc/sites",
+      "tool_id": "plugin.google-search-console.sites_overview",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 7
+    },
+    {
+      "group_path": "/gsc/sitemaps",
+      "tool_id": "plugin.google-search-console.sitemaps_list",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 8
+    },
+    {
+      "group_path": "/gsc/sitemaps",
+      "tool_id": "plugin.google-search-console.sitemaps_get",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 9
+    },
+    {
+      "group_path": "/gsc/sitemaps",
+      "tool_id": "plugin.google-search-console.sitemaps_submit",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 10
+    },
+    {
+      "group_path": "/gsc/sitemaps",
+      "tool_id": "plugin.google-search-console.sitemaps_delete",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 11
+    },
+    {
+      "group_path": "/gsc/sitemaps",
+      "tool_id": "plugin.google-search-console.sitemaps_fetch_entries",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 12
+    },
+    {
+      "group_path": "/gsc/analytics",
+      "tool_id": "plugin.google-search-console.search_analytics_query",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 13
+    },
+    {
+      "group_path": "/gsc/inspection",
+      "tool_id": "plugin.google-search-console.url_inspect",
+      "display_alias": null,
+      "visible": true,
+      "sort_order": 14
+    }
+  ],
+  "discovery_policy": {
+    "list_default_limit": 20,
+    "list_max_depth": 3,
+    "list_regex_enabled": true,
+    "list_regex_max_length": 256,
+    "list_return_fields": [
+      "id",
+      "name",
+      "short_description"
+    ]
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "tool_id": "plugin.google-search-console.sites_sync",
+  "name": "sites_sync",
+  "short_description": "Sync verified sites from Google Search Console",
+  "full_description": "Fetch the latest verified sites list from Google Search Console API for an account and update cached sites.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.sites.sync"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      }
+    },
+    "required": [
+      "account_id"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "site_record_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "account_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Connected Google account ID. Obtain it from accounts_list."
+            },
+            "site_url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+            },
+            "property_type": {
+              "type": "string",
+              "enum": [
+                "url_prefix",
+                "domain"
+              ]
+            },
+            "permission_level": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sitemap_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "last_synced_at": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "site_record_id",
+            "account_id",
+            "site_url",
+            "property_type",
+            "permission_level",
+            "last_synced_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "synced_at": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      }
+    },
+    "required": [
+      "account_id",
+      "items",
+      "total",
+      "synced_at"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "medium",
+  "status": "enabled"
+}

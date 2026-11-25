@@ -1,0 +1,209 @@
+{
+  "tool_id": "plugin.google-search-console.sites_list",
+  "name": "sites_list",
+  "short_description": "List synced Search Console sites",
+  "full_description": "List cached Search Console properties across accessible Google accounts, or filter by account_id.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.sites.list"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Optional connected Google account ID filter."
+      },
+      "search": {
+        "type": "string",
+        "description": "Filter by site_url substring."
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "page_size": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Optional connected Google account ID filter.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional connected Google account ID filter."
+        }
+      },
+      {
+        "name": "search",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Filter by site_url substring.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "description": "Filter by site_url substring."
+        }
+      },
+      {
+        "name": "page",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      {
+        "name": "page_size",
+        "field_type": "integer",
+        "parameter_type": "url",
+        "description": "",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": false,
+        "description": "Optional connected Google account ID filter."
+      },
+      {
+        "interface_param": "search",
+        "mcp_param": "search",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "search"
+        },
+        "required": false,
+        "description": "Filter by site_url substring."
+      },
+      {
+        "interface_param": "page",
+        "mcp_param": "page",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page"
+        },
+        "required": false,
+        "description": "Parameter page (query)."
+      },
+      {
+        "interface_param": "page_size",
+        "mcp_param": "page_size",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "page_size"
+        },
+        "required": false,
+        "description": "Parameter page_size (query)."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "site_record_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "account_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Connected Google account ID. Obtain it from accounts_list."
+            },
+            "site_url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+            },
+            "property_type": {
+              "type": "string",
+              "enum": [
+                "url_prefix",
+                "domain"
+              ]
+            },
+            "permission_level": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sitemap_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "last_synced_at": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "site_record_id",
+            "account_id",
+            "site_url",
+            "property_type",
+            "permission_level",
+            "last_synced_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "page_size": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "required": [
+      "items",
+      "total",
+      "page",
+      "page_size"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}

@@ -1,0 +1,172 @@
+{
+  "tool_id": "plugin.google-search-console.sitemaps_get",
+  "name": "sitemaps_get",
+  "short_description": "Get sitemap details",
+  "full_description": "Retrieve detailed status and submission metrics for a specific sitemap in Google Search Console.",
+  "execution_target": {
+    "kind": "interface_wrapper",
+    "interface_id": "google-search-console.sitemaps.get"
+  },
+  "parameter_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "feedpath": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+      }
+    },
+    "required": [
+      "account_id",
+      "site_url",
+      "feedpath"
+    ],
+    "additionalProperties": false
+  },
+  "input_mapping": {
+    "interface_parameters": [
+      {
+        "name": "account_id",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Connected Google account ID. Obtain it from accounts_list.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connected Google account ID. Obtain it from accounts_list."
+        }
+      },
+      {
+        "name": "site_url",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+        }
+      },
+      {
+        "name": "feedpath",
+        "field_type": "string",
+        "parameter_type": "url",
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\".",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+        }
+      }
+    ],
+    "mappings": [
+      {
+        "interface_param": "account_id",
+        "mcp_param": "account_id",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "account_id"
+        },
+        "required": true,
+        "description": "Connected Google account ID. Obtain it from accounts_list."
+      },
+      {
+        "interface_param": "site_url",
+        "mcp_param": "site_url",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "site_url"
+        },
+        "required": true,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      {
+        "interface_param": "feedpath",
+        "mcp_param": "feedpath",
+        "source": {
+          "kind": "mcp_argument",
+          "path": "feedpath"
+        },
+        "required": true,
+        "description": "Full sitemap URL, e.g. \"https://1flowbase.taichuy.com/sitemap.xml\"."
+      }
+    ]
+  },
+  "result_schema_snapshot": {
+    "type": "object",
+    "properties": {
+      "site_url": {
+        "type": "string",
+        "minLength": 1,
+        "description": "GSC property URL, e.g. \"https://1flowbase.taichuy.com/\" (with trailing slash) or \"sc-domain:example.com\"."
+      },
+      "sitemap": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "lastSubmitted": {
+            "type": "string"
+          },
+          "isPending": {
+            "type": "boolean"
+          },
+          "isSitemapsIndex": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          },
+          "lastDownloaded": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "errors": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "contents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "site_url",
+      "sitemap"
+    ],
+    "additionalProperties": false
+  },
+  "output_mapping": {},
+  "max_inline_chars": null,
+  "response_fields": null,
+  "permission_code_snapshot": null,
+  "risk_level_snapshot": "low",
+  "status": "enabled"
+}
