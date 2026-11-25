@@ -1,12 +1,94 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-24.3",
+  "catalog_version": "2026-11-25.1",
   "currency_code": "USD",
   "page": 41,
-  "cursor": "YWZ0ZXI6NmYxMDlmNjYtODFlOC00NWFkLTg4NjMtMjhlNzFjZmRlMjEw",
-  "next_cursor": "YWZ0ZXI6ZGU1ODE1MjUtZWVmZS00ZDI3LTliMDktMWMxNjlhMzhkMjli",
+  "cursor": "YWZ0ZXI6M2IxY2I5ZDMtZmE4Mi00MDJhLWE0ZGUtOWZjMTRjYmE1ZDYy",
+  "next_cursor": "YWZ0ZXI6MDYxZWE4YzItZGQ0ZC00OWI4LTk4ZGQtYmEzODk3MjkwMTk0",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/42.json",
   "rules": [
+    {
+      "provider_code": "bedrock_mantle",
+      "upstream_model_id": "anthropic.claude-opus-5-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "22",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.22",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5.5",
+      "id": "6f109f66-81e8-45ad-8863-28e71cfde210",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "8.8"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "anthropic.claude-opus-5-5",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "anthropic.claude-opus-5-5",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "anthropic.claude-opus-5-5",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "anthropic.claude-opus-5-5",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "8.8"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6f109f66-81e8-45ad-8863-28e71cfde210",
+      "source_checksum": "sha256:eff4af301411bd2252969a0e7b22c70056a5aba355c3da4ec7e32ba5600825ad",
+      "source_version": "2026-11-25.1"
+    },
     {
       "provider_code": "bedrock_mantle",
       "upstream_model_id": "anthropic.claude-sonnet-5",
@@ -87,7 +169,7 @@
       "source_kind": "official",
       "source_catalog_id": "9d642ac7-0e13-4a67-b3cb-ba95f9a556b2",
       "source_checksum": "sha256:fc63f5007a9cd23165268d255b446e585ee8590ae5c122fdbf4ea7552024caad",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -169,7 +251,7 @@
       "source_kind": "official",
       "source_catalog_id": "a8352aa8-b598-4630-82e1-c907052bc65d",
       "source_checksum": "sha256:a4a4c1026581f55c5faad089648088cb53ab613fcbf7dfbc832c948be36b6a0e",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -233,7 +315,7 @@
       "source_kind": "official",
       "source_catalog_id": "3049555c-2564-4713-b587-141967e33b07",
       "source_checksum": "sha256:97f9c41b46d23147383ca4600accc63e1fa526de3dff71947f11af4056b5d4ce",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -327,7 +409,7 @@
       "source_kind": "official",
       "source_catalog_id": "13a50698-3d8d-4f63-84ee-9d17798e6588",
       "source_checksum": "sha256:12284650008924799915adb766d085230d41c70e80f1c7ba8ac7617e1cc0fbe5",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -421,7 +503,7 @@
       "source_kind": "official",
       "source_catalog_id": "5f8d5b0f-86b8-4111-975c-f294fc9c7def",
       "source_checksum": "sha256:346a7a4f1d2cdbad4f1e84dc77ca4641954a294c73fd4cab7e50f11397d37bca",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -515,7 +597,7 @@
       "source_kind": "official",
       "source_catalog_id": "efcf40ec-48f8-480b-9a0f-0f21f43cbf83",
       "source_checksum": "sha256:818eca35f948d794a1367a1a517639f3474c7c63d3d600fdb569c77d81ca0876",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -609,7 +691,7 @@
       "source_kind": "official",
       "source_catalog_id": "8b2ff44c-b654-45d7-b660-31b2193876ce",
       "source_checksum": "sha256:53283d0ffb01daf34fccc5a35c488ccb9533be9828c52b27ba22fd5f55bd0971",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -703,7 +785,7 @@
       "source_kind": "official",
       "source_catalog_id": "7a5c394d-194a-4672-8235-03ba67f71212",
       "source_checksum": "sha256:a56d2100549fc51ddc4e9170c494d4f213dcebdb119b276648b13e5ee31909ae",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -797,7 +879,7 @@
       "source_kind": "official",
       "source_catalog_id": "691adf81-e5b6-481b-8e1f-7f124ebb3146",
       "source_checksum": "sha256:cebfefe3e876339ba6eda88a92929673504205f47c4434d753389f2e3959caea",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -891,7 +973,7 @@
       "source_kind": "official",
       "source_catalog_id": "6a575374-4062-46cd-8d22-b5640330813a",
       "source_checksum": "sha256:0fa2881f15461d1bb55b4da428729c5afcb02e44e9f01125117ec2c3cadd6fc5",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -985,7 +1067,7 @@
       "source_kind": "official",
       "source_catalog_id": "54fe35a8-73f4-4dc3-a21c-3c5053aa3184",
       "source_checksum": "sha256:19b01c8bb761d026f4cf491578f3bf782ae75dfa41520d17f45f500ccb8535a1",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1079,7 +1161,7 @@
       "source_kind": "official",
       "source_catalog_id": "f8303b65-f2fa-4d5e-a109-02d7188f514f",
       "source_checksum": "sha256:2319724e045b80958385a02d3bcd2c8bd40bfc0754f1e8f42ee4b3b4cd5ebb7d",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1173,7 +1255,7 @@
       "source_kind": "official",
       "source_catalog_id": "32b50483-921d-4078-86a4-c75ee55f5d3b",
       "source_checksum": "sha256:a5862e2aaa3ade98e3ac166138fa51d613ad6e62ff14ae2f893e42a7eeb6a64c",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1267,7 +1349,7 @@
       "source_kind": "official",
       "source_catalog_id": "e7fb4df8-ad5f-48ce-9eb8-38ddc48c94b1",
       "source_checksum": "sha256:d072568b9888210a03e4d831148dec626875f4f644304220961031a37f201fc2",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1331,7 +1413,7 @@
       "source_kind": "official",
       "source_catalog_id": "b4d92559-ff72-4122-88ab-88abda489bfc",
       "source_checksum": "sha256:75b4f42f86fb4f96bae8c28556e52ed57df25c5c04f8157ec15274ff00c64b14",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1425,7 +1507,7 @@
       "source_kind": "official",
       "source_catalog_id": "45835da1-5255-4b03-8a20-62930542a8ce",
       "source_checksum": "sha256:c4a4d70ddc25ae5ed884ff4f5d185e092c8339baee15dee4fa6ee949d24a9069",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1519,7 +1601,7 @@
       "source_kind": "official",
       "source_catalog_id": "e3d1332d-57cc-43f0-a936-6f7ba471802e",
       "source_checksum": "sha256:6feec16dcd4cc088bd4ebf0b9daf2f8068520e62cb1155389a0d3c39781a15fd",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1601,7 +1683,7 @@
       "source_kind": "official",
       "source_catalog_id": "ba52fc41-16b1-4e9d-b5a4-9df03924f275",
       "source_checksum": "sha256:35e4288e56f32cb3345f46795de1237f485aad4999916e75598cec09aeae27f1",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1735,89 +1817,7 @@
       "source_kind": "official",
       "source_catalog_id": "061ea8c2-dd4d-49b8-98dd-ba3897290194",
       "source_checksum": "sha256:be6b39cfe6b60555ac93ca2b99e7eaab99341cd999209b17ee21388ff1813e3e",
-      "source_version": "2026-11-24.3"
-    },
-    {
-      "provider_code": "bedrock_mantle",
-      "upstream_model_id": "us-gov-west-1/anthropic.claude-opus-4-8",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "6",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "30",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.6",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "7.5",
-      "id": "de581525-eefe-4d27-9b09-1c169a38d29b",
-      "effective_from": "2026-11-18T22:07:30.985Z",
-      "rules": [
-        {
-          "when": {
-            "cache_write_ttl_seconds": 3600
-          },
-          "overrides": {
-            "cache_write_token_unit_price": "12"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-18T22:07:30.985Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "cache_write_ttl_seconds": 3600
-              },
-              "overrides": {
-                "cache_write_token_unit_price": "12"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "de581525-eefe-4d27-9b09-1c169a38d29b",
-      "source_checksum": "sha256:284f99078459f0d74b868019f5f756edfc715634a27f8516154cff18816c5e3a",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     }
   ]
 }

@@ -1,12 +1,94 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-24.3",
+  "catalog_version": "2026-11-25.1",
   "currency_code": "USD",
   "page": 42,
-  "cursor": "YWZ0ZXI6ZGU1ODE1MjUtZWVmZS00ZDI3LTliMDktMWMxNjlhMzhkMjli",
-  "next_cursor": "YWZ0ZXI6NGYwOWQ3NDgtNzg0Ny00Yjg4LTk4ZTEtZDM0ZjYzNjhmNTVk",
+  "cursor": "YWZ0ZXI6MDYxZWE4YzItZGQ0ZC00OWI4LTk4ZGQtYmEzODk3MjkwMTk0",
+  "next_cursor": "YWZ0ZXI6NzkxOGRjYmQtZjZlZi00NWVhLThlZjMtYThmYzhhYTFhY2Zk",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/43.json",
   "rules": [
+    {
+      "provider_code": "bedrock_mantle",
+      "upstream_model_id": "us-gov-west-1/anthropic.claude-opus-4-8",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "6",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "30",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.6",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "7.5",
+      "id": "de581525-eefe-4d27-9b09-1c169a38d29b",
+      "effective_from": "2026-11-18T22:07:30.985Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "12"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-18T22:07:30.985Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "us-gov-west-1/anthropic.claude-opus-4-8",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "12"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "de581525-eefe-4d27-9b09-1c169a38d29b",
+      "source_checksum": "sha256:284f99078459f0d74b868019f5f756edfc715634a27f8516154cff18816c5e3a",
+      "source_version": "2026-11-25.1"
+    },
     {
       "provider_code": "bedrock_mantle",
       "upstream_model_id": "us-gov-west-1/anthropic.claude-opus-5",
@@ -87,7 +169,7 @@
       "source_kind": "official",
       "source_catalog_id": "4f63a427-397c-4531-b3cd-97fa42ed0b85",
       "source_checksum": "sha256:0dec6983e8377d7341d98db690dc37fa342de74b267bc77b98cd0cd723f5580e",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -169,7 +251,7 @@
       "source_kind": "official",
       "source_catalog_id": "a2dc220b-d8a1-47f4-9842-c66a26c8282c",
       "source_checksum": "sha256:b559695427cce888a9d638c47a41ec5a82b3b962c097fab8a8c95578f681758b",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -251,7 +333,7 @@
       "source_kind": "official",
       "source_catalog_id": "7b91e54b-e378-4fc5-86dc-44536d9ff8e0",
       "source_checksum": "sha256:27ba6467499ea19798794e57a48ad4f1a9d23eabe47d997441591f4f5bff7f00",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -333,7 +415,7 @@
       "source_kind": "official",
       "source_catalog_id": "78b55079-0a2b-4183-b905-b19f2d7fe9b6",
       "source_checksum": "sha256:3aec0487195d14cc7afe5e4613ca0ead2ffd05fe55f096b47eab6f8c473947ca",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -427,7 +509,7 @@
       "source_kind": "official",
       "source_catalog_id": "a599b273-63d7-449a-9bff-6a5b5487763d",
       "source_checksum": "sha256:ca079c83faee3a70a6bd1fac92fc9fbe848ec0b49e4c5bbb0450d71230415797",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -521,7 +603,7 @@
       "source_kind": "official",
       "source_catalog_id": "72253537-56c4-4ff4-a35e-e3b7dd552282",
       "source_checksum": "sha256:75e57f016e6c3a707621118d6336ce866aaa1725651ac98cbed0b1bd311842c7",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bee",
@@ -585,7 +667,7 @@
       "source_kind": "official",
       "source_catalog_id": "b32aab09-b306-4556-b62f-848e718b3d8f",
       "source_checksum": "sha256:160581e89421356c25e6656ffac4d950d1efcd7be0dc94deaaa172cb3a9b1d15",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bee",
@@ -649,7 +731,7 @@
       "source_kind": "official",
       "source_catalog_id": "a7d3f5dc-9e29-4f29-a263-73c48579f83b",
       "source_checksum": "sha256:3454dd8263a73a8765e5afcc450353b459950096976dd2a45acfd5c28ff3ca64",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bee",
@@ -713,7 +795,7 @@
       "source_kind": "official",
       "source_catalog_id": "011b6bc9-540e-47f2-ac14-686e3560f55e",
       "source_checksum": "sha256:27e6e42587c323fed597dab2646117d5fd6fb271f2984c347f4b239e1be098f7",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bee",
@@ -777,7 +859,7 @@
       "source_kind": "official",
       "source_catalog_id": "38696827-5e65-4279-8774-c451ca75a872",
       "source_checksum": "sha256:bb04289c3c69b4a040d9b35aad3efdc8055eb010a1c04a6296e0fa2a41f06981",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bee",
@@ -841,7 +923,7 @@
       "source_kind": "official",
       "source_catalog_id": "27e910ef-81d5-471e-9676-47f0ca880326",
       "source_checksum": "sha256:9aea8654810eac5389d44458c79c28d67da88ed2f58a8003801a6cf42c996061",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bee",
@@ -905,7 +987,7 @@
       "source_kind": "official",
       "source_catalog_id": "af868c76-5d0c-4efe-8f55-f15d1bace8c7",
       "source_checksum": "sha256:c58a101e25ce7c2b4d2249f1f18ac2c6356320c39ca6b94dfecc0f3eea71d765",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -969,7 +1051,7 @@
       "source_kind": "official",
       "source_catalog_id": "83662aac-8755-4033-b7ea-400a05f76bb2",
       "source_checksum": "sha256:4b81059d2b8169c1fe94b9faf0dd15ce0e2f0b5d6892fe83fe3fa088fd2a6f22",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -1033,7 +1115,7 @@
       "source_kind": "official",
       "source_catalog_id": "c163be87-cfe0-4566-bcfc-29b3071bfa9a",
       "source_checksum": "sha256:904fe41fae8957d99c5edef880808cfa5e9328fae3718b35b9fc18cfbaa0d5a9",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -1097,7 +1179,7 @@
       "source_kind": "official",
       "source_catalog_id": "76bc953a-77af-454a-be2b-19be1db7d602",
       "source_checksum": "sha256:e9523a41014d05f1692836b7a5ccf27a49655ac99a69253ea446085a7476e115",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -1191,7 +1273,7 @@
       "source_kind": "official",
       "source_catalog_id": "d21a437c-f62e-44a9-9201-ef9ba311402d",
       "source_checksum": "sha256:093153b74fd159306b80678edc215d64fb493b4a2479c83c4c4db9f6ef85de32",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -1255,7 +1337,7 @@
       "source_kind": "official",
       "source_catalog_id": "3c10fb19-826d-4537-b850-c8c255c25935",
       "source_checksum": "sha256:10744e914eb790ce27ea2c42d842e02531c9577b3ebecdc956e11c8e06d9b128",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -1319,7 +1401,7 @@
       "source_kind": "official",
       "source_catalog_id": "17d320be-4c13-423f-964f-917497459e5a",
       "source_checksum": "sha256:9f476ac5b9bae65d1475d8651c36efcfc6e28d142dcdc176bbcd5b16761f0fe1",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     },
     {
       "provider_code": "bumo",
@@ -1383,71 +1465,7 @@
       "source_kind": "official",
       "source_catalog_id": "7918dcbd-f6ef-45ea-8ef3-a8fc8aa1acfd",
       "source_checksum": "sha256:b30108969a4a2c3df561ebbe8777935e34cd313a73b26a61ddc63c05b5f04a0f",
-      "source_version": "2026-11-24.3"
-    },
-    {
-      "provider_code": "bumo",
-      "upstream_model_id": "claude-sonnet-4-6",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "3.18",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "15.9",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.318",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "3.975",
-      "id": "4f09d748-7847-4b88-98e1-d34f6368f55d",
-      "effective_from": "2026-11-14T23:09:56.614Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-14T23:09:56.614Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "bumo",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "bumo",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "bumo",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "bumo",
-              "model": "claude-sonnet-4-6",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "4f09d748-7847-4b88-98e1-d34f6368f55d",
-      "source_checksum": "sha256:e889b67358f5f23cec9fa945025b31f1f9dc41a5198011e4dc19b08884c3e67c",
-      "source_version": "2026-11-24.3"
+      "source_version": "2026-11-25.1"
     }
   ]
 }

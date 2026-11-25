@@ -10377,21 +10377,6 @@
       "upstream_model_id": "mistralai/mistral-medium-3-5"
     },
     {
-      "model": "aimlapi/mistralai/mistral-medium-3.1",
-      "pricing": {
-        "litellm": null,
-        "models_dev": {
-          "cache_read": 0.04232,
-          "input": 0.4232,
-          "output": 2.116
-        }
-      },
-      "provider_code": "aimlapi",
-      "reason": "missing-or-invalid-cache_write",
-      "status": "unavailable",
-      "upstream_model_id": "mistralai/mistral-medium-3.1"
-    },
-    {
       "model": "aimlapi/mistralai/mistral-nemo",
       "pricing": {
         "litellm": null,
@@ -44310,6 +44295,21 @@
       "upstream_model_id": "us-gov.openai.gpt-5.4"
     },
     {
+      "model": "bedrock_converse/us-gov.openai.gpt-5.6-cyber",
+      "pricing": {
+        "litellm": {
+          "cache_creation_input_token_cost": 0.00002109375,
+          "cache_read_input_token_cost": 0.0000016875,
+          "input_cost_per_token": 0.000016875,
+          "output_cost_per_token": 0.00010125
+        },
+        "models_dev": null
+      },
+      "provider_code": "bedrock_converse",
+      "status": "synchronized",
+      "upstream_model_id": "us-gov.openai.gpt-5.6-cyber"
+    },
+    {
       "model": "bedrock_converse/us-gov.openai.gpt-5.6-luna",
       "pricing": {
         "litellm": {
@@ -62776,21 +62776,6 @@
       "upstream_model_id": "Qwen/Qwen4-Max"
     },
     {
-      "model": "chutes/tencent/Hy4",
-      "pricing": {
-        "litellm": null,
-        "models_dev": {
-          "cache_read": 0.025,
-          "input": 0.525,
-          "output": 1.5625
-        }
-      },
-      "provider_code": "chutes",
-      "reason": "missing-or-invalid-cache_write",
-      "status": "unavailable",
-      "upstream_model_id": "tencent/Hy4"
-    },
-    {
       "model": "chutes/zai-org/GLM-5.1-TEE",
       "pricing": {
         "litellm": null,
@@ -79450,7 +79435,22 @@
           "input_cost_per_token": 2.5e-7,
           "output_cost_per_token": 0.000002
         },
-        "models_dev": null
+        "models_dev": {
+          "cache_read": 0.05,
+          "input": 0.25,
+          "output": 2,
+          "tiers": [
+            {
+              "cache_read": 0.1,
+              "input": 0.5,
+              "output": 4,
+              "tier": {
+                "size": 128000,
+                "type": "context"
+              }
+            }
+          ]
+        }
       },
       "provider_code": "deepinfra",
       "reason": "missing-or-invalid-cache_write",
@@ -80084,6 +80084,21 @@
       "upstream_model_id": "Gryphe/MythoMax-L2-13b"
     },
     {
+      "model": "deepinfra/ibm-granite/granite-4.2-8b",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.015,
+          "input": 0.06,
+          "output": 0.25
+        }
+      },
+      "provider_code": "deepinfra",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "ibm-granite/granite-4.2-8b"
+    },
+    {
       "model": "deepinfra/inclusionAI/Ling-3.0-flash",
       "pricing": {
         "litellm": {
@@ -80091,12 +80106,31 @@
           "input_cost_per_token": 6e-8,
           "output_cost_per_token": 1.8e-7
         },
-        "models_dev": null
+        "models_dev": {
+          "cache_read": 0.012,
+          "input": 0.06,
+          "output": 0.18
+        }
       },
       "provider_code": "deepinfra",
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "inclusionAI/Ling-3.0-flash"
+    },
+    {
+      "model": "deepinfra/inclusionAI/Ling-3.0-flash-VL",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.012,
+          "input": 0.06,
+          "output": 0.18
+        }
+      },
+      "provider_code": "deepinfra",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "inclusionAI/Ling-3.0-flash-VL"
     },
     {
       "model": "deepinfra/meta-llama/Llama-3.2-11B-Vision-Instruct",
@@ -80300,7 +80334,11 @@
           "input_cost_per_token": 3e-7,
           "output_cost_per_token": 0.0000012
         },
-        "models_dev": null
+        "models_dev": {
+          "cache_read": 0.04,
+          "input": 0.3,
+          "output": 1.2
+        }
       },
       "provider_code": "deepinfra",
       "reason": "missing-or-invalid-cache_write",
@@ -80653,7 +80691,10 @@
           "input_cost_per_token": 7.5e-8,
           "output_cost_per_token": 4e-7
         },
-        "models_dev": null
+        "models_dev": {
+          "input": 0.075,
+          "output": 0.4
+        }
       },
       "provider_code": "deepinfra",
       "reason": "missing-or-invalid-cache_hit",
@@ -80668,11 +80709,15 @@
           "input_cost_per_token": 5e-7,
           "output_cost_per_token": 0.0000022
         },
-        "models_dev": null
+        "models_dev": {
+          "cache_read": 0.1,
+          "cache_write": 0.625,
+          "input": 0.5,
+          "output": 2.2
+        }
       },
       "provider_code": "deepinfra",
-      "reason": "missing-or-invalid-cache_write",
-      "status": "unavailable",
+      "status": "synchronized",
       "upstream_model_id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B"
     },
     {
@@ -80683,7 +80728,11 @@
           "input_cost_per_token": 6e-8,
           "output_cost_per_token": 1.6e-7
         },
-        "models_dev": null
+        "models_dev": {
+          "cache_read": 0.03,
+          "input": 0.06,
+          "output": 0.16
+        }
       },
       "provider_code": "deepinfra",
       "reason": "missing-or-invalid-cache_write",
@@ -87679,9 +87728,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.044,
-          "input": 0.44,
-          "output": 2.2
+          "cache_read": 0.15,
+          "input": 1.5,
+          "output": 7.5
         }
       },
       "provider_code": "edenai",
@@ -87724,9 +87773,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.0484,
-          "input": 0.484,
-          "output": 2.42
+          "cache_read": 0.165,
+          "input": 1.65,
+          "output": 8.25
         }
       },
       "provider_code": "edenai",
@@ -88907,6 +88956,20 @@
       "reason": "missing-or-invalid-cache_hit",
       "status": "unavailable",
       "upstream_model_id": "openai/o3-pro"
+    },
+    {
+      "model": "edenai/ovhcloud/DeepSeek-V4.1-Flash-1017",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.31,
+          "output": 1.25
+        }
+      },
+      "provider_code": "edenai",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "ovhcloud/DeepSeek-V4.1-Flash-1017"
     },
     {
       "model": "edenai/ovhcloud/gpt-oss-120b",
@@ -90804,6 +90867,34 @@
       "reason": "unsupported-model-meter",
       "status": "unavailable",
       "upstream_model_id": "scribe_v2"
+    },
+    {
+      "model": "elevenlabs/scribe_v2_realtime",
+      "pricing": {
+        "litellm": {
+          "input_cost_per_second": 0.000061111,
+          "output_cost_per_second": 0
+        },
+        "models_dev": null
+      },
+      "provider_code": "elevenlabs",
+      "reason": "unsupported-model-meter",
+      "status": "unavailable",
+      "upstream_model_id": "scribe_v2_realtime"
+    },
+    {
+      "model": "elevenlabs/scribe_v2_realtime/keyterms",
+      "pricing": {
+        "litellm": {
+          "input_cost_per_second": 0.000013889,
+          "output_cost_per_second": 0
+        },
+        "models_dev": null
+      },
+      "provider_code": "elevenlabs",
+      "reason": "unsupported-model-meter",
+      "status": "unavailable",
+      "upstream_model_id": "scribe_v2_realtime/keyterms"
     },
     {
       "model": "empiriolabs/aplomb-1",
@@ -104398,6 +104489,20 @@
       "upstream_model_id": "krea/v3/edit"
     },
     {
+      "model": "fal_ai/krea/v3/edit/lora",
+      "pricing": {
+        "litellm": {
+          "output_cost_per_billable_unit": 0.05,
+          "output_cost_per_image": 0.26
+        },
+        "models_dev": null
+      },
+      "provider_code": "fal_ai",
+      "reason": "unsupported-model-meter",
+      "status": "unavailable",
+      "upstream_model_id": "krea/v3/edit/lora"
+    },
+    {
       "model": "fal_ai/krea/v3/text-to-image",
       "pricing": {
         "litellm": {
@@ -104410,6 +104515,20 @@
       "reason": "unsupported-model-meter",
       "status": "unavailable",
       "upstream_model_id": "krea/v3/text-to-image"
+    },
+    {
+      "model": "fal_ai/krea/v3/text-to-image/lora",
+      "pricing": {
+        "litellm": {
+          "output_cost_per_billable_unit": 0.05,
+          "output_cost_per_image": 0.12
+        },
+        "models_dev": null
+      },
+      "provider_code": "fal_ai",
+      "reason": "unsupported-model-meter",
+      "status": "unavailable",
+      "upstream_model_id": "krea/v3/text-to-image/lora"
     },
     {
       "model": "fal_ai/lightricks/ltx-2.5/image-to-video/fast",
@@ -114255,6 +114374,21 @@
       "upstream_model_id": "accounts/fireworks/models/glm-5p3-flash"
     },
     {
+      "model": "fireworks-ai/accounts/fireworks/models/hy4-flash",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.003,
+          "input": 0.07,
+          "output": 0.281
+        }
+      },
+      "provider_code": "fireworks-ai",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "accounts/fireworks/models/hy4-flash"
+    },
+    {
       "model": "fireworks-ai/accounts/fireworks/models/kimi-k3",
       "pricing": {
         "litellm": null,
@@ -114358,6 +114492,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "accounts/fireworks/models/qwen3p8-max"
+    },
+    {
+      "model": "fireworks-ai/accounts/fireworks/models/qwen4-max",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.075,
+          "input": 1.5,
+          "output": 4.5
+        }
+      },
+      "provider_code": "fireworks-ai",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "accounts/fireworks/models/qwen4-max"
     },
     {
       "model": "fireworks-ai/accounts/fireworks/models/ultramarine-1-flash-us",
@@ -121762,6 +121911,7 @@
           "output_cost_per_image": 0.039,
           "output_cost_per_image_token": 0.00003,
           "output_cost_per_image_token_batches": 0.000015,
+          "output_cost_per_image_token_flex": 0.000015,
           "output_cost_per_image_token_priority": 0.000054,
           "output_cost_per_reasoning_token": 0.0000025,
           "output_cost_per_token": 0.0000025,
@@ -126495,6 +126645,66 @@
       "upstream_model_id": "zai-org/glm-5.2"
     },
     {
+      "model": "huawei_maas/deepseek-v4.1-flash",
+      "pricing": {
+        "litellm": {
+          "cache_read_input_token_cost": 3e-8,
+          "input_cost_per_token": 3e-7,
+          "output_cost_per_token": 0.0000012
+        },
+        "models_dev": null
+      },
+      "provider_code": "huawei_maas",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "deepseek-v4.1-flash"
+    },
+    {
+      "model": "huawei_maas/deepseek-v4.1-flash-1017",
+      "pricing": {
+        "litellm": {
+          "cache_read_input_token_cost": 6e-9,
+          "input_cost_per_token": 3e-7,
+          "output_cost_per_token": 0.0000012
+        },
+        "models_dev": null
+      },
+      "provider_code": "huawei_maas",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "deepseek-v4.1-flash-1017"
+    },
+    {
+      "model": "huawei_maas/glm-5.2",
+      "pricing": {
+        "litellm": {
+          "cache_read_input_token_cost": 2.6e-7,
+          "input_cost_per_token": 0.0000014,
+          "output_cost_per_token": 0.0000044
+        },
+        "models_dev": null
+      },
+      "provider_code": "huawei_maas",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "glm-5.2"
+    },
+    {
+      "model": "huawei_maas/glm-5.3",
+      "pricing": {
+        "litellm": {
+          "cache_read_input_token_cost": 2.6e-7,
+          "input_cost_per_token": 0.0000014,
+          "output_cost_per_token": 0.0000044
+        },
+        "models_dev": null
+      },
+      "provider_code": "huawei_maas",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "glm-5.3"
+    },
+    {
       "model": "huawei-maas/deepseek-v4-flash",
       "pricing": {
         "litellm": null,
@@ -126977,8 +127187,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.27,
-          "output": 1.12
+          "input": 1,
+          "output": 2.625
         }
       },
       "provider_code": "huggingface",
@@ -127061,8 +127271,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.686174,
-          "output": 1.5498
+          "input": 0.888188,
+          "output": 1.5082
         }
       },
       "provider_code": "huggingface",
@@ -127103,8 +127313,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.04,
-          "output": 0.1
+          "input": 0.05,
+          "output": 0.3
         }
       },
       "provider_code": "huggingface",
@@ -127509,8 +127719,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.1,
-          "output": 0.4
+          "input": 0.075,
+          "output": 0.3
         }
       },
       "provider_code": "huggingface",
@@ -127660,6 +127870,20 @@
       "upstream_model_id": "NousResearch/Hermes-3-Llama-3.1-70B"
     },
     {
+      "model": "huggingface/NousResearch/Hermes-4-405B",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 1,
+          "output": 3
+        }
+      },
+      "provider_code": "huggingface",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "NousResearch/Hermes-4-405B"
+    },
+    {
       "model": "huggingface/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
       "pricing": {
         "litellm": null,
@@ -127804,8 +128028,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.15,
-          "output": 0.75
+          "input": 0.09,
+          "output": 0.55
         }
       },
       "provider_code": "huggingface",
@@ -127902,8 +128126,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.35,
-          "output": 1.5
+          "input": 0.3,
+          "output": 1
         }
       },
       "provider_code": "huggingface",
@@ -128085,7 +128309,7 @@
         "litellm": null,
         "models_dev": {
           "input": 0.1,
-          "output": 0.89
+          "output": 0.9
         }
       },
       "provider_code": "huggingface",
@@ -128120,6 +128344,20 @@
       "reason": "missing-or-invalid-cache_hit",
       "status": "unavailable",
       "upstream_model_id": "Qwen/Qwen3.8-27B"
+    },
+    {
+      "model": "huggingface/Qwen/Qwen3.8-Flash-Next",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.15,
+          "output": 0.5
+        }
+      },
+      "provider_code": "huggingface",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "Qwen/Qwen3.8-Flash-Next"
     },
     {
       "model": "huggingface/Qwen/Qwen3.8-Flash-Next-FP8",
@@ -128196,8 +128434,8 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "input": 0.834,
-          "output": 2.501
+          "input": 0.7089,
+          "output": 2.12585
         }
       },
       "provider_code": "huggingface",
@@ -136167,7 +136405,7 @@
         "litellm": null,
         "models_dev": {
           "cache_read": 0.035,
-          "input": 0.0456,
+          "input": 0.047,
           "output": 0.3
         }
       },
@@ -137157,7 +137395,7 @@
         "litellm": null,
         "models_dev": {
           "cache_read": 0.035,
-          "input": 0.0456,
+          "input": 0.047,
           "output": 0.3
         }
       },
@@ -137216,9 +137454,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001014,
-          "input": 0.0507,
-          "output": 0.2028
+          "cache_read": 0.0042,
+          "input": 0.14,
+          "output": 0.42
         }
       },
       "provider_code": "kilo",
@@ -137854,8 +138092,8 @@
         "litellm": null,
         "models_dev": {
           "cache_read": 0.023,
-          "input": 0.047,
-          "output": 0.169
+          "input": 0.045,
+          "output": 0.163
         }
       },
       "provider_code": "kilo",
@@ -138573,9 +138811,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.03,
-          "input": 0.27,
-          "output": 0.95
+          "cache_read": 0.06,
+          "input": 0.3,
+          "output": 1.2
         }
       },
       "provider_code": "kilo",
@@ -138617,9 +138855,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.025,
-          "input": 0.1,
-          "output": 0.4
+          "cache_read": 0.0075,
+          "input": 0.075,
+          "output": 0.3
         }
       },
       "provider_code": "kilo",
@@ -140669,9 +140907,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.00765,
-          "input": 0.0153,
-          "output": 0.0765
+          "cache_read": 0.0085,
+          "input": 0.017,
+          "output": 0.085
         }
       },
       "provider_code": "kilo",
@@ -141521,9 +141759,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.025,
-          "input": 0.05,
-          "output": 0.7
+          "cache_read": 0.035,
+          "input": 0.1,
+          "output": 0.89
         }
       },
       "provider_code": "kilo",
@@ -142368,6 +142606,21 @@
       "upstream_model_id": "undi95/remm-slerp-l2-13b"
     },
     {
+      "model": "kilo/upstage/solar-mini-4-5",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.01,
+          "input": 0.1,
+          "output": 0.4
+        }
+      },
+      "provider_code": "kilo",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "upstage/solar-mini-4-5"
+    },
+    {
       "model": "kilo/upstage/solar-mini4",
       "pricing": {
         "litellm": null,
@@ -142381,6 +142634,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "upstage/solar-mini4"
+    },
+    {
+      "model": "kilo/upstage/solar-pro-4-contributor",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.06,
+          "input": 0.3,
+          "output": 1.2
+        }
+      },
+      "provider_code": "kilo",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "upstage/solar-pro-4-contributor"
     },
     {
       "model": "kilo/upstage/solar-pro4",
@@ -142580,37 +142848,6 @@
       "upstream_model_id": "x-ai/grok-4.7"
     },
     {
-      "model": "kilo/xiaomi/mimo-v2.5",
-      "pricing": {
-        "litellm": null,
-        "models_dev": {
-          "cache_read": 0.08,
-          "context_over_200k": {
-            "cache_read": 0.16,
-            "input": 0.8,
-            "output": 4
-          },
-          "input": 0.4,
-          "output": 2,
-          "tiers": [
-            {
-              "cache_read": 0.16,
-              "input": 0.8,
-              "output": 4,
-              "tier": {
-                "size": 256000,
-                "type": "context"
-              }
-            }
-          ]
-        }
-      },
-      "provider_code": "kilo",
-      "reason": "missing-or-invalid-cache_write",
-      "status": "unavailable",
-      "upstream_model_id": "xiaomi/mimo-v2.5"
-    },
-    {
       "model": "kilo/xiaomi/mimo-v2.6-flash",
       "pricing": {
         "litellm": null,
@@ -142624,6 +142861,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "xiaomi/mimo-v2.6-flash"
+    },
+    {
+      "model": "kilo/xiaomi/mimo-v2.6-flash-mopd",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.02,
+          "input": 0.15,
+          "output": 0.42
+        }
+      },
+      "provider_code": "kilo",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "xiaomi/mimo-v2.6-flash-mopd"
     },
     {
       "model": "kilo/xiaomi/mimo-v2.6-pro",
@@ -149532,6 +149784,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "deepinfra/hy4-preview"
+    },
+    {
+      "model": "llmgateway-providers/deepinfra/inkling-2-mini",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.015,
+          "input": 0.075,
+          "output": 0.3
+        }
+      },
+      "provider_code": "llmgateway-providers",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "deepinfra/inkling-2-mini"
     },
     {
       "model": "llmgateway-providers/deepinfra/ling-3.0-flash",
@@ -156574,6 +156841,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "hy4-preview"
+    },
+    {
+      "model": "llmgateway/inkling-2-mini",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.015,
+          "input": 0.075,
+          "output": 0.3
+        }
+      },
+      "provider_code": "llmgateway",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "inkling-2-mini"
     },
     {
       "model": "llmgateway/kimi-k2",
@@ -168641,9 +168923,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001442,
-          "input": 0.04532,
-          "output": 0.13596
+          "cache_read": 0.013,
+          "input": 0.05,
+          "output": 0.16
         }
       },
       "provider_code": "nano-gpt",
@@ -168656,9 +168938,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001442,
-          "input": 0.04532,
-          "output": 0.13596
+          "cache_read": 0.013,
+          "input": 0.05,
+          "output": 0.16
         }
       },
       "provider_code": "nano-gpt",
@@ -175301,9 +175583,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.0378,
-          "input": 0.7506,
-          "output": 2.2509
+          "cache_read": 0.042,
+          "input": 0.834,
+          "output": 2.501
         }
       },
       "provider_code": "nano-gpt",
@@ -175759,6 +176041,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "xiaomi/mimo-v2.6-flash-abliterated"
+    },
+    {
+      "model": "nano-gpt/xiaomi/mimo-v2.6-flash-mopd",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.0028,
+          "input": 0.1,
+          "output": 0.28
+        }
+      },
+      "provider_code": "nano-gpt",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "xiaomi/mimo-v2.6-flash-mopd"
     },
     {
       "model": "nano-gpt/xiaomi/mimo-v2.6-flash-uncensored",
@@ -185645,9 +185942,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.0325,
-          "input": 0.13,
-          "output": 0.52
+          "cache_read": 0.00975,
+          "input": 0.0975,
+          "output": 0.39
         }
       },
       "provider_code": "obscurify",
@@ -198997,9 +199294,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001,
-          "input": 0.03,
-          "output": 0.2
+          "cache_read": 0.01,
+          "input": 0.036,
+          "output": 0.5
         }
       },
       "provider_code": "openrouter",
@@ -199027,9 +199324,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001442,
-          "input": 0.04532,
-          "output": 0.13596
+          "cache_read": 0.035,
+          "input": 0.047,
+          "output": 0.3
         }
       },
       "provider_code": "openrouter",
@@ -200190,7 +200487,7 @@
         "litellm": null,
         "models_dev": {
           "cache_read": 0.035,
-          "input": 0.0456,
+          "input": 0.047,
           "output": 0.3
         }
       },
@@ -200253,9 +200550,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001014,
-          "input": 0.0507,
-          "output": 0.2028
+          "cache_read": 0.0042,
+          "input": 0.14,
+          "output": 0.42
         }
       },
       "provider_code": "openrouter",
@@ -200268,9 +200565,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.001,
-          "input": 0.03,
-          "output": 0.2
+          "cache_read": 0.003,
+          "input": 0.15,
+          "output": 0.6
         }
       },
       "provider_code": "openrouter",
@@ -201484,9 +201781,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.03,
-          "input": 0.27,
-          "output": 0.95
+          "cache_read": 0.06,
+          "input": 0.3,
+          "output": 1.2
         }
       },
       "provider_code": "openrouter",
@@ -201528,9 +201825,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.025,
-          "input": 0.1,
-          "output": 0.4
+          "cache_read": 0.0075,
+          "input": 0.075,
+          "output": 0.3
         }
       },
       "provider_code": "openrouter",
@@ -204223,9 +204520,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.025,
-          "input": 0.05,
-          "output": 0.7
+          "cache_read": 0.035,
+          "input": 0.1,
+          "output": 0.89
         }
       },
       "provider_code": "openrouter",
@@ -204400,9 +204697,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.059,
-          "input": 0.06,
-          "output": 1.96
+          "cache_read": 0.0175,
+          "input": 0.035,
+          "output": 1.5
         }
       },
       "provider_code": "openrouter",
@@ -205129,6 +205426,21 @@
       "upstream_model_id": "upstage/solar-decide-flash"
     },
     {
+      "model": "openrouter/upstage/solar-mini-4-5",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.001,
+          "input": 0.01,
+          "output": 0.04
+        }
+      },
+      "provider_code": "openrouter",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "upstage/solar-mini-4-5"
+    },
+    {
       "model": "openrouter/upstage/solar-mini4",
       "pricing": {
         "litellm": null,
@@ -205142,6 +205454,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "upstage/solar-mini4"
+    },
+    {
+      "model": "openrouter/upstage/solar-pro-4-contributor",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.018,
+          "input": 0.09,
+          "output": 0.36
+        }
+      },
+      "provider_code": "openrouter",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "upstage/solar-pro-4-contributor"
     },
     {
       "model": "openrouter/upstage/solar-pro4",
@@ -205359,21 +205686,6 @@
       "upstream_model_id": "x-ai/grok-4.7"
     },
     {
-      "model": "openrouter/xiaomi/mimo-v2.5",
-      "pricing": {
-        "litellm": null,
-        "models_dev": {
-          "cache_read": 0.08,
-          "input": 0.4,
-          "output": 2
-        }
-      },
-      "provider_code": "openrouter",
-      "reason": "missing-or-invalid-cache_write",
-      "status": "unavailable",
-      "upstream_model_id": "xiaomi/mimo-v2.5"
-    },
-    {
       "model": "openrouter/xiaomi/mimo-v2.6-flash",
       "pricing": {
         "litellm": null,
@@ -205387,6 +205699,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "xiaomi/mimo-v2.6-flash"
+    },
+    {
+      "model": "openrouter/xiaomi/mimo-v2.6-flash-mopd",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.02,
+          "input": 0.15,
+          "output": 0.42
+        }
+      },
+      "provider_code": "openrouter",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "xiaomi/mimo-v2.6-flash-mopd"
     },
     {
       "model": "openrouter/xiaomi/mimo-v2.6-pro",
@@ -205602,9 +205929,9 @@
       "pricing": {
         "litellm": null,
         "models_dev": {
-          "cache_read": 0.03,
-          "input": 0.15,
-          "output": 0.5
+          "cache_read": 0.02,
+          "input": 0.12,
+          "output": 0.38
         }
       },
       "provider_code": "openrouter",
@@ -209158,6 +209485,34 @@
       "upstream_model_id": "DeepSeek-R1-Distill-Llama-70B"
     },
     {
+      "model": "ovhcloud/deepseek-v4.1-flash-1017",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.31,
+          "output": 1.25
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "deepseek-v4.1-flash-1017"
+    },
+    {
+      "model": "ovhcloud/gemma-4-26b-a4b",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.1,
+          "output": 0.41
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "gemma-4-26b-a4b"
+    },
+    {
       "model": "ovhcloud/gpt-oss-120b",
       "pricing": {
         "litellm": {
@@ -209190,6 +209545,20 @@
       "reason": "missing-or-invalid-cache_hit",
       "status": "unavailable",
       "upstream_model_id": "gpt-oss-20b"
+    },
+    {
+      "model": "ovhcloud/laguna-xs-2.1",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.06,
+          "output": 0.12
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "laguna-xs-2.1"
     },
     {
       "model": "ovhcloud/Llama-3.1-8B-Instruct",
@@ -209346,6 +209715,48 @@
       "upstream_model_id": "Mixtral-8x7B-Instruct-v0.1"
     },
     {
+      "model": "ovhcloud/nemotron3-nano-30b",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.06,
+          "output": 0.23
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "nemotron3-nano-30b"
+    },
+    {
+      "model": "ovhcloud/nemotron3-omni-30b",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.19,
+          "output": 0.57
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "nemotron3-omni-30b"
+    },
+    {
+      "model": "ovhcloud/olala-v1.0-translate",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0,
+          "output": 0
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "olala-v1.0-translate"
+    },
+    {
       "model": "ovhcloud/Qwen2.5-Coder-32B-Instruct",
       "pricing": {
         "litellm": {
@@ -209402,6 +209813,20 @@
       "upstream_model_id": "Qwen3-32B"
     },
     {
+      "model": "ovhcloud/qwen3-vl-30b-a3b",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.15,
+          "output": 0.58
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "qwen3-vl-30b-a3b"
+    },
+    {
       "model": "ovhcloud/qwen3.5-397b-a17b",
       "pricing": {
         "litellm": null,
@@ -209442,6 +209867,20 @@
       "reason": "missing-or-invalid-cache_hit",
       "status": "unavailable",
       "upstream_model_id": "qwen3.6-27b"
+    },
+    {
+      "model": "ovhcloud/qwen3.6-35b-a3b",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 0.2,
+          "output": 1.33
+        }
+      },
+      "provider_code": "ovhcloud",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "qwen3.6-35b-a3b"
     },
     {
       "model": "ovhcloud/qwen3.8-27b",
@@ -216934,6 +217373,20 @@
       "upstream_model_id": "openai/gpt-6.1-sol"
     },
     {
+      "model": "prime/openai/gpt-6.1-sol-pro",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "input": 2,
+          "output": 10
+        }
+      },
+      "provider_code": "prime",
+      "reason": "missing-or-invalid-cache_hit",
+      "status": "unavailable",
+      "upstream_model_id": "openai/gpt-6.1-sol-pro"
+    },
+    {
       "model": "prime/openai/gpt-6.2-astra",
       "pricing": {
         "litellm": null,
@@ -217017,6 +217470,21 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "qwen/qwen3.8-27b"
+    },
+    {
+      "model": "prime/ricursiveai/ripple-65b-preview",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.025,
+          "cache_write": 0.1,
+          "input": 0.1,
+          "output": 0.3
+        }
+      },
+      "provider_code": "prime",
+      "status": "synchronized",
+      "upstream_model_id": "ricursiveai/ripple-65b-preview"
     },
     {
       "model": "prime/thinkingmachines/inkling-2-small",
@@ -243967,6 +244435,21 @@
       "upstream_model_id": "reflection/Beam-1.0-501B-A23B"
     },
     {
+      "model": "togetherai/ricursive-ai/Ripple-65B-Preview",
+      "pricing": {
+        "litellm": null,
+        "models_dev": {
+          "cache_read": 0.02,
+          "input": 0.2,
+          "output": 0.6
+        }
+      },
+      "provider_code": "togetherai",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "ricursive-ai/Ripple-65B-Preview"
+    },
+    {
       "model": "togetherai/tencent/Hy4",
       "pricing": {
         "litellm": null,
@@ -247961,13 +248444,13 @@
         "litellm": null,
         "models_dev": {
           "cache_read": 0.09375,
-          "cache_write": 2.34375,
           "input": 1.875,
           "output": 5.625
         }
       },
       "provider_code": "venice",
-      "status": "synchronized",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
       "upstream_model_id": "qwen-4-max"
     },
     {
@@ -263697,7 +264180,7 @@
         "models_dev": {
           "cache_read": 0.002,
           "input": 0.13,
-          "output": 0.65
+          "output": 0.59
         }
       },
       "provider_code": "wandb",
@@ -265776,11 +266259,17 @@
         "litellm": {
           "cache_read_input_token_cost": 5e-7,
           "cache_read_input_token_cost_above_200k_tokens": 0.000001,
+          "cache_read_input_token_cost_above_200k_tokens_batches": 8e-7,
+          "cache_read_input_token_cost_batches": 4e-7,
           "input_cost_per_image_token": 0.000002,
           "input_cost_per_token": 0.000002,
           "input_cost_per_token_above_200k_tokens": 0.000004,
+          "input_cost_per_token_above_200k_tokens_batches": 0.0000032,
+          "input_cost_per_token_batches": 0.0000016,
           "output_cost_per_token": 0.000006,
-          "output_cost_per_token_above_200k_tokens": 0.000012
+          "output_cost_per_token_above_200k_tokens": 0.000012,
+          "output_cost_per_token_above_200k_tokens_batches": 0.0000096,
+          "output_cost_per_token_batches": 0.0000048
         },
         "models_dev": {
           "cache_read": 0.5,
@@ -265808,6 +266297,31 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "grok-4.6"
+    },
+    {
+      "model": "xai/grok-4.6-latest",
+      "pricing": {
+        "litellm": {
+          "cache_read_input_token_cost": 5e-7,
+          "cache_read_input_token_cost_above_200k_tokens": 0.000001,
+          "cache_read_input_token_cost_above_200k_tokens_batches": 8e-7,
+          "cache_read_input_token_cost_batches": 4e-7,
+          "input_cost_per_image_token": 0.000002,
+          "input_cost_per_token": 0.000002,
+          "input_cost_per_token_above_200k_tokens": 0.000004,
+          "input_cost_per_token_above_200k_tokens_batches": 0.0000032,
+          "input_cost_per_token_batches": 0.0000016,
+          "output_cost_per_token": 0.000006,
+          "output_cost_per_token_above_200k_tokens": 0.000012,
+          "output_cost_per_token_above_200k_tokens_batches": 0.0000096,
+          "output_cost_per_token_batches": 0.0000048
+        },
+        "models_dev": null
+      },
+      "provider_code": "xai",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "grok-4.6-latest"
     },
     {
       "model": "xai/grok-4.7",
@@ -265853,6 +266367,31 @@
       "reason": "missing-or-invalid-cache_write",
       "status": "unavailable",
       "upstream_model_id": "grok-4.7"
+    },
+    {
+      "model": "xai/grok-4.7-latest",
+      "pricing": {
+        "litellm": {
+          "cache_read_input_token_cost": 5e-7,
+          "cache_read_input_token_cost_above_200k_tokens": 0.000001,
+          "cache_read_input_token_cost_above_200k_tokens_batches": 8e-7,
+          "cache_read_input_token_cost_batches": 4e-7,
+          "input_cost_per_image_token": 0.000002,
+          "input_cost_per_token": 0.000002,
+          "input_cost_per_token_above_200k_tokens": 0.000004,
+          "input_cost_per_token_above_200k_tokens_batches": 0.0000032,
+          "input_cost_per_token_batches": 0.0000016,
+          "output_cost_per_token": 0.000006,
+          "output_cost_per_token_above_200k_tokens": 0.000012,
+          "output_cost_per_token_above_200k_tokens_batches": 0.0000096,
+          "output_cost_per_token_batches": 0.0000048
+        },
+        "models_dev": null
+      },
+      "provider_code": "xai",
+      "reason": "missing-or-invalid-cache_write",
+      "status": "unavailable",
+      "upstream_model_id": "grok-4.7-latest"
     },
     {
       "model": "xai/grok-build-0.1",
