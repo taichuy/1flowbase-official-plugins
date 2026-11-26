@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-26.1",
+  "catalog_version": "2026-11-26.2",
   "currency_code": "USD",
   "page": 41,
-  "cursor": "YWZ0ZXI6NWY4ZDViMGYtODZiOC00MTExLTk3NWMtZjI5NGZjOWM3ZGVm",
-  "next_cursor": "YWZ0ZXI6YTU5OWIyNzMtNjNkNy00NDlhLTliZmYtNmE1YjU0ODc3NjNk",
+  "cursor": "YWZ0ZXI6MTNhNTA2OTgtM2Q4ZC00ZjYzLTg0ZWUtOWQxNzc5OGU2NTg4",
+  "next_cursor": "YWZ0ZXI6NzhiNTUwNzktMGEyYi00MTgzLWI5MDUtYjE5ZjJkN2ZlOWI2",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/42.json",
   "rules": [
+    {
+      "provider_code": "bedrock_mantle",
+      "upstream_model_id": "openai.gpt-5.6-sol",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "4.4",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "22",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.44",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "5.5",
+      "id": "5f8d5b0f-86b8-4111-975c-f294fc9c7def",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "8.8",
+            "output_token_unit_price": "33",
+            "cache_hit_token_unit_price": "0.88",
+            "cache_write_token_unit_price": "11"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "openai.gpt-5.6-sol",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "openai.gpt-5.6-sol",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "openai.gpt-5.6-sol",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "bedrock_mantle",
+              "model": "openai.gpt-5.6-sol",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "8.8",
+                "output_token_unit_price": "33",
+                "cache_hit_token_unit_price": "0.88",
+                "cache_write_token_unit_price": "11"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "5f8d5b0f-86b8-4111-975c-f294fc9c7def",
+      "source_checksum": "sha256:346a7a4f1d2cdbad4f1e84dc77ca4641954a294c73fd4cab7e50f11397d37bca",
+      "source_version": "2026-11-26.2"
+    },
     {
       "provider_code": "bedrock_mantle",
       "upstream_model_id": "openai.gpt-5.6-terra",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "efcf40ec-48f8-480b-9a0f-0f21f43cbf83",
       "source_checksum": "sha256:818eca35f948d794a1367a1a517639f3474c7c63d3d600fdb569c77d81ca0876",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -193,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "8b2ff44c-b654-45d7-b660-31b2193876ce",
       "source_checksum": "sha256:53283d0ffb01daf34fccc5a35c488ccb9533be9828c52b27ba22fd5f55bd0971",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -287,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "7a5c394d-194a-4672-8235-03ba67f71212",
       "source_checksum": "sha256:a56d2100549fc51ddc4e9170c494d4f213dcebdb119b276648b13e5ee31909ae",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -381,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "691adf81-e5b6-481b-8e1f-7f124ebb3146",
       "source_checksum": "sha256:cebfefe3e876339ba6eda88a92929673504205f47c4434d753389f2e3959caea",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -475,7 +569,7 @@
       "source_kind": "official",
       "source_catalog_id": "6a575374-4062-46cd-8d22-b5640330813a",
       "source_checksum": "sha256:0fa2881f15461d1bb55b4da428729c5afcb02e44e9f01125117ec2c3cadd6fc5",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -569,7 +663,7 @@
       "source_kind": "official",
       "source_catalog_id": "54fe35a8-73f4-4dc3-a21c-3c5053aa3184",
       "source_checksum": "sha256:19b01c8bb761d026f4cf491578f3bf782ae75dfa41520d17f45f500ccb8535a1",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -663,7 +757,7 @@
       "source_kind": "official",
       "source_catalog_id": "f8303b65-f2fa-4d5e-a109-02d7188f514f",
       "source_checksum": "sha256:2319724e045b80958385a02d3bcd2c8bd40bfc0754f1e8f42ee4b3b4cd5ebb7d",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -757,7 +851,7 @@
       "source_kind": "official",
       "source_catalog_id": "32b50483-921d-4078-86a4-c75ee55f5d3b",
       "source_checksum": "sha256:a5862e2aaa3ade98e3ac166138fa51d613ad6e62ff14ae2f893e42a7eeb6a64c",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -851,7 +945,7 @@
       "source_kind": "official",
       "source_catalog_id": "e7fb4df8-ad5f-48ce-9eb8-38ddc48c94b1",
       "source_checksum": "sha256:d072568b9888210a03e4d831148dec626875f4f644304220961031a37f201fc2",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -915,7 +1009,7 @@
       "source_kind": "official",
       "source_catalog_id": "b4d92559-ff72-4122-88ab-88abda489bfc",
       "source_checksum": "sha256:75b4f42f86fb4f96bae8c28556e52ed57df25c5c04f8157ec15274ff00c64b14",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1009,7 +1103,7 @@
       "source_kind": "official",
       "source_catalog_id": "45835da1-5255-4b03-8a20-62930542a8ce",
       "source_checksum": "sha256:c4a4d70ddc25ae5ed884ff4f5d185e092c8339baee15dee4fa6ee949d24a9069",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1103,7 +1197,7 @@
       "source_kind": "official",
       "source_catalog_id": "e3d1332d-57cc-43f0-a936-6f7ba471802e",
       "source_checksum": "sha256:6feec16dcd4cc088bd4ebf0b9daf2f8068520e62cb1155389a0d3c39781a15fd",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1185,7 +1279,7 @@
       "source_kind": "official",
       "source_catalog_id": "ba52fc41-16b1-4e9d-b5a4-9df03924f275",
       "source_checksum": "sha256:35e4288e56f32cb3345f46795de1237f485aad4999916e75598cec09aeae27f1",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1319,7 +1413,7 @@
       "source_kind": "official",
       "source_catalog_id": "061ea8c2-dd4d-49b8-98dd-ba3897290194",
       "source_checksum": "sha256:be6b39cfe6b60555ac93ca2b99e7eaab99341cd999209b17ee21388ff1813e3e",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1401,7 +1495,7 @@
       "source_kind": "official",
       "source_catalog_id": "de581525-eefe-4d27-9b09-1c169a38d29b",
       "source_checksum": "sha256:284f99078459f0d74b868019f5f756edfc715634a27f8516154cff18816c5e3a",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1483,7 +1577,7 @@
       "source_kind": "official",
       "source_catalog_id": "4f63a427-397c-4531-b3cd-97fa42ed0b85",
       "source_checksum": "sha256:0dec6983e8377d7341d98db690dc37fa342de74b267bc77b98cd0cd723f5580e",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1565,7 +1659,7 @@
       "source_kind": "official",
       "source_catalog_id": "a2dc220b-d8a1-47f4-9842-c66a26c8282c",
       "source_checksum": "sha256:b559695427cce888a9d638c47a41ec5a82b3b962c097fab8a8c95578f681758b",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1647,7 +1741,7 @@
       "source_kind": "official",
       "source_catalog_id": "7b91e54b-e378-4fc5-86dc-44536d9ff8e0",
       "source_checksum": "sha256:27ba6467499ea19798794e57a48ad4f1a9d23eabe47d997441591f4f5bff7f00",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "bedrock_mantle",
@@ -1729,101 +1823,7 @@
       "source_kind": "official",
       "source_catalog_id": "78b55079-0a2b-4183-b905-b19f2d7fe9b6",
       "source_checksum": "sha256:3aec0487195d14cc7afe5e4613ca0ead2ffd05fe55f096b47eab6f8c473947ca",
-      "source_version": "2026-11-26.1"
-    },
-    {
-      "provider_code": "bedrock_mantle",
-      "upstream_model_id": "us-gov-west-1/openai.gpt-5.6-luna",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.264",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.584",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.0264",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.33",
-      "id": "a599b273-63d7-449a-9bff-6a5b5487763d",
-      "effective_from": "2026-11-05T00:24:57.602Z",
-      "rules": [
-        {
-          "when": {
-            "input_tokens": {
-              "operator": "gt",
-              "value": 272000
-            }
-          },
-          "overrides": {
-            "input_token_unit_price": "0.528",
-            "output_token_unit_price": "2.376",
-            "cache_hit_token_unit_price": "0.0528",
-            "cache_write_token_unit_price": "0.66"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-05T00:24:57.602Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/openai.gpt-5.6-luna",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/openai.gpt-5.6-luna",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/openai.gpt-5.6-luna",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "bedrock_mantle",
-              "model": "us-gov-west-1/openai.gpt-5.6-luna",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "input_tokens": {
-                  "operator": "gt",
-                  "value": 272000
-                }
-              },
-              "overrides": {
-                "input_token_unit_price": "0.528",
-                "output_token_unit_price": "2.376",
-                "cache_hit_token_unit_price": "0.0528",
-                "cache_write_token_unit_price": "0.66"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "a599b273-63d7-449a-9bff-6a5b5487763d",
-      "source_checksum": "sha256:ca079c83faee3a70a6bd1fac92fc9fbe848ec0b49e4c5bbb0450d71230415797",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     }
   ]
 }

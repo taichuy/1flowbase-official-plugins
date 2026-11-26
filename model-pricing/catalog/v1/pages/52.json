@@ -1,12 +1,106 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-26.1",
+  "catalog_version": "2026-11-26.2",
   "currency_code": "USD",
   "page": 52,
-  "cursor": "YWZ0ZXI6MGRhZTFlZGEtNGZkNC00NmNhLWEyYTItYzYwYzA0ZmZhMmE0",
-  "next_cursor": "YWZ0ZXI6ODk1M2ZkYzQtYjE2NC00YTFkLWE2NzYtMGVkMzAxZmIzZmYz",
+  "cursor": "YWZ0ZXI6YTA4OWFhM2QtYzQ3Zi00NjAxLWE1NDUtMTFlMDIyYTU3OWE2",
+  "next_cursor": "YWZ0ZXI6NzY0ZGVjM2MtN2VlZS00MGEwLTk5ODQtNDJkNjI0YmMyN2Vj",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/53.json",
   "rules": [
+    {
+      "provider_code": "crossmodel",
+      "upstream_model_id": "openai/gpt-5.6-luna",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.2",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "1.2",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.02",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.25",
+      "id": "0dae1eda-4fd4-46ca-a2a2-c60c04ffa2a4",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [
+        {
+          "when": {
+            "input_tokens": {
+              "operator": "gt",
+              "value": 272000
+            }
+          },
+          "overrides": {
+            "input_token_unit_price": "0.4",
+            "output_token_unit_price": "1.8",
+            "cache_hit_token_unit_price": "0.04",
+            "cache_write_token_unit_price": "0.5"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "openai/gpt-5.6-luna",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "openai/gpt-5.6-luna",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "openai/gpt-5.6-luna",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "crossmodel",
+              "model": "openai/gpt-5.6-luna",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "input_tokens": {
+                  "operator": "gt",
+                  "value": 272000
+                }
+              },
+              "overrides": {
+                "input_token_unit_price": "0.4",
+                "output_token_unit_price": "1.8",
+                "cache_hit_token_unit_price": "0.04",
+                "cache_write_token_unit_price": "0.5"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "0dae1eda-4fd4-46ca-a2a2-c60c04ffa2a4",
+      "source_checksum": "sha256:cbf2d8ee27d5e51756441af1a5fc5505cc0a34356e525ec63b22bf418ef0eabe",
+      "source_version": "2026-11-26.2"
+    },
     {
       "provider_code": "crossmodel",
       "upstream_model_id": "openai/gpt-5.6-sol",
@@ -99,7 +193,7 @@
       "source_kind": "official",
       "source_catalog_id": "5b623b8d-d01f-491b-af25-42c0e2363fa0",
       "source_checksum": "sha256:301623b5a92bc5c422a51d2cfcc939ead9e01f83b1e6bcb1903c54c3b805f07f",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -193,7 +287,7 @@
       "source_kind": "official",
       "source_catalog_id": "7fedf50e-38cd-4053-9cbf-c3f6b2a33585",
       "source_checksum": "sha256:04dfd38c83cfdda34ab576a3a2394a319a03c7b1a514c1db28d96604c15c91d1",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -287,7 +381,7 @@
       "source_kind": "official",
       "source_catalog_id": "adde136b-2c57-423d-9ffa-6b7ea287c20d",
       "source_checksum": "sha256:1be584ac601af59db40feca4fbeb7801ea81345cfbdd0783aadbf922938983d3",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -381,7 +475,7 @@
       "source_kind": "official",
       "source_catalog_id": "c72f122f-c65b-49a9-b7a8-5d35d02130f7",
       "source_checksum": "sha256:b1c191c6986a730a40a0b8836e9384c44500f93e129884cf5dca42e0141977fa",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -475,7 +569,7 @@
       "source_kind": "official",
       "source_catalog_id": "e94d5867-0cb0-46b7-b2ef-87372b079cf0",
       "source_checksum": "sha256:0ab39d0044a0028fbd66667702928284b3a442375a2e490df0c0b0c3503a4571",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -569,7 +663,7 @@
       "source_kind": "official",
       "source_catalog_id": "51d15f22-8cc2-4a51-8d2b-e691262f79ed",
       "source_checksum": "sha256:a1ce9f1d6e70d227e6bc9614a92091edce19e20fd4cf6d6f74b074c3eca42a76",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -663,7 +757,7 @@
       "source_kind": "official",
       "source_catalog_id": "f09cc08b-0e35-4d26-87f9-fdd9513107c2",
       "source_checksum": "sha256:48fdfd2cf5f4bd9c5168e87d0e24733b2a9e3a3a46db022f6c8f07d5ad23bea1",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -757,7 +851,7 @@
       "source_kind": "official",
       "source_catalog_id": "d3fe4535-bf24-4e08-897f-0babe6e23109",
       "source_checksum": "sha256:90c3809d31f4311264d5477e39a0b45d9011d22a371a2dd90189bf794604d14d",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -851,7 +945,7 @@
       "source_kind": "official",
       "source_catalog_id": "95295de3-cd53-4656-85a6-c8d5260315fc",
       "source_checksum": "sha256:999626397a1da199b6c908f09b522fa3962b9369ee250ad8887b12a97f9a587b",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -945,7 +1039,7 @@
       "source_kind": "official",
       "source_catalog_id": "f593608c-b2d4-4b18-a960-42d123e9a662",
       "source_checksum": "sha256:3d4373bcdc92f1155c0292970ddd7b91fe68ddc397ba00304a6274a97f00660d",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1039,7 +1133,7 @@
       "source_kind": "official",
       "source_catalog_id": "ec705d53-15de-4974-a7aa-80b22617d40e",
       "source_checksum": "sha256:74b9e44ef26e99b2a33988e4bfa57481ad4559da7ff61df5a5ab38f17022e990",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1161,7 +1255,7 @@
       "source_kind": "official",
       "source_catalog_id": "66d420fc-c9f7-42c8-a613-2fd69a5f5a41",
       "source_checksum": "sha256:629b5723f54cd5bf73a8d37edc3ef2dd599d6a5f2b7f8afa2e24e5b5939b81e8",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1225,7 +1319,7 @@
       "source_kind": "official",
       "source_catalog_id": "d2f08b90-10d7-4f00-9997-1c8d83cff361",
       "source_checksum": "sha256:ca716ded49bca2fc692395b8a638823578f8535533a33eab04e51e213d073f73",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1319,7 +1413,7 @@
       "source_kind": "official",
       "source_catalog_id": "a1cc89d0-d16e-4232-8eb5-b59cb062d897",
       "source_checksum": "sha256:c80c629f1bd306df70dec9d5311d453281f05cbacfca6283b1c0a8e9c5292525",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1383,7 +1477,7 @@
       "source_kind": "official",
       "source_catalog_id": "2bb7d34c-4db4-41c8-adb7-599588ebf690",
       "source_checksum": "sha256:68511b655b5e10bdd29de5241f52baa46799ebc45c776d7b4f35ec66934acea4",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1447,7 +1541,7 @@
       "source_kind": "official",
       "source_catalog_id": "cac19921-5ea0-44b5-8a2f-966311406a80",
       "source_checksum": "sha256:a8d2ad979c1ff8a2c6377ae0772c9633ded044ab0edaa2028270d3368de0e07e",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1511,7 +1605,7 @@
       "source_kind": "official",
       "source_catalog_id": "e7329059-e93d-401e-9587-2b1f55abff9d",
       "source_checksum": "sha256:486a238252ca1c5e2a39af5a8c86ebe39c76271dfe1f97f591dd0da44cc21112",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1575,7 +1669,7 @@
       "source_kind": "official",
       "source_catalog_id": "729ce848-9369-4c48-89d0-a5c1b938f8e3",
       "source_checksum": "sha256:4540c80875aaf2b073014e97114bd81ab78c791a6e11b251eb353090dd52b670",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     },
     {
       "provider_code": "crossmodel",
@@ -1639,71 +1733,7 @@
       "source_kind": "official",
       "source_catalog_id": "764dec3c-7eee-40a0-9984-42d624bc27ec",
       "source_checksum": "sha256:f8d27b316e469e86e638a0a0a9f894044d9fc81c725e308dab85c53e80c759f8",
-      "source_version": "2026-11-26.1"
-    },
-    {
-      "provider_code": "crossmodel",
-      "upstream_model_id": "tencent/hy4",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.96",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "2.88",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.048",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.96",
-      "id": "8953fdc4-b164-4a1d-a676-0ed301fb3ff3",
-      "effective_from": "2026-11-10T10:02:08.968Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-10T10:02:08.968Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "tencent/hy4",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "tencent/hy4",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "tencent/hy4",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "crossmodel",
-              "model": "tencent/hy4",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "8953fdc4-b164-4a1d-a676-0ed301fb3ff3",
-      "source_checksum": "sha256:67e3598886ea8061a9c5fc85471d649699707b1c999b9e5995d8e5061e0a6d4c",
-      "source_version": "2026-11-26.1"
+      "source_version": "2026-11-26.2"
     }
   ]
 }
