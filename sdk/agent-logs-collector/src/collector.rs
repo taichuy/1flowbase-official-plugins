@@ -27,6 +27,14 @@ pub trait SourceAdapter {
         vec![source.to_owned()]
     }
     fn create_context(&self, first: &Value) -> Result<Self::Context>;
+    /// Optional path-aware context hook for formats whose session identity lives in the path.
+    fn create_context_for_path(&self, _path: &Path, first: &Value) -> Result<Self::Context> {
+        self.create_context(first)
+    }
+    /// Optional source identity seed; defaults to the verbatim first line for v1/v2 stability.
+    fn source_identity_seed(&self, _path: &Path, first: &[u8]) -> Vec<u8> {
+        first.to_vec()
+    }
     fn convert(&self, record: &Position, context: &mut Self::Context)
         -> Result<Vec<AgentLogEvent>>;
 }
@@ -209,7 +217,7 @@ async fn prepare<A: SourceAdapter>(
         return Ok(None);
     };
     let mut header = format!("{}:", adapter.source_client()).into_bytes();
-    header.extend_from_slice(&first.bytes);
+    header.extend_from_slice(&adapter.source_identity_seed(file, &first.bytes));
     let identity = hash(header);
     ensure!(
         observed.is_none_or(|id| id == &identity),
@@ -277,7 +285,7 @@ async fn prepare<A: SourceAdapter>(
             .transpose()?
             .context("Missing source header")?
             .decode()?;
-        let mut recovered = adapter.create_context(&first.line)?;
+        let mut recovered = adapter.create_context_for_path(file, &first.line)?;
         if legacy {
             adapter.convert(&first, &mut recovered)?;
             for (index, raw) in records.enumerate() {
@@ -581,7 +589,7 @@ pub(crate) async fn collect_locked<A: SourceAdapter>(
             continue;
         };
         let mut header = format!("{}:", adapter.source_client()).into_bytes();
-        header.extend_from_slice(&first.bytes);
+        header.extend_from_slice(&adapter.source_identity_seed(&path, &first.bytes));
         let identity = hash(header);
         ensure!(
             path_index.get(&path).is_none_or(|old| old == &identity),

@@ -65,12 +65,15 @@ case "$collector_code" in
   opencode-logs-collector)
     client=opencode; home_option=--client-home
     client_home=${client_home:-"${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"} ;;
+  antigravity-logs-collector)
+    client=antigravity; home_option=--client-home
+    client_home=${client_home:-"${GEMINI_HOME:-$HOME/.gemini}"} ;;
   *) printf 'Unknown collector\n' >&2; exit 2 ;;
 esac
 install_dir=${install_dir:-"${XDG_DATA_HOME:-$HOME/.local/share}/1flowbase/collectors/$client/$installation_id"}
 config_path=${config_path:-"$install_dir/config.json"}
 if [[ -z "$source_path" ]]; then
-  case "$client" in codex|claude-code) source_path=$client_home ;; *) source_path="$install_dir/source" ;; esac
+  case "$client" in codex|claude-code|antigravity) source_path=$client_home ;; *) source_path="$install_dir/source" ;; esac
 fi
 service_name="1flowbase-$client-logs-$installation_id"
 binary_path="$install_dir/bin/$collector_code"

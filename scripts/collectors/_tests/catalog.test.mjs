@@ -10,7 +10,7 @@ const repoRoot = path.resolve(import.meta.dirname, '../../..');
 test('client collectors do not enter existing host runtime packaging', () => {
   const collectors = listCollectors(repoRoot);
   assert.deepEqual(collectors.map(item => item.collector_code), [
-    "claude-code-logs-collector", "codex-logs-collector",
+    "antigravity-logs-collector", "claude-code-logs-collector", "codex-logs-collector",
     "deepseek-harness-logs-collector", "opencode-logs-collector",
   ]);
   assert.equal(collectors[0].execution_target, 'client');

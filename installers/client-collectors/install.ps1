@@ -21,12 +21,13 @@ switch ($Collector) {
     'claude-code-logs-collector' { $Client = 'claude-code'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }) }
     'deepseek-harness-logs-collector' { $Client = 'deepseek-harness'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }) }
     'opencode-logs-collector' { $Client = 'opencode'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:OPENCODE_CONFIG_DIR) { $env:OPENCODE_CONFIG_DIR } else { Join-Path $(if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $env:USERPROFILE '.config' }) 'opencode' }) }
+    'antigravity-logs-collector' { $Client = 'antigravity'; $HomeOption = '--client-home'; $DefaultHome = $(if ($env:GEMINI_HOME) { $env:GEMINI_HOME } else { Join-Path $env:USERPROFILE '.gemini' }) }
     default { throw 'Unknown collector' }
 }
 if (-not $ClientHome) { $ClientHome = $DefaultHome }
 if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA "1flowbase\collectors\$Client\$InstallationId" }
 if (-not $Config) { $Config = Join-Path $InstallDir 'config.json' }
-if (-not $Source) { $Source = $(if ($Client -in @('codex', 'claude-code')) { $ClientHome } else { Join-Path $InstallDir 'source' }) }
+if (-not $Source) { $Source = $(if ($Client -in @('codex', 'claude-code', 'antigravity')) { $ClientHome } else { Join-Path $InstallDir 'source' }) }
 $BinaryPath = Join-Path $InstallDir "bin\$Collector.exe"
 $TaskName = "1flowbase-$Client-logs-$InstallationId"
 $User = [System.Security.Principal.WindowsIdentity]::GetCurrent()

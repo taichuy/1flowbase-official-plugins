@@ -1136,3 +1136,76 @@ async fn native_journal_only_uploads_queued_sources_and_retains_failure() {
     assert!(append_record(&f.config, &Blocks, "native-a", &json!({"turn":"a"})).is_err());
     assert_eq!(fs::read(path).unwrap(), b"{");
 }
+
+struct PathKeyed;
+impl SourceAdapter for PathKeyed {
+    type Context = String;
+    fn source_client(&self) -> &'static str {
+        "path-keyed-fixture"
+    }
+    fn create_context(&self, _: &Value) -> anyhow::Result<Self::Context> {
+        anyhow::bail!("path-aware hook must be called")
+    }
+    fn create_context_for_path(&self, path: &Path, _: &Value) -> anyhow::Result<Self::Context> {
+        Ok(path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_owned())
+    }
+    fn source_identity_seed(&self, path: &Path, first: &[u8]) -> Vec<u8> {
+        let mut seed = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .as_bytes()
+            .to_vec();
+        seed.push(b':');
+        seed.extend_from_slice(first);
+        seed
+    }
+    fn convert(
+        &self,
+        record: &Position,
+        session: &mut Self::Context,
+    ) -> anyhow::Result<Vec<AgentLogEvent>> {
+        Ok(vec![AgentLogEvent {
+            event_id: String::new(),
+            source_session_id: session.clone(),
+            source_task_id: format!("{session}:t1"),
+            parent_source_task_id: None,
+            sequence: 0,
+            occurred_at: TS.into(),
+            kind: AgentLogEventKind::User,
+            content: record.line["content"].as_str().map(str::to_owned),
+            phase: None,
+            name: None,
+            call_id: None,
+            model_id: None,
+            reasoning_effort: None,
+            provider_code: None,
+            usage: None,
+            inherited: false,
+            raw: record.line.clone(),
+        }])
+    }
+}
+
+#[tokio::test]
+async fn path_context_and_identity_seed_isolate_identical_headers() {
+    let f = Fixture::new();
+    let identical = format!("{}\n", json!({"content": "same start"}));
+    fs::write(f.directory.join("source/alpha.jsonl"), &identical).unwrap();
+    fs::write(f.directory.join("source/beta.jsonl"), &identical).unwrap();
+    let report = collect(&f.config, &PathKeyed).await.unwrap();
+    assert_eq!(report.uploaded, 2);
+    let sessions: std::collections::BTreeSet<String> = f
+        .events()
+        .iter()
+        .filter_map(|e| e["source_session_id"].as_str().map(str::to_owned))
+        .collect();
+    assert_eq!(
+        sessions,
+        std::collections::BTreeSet::from(["alpha".to_owned(), "beta".to_owned()])
+    );
+}
