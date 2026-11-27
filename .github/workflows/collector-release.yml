@@ -85,14 +85,19 @@ jobs:
         run: |
           if [ '${{ matrix.os }}' = linux ]; then
             cross build --locked --release --manifest-path '${{ matrix.plugin_dir }}/Cargo.toml' --target '${{ matrix.rust_target }}'
+          elif [ '${{ matrix.os }}' = windows ]; then
+            CARGO_TARGET_DIR="${RUNNER_TEMP}/t" cargo build --locked --release --manifest-path '${{ matrix.plugin_dir }}/Cargo.toml' --target '${{ matrix.rust_target }}'
           else
             cargo build --locked --release --manifest-path '${{ matrix.plugin_dir }}/Cargo.toml' --target '${{ matrix.rust_target }}'
           fi
       - name: Package client executable
         shell: bash
         run: |
-          binary='${{ matrix.plugin_dir }}/target/${{ matrix.rust_target }}/release/${{ matrix.entry }}'
-          if [ '${{ matrix.os }}' = windows ]; then binary="${binary}.exe"; fi
+          if [ '${{ matrix.os }}' = windows ]; then
+            binary="${RUNNER_TEMP}/t/${{ matrix.rust_target }}/release/${{ matrix.entry }}.exe"
+          else
+            binary='${{ matrix.plugin_dir }}/target/${{ matrix.rust_target }}/release/${{ matrix.entry }}'
+          fi
           node scripts/collectors/package.mjs '${{ matrix.collector_code }}' '${{ matrix.rust_target }}' "$binary" dist/collectors
       - uses: actions/upload-artifact@v7
         with:
