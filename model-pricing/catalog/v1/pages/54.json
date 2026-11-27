@@ -1,12 +1,322 @@
 {
   "schema_version": "1flowbase.model-pricing-page/v2",
-  "catalog_version": "2026-11-27.2",
+  "catalog_version": "2026-11-27.3",
   "currency_code": "USD",
   "page": 54,
-  "cursor": "YWZ0ZXI6NmRhNTI0ODAtZGQwNy00ODkxLThmYjctODMwYzA0OTY0YjNh",
-  "next_cursor": "YWZ0ZXI6YzlmZjNkZDUtOGJlZS00Zjk2LThjYjUtYjNkNDgyNjEwZmI5",
+  "cursor": "YWZ0ZXI6ZTc4YWQyZDUtYWJlNi00NzI3LWEwZDUtYjliMzBkZThkMWQ5",
+  "next_cursor": "YWZ0ZXI6MzU5MGQ3YzUtNGEwMy00YWM4LWI3ODItYjM4YzUxNmY5YjNl",
   "next_page_locator": "https://raw.githubusercontent.com/taichuy/1flowbase-official-plugins/main/model-pricing/catalog/v1/pages/55.json",
   "rules": [
+    {
+      "provider_code": "dashscope",
+      "upstream_model_id": "qwen3.8-flash",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "0.15",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "0.47",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.016",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "0.2",
+      "id": "721c6952-9c07-4200-a18b-47fe710b3db2",
+      "effective_from": "2026-10-31T02:01:38.612Z",
+      "rules": [],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-10-31T02:01:38.612Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen3.8-flash",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen3.8-flash",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen3.8-flash",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen3.8-flash",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": []
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "721c6952-9c07-4200-a18b-47fe710b3db2",
+      "source_checksum": "sha256:1741d039f193c85eaafd0f8e1f82250e060bceb15cd93ba69384889866748ad5",
+      "source_version": "2026-11-27.3"
+    },
+    {
+      "provider_code": "dashscope",
+      "upstream_model_id": "qwen4-max",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "1.5",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "4.5",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.075",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "1.875",
+      "id": "b7b918b1-6446-46e3-834e-06b919c08dd0",
+      "effective_from": "2026-11-17T22:58:02.891Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "3"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-17T22:58:02.891Z",
+          "meters": {
+            "input": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen4-max",
+              "field": "input_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "output": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen4-max",
+              "field": "output_cost_per_token",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_hit": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen4-max",
+              "field": "cache_read_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            },
+            "cache_write": {
+              "source": "litellm",
+              "provider": "dashscope",
+              "model": "qwen4-max",
+              "field": "cache_creation_input_token_cost",
+              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "3"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "b7b918b1-6446-46e3-834e-06b919c08dd0",
+      "source_checksum": "sha256:54fa2511cfa5bf69735b83ea35c7f0321540c908da0a3cacc0e0b48f8749e779",
+      "source_version": "2026-11-27.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-claude-fable-5",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "1",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "f0320f5e-cf0f-452b-85ea-46a1de74b676",
+      "effective_from": "2026-11-24T23:30:56.762Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "19.99998"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-24T23:30:56.762Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "19.99998"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "f0320f5e-cf0f-452b-85ea-46a1de74b676",
+      "source_checksum": "sha256:d224547475f84c3573cd670b6d23d7d5a362687c0c83ffce0fdfd6fc1d6666cc",
+      "source_version": "2026-11-27.3"
+    },
+    {
+      "provider_code": "databricks",
+      "upstream_model_id": "databricks-claude-fable-5-1",
+      "currency_code": "USD",
+      "effective_to": null,
+      "timezone": "UTC",
+      "weekday_mask": 127,
+      "local_time_start": null,
+      "local_time_end": null,
+      "priority": 0,
+      "enabled": true,
+      "input_token_unit_size": 1000000,
+      "input_token_unit_price": "10",
+      "output_token_unit_size": 1000000,
+      "output_token_unit_price": "50",
+      "cache_hit_token_unit_size": 1000000,
+      "cache_hit_token_unit_price": "0.25",
+      "cache_write_token_unit_size": 1000000,
+      "cache_write_token_unit_price": "12.5",
+      "id": "6da52480-dd07-4891-8fb7-830c04964b3a",
+      "effective_from": "2026-11-24T23:30:56.762Z",
+      "rules": [
+        {
+          "when": {
+            "cache_write_ttl_seconds": 3600
+          },
+          "overrides": {
+            "cache_write_token_unit_price": "19.99998"
+          }
+        }
+      ],
+      "extensions": {
+        "source": "community_pricing",
+        "price_sync": {
+          "synced_at": "2026-11-24T23:30:56.762Z",
+          "meters": {
+            "input": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5-1",
+              "field": "cost.input",
+              "url": "https://models.dev/api.json"
+            },
+            "output": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5-1",
+              "field": "cost.output",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_hit": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5-1",
+              "field": "cost.cache_read",
+              "url": "https://models.dev/api.json"
+            },
+            "cache_write": {
+              "source": "models.dev",
+              "provider": "databricks",
+              "model": "databricks-claude-fable-5-1",
+              "field": "cost.cache_write",
+              "url": "https://models.dev/api.json"
+            }
+          },
+          "rules": [
+            {
+              "when": {
+                "cache_write_ttl_seconds": 3600
+              },
+              "overrides": {
+                "cache_write_token_unit_price": "19.99998"
+              }
+            }
+          ]
+        }
+      },
+      "source_kind": "official",
+      "source_catalog_id": "6da52480-dd07-4891-8fb7-830c04964b3a",
+      "source_checksum": "sha256:13f11e4feb27def61012438012f902001ef8e23c1c82947776e6fd17a64f66f4",
+      "source_version": "2026-11-27.3"
+    },
     {
       "provider_code": "databricks",
       "upstream_model_id": "databricks-claude-fable-5-2",
@@ -87,7 +397,7 @@
       "source_kind": "official",
       "source_catalog_id": "2746ddb0-dbbb-4473-a1a8-a6daabadc0d4",
       "source_checksum": "sha256:696819343bc6ed6e82cc6d7d80045d2fbacbf0b566ae6f66e364e6bc48d65cf2",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -169,7 +479,7 @@
       "source_kind": "official",
       "source_catalog_id": "5269d492-d077-435a-8cdf-a46a5d74ab6f",
       "source_checksum": "sha256:e50d3e6dac3e96138af2988b8ef75a1479e31d8d46573dff37b58843ccc68532",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -303,7 +613,7 @@
       "source_kind": "official",
       "source_catalog_id": "ae4dc2d5-1aea-415d-8fc5-a383155cb883",
       "source_checksum": "sha256:800e3f01f9815d97eaa4f980cbdcc5f07ecb4f95b18e20616372217230305c03",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -385,7 +695,7 @@
       "source_kind": "official",
       "source_catalog_id": "8f43f676-36e7-466e-a726-ec4ec68eec29",
       "source_checksum": "sha256:0eea5377a3edcfe6f527f6cf6945bd1fd6c89555aacc87781a717245de98207e",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -467,7 +777,7 @@
       "source_kind": "official",
       "source_catalog_id": "d54f0977-7481-432e-a8ed-4a15ad1c6aba",
       "source_checksum": "sha256:82e25835c6ef4e22e55790f94b4d784d80a5317afebefcdcc6db966a6a2b4f0a",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -549,7 +859,7 @@
       "source_kind": "official",
       "source_catalog_id": "2cfe2483-7e96-485a-9770-946d65986aa1",
       "source_checksum": "sha256:19fc729cb0d5ba85ddeba72ed7e61ee3c42308b7898cbb2daddf8015c5376e67",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -631,7 +941,7 @@
       "source_kind": "official",
       "source_catalog_id": "b92d8e9f-7a3c-492f-a776-2daa888d7594",
       "source_checksum": "sha256:424b21b7d25741d18767fa95fc976b1ddb22aa7b64a519690858d4dce6fb156b",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -713,7 +1023,7 @@
       "source_kind": "official",
       "source_catalog_id": "b16a03b4-26e6-4435-9fab-d4ef80739514",
       "source_checksum": "sha256:0bbe1d7853c5a07a7b584cc483de2c4afc6daf72ff8a81505bc83bfc21c18ce1",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -795,7 +1105,7 @@
       "source_kind": "official",
       "source_catalog_id": "9c077c2b-5d52-4657-bf1c-17211e5ba73c",
       "source_checksum": "sha256:5c4591a4b8a14280286ad696a6edd386c6ab7d2d6ee886cdabdc66a00d44abf1",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -877,7 +1187,7 @@
       "source_kind": "official",
       "source_catalog_id": "a0fd3a11-0456-4401-9ce3-009333d4935e",
       "source_checksum": "sha256:067aa456d63ad1dcf9d280b65ef4ed33d4d495aa107f44a7c700c0bc404a9ee3",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -959,7 +1269,7 @@
       "source_kind": "official",
       "source_catalog_id": "f9559cf0-7e65-4043-a233-bfdb262bec30",
       "source_checksum": "sha256:fdbd0d1405b8b4b26bfff549eb8cd225bbeb457a1dbd9d529dc267ded90b9939",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -1023,7 +1333,7 @@
       "source_kind": "official",
       "source_catalog_id": "c0461bd1-5f9b-4ebf-aef5-aa9cdf906261",
       "source_checksum": "sha256:e4a5ab039ffcb69eed7d566ee4fa011755a814c92f2477f86d8ca49364c070ea",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -1087,7 +1397,7 @@
       "source_kind": "official",
       "source_catalog_id": "38c06485-8116-4b00-a072-7b6615b4ac40",
       "source_checksum": "sha256:a3b447af36fadeb812680ab81ceb1b2a7e58fe93d7a82cf8b7a085e2dd736e6b",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -1169,7 +1479,7 @@
       "source_kind": "official",
       "source_catalog_id": "2c94b277-fdb6-41d6-ba13-b3f59712b749",
       "source_checksum": "sha256:d9c240ecee638ecf1a2a00216b3ae2a57f16adb1307c6f1384916e3ba644c2e5",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -1251,7 +1561,7 @@
       "source_kind": "official",
       "source_catalog_id": "641ceb04-765b-42bd-917e-5709b4202144",
       "source_checksum": "sha256:a715b6a3443298453358046f1b070af714e594a4c4ad1559c025cbf3adb84e62",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     },
     {
       "provider_code": "databricks",
@@ -1333,281 +1643,7 @@
       "source_kind": "official",
       "source_catalog_id": "3590d7c5-4a03-4ac8-b782-b38c516f9b3e",
       "source_checksum": "sha256:6970def62876754ffd1de2f75b7c7daa5c5d5df015b751d9577bbc99cf65c936",
-      "source_version": "2026-11-27.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-claude-sonnet-5-5",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "2",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "10",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.1",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "2.5",
-      "id": "99e146a4-8fec-4370-a783-3cb04740a015",
-      "effective_from": "2026-11-24T23:30:56.762Z",
-      "rules": [
-        {
-          "when": {
-            "cache_write_ttl_seconds": 3600
-          },
-          "overrides": {
-            "cache_write_token_unit_price": "4.00001"
-          }
-        }
-      ],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-24T23:30:56.762Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-claude-sonnet-5-5",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-claude-sonnet-5-5",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-claude-sonnet-5-5",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-claude-sonnet-5-5",
-              "field": "cost.cache_write",
-              "url": "https://models.dev/api.json"
-            }
-          },
-          "rules": [
-            {
-              "when": {
-                "cache_write_ttl_seconds": 3600
-              },
-              "overrides": {
-                "cache_write_token_unit_price": "4.00001"
-              }
-            }
-          ]
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "99e146a4-8fec-4370-a783-3cb04740a015",
-      "source_checksum": "sha256:4bbaf2630bff3cc8432148bc53af91a180c7b14348c8234d508038cd3a0e9f82",
-      "source_version": "2026-11-27.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-deepseek-v4-1-flash",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.30002",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.20001",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.03003",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.30002",
-      "id": "da8b0fb8-3a8c-48b1-913f-e909e4b43980",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "da8b0fb8-3a8c-48b1-913f-e909e4b43980",
-      "source_checksum": "sha256:a80997ba1e75936ec24453dbab2980cf18c5ed7b26d70b6890eb8b0a74b3a17c",
-      "source_version": "2026-11-27.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-deepseek-v4-1-flash-1017",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.3",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "1.2",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.007",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.30002",
-      "id": "dc59fad9-a8bf-457f-814e-79db22a36d88",
-      "effective_from": "2026-11-24T23:30:56.762Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-11-24T23:30:56.762Z",
-          "meters": {
-            "input": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash-1017",
-              "field": "cost.input",
-              "url": "https://models.dev/api.json"
-            },
-            "output": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash-1017",
-              "field": "cost.output",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_hit": {
-              "source": "models.dev",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash-1017",
-              "field": "cost.cache_read",
-              "url": "https://models.dev/api.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-1-flash-1017",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "dc59fad9-a8bf-457f-814e-79db22a36d88",
-      "source_checksum": "sha256:60f9cd1f504bf59cd490c4f20acdcb05659e5fa496f04e3a9057fdbacb36fbfa",
-      "source_version": "2026-11-27.2"
-    },
-    {
-      "provider_code": "databricks",
-      "upstream_model_id": "databricks-deepseek-v4-flash-0731",
-      "currency_code": "USD",
-      "effective_to": null,
-      "timezone": "UTC",
-      "weekday_mask": 127,
-      "local_time_start": null,
-      "local_time_end": null,
-      "priority": 0,
-      "enabled": true,
-      "input_token_unit_size": 1000000,
-      "input_token_unit_price": "0.14",
-      "output_token_unit_size": 1000000,
-      "output_token_unit_price": "0.28",
-      "cache_hit_token_unit_size": 1000000,
-      "cache_hit_token_unit_price": "0.028",
-      "cache_write_token_unit_size": 1000000,
-      "cache_write_token_unit_price": "0.14",
-      "id": "c9ff3dd5-8bee-4f96-8cb5-b3d482610fb9",
-      "effective_from": "2026-10-31T02:01:38.612Z",
-      "rules": [],
-      "extensions": {
-        "source": "community_pricing",
-        "price_sync": {
-          "synced_at": "2026-10-31T02:01:38.612Z",
-          "meters": {
-            "input": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-flash-0731",
-              "field": "input_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "output": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-flash-0731",
-              "field": "output_cost_per_token",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_hit": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-flash-0731",
-              "field": "cache_read_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            },
-            "cache_write": {
-              "source": "litellm",
-              "provider": "databricks",
-              "model": "databricks-deepseek-v4-flash-0731",
-              "field": "cache_creation_input_token_cost",
-              "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            }
-          },
-          "rules": []
-        }
-      },
-      "source_kind": "official",
-      "source_catalog_id": "c9ff3dd5-8bee-4f96-8cb5-b3d482610fb9",
-      "source_checksum": "sha256:e7737062f25f51fd2805c390ebfaba31c6b7156f938fe018b2b2b287b920034a",
-      "source_version": "2026-11-27.2"
+      "source_version": "2026-11-27.3"
     }
   ]
 }
